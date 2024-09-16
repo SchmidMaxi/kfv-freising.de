@@ -1,0 +1,86 @@
+#ddev-generated
+
+http:
+  routers:
+    
+    
+    kfv-freising.de-web-80-http:
+      
+      rule: HostRegexp(`kfv-freising.de.ddev.site`)
+      
+      service: "kfv-freising.de-web-80-http"
+      tls: false
+      entrypoints:
+        - http-80
+    
+    
+    kfv-freising.de-web-8025-http:
+      
+      rule: HostRegexp(`kfv-freising.de.ddev.site`)
+      
+      service: "kfv-freising.de-web-8025-http"
+      tls: false
+      entrypoints:
+        - http-8025
+    
+    
+    
+    
+    
+    
+    kfv-freising.de-web-80-https:
+      
+      rule: HostRegexp(`kfv-freising.de.ddev.site`)
+      
+      service: "kfv-freising.de-web-80-https"
+      
+      tls: true
+      
+      entrypoints:
+        - http-443
+    
+    
+    kfv-freising.de-web-8025-https:
+      
+      rule: HostRegexp(`kfv-freising.de.ddev.site`)
+      
+      service: "kfv-freising.de-web-8025-https"
+      
+      tls: true
+      
+      entrypoints:
+        - http-8026
+    
+    
+
+  services:
+    
+    kfv-freising.de-web-80-http:
+      loadbalancer:
+        servers:
+          - url: http://ddev-kfv-freising.de-web:80
+    
+    kfv-freising.de-web-8025-http:
+      loadbalancer:
+        servers:
+          - url: http://ddev-kfv-freising.de-web:8025
+    
+    kfv-freising.de-web-80-https:
+    
+      loadbalancer:
+        servers:
+          - url: http://ddev-kfv-freising.de-web:80
+    
+    kfv-freising.de-web-8025-https:
+    
+      loadbalancer:
+        servers:
+          - url: http://ddev-kfv-freising.de-web:8025
+    
+
+
+tls:
+  certificates:
+    - certFile: /mnt/ddev-global-cache/traefik/certs/kfv-freising.de.crt
+      keyFile: /mnt/ddev-global-cache/traefik/certs/kfv-freising.de.key
+
