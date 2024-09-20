@@ -1,0 +1,8 @@
+config {
+    no_cache = 0
+    removeDefaultJS = 0
+    admPanel = 1
+    prefixLocalAnchors = all
+    headerComment = Made with <3 by Maxi Schmid | maxischmid.de
+    sendCacheHeaders = 1
+}

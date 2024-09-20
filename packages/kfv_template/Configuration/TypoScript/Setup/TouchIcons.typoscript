@@ -1,0 +1,124 @@
+# Touch icons
+page {
+    headerData.502 = COA
+    headerData.502 {
+        // Apple touch icons
+        10 = IMG_RESOURCE
+        10 {
+            file = {$page.touchIcon}
+            file {
+                width = 57c
+                height = 57c
+            }
+            stdWrap.dataWrap = <link rel="apple-touch-icon" sizes="{TSFE:lastImgResourceInfo|0}x{TSFE:lastImgResourceInfo|1}" href="|">
+        }
+
+        20 < .10
+        20.file {
+            width = 72c
+            height = 72c
+        }
+
+        30 < .10
+        30.file {
+            width = 76c
+            height = 76c
+        }
+
+        40 < .10
+        40.file {
+            width = 114c
+            height = 114c
+        }
+
+        50 < .10
+        50.file {
+            width = 120c
+            height = 120c
+        }
+
+        60 < .10
+        60.file {
+            width = 144c
+            height = 144c
+        }
+
+        70 < .10
+        70.file {
+            width = 152c
+            height = 152c
+        }
+
+        80 < .10
+        80.file {
+            width = 180c
+            height = 180c
+        }
+
+        // Android icons
+        90 < .10
+        90 {
+            file {
+                width = 16c
+                height = 16c
+            }
+            stdWrap.dataWrap = <link rel="icon" type="image/png" sizes="{TSFE:lastImgResourceInfo|0}x{TSFE:lastImgResourceInfo|1}" href="|">
+        }
+        100 < .90
+        100 {
+            file {
+                width = 196c
+                height = 196c
+            }
+        }
+
+        // Microsoft Application icons
+        200 < .10
+        200 {
+            file {
+                width = 70c
+                height = 70c
+            }
+            stdWrap.dataWrap = <meta name="msapplication-square{TSFE:lastImgResourceInfo|0}x{TSFE:lastImgResourceInfo|1}logo" content="|"/>
+        }
+        210 < .200
+        210 {
+            file {
+                width = 150c
+                height = 150c
+            }
+        }
+        220 < .200
+        220 {
+            file {
+                width = 310c
+                height = 310c
+            }
+        }
+        // Microsoft specials
+        230 < .200
+        230 {
+            file {
+                width = 16c
+                height = 16c
+            }
+            stdWrap.dataWrap = <link rel="icon" type="image/png" sizes="{TSFE:lastImgResourceInfo|0}x{TSFE:lastImgResourceInfo|1}" href="|"/>
+        }
+
+        240 < .230
+        240 {
+            file {
+                width = 24c
+                height = 24c
+            }
+        }
+
+        250 < .230
+        250 {
+            file {
+                width = 32c
+                height = 32c
+            }
+        }
+    }
+}

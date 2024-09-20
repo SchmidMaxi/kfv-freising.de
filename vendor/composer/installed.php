@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => '__root__',
-        'pretty_version' => '1.0.0+no-version-set',
-        'version' => '1.0.0.0',
-        'reference' => null,
+        'pretty_version' => 'dev-main',
+        'version' => 'dev-main',
+        'reference' => '6c97dbc5072a85ac08f91bd42793e27e7d222eed',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -11,9 +11,9 @@
     ),
     'versions' => array(
         '__root__' => array(
-            'pretty_version' => '1.0.0+no-version-set',
-            'version' => '1.0.0.0',
-            'reference' => null,
+            'pretty_version' => 'dev-main',
+            'version' => 'dev-main',
+            'reference' => '6c97dbc5072a85ac08f91bd42793e27e7d222eed',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
@@ -43,6 +43,15 @@
                 0 => '*',
             ),
         ),
+        'contentblocks/content-blocks' => array(
+            'pretty_version' => '0.7.17',
+            'version' => '0.7.17.0',
+            'reference' => '266f2d9de81103888f7d011ac2f56c6092101ebd',
+            'type' => 'typo3-cms-extension',
+            'install_path' => __DIR__ . '/../contentblocks/content-blocks',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
         'dasprid/enum' => array(
             'pretty_version' => '1.0.6',
             'version' => '1.0.6.0',
@@ -51,6 +60,15 @@
             'install_path' => __DIR__ . '/../dasprid/enum',
             'aliases' => array(),
             'dev_requirement' => false,
+        ),
+        'deployer/deployer' => array(
+            'pretty_version' => 'v7.4.0',
+            'version' => '7.4.0.0',
+            'reference' => 'b438dc22545ab2ecc67d79c80c7a79c156de3599',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../deployer/deployer',
+            'aliases' => array(),
+            'dev_requirement' => true,
         ),
         'doctrine/annotations' => array(
             'pretty_version' => '2.0.2',
@@ -142,6 +160,15 @@
             'aliases' => array(),
             'dev_requirement' => false,
         ),
+        'georgringer/news' => array(
+            'pretty_version' => '11.4.2',
+            'version' => '11.4.2.0',
+            'reference' => 'c4c08098f09c3cac4e6e780b31a471b9bd675ad3',
+            'type' => 'typo3-cms-extension',
+            'install_path' => __DIR__ . '/../georgringer/news',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
         'guzzlehttp/guzzle' => array(
             'pretty_version' => '7.9.2',
             'version' => '7.9.2.0',
@@ -196,6 +223,15 @@
             'reference' => 'f5ac2c0b0a2eefca70b2ce32a5809992227e75a6',
             'type' => 'library',
             'install_path' => __DIR__ . '/../masterminds/html5',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'maxi-schmid/kfv-template' => array(
+            'pretty_version' => 'dev-main',
+            'version' => 'dev-main',
+            'reference' => '978e91c10ce5849c838c7d03e76cc157f85b4fb6',
+            'type' => 'typo3-cms-extension',
+            'install_path' => __DIR__ . '/../maxi-schmid/kfv-template',
             'aliases' => array(),
             'dev_requirement' => false,
         ),
@@ -400,6 +436,15 @@
             'reference' => '120b605dfeb996808c31b6477290a714d356e822',
             'type' => 'library',
             'install_path' => __DIR__ . '/../ralouphie/getallheaders',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'scssphp/scssphp' => array(
+            'pretty_version' => 'v1.13.0',
+            'version' => '1.13.0.0',
+            'reference' => '63d1157457e5554edf00b0c1fabab4c1511d2520',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../scssphp/scssphp',
             'aliases' => array(),
             'dev_requirement' => false,
         ),
@@ -745,6 +790,27 @@
             'aliases' => array(),
             'dev_requirement' => false,
         ),
+        'trion/scss-compiler' => array(
+            'pretty_version' => '2.0.0',
+            'version' => '2.0.0.0',
+            'reference' => '69eededf8fe4d0641cb03f5a216f4599c3054ed5',
+            'type' => 'typo3-cms-extension',
+            'install_path' => __DIR__ . '/../trion/scss-compiler',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'typo3-ter/news' => array(
+            'dev_requirement' => false,
+            'replaced' => array(
+                0 => '11.4.2',
+            ),
+        ),
+        'typo3-ter/scss-compiler' => array(
+            'dev_requirement' => false,
+            'replaced' => array(
+                0 => '2.0.0',
+            ),
+        ),
         'typo3/class-alias-loader' => array(
             'pretty_version' => 'v1.1.4',
             'version' => '1.1.4.0',
@@ -813,6 +879,12 @@
             'install_path' => __DIR__ . '/../typo3/cms-composer-installers',
             'aliases' => array(),
             'dev_requirement' => false,
+        ),
+        'typo3/cms-content-blocks' => array(
+            'dev_requirement' => false,
+            'replaced' => array(
+                0 => '*',
+            ),
         ),
         'typo3/cms-context-help' => array(
             'dev_requirement' => false,

@@ -36,12 +36,25 @@
         "typo3/cms-viewpage": "^12.4",
         "typo3/cms-webhooks": "^12.4",
         "typo3/cms-workspaces": "^12.4",
-        "typo3/minimal": "^12"
+        "typo3/minimal": "^12",
+        "maxi-schmid/kfv-template": "@dev",
+        "trion/scss-compiler": "@dev",
+        "georgringer/news": "^11.4",
+        "contentblocks/content-blocks": "^0.7.17"
     },
     "config": {
         "allow-plugins": {
             "typo3/class-alias-loader": true,
             "typo3/cms-composer-installers": true
         }
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "./packages/*"
+        }
+    ],
+    "require-dev": {
+        "deployer/deployer": "^7.4"
     }
 }

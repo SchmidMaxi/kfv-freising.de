@@ -1,0 +1,214 @@
+<f:section name="Primary">
+  <nav class="navbar navbar-expand-lg bg-body">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">Navbar</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarContent">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <f:for each="{primaryNavigation}" as="navItem" iteration="i">
+            <f:if condition="{navItem.children}">
+              <f:then>
+                <li class="nav-item dropdown">
+                  <f:link.typolink
+                    parameter="#"
+                    class="nav-link dropdown-toggle {f:if(condition:navItem.active, then:' active')}"
+                    additionalAttributes="{role:'button', aria-expanded:'false', data-bs-toggle:'dropdown', aria-current:'{f:if(condition:navItem.current, then:\'page\')}'}"
+                  >
+                    {navItem.title}
+                  </f:link.typolink>
+                  <ul class="dropdown-menu">
+                    <f:for each="{navItem.children}" as="child" iteration="i">
+                      <li>
+                        <f:link.typolink
+                          parameter="{child.link}"
+                          class="dropdown-item{f:if(condition:child.active, then:' active')}"
+                          additionalAttributes="{aria-current:'{f:if(condition:navItem.current, then:\'page\')}'}"
+                        >
+                          {child.title}
+                        </f:link.typolink>
+                      </li>
+                    </f:for>
+                  </ul>
+                </li>
+              </f:then>
+              <f:else>
+                <li class="nav-item">
+                  <f:link.typolink
+                    parameter="{navItem.link}"
+                    class="nav-link{f:if(condition:navItem.active, then:' active')}"
+                    additionalAttributes="{aria-current:'{f:if(condition:navItem.current, then:\'page\')}'}"
+                  >
+                    {navItem.title}
+                  </f:link.typolink>
+                </li>
+              </f:else>
+            </f:if>
+          </f:for>
+        </ul>
+        <ul class="nav d-lg-none">
+          <f:for each="{secondaryNavigation}" as="navItem" iteration="i">
+            <f:if condition="{navItem.children}">
+              <f:then>
+                <li class="nav-item dropdown">
+                  <f:link.typolink
+                    parameter="#"
+                    class="nav-link dropdown-toggle {f:if(condition:navItem.active, then:' active')}"
+                    additionalAttributes="{role:'button', aria-expanded:'false', data-bs-toggle:'dropdown', aria-current:'{f:if(condition:navItem.current, then:\'page\')}'}"
+                  >
+                    {navItem.title}
+                  </f:link.typolink>
+                  <ul class="dropdown-menu">
+                    <f:for each="{navItem.children}" as="child" iteration="i">
+                      <li>
+                        <f:link.typolink
+                          parameter="{child.link}"
+                          class="dropdown-item{f:if(condition:child.active, then:' active')}"
+                          additionalAttributes="{aria-current:'{f:if(condition:navItem.current, then:\'page\')}'}"
+                        >
+                          {child.title}
+                        </f:link.typolink>
+                      </li>
+                    </f:for>
+                  </ul>
+                </li>
+              </f:then>
+              <f:else>
+                <li class="nav-item">
+                  <f:link.typolink
+                    parameter="{navItem.link}"
+                    class="nav-link{f:if(condition:navItem.active, then:' active')}"
+                    additionalAttributes="{aria-current:'{f:if(condition:navItem.current, then:\'page\')}'}"
+                  >
+                    {navItem.title}
+                  </f:link.typolink>
+                </li>
+              </f:else>
+            </f:if>
+          </f:for>
+        </ul>
+      </div>
+    </div>
+  </nav>
+</f:section>
+<f:section name="Secondary">
+  <nav>
+    <ul class="nav justify-content-end">
+      <f:for each="{secondaryNavigation}" as="navItem" iteration="i">
+        <f:if condition="{navItem.children}">
+          <f:then>
+            <li class="nav-item dropdown">
+              <f:link.typolink
+                parameter="#"
+                class="nav-link dropdown-toggle {f:if(condition:navItem.active, then:' active')}"
+                additionalAttributes="{role:'button', aria-expanded:'false', data-bs-toggle:'dropdown', aria-current:'{f:if(condition:navItem.current, then:\'page\')}'}"
+              >
+                {navItem.title}
+              </f:link.typolink>
+              <ul class="dropdown-menu">
+                <f:for each="{navItem.children}" as="child" iteration="i">
+                  <li>
+                    <f:link.typolink
+                      parameter="{child.link}"
+                      class="dropdown-item{f:if(condition:child.active, then:' active')}"
+                      additionalAttributes="{aria-current:'{f:if(condition:navItem.current, then:\'page\')}'}"
+                    >
+                      {child.title}
+                    </f:link.typolink>
+                  </li>
+                </f:for>
+              </ul>
+            </li>
+          </f:then>
+          <f:else>
+            <li class="nav-item">
+              <f:link.typolink
+                parameter="{navItem.link}"
+                class="nav-link{f:if(condition:navItem.active, then:' active')}"
+                additionalAttributes="{aria-current:'{f:if(condition:navItem.current, then:\'page\')}'}"
+              >
+                {navItem.title}
+              </f:link.typolink>
+            </li>
+          </f:else>
+        </f:if>
+      </f:for>
+    </ul>
+  </nav>
+</f:section>
+
+<f:section name="Social">
+  <ul class="nav gap-3 socialNavigation{f:if(condition:alignment, then:' justify-content-{alignment}')}">
+    <f:for each="{socialNavigation}" as="navItem" iteration="i">
+      <li class="nav-item">
+        <f:link.typolink parameter="{navItem.link}" title="{navItem.title}" target="{f:if(condition:navItem.target, then:'{navItem.target}', else:'_blank')}" class="nav-link px-0">
+          <f:if condition="{navItem.media.0}">
+            <f:then>
+              <f:image image="{navItem.media.0}" class="" alt="{navItem.title}" height="43" />
+            </f:then>
+            <f:else>
+              {navItem.title}
+            </f:else>
+          </f:if>
+        </f:link.typolink>
+      </li>
+    </f:for>
+  </ul>
+</f:section>
+
+
+<f:section name="Meta">
+  <ul class="nav justify-content-center border-bottom pb-3 mb-3" style="--bs-nav-link-color: var(--bs-gray-400);--bs-nav-link-hover-color:var(--bs-white)">
+    <f:for each="{metaNavigation}" as="navItem" iteration="position">
+      <li class="nav-item">
+        <f:link.typolink parameter="{navItem.link}" title="{navItem.title}" class="nav-link px-2" additionalAttributes="{aria-current:'{f:if(condition: navItem.current, then:\'page\', else:\'\')}'}">
+          {navItem.title}
+        </f:link.typolink>
+      </li>
+      <f:if condition="{navItem.data.uid} == {dataProtectionDeclaration}">
+        <li class="nav-item">
+          <div id="cookieBtn" class="nav-link px-2" role="button" tabindex="0" >
+            <f:format.raw><f:translate key="PrivacySettings" extensionName="Template"/></f:format.raw>
+          </div>
+        </li>
+      </f:if>
+    </f:for>
+  </ul>
+</f:section>
+
+
+<f:section name="Breadcrumb">
+  <f:if condition="{breadcrumbNavigation}">
+    <f:then>
+      <nav aria-label="breadcrumb" id="breadcrumbNav" class="{firstelementBgColor}">
+        <div class="container">
+          <ol class="breadcrumb" itemscope itemtype="http://schema.org/BreadcrumbList">
+            <f:for each="{breadcrumbNavigation}" as="breadcrumbItem" iteration="iteration">
+              <f:if condition="{breadcrumbItem.current}">
+                <f:then>
+                  <li class="breadcrumb-item active" aria-current="page" itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <span itemprop="name">{breadcrumbItem.title}</span>
+                    <meta itemprop="position" content="{iteration.cycle}" />
+                  </li>
+                </f:then>
+                <f:else>
+                  <li class="breadcrumb-item" itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a class="text-decoration-none" itemscope itemtype="https://schema.org/WebPage" itemprop="item" itemid="{breadcrumbItem.link -> f:uri.typolink(parameter: '1', absolute: '1')}" href="{breadcrumbItem.link}" title="{breadcrumbItem.title}">
+                      <span itemprop="name">{breadcrumbItem.title}</span>
+                    </a>
+                    <meta itemprop="position" content="{iteration.cycle}" />
+                  </li>
+                </f:else>
+              </f:if>
+            </f:for>
+          </ol>
+        </div>
+      </nav>
+    </f:then>
+    <f:else>
+      <div id="breadcrumbNav"></div>
+    </f:else>
+  </f:if>
+</f:section>
+

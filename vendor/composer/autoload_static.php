@@ -44,6 +44,7 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         ),
         'T' => 
         array (
+            'Trion\\ScssCompiler\\' => 19,
             'TYPO3\\HtmlSanitizer\\' => 20,
             'TYPO3\\ClassAliasLoader\\' => 23,
             'TYPO3\\CMS\\Workspaces\\' => 21,
@@ -77,6 +78,7 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
             'TYPO3\\CMS\\Extbase\\' => 18,
             'TYPO3\\CMS\\Dashboard\\' => 20,
             'TYPO3\\CMS\\Core\\' => 15,
+            'TYPO3\\CMS\\ContentBlocks\\' => 24,
             'TYPO3\\CMS\\Composer\\' => 19,
             'TYPO3\\CMS\\Beuser\\' => 17,
             'TYPO3\\CMS\\Belog\\' => 16,
@@ -121,6 +123,7 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
             'Symfony\\Component\\Config\\' => 25,
             'Symfony\\Component\\Clock\\' => 24,
             'Symfony\\Component\\Cache\\' => 24,
+            'ScssPhp\\ScssPhp\\' => 16,
         ),
         'P' => 
         array (
@@ -137,6 +140,7 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         ),
         'M' => 
         array (
+            'MaxiSchmid\\KfvTemplate\\' => 23,
             'Masterminds\\' => 12,
         ),
         'G' => 
@@ -144,6 +148,7 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
             'GuzzleHttp\\Psr7\\' => 16,
             'GuzzleHttp\\Promise\\' => 19,
             'GuzzleHttp\\' => 11,
+            'GeorgRinger\\News\\' => 17,
         ),
         'F' => 
         array (
@@ -175,8 +180,8 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         'phpDocumentor\\Reflection\\' => 
         array (
             0 => __DIR__ . '/..' . '/phpdocumentor/reflection-common/src',
-            1 => __DIR__ . '/..' . '/phpdocumentor/type-resolver/src',
-            2 => __DIR__ . '/..' . '/phpdocumentor/reflection-docblock/src',
+            1 => __DIR__ . '/..' . '/phpdocumentor/reflection-docblock/src',
+            2 => __DIR__ . '/..' . '/phpdocumentor/type-resolver/src',
         ),
         'enshrined\\svgSanitize\\' => 
         array (
@@ -189,6 +194,10 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         'Webmozart\\Assert\\' => 
         array (
             0 => __DIR__ . '/..' . '/webmozart/assert/src',
+        ),
+        'Trion\\ScssCompiler\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/trion/scss-compiler/Classes',
         ),
         'TYPO3\\HtmlSanitizer\\' => 
         array (
@@ -321,6 +330,10 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         'TYPO3\\CMS\\Core\\' => 
         array (
             0 => __DIR__ . '/..' . '/typo3/cms-core/Classes',
+        ),
+        'TYPO3\\CMS\\ContentBlocks\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/contentblocks/content-blocks/Classes',
         ),
         'TYPO3\\CMS\\Composer\\' => 
         array (
@@ -486,6 +499,10 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         array (
             0 => __DIR__ . '/..' . '/symfony/cache',
         ),
+        'ScssPhp\\ScssPhp\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/scssphp/scssphp/src',
+        ),
         'Psr\\Log\\' => 
         array (
             0 => __DIR__ . '/..' . '/psr/log/src',
@@ -528,6 +545,10 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         array (
             0 => __DIR__ . '/..' . '/phpstan/phpdoc-parser/src',
         ),
+        'MaxiSchmid\\KfvTemplate\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/maxi-schmid/kfv-template/Classes',
+        ),
         'Masterminds\\' => 
         array (
             0 => __DIR__ . '/..' . '/masterminds/html5/src',
@@ -543,6 +564,10 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         'GuzzleHttp\\' => 
         array (
             0 => __DIR__ . '/..' . '/guzzlehttp/guzzle/src',
+        ),
+        'GeorgRinger\\News\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/georgringer/news/Classes',
         ),
         'Firebase\\JWT\\' => 
         array (

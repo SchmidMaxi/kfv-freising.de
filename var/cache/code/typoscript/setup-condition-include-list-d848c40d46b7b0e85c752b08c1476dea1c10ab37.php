@@ -1,0 +1,3 @@
+<?php
+return unserialize('O:61:"TYPO3\\CMS\\Core\\TypoScript\\IncludeTree\\IncludeNode\\RootInclude":2:{s:8:"children";a:1:{i:0;O:66:"TYPO3\\CMS\\Core\\TypoScript\\IncludeTree\\IncludeNode\\ConditionInclude":3:{s:8:"children";a:0:{}s:10:"lineStream";N;s:19:"conditionValueToken";O:47:"TYPO3\\CMS\\Core\\TypoScript\\Tokenizer\\Token\\Token":2:{s:4:"type";E:59:"TYPO3\\CMS\\Core\\TypoScript\\Tokenizer\\Token\\TokenType:T_VALUE";s:5:"value";s:35:"applicationContext == "Development"";}}}s:10:"lineStream";N;}');
+#

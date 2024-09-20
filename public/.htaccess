@@ -33,13 +33,13 @@
 # *) Set $GLOBALS['TYPO3_CONF_VARS']['FE']['compressionLevel'] = 9 together with the TypoScript properties
 #    config.compressJs and config.compressCss for GZIP compression of Frontend JS and CSS files.
 
-#<FilesMatch "\.js\.gz">
-#	AddType "text/javascript" .gz
-#</FilesMatch>
-#<FilesMatch "\.css\.gz">
-#	AddType "text/css" .gz
-#</FilesMatch>
-#AddEncoding x-gzip .gz
+<FilesMatch "\.js\.gz">
+	AddType "text/javascript" .gz
+</FilesMatch>
+<FilesMatch "\.css\.gz">
+	AddType "text/css" .gz
+</FilesMatch>
+AddEncoding x-gzip .gz
 
 <IfModule mod_deflate.c>
 	# Force compression for mangled `Accept-Encoding` request headers
@@ -290,12 +290,12 @@ AddDefaultCharset utf-8
 	RewriteRule ^.*$ - [E=CWD:%2]
 
 	# Rules to set ApplicationContext based on hostname
-	#RewriteCond %{HTTP_HOST} ^dev\.example\.com$
-	#RewriteRule .? - [E=TYPO3_CONTEXT:Development]
-	#RewriteCond %{HTTP_HOST} ^staging\.example\.com$
-	#RewriteRule .? - [E=TYPO3_CONTEXT:Production/Staging]
-	#RewriteCond %{HTTP_HOST} ^www\.example\.com$
-	#RewriteRule .? - [E=TYPO3_CONTEXT:Production]
+	RewriteCond %{HTTP_HOST} ^kfv-freising\.ddev\.site$
+	RewriteRule .? - [E=TYPO3_CONTEXT:Development]
+	RewriteCond %{HTTP_HOST} ^staging\.kfv-freising\.com$
+	RewriteRule .? - [E=TYPO3_CONTEXT:Production/Staging]
+	RewriteCond %{HTTP_HOST} ^www\.kfv-freising\.com$
+	RewriteRule .? - [E=TYPO3_CONTEXT:Production]
 
 	# Rule for versioned static files, configured through:
 	# - $GLOBALS['TYPO3_CONF_VARS']['BE']['versionNumberInFilename']
