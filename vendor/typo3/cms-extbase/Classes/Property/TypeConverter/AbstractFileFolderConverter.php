@@ -20,32 +20,25 @@ namespace TYPO3\CMS\Extbase\Property\TypeConverter;
 use TYPO3\CMS\Core\Resource\ResourceFactory;
 use TYPO3\CMS\Core\Resource\ResourceInterface;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Extbase\Domain\Model\AbstractFileFolder;
+use TYPO3\CMS\Extbase\Domain\Model\File;
+use TYPO3\CMS\Extbase\Domain\Model\FileReference;
+use TYPO3\CMS\Extbase\Domain\Model\Folder;
 use TYPO3\CMS\Extbase\Property\Exception;
 use TYPO3\CMS\Extbase\Property\PropertyMappingConfigurationInterface;
 
 /**
  * Converter which transforms simple types to \TYPO3\CMS\Extbase\Domain\Model\File.
  *
- * @internal
+ * @internal only to be used within Extbase, not part of TYPO3 Core API.
  */
 abstract class AbstractFileFolderConverter extends AbstractTypeConverter
 {
-    /**
-     * @var int
-     * @deprecated will be removed in TYPO3 v13.0, as this is defined in Services.yaml.
-     */
-    protected $priority = 10;
-
     /**
      * @var string
      */
     protected $expectedObjectType;
 
-    /**
-     * @var \TYPO3\CMS\Core\Resource\ResourceFactory
-     */
-    protected $fileFactory;
+    protected ResourceFactory $fileFactory;
 
     public function injectFileFactory(ResourceFactory $fileFactory): void
     {
@@ -57,16 +50,19 @@ abstract class AbstractFileFolderConverter extends AbstractTypeConverter
      * built $convertedChildProperties and $configuration.
      *
      * @param string|int $source
-     * @param PropertyMappingConfigurationInterface|null $configuration
      * @throws Exception
      */
-    public function convertFrom($source, string $targetType, array $convertedChildProperties = [], ?PropertyMappingConfigurationInterface $configuration = null): AbstractFileFolder
-    {
+    public function convertFrom(
+        $source,
+        string $targetType,
+        array $convertedChildProperties = [],
+        ?PropertyMappingConfigurationInterface $configuration = null
+    ): File|FileReference|Folder {
         $object = $this->getOriginalResource($source);
         if (empty($this->expectedObjectType) || !$object instanceof $this->expectedObjectType) {
             throw new Exception('Expected object of type "' . $this->expectedObjectType . '" but got ' . (is_object($object) ? get_class($object) : 'null'), 1342895975);
         }
-        /** @var AbstractFileFolder $subject */
+        /** @var File|FileReference|Folder $subject */
         $subject = GeneralUtility::makeInstance($targetType);
         $subject->setOriginalResource($object);
         return $subject;

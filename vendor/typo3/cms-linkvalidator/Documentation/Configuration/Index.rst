@@ -72,8 +72,9 @@ searchFields.[key]
             Currently, LinkValidator will only detect links for fields if the
             TCA configuration meets one of these criteria:
 
-            *   at least one :ref:`softref <t3tca:columns-input-properties-softref>`
-            *   type is set to :ref:`link <t3tca:columns-link>`
+            * at least one :ref:`softref <t3tca:tca_property_softref>`
+            * type is set to :ref:`link <t3tca:columns-link>`
+            * type is set to :ref:`email <t3tca:columns-email>`
 
             For this reason, it is currently not possible to check for
             `pages.media`. This will be fixed in the future.
@@ -83,7 +84,6 @@ searchFields.[key]
             * `pages.canonical_link` (:php:`'type' => 'link'`)
             * `pages.url` (:php:`'softref' => 'url'`)
             * `sys_file_reference.link` (:php:`'type' => 'link'`)
-
 
             Example for not working fields:
 
@@ -130,11 +130,14 @@ linktypes
          This list may be extended by other extensions providing a
          :ref:`custom linktype implementation <linktype-implementation>`.
 
+         .. versionchanged:: 13.0
+             The default was changed to exclude "external" link type.
+
          ..  warning::
              External links can lead to some :ref:`known issues<usagePitfallsExternalLinks>`.
 
    Default
-         db,file,external
+         db,file
 
 
 .. _linktypes-config:

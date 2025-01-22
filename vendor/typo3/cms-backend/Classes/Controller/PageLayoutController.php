@@ -31,20 +31,23 @@ use TYPO3\CMS\Backend\Template\Components\ButtonBar;
 use TYPO3\CMS\Backend\Template\Components\Buttons\ButtonInterface;
 use TYPO3\CMS\Backend\Template\Components\Buttons\DropDown\DropDownItemInterface;
 use TYPO3\CMS\Backend\Template\Components\Buttons\DropDown\DropDownRadio;
+use TYPO3\CMS\Backend\Template\Components\Buttons\DropDown\DropDownToggle;
 use TYPO3\CMS\Backend\Template\ModuleTemplate;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Backend\View\BackendLayoutView;
 use TYPO3\CMS\Backend\View\Drawing\BackendLayoutRenderer;
+use TYPO3\CMS\Backend\View\Drawing\DrawingConfiguration;
 use TYPO3\CMS\Backend\View\PageLayoutContext;
+use TYPO3\CMS\Backend\View\PageViewMode;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\WorkspaceRestriction;
 use TYPO3\CMS\Core\Domain\Repository\PageRepository;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Page\JavaScriptModuleInstruction;
 use TYPO3\CMS\Core\Page\PageRenderer;
@@ -123,7 +126,7 @@ class PageLayoutController
         }
 
         $tsConfig = BackendUtility::getPagesTSconfig($this->id);
-        $this->menuConfig($request);
+        $this->menuConfig();
         $this->currentSelectedLanguage = (int)$this->moduleData->get('language');
         $this->addJavaScriptModuleInstructions();
         $this->makeActionMenu($view, $tsConfig);
@@ -131,12 +134,8 @@ class PageLayoutController
         $this->initializeClipboard($request);
         $event = $this->eventDispatcher->dispatch(new ModifyPageLayoutContentEvent($request, $view));
 
-        $pageLayoutContext = $this->createPageLayoutContext();
+        $pageLayoutContext = $this->createPageLayoutContext($request, $tsConfig);
         $mainLayoutHtml = $this->backendLayoutRenderer->drawContent($request, $pageLayoutContext);
-        $numberOfHiddenElements = $this->getNumberOfHiddenElements(
-            $pageLayoutContext->getDrawingConfiguration()->getLanguageMode()
-        );
-
         $pageLocalizationRecord = $this->getLocalizedPageRecord($this->currentSelectedLanguage);
 
         $view->setTitle($languageService->sL('LLL:EXT:backend/Resources/Private/Language/locallang_mod.xlf:mlang_tabs_tab'), $this->pageinfo['title']);
@@ -144,40 +143,32 @@ class PageLayoutController
         $view->assignMultiple([
             'pageId' => $this->id,
             'localizedPageId' => $pageLocalizationRecord['uid'] ?? 0,
+            'pageLayoutContext' => $pageLayoutContext,
             'infoBoxes' => $this->generateMessagesForCurrentPage($request),
             'isPageEditable' => $this->isPageEditable($this->currentSelectedLanguage),
-            'localizedPageTitle' => $this->getLocalizedPageTitle($this->currentSelectedLanguage, $this->pageinfo),
+            'localizedPageTitle' => $pageLocalizationRecord['title'] ?? $this->pageinfo['title'] ?? '',
             'eventContentHtmlTop' => $event->getHeaderContent(),
             'mainContentHtml' => $mainLayoutHtml,
-            'hiddenElementsShowToggle' => ($this->getBackendUser()->check('tables_select', 'tt_content') && ($numberOfHiddenElements > 0)),
-            'hiddenElementsState' => (bool)$this->moduleData->get('showHidden'),
-            'hiddenElementsCount' => $numberOfHiddenElements,
             'eventContentHtmlBottom' => $event->getFooterContent(),
         ]);
         return $view->renderResponse('PageLayout/PageModule');
     }
 
-    protected function createPageLayoutContext(): PageLayoutContext
+    protected function createPageLayoutContext(ServerRequestInterface $request, array $tsConfig): PageLayoutContext
     {
-        $tsConfig = BackendUtility::getPagesTSconfig($this->id);
-        $pageLayoutContext = GeneralUtility::makeInstance(PageLayoutContext::class, $this->pageinfo, $this->backendLayoutView->getBackendLayoutForPage($this->id));
-        $configuration = $pageLayoutContext->getDrawingConfiguration();
-        $configuration->setDefaultLanguageBinding(!empty($tsConfig['mod.']['web_layout.']['defLangBinding']));
-        $configuration->setActiveColumns($this->getActiveColumnsArray($pageLayoutContext, $tsConfig));
+        $backendLayout = $this->backendLayoutView->getBackendLayoutForPage($this->id);
+        $viewMode = (int)$this->moduleData->get('function') === 2 ? PageViewMode::LanguageComparisonView : PageViewMode::LayoutView;
+        $configuration = DrawingConfiguration::create($backendLayout, $tsConfig, $viewMode);
         $configuration->setShowHidden((bool)$this->moduleData->get('showHidden'));
         $configuration->setLanguageColumns($this->MOD_MENU['language']);
         $configuration->setSelectedLanguageId($this->currentSelectedLanguage);
-        $configuration->setAllowInconsistentLanguageHandling((bool)($tsConfig['mod.']['web_layout.']['allowInconsistentLanguageHandling'] ?? false));
-        if ((int)$this->moduleData->get('function') === 2) {
-            $configuration->setLanguageMode(true);
-        }
-        return $pageLayoutContext;
+        return GeneralUtility::makeInstance(PageLayoutContext::class, $this->pageinfo, $backendLayout, $request->getAttribute('site'), $configuration, $request);
     }
 
     /**
      * Initialize menu array
      */
-    protected function menuConfig(ServerRequestInterface $request): void
+    protected function menuConfig(): void
     {
         $backendUser = $this->getBackendUser();
         $languageService = $this->getLanguageService();
@@ -190,6 +181,13 @@ class PageLayoutController
             ],
             'language' => [
                 0 => isset($this->availableLanguages[0]) ? $this->availableLanguages[0]->getTitle() : $languageService->sL('LLL:EXT:backend/Resources/Private/Language/locallang_layout.xlf:m_default'),
+                // We need to add -1 (all) here so a possible -1 value will be allowed when calling
+                // moduleData->cleanUp(). Actually, this is only relevant if we are dealing with the
+                // "languages" mode, which however can only be safely determined, after the moduleData
+                // have been cleaned up => chicken and egg problem. We therefore remove the -1 item from
+                // the menu again, as soon as we are able to determine the requested mode.
+                // @todo Replace the whole "mode" handling with some more robust solution
+                -1 => $languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_mod_web_list.xlf:multipleLanguages'),
             ],
         ];
 
@@ -198,23 +196,12 @@ class PageLayoutController
         if ($this->id) {
             // Compile language data for pid != 0 only. The language drop-down is not shown on pid 0
             // since pid 0 can't be localized.
-            $pageTranslations = $this->getExistingPageTranslations();
+            $pageTranslations = BackendUtility::getExistingPageTranslations($this->id);
             foreach ($pageTranslations as $pageTranslation) {
                 $languageId = $pageTranslation[$GLOBALS['TCA']['pages']['ctrl']['languageField']];
                 if (isset($this->availableLanguages[$languageId])) {
                     $this->MOD_MENU['language'][$languageId] = $this->availableLanguages[$languageId]->getTitle();
                 }
-            }
-
-            // Add special "-1" in case translations of the current page exist
-            if (count($this->MOD_MENU['language']) > 1) {
-                // We need to add -1 (all) here so a possible -1 value will be allowed when calling
-                // moduleData->cleanUp(). Actually, this is only relevant if we are dealing with the
-                // "languages" mode, which however can only be safely determined, after the moduleData
-                // have been cleaned up => chicken and egg problem. We therefore remove the -1 item from
-                // the menu again, as soon as we are able to determine the requested mode.
-                // @todo Replace the whole "mode" handling with some more robust solution
-                $this->MOD_MENU['language'][-1] = $languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_mod_web_list.xlf:multipleLanguages');
             }
         }
         // Clean up settings
@@ -234,40 +221,6 @@ class PageLayoutController
                 $this->moduleData->set('language', 0);
             }
         }
-    }
-
-    /**
-     * Fetch all records of the current page ID.
-     * Does not check permissions.
-     */
-    protected function getExistingPageTranslations(): array
-    {
-        if ($this->id === 0) {
-            return [];
-        }
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('pages');
-        $queryBuilder->getRestrictions()->removeAll()
-            ->add(GeneralUtility::makeInstance(DeletedRestriction::class))
-            ->add(GeneralUtility::makeInstance(WorkspaceRestriction::class, $this->getBackendUser()->workspace));
-        $result = $queryBuilder
-            ->select('*')
-            ->from('pages')
-            ->where(
-                $queryBuilder->expr()->eq(
-                    $GLOBALS['TCA']['pages']['ctrl']['transOrigPointerField'],
-                    $queryBuilder->createNamedParameter($this->id, Connection::PARAM_INT)
-                )
-            )
-            ->executeQuery();
-
-        $rows = [];
-        while ($row = $result->fetchAssociative()) {
-            BackendUtility::workspaceOL('pages', $row, $this->getBackendUser()->workspace);
-            if ($row && !VersionState::cast($row['t3ver_state'])->equals(VersionState::DELETE_PLACEHOLDER)) {
-                $rows[] = $row;
-            }
-        }
-        return $rows;
     }
 
     protected function getLocalizedPageRecord(int $languageId): ?array
@@ -370,9 +323,9 @@ class PageLayoutController
             $infoBoxes[] = [
                 'title' => $languageService->sL('LLL:EXT:backend/Resources/Private/Language/locallang_layout.xlf:goToListModule'),
                 'message' => '<p>' . $languageService->sL('LLL:EXT:backend/Resources/Private/Language/locallang_layout.xlf:goToListModuleMessage') . '</p>'
-                    . '<a class="btn btn-primary" data-dispatch-action="TYPO3.ModuleMenu.showModule" data-dispatch-args-list="web_list">'
+                    . '<button type="button" class="btn btn-primary" data-dispatch-action="TYPO3.ModuleMenu.showModule" data-dispatch-args-list="web_list">'
                         . $languageService->sL('LLL:EXT:backend/Resources/Private/Language/locallang_layout.xlf:goToListModule')
-                    . '</a>',
+                    . '</button>',
                 'state' => InfoboxViewHelper::STATE_INFO,
             ];
         }
@@ -384,7 +337,7 @@ class PageLayoutController
             if ($shortcutMode || $this->pageinfo['shortcut']) {
                 switch ($shortcutMode) {
                     case PageRepository::SHORTCUT_MODE_NONE:
-                        $targetPage = $this->getTargetPageIfVisible($this->pageRepository->getPage($this->pageinfo['shortcut'], true));
+                        $targetPage = $this->getTargetPageIfVisible($this->pageRepository->getPage((int)$this->pageinfo['shortcut'], true));
                         $message = $targetPage === [] ? $languageService->sL('LLL:EXT:backend/Resources/Private/Language/locallang_layout.xlf:pageIsMisconfiguredOrNotAccessibleInternalLinkMessage') : '';
                         break;
                     case PageRepository::SHORTCUT_MODE_FIRST_SUBPAGE:
@@ -393,7 +346,7 @@ class PageLayoutController
                         $message = $targetPage === [] ? $languageService->sL('LLL:EXT:backend/Resources/Private/Language/locallang_layout.xlf:pageIsMisconfiguredFirstSubpageMessage') : '';
                         break;
                     case PageRepository::SHORTCUT_MODE_PARENT_PAGE:
-                        $targetPage = $this->getTargetPageIfVisible($this->pageRepository->getPage($this->pageinfo['pid'], true));
+                        $targetPage = $this->getTargetPageIfVisible($this->pageRepository->getPage((int)$this->pageinfo['pid'], true));
                         $message = $targetPage === [] ? $languageService->sL('LLL:EXT:backend/Resources/Private/Language/locallang_layout.xlf:pageIsMisconfiguredParentPageMessage') : '';
                         break;
                     case PageRepository::SHORTCUT_MODE_RANDOM_SUBPAGE:
@@ -502,18 +455,6 @@ class PageLayoutController
         return implode(', ', $links);
     }
 
-    protected function getLocalizedPageTitle(int $currentSelectedLanguage, array $pageInfo): string
-    {
-        if ($currentSelectedLanguage <= 0) {
-            return $pageInfo['title'];
-        }
-        $pageLocalizationRecord = $this->getLocalizedPageRecord($currentSelectedLanguage);
-        if (!is_array($pageLocalizationRecord)) {
-            return $pageInfo['title'];
-        }
-        return $pageLocalizationRecord['title'] ?? '';
-    }
-
     /**
      * Initializes the clipboard for generating paste links dynamically via JavaScript after each "+ Content" symbol
      */
@@ -540,18 +481,6 @@ class PageLayoutController
         }
     }
 
-    protected function getActiveColumnsArray(PageLayoutContext $pageLayoutContext, array $tsConfig): array
-    {
-        $availableColumnPositionsFromBackendLayout = array_unique($pageLayoutContext->getBackendLayout()->getColumnPositionNumbers());
-        $allowedColumnPositionsByTsConfig = array_unique(GeneralUtility::intExplode(',', (string)($tsConfig['mod.']['SHARED.']['colPos_list'] ?? ''), true));
-        $activeColumns = $availableColumnPositionsFromBackendLayout;
-        if (!empty($allowedColumnPositionsByTsConfig)) {
-            // If there is no tsConfig colPos_list, no restriction. Else create intersection of available and allowed.
-            $activeColumns = array_intersect($availableColumnPositionsFromBackendLayout, $allowedColumnPositionsByTsConfig);
-        }
-        return $activeColumns;
-    }
-
     /**
      * This creates the buttons for the modules
      */
@@ -559,6 +488,13 @@ class PageLayoutController
     {
         $languageService = $this->getLanguageService();
         $buttonBar = $view->getDocHeaderComponent()->getButtonBar();
+
+        // Close button (show only if returnUrl is set)
+        $returnUrl = $request->getQueryParams()['returnUrl'] ?? '';
+        if ($returnUrl && ($closeButton = $this->makeCloseButton($buttonBar, $returnUrl))) {
+            // use button group -1 so that close button is to the left of other buttons
+            $buttonBar->addButton($closeButton, ButtonBar::BUTTON_POSITION_LEFT, -1);
+        }
 
         // Language
         if ($languageButton = $this->makeLanguageSwitchButton($buttonBar)) {
@@ -593,14 +529,41 @@ class PageLayoutController
             ->setDataAttributes(['id' => $this->pageinfo['uid']])
             ->setClasses('t3js-clear-page-cache')
             ->setTitle($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.clear_cache'))
-            ->setIcon($this->iconFactory->getIcon('actions-system-cache-clear', Icon::SIZE_SMALL));
+            ->setIcon($this->iconFactory->getIcon('actions-system-cache-clear', IconSize::SMALL));
         $buttonBar->addButton($clearCacheButton, ButtonBar::BUTTON_POSITION_RIGHT, 1);
+
+        // ViewMode
+        $viewModeItems = [];
+        $pageLayoutContext = $this->createPageLayoutContext($request, $tsConfig);
+        $hiddenElementsShowToggle = $this->getBackendUser()->check('tables_select', 'tt_content');
+        if ($hiddenElementsShowToggle) {
+            $viewModeItems[] = GeneralUtility::makeInstance(DropDownToggle::class)
+                ->setTag('button')
+                ->setActive((bool)$this->moduleData->get('showHidden'))
+                ->setLabel($languageService->sL('LLL:EXT:backend/Resources/Private/Language/locallang_layout.xlf:hiddenCE') . ' (' . $this->getNumberOfHiddenElements($pageLayoutContext->getDrawingConfiguration()) . ')')
+                ->setIcon($this->iconFactory->getIcon('actions-eye'))
+                ->setAttributes([
+                    'id' => 'pageLayoutToggleShowHidden',
+                    'type' => 'button',
+                    'data-pageaction-showhidden' => (bool)$this->moduleData->get('showHidden') ? '1' : '0',
+                ]);
+        }
+        if (!empty($viewModeItems)) {
+            $viewModeButton = $buttonBar->makeDropDownButton()
+                ->setLabel($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.view'))
+                ->setShowLabelText(true);
+            foreach ($viewModeItems as $viewModeItem) {
+                /** @var DropDownItemInterface $viewModeItem */
+                $viewModeButton->addItem($viewModeItem);
+            }
+            $buttonBar->addButton($viewModeButton, ButtonBar::BUTTON_POSITION_RIGHT, 3);
+        }
 
         // Reload
         $reloadButton = $buttonBar->makeLinkButton()
             ->setHref($request->getAttribute('normalizedParams')->getRequestUri())
             ->setTitle($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.reload'))
-            ->setIcon($this->iconFactory->getIcon('actions-refresh', Icon::SIZE_SMALL));
+            ->setIcon($this->iconFactory->getIcon('actions-refresh', IconSize::SMALL));
         $buttonBar->addButton($reloadButton, ButtonBar::BUTTON_POSITION_RIGHT);
     }
 
@@ -616,7 +579,7 @@ class PageLayoutController
         if (
             $this->currentSelectedLanguage === -1
             || (int)$this->moduleData->get('function') !== 1
-            || VersionState::cast($this->pageinfo['t3ver_state'])->equals(VersionState::DELETE_PLACEHOLDER)
+            || VersionState::tryFrom($this->pageinfo['t3ver_state'] ?? 0) === VersionState::DELETE_PLACEHOLDER
         ) {
             return null;
         }
@@ -625,9 +588,8 @@ class PageLayoutController
             // Exclude doktypes, set via tsConfig
             $excludeDokTypes = GeneralUtility::intExplode(',', (string)($tsConfig['TCEMAIN.']['preview.']['disableButtonForDokType'] ?? ''), true);
         } else {
-            // Exclude default doktypes: sysfolders, spacers and recycler
+            // Exclude default doktypes: sysfolders and spacers
             $excludeDokTypes = [
-                PageRepository::DOKTYPE_RECYCLER,
                 PageRepository::DOKTYPE_SYSFOLDER,
                 PageRepository::DOKTYPE_SPACER,
             ];
@@ -647,7 +609,7 @@ class PageLayoutController
             ->setDataAttributes($previewDataAttributes ?? [])
             ->setDisabled(!$previewDataAttributes)
             ->setTitle($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.showPage'))
-            ->setIcon($this->iconFactory->getIcon('actions-view-page', Icon::SIZE_SMALL))
+            ->setIcon($this->iconFactory->getIcon('actions-view-page', IconSize::SMALL))
             ->setShowLabelText(true);
     }
 
@@ -680,7 +642,16 @@ class PageLayoutController
             ->setHref((string)$this->uriBuilder->buildUriFromRoute('record_edit', $params))
             ->setTitle($this->getLanguageService()->sL('LLL:EXT:backend/Resources/Private/Language/locallang_layout.xlf:editPageProperties'))
             ->setShowLabelText(true)
-            ->setIcon($this->iconFactory->getIcon('actions-page-open', Icon::SIZE_SMALL));
+            ->setIcon($this->iconFactory->getIcon('actions-page-open', IconSize::SMALL));
+    }
+
+    protected function makeCloseButton(ButtonBar $buttonBar, string $returnUrl): ?ButtonInterface
+    {
+        return $buttonBar->makeLinkButton()
+            ->setHref($returnUrl)
+            ->setTitle($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.close') ?: 'Close')
+            ->setIcon($this->iconFactory->getIcon('actions-close', IconSize::SMALL))
+            ->setShowLabelText(true);
     }
 
     /**
@@ -688,8 +659,8 @@ class PageLayoutController
      */
     protected function makeLanguageSwitchButton(ButtonBar $buttonbar): ?ButtonInterface
     {
-        // Early return if less than 2 languages are available
-        if (count($this->MOD_MENU['language']) < 2) {
+        // Early return if no translation exist
+        if (array_filter($this->MOD_MENU['language'], static fn($language): bool => $language > 0, ARRAY_FILTER_USE_KEY) === []) {
             return null;
         }
 
@@ -739,8 +710,9 @@ class PageLayoutController
      * Returns the number of hidden elements (including those hidden by start/end times)
      * on the current page (for the current site language)
      */
-    protected function getNumberOfHiddenElements(bool $isLanguageModeActive): int
+    protected function getNumberOfHiddenElements(DrawingConfiguration $drawingConfiguration): int
     {
+        $isLanguageComparisonModeActive = $drawingConfiguration->isLanguageComparisonMode();
         $andWhere = [];
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('tt_content');
         $queryBuilder->getRestrictions()
@@ -765,7 +737,7 @@ class PageLayoutController
                     [-1, 0]
                 )
             );
-        } elseif ($isLanguageModeActive && $this->currentSelectedLanguage !== -1) {
+        } elseif ($isLanguageComparisonModeActive && $this->currentSelectedLanguage !== -1) {
             // Multi-language view with any translation is active -
             // consider "all languages", the default and the translation
             $queryBuilder->andWhere(
@@ -869,7 +841,7 @@ class PageLayoutController
      */
     protected function getTargetPageIfVisible(array $targetPage): array
     {
-        return !(bool)($targetPage['hidden'] ?? false) ? $targetPage : [];
+        return !($targetPage['hidden'] ?? false) ? $targetPage : [];
     }
 
     /**

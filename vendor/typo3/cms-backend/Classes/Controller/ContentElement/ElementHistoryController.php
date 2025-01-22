@@ -30,8 +30,8 @@ use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Backend\View\ValueFormatter\FlexFormValueFormatter;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\DataHandling\History\RecordHistoryStore;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Core\Utility\DiffGranularity;
@@ -71,6 +71,7 @@ class ElementHistoryController
         protected readonly IconFactory $iconFactory,
         protected readonly UriBuilder $uriBuilder,
         protected readonly ModuleTemplateFactory $moduleTemplateFactory,
+        private readonly DiffUtility $diffUtility,
     ) {}
 
     /**
@@ -120,7 +121,7 @@ class ElementHistoryController
                 $this->displayMultipleDiff($completeDiff);
                 $button = $buttonBar->makeLinkButton()
                     ->setHref($this->buildUrl(['historyEntry' => '']))
-                    ->setIcon($this->iconFactory->getIcon('actions-view-go-back', Icon::SIZE_SMALL))
+                    ->setIcon($this->iconFactory->getIcon('actions-view-go-back', IconSize::SMALL))
                     ->setTitle($this->getLanguageService()->sL('LLL:EXT:backend/Resources/Private/Language/locallang_show_rechis.xlf:fullView'))
                     ->setShowLabelText(true);
                 $buttonBar->addButton($button);
@@ -145,7 +146,7 @@ class ElementHistoryController
                             'element' => 'pages:' . $parentPage['pid'],
                             'historyEntry' => '',
                         ]))
-                        ->setIcon($this->iconFactory->getIcon('apps-pagetree-page-default', Icon::SIZE_SMALL))
+                        ->setIcon($this->iconFactory->getIcon('apps-pagetree-page-default', IconSize::SMALL))
                         ->setTitle($this->getLanguageService()->sL('LLL:EXT:backend/Resources/Private/Language/locallang_show_rechis.xlf:elementHistory_link'))
                         ->setShowLabelText(true);
                     $buttonBar->addButton($button, ButtonBar::BUTTON_POSITION_LEFT, 2);
@@ -184,8 +185,13 @@ class ElementHistoryController
         if (is_array($pageAccess)) {
             $this->view->getDocHeaderComponent()->setMetaInformation($pageAccess);
         }
-        $this->view->assign('recordTable', $this->getLanguageService()->sL($GLOBALS['TCA'][$table]['ctrl']['title']));
-        $this->view->assign('recordUid', $uid);
+
+        $this->view->assignMultiple([
+            'recordTable' => $table,
+            'recordTableReadable' => $this->getLanguageService()->sL($GLOBALS['TCA'][$table]['ctrl']['title']),
+            'recordUid' => $uid,
+            'recordTitle' => $this->generateTitle($table, (string)$uid),
+        ]);
     }
 
     protected function getButtons(): void
@@ -197,7 +203,7 @@ class ElementHistoryController
                 ->setHref($this->returnUrl)
                 ->setTitle($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:rm.closeDoc'))
                 ->setShowLabelText(true)
-                ->setIcon($this->iconFactory->getIcon('actions-close', Icon::SIZE_SMALL));
+                ->setIcon($this->iconFactory->getIcon('actions-close', IconSize::SMALL));
             $buttonBar->addButton($backButton);
         }
     }
@@ -224,6 +230,8 @@ class ElementHistoryController
      */
     protected function displayMultipleDiff(array $diff)
     {
+        $languageService = $this->getLanguageService();
+
         // Get all array keys needed
         /** @var string[] $arrayKeys */
         $arrayKeys = array_merge(array_keys($diff['newData']), array_keys($diff['insertsDeletes']), array_keys($diff['oldData']));
@@ -247,11 +255,33 @@ class ElementHistoryController
                         'newRecord' => $diff['oldData'][$key],
                         'oldRecord' => $diff['newData'][$key],
                     ];
-                    $singleLine['differences'] = $this->renderDiff($tmpArr, $elParts[0], (int)$elParts[1], true);
+
+                    // show changes
+                    if (!$this->showDiff) {
+                        // Display field names instead of full diff
+                        // Re-write field names with labels
+                        /** @var string[] $tmpFieldList */
+                        $tmpFieldList = array_keys($tmpArr['newRecord']);
+                        foreach ($tmpFieldList as $fieldKey => $value) {
+                            $tmp = str_replace(':', '', $languageService->sL(BackendUtility::getItemLabel($elParts[0], $value)));
+                            if ($tmp) {
+                                $tmpFieldList[$fieldKey] = $tmp;
+                            } else {
+                                // remove fields if no label available
+                                unset($tmpFieldList[$fieldKey]);
+                            }
+                        }
+                        $singleLine['fieldNames'] = implode(',', $tmpFieldList);
+                    } else {
+                        // Display diff
+                        $singleLine['differences'] = $this->renderDiff($tmpArr, $elParts[0], (int)$elParts[1], true);
+                    }
                 }
                 $elParts = explode(':', $key);
                 $singleLine['revertRecordUrl'] = $this->buildUrl(['rollbackFields' => $key]);
                 $singleLine['title'] = $this->generateTitle($elParts[0], $elParts[1]);
+                $singleLine['recordTable'] = $elParts[0];
+                $singleLine['recordUid'] = $elParts[1];
                 $lines[] = $singleLine;
             }
             $this->view->assign('revertAllUrl', $this->buildUrl(['rollbackFields' => 'ALL']));
@@ -294,11 +324,13 @@ class ElementHistoryController
             // Diff link
             $singleLine['diffUrl'] = $this->buildUrl(['historyEntry' => $entry['uid']]);
             // Add time
-            $singleLine['time'] = BackendUtility::datetime($entry['tstamp']);
-            // Add age
-            $singleLine['age'] = BackendUtility::calcAge($GLOBALS['EXEC_TIME'] - $entry['tstamp'], $languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.minutesHoursDaysYears'));
+            $singleLine['day'] = BackendUtility::date($entry['tstamp']);
+            $singleLine['time'] = BackendUtility::time($entry['tstamp']);
 
             $singleLine['title'] = $this->generateTitle($entry['tablename'], $entry['recuid']);
+            $singleLine['recordTable'] = $entry['tablename'];
+            $singleLine['recordUid'] = $entry['recuid'];
+
             $singleLine['elementUrl'] = $this->buildUrl(['element' => $entry['tablename'] . ':' . $entry['recuid']]);
             $singleLine['actiontype'] = $entry['actiontype'];
             if ((int)$entry['actiontype'] === RecordHistoryStore::ACTION_MODIFY) {
@@ -342,24 +374,22 @@ class ElementHistoryController
     {
         $lines = [];
         if (is_array($entry['newRecord'] ?? null)) {
-            $diffUtility = GeneralUtility::makeInstance(DiffUtility::class);
             $fieldsToDisplay = array_keys($entry['newRecord']);
             $languageService = $this->getLanguageService();
             foreach ($fieldsToDisplay as $fN) {
                 $tcaType = $GLOBALS['TCA'][$table]['columns'][$fN]['config']['type'] ?? '';
                 if (is_array($GLOBALS['TCA'][$table]['columns'][$fN] ?? null) && $tcaType !== 'passthrough') {
-                    $granularity = DiffGranularity::WORD;
                     if ($tcaType === 'flex') {
-                        $granularity = DiffGranularity::CHARACTER;
                         $flexFormValueFormatter = GeneralUtility::makeInstance(FlexFormValueFormatter::class);
                         $colConfig = $GLOBALS['TCA'][$table]['columns'][$fN]['config'] ?? [];
                         $old = $flexFormValueFormatter->format($table, $fN, ($entry['oldRecord'][$fN] ?? ''), $rollbackUid, $colConfig);
                         $new = $flexFormValueFormatter->format($table, $fN, ($entry['newRecord'][$fN] ?? ''), $rollbackUid, $colConfig);
+                        $diffResult = $this->diffUtility->diff(strip_tags($old), strip_tags($new), DiffGranularity::CHARACTER);
                     } else {
-                        $old = (string)BackendUtility::getProcessedValue($table, $fN, ($entry['oldRecord'][$fN] ?? ''), 0, true, uid: $rollbackUid);
-                        $new = (string)BackendUtility::getProcessedValue($table, $fN, ($entry['newRecord'][$fN] ?? ''), 0, true, uid: $rollbackUid);
+                        $old = (string)BackendUtility::getProcessedValue($table, $fN, ($entry['oldRecord'][$fN] ?? ''), 0, true, false, $rollbackUid);
+                        $new = (string)BackendUtility::getProcessedValue($table, $fN, ($entry['newRecord'][$fN] ?? ''), 0, true, false, $rollbackUid);
+                        $diffResult = $this->diffUtility->diff(strip_tags($old), strip_tags($new));
                     }
-                    $diffResult = $diffUtility->makeDiffDisplay($old, $new, $granularity);
                     $rollbackUrl = '';
                     if ($rollbackUid && $showRollbackLink) {
                         $rollbackUrl = $this->buildUrl(['rollbackFields' => $table . ':' . $rollbackUid . ':' . $fN]);
@@ -410,10 +440,10 @@ class ElementHistoryController
      */
     protected function generateTitle($table, $uid): string
     {
-        $title = $table . ':' . $uid;
+        $title = '';
         if (!empty($GLOBALS['TCA'][$table]['ctrl']['label'])) {
             $record = $this->getRecord($table, (int)$uid) ?? [];
-            $title .= ' (' . BackendUtility::getRecordTitle($table, $record, true) . ')';
+            $title .= BackendUtility::getRecordTitle($table, $record);
         }
         return $title;
     }

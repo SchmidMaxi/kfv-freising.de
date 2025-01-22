@@ -23,13 +23,10 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\HttpUtility;
 use TYPO3\CMS\Extbase\Mvc\RequestInterface as ExtbaseRequestInterface;
 use TYPO3\CMS\Extbase\Mvc\Web\Routing\UriBuilder as ExtbaseUriBuilder;
-use TYPO3\CMS\Fluid\Core\Rendering\RenderingContext;
 use TYPO3\CMS\Frontend\ContentObject\ContentObjectRenderer;
 use TYPO3\CMS\Frontend\Typolink\LinkFactory;
 use TYPO3\CMS\Frontend\Typolink\UnableToLinkException;
-use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
-use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
 
 /**
  * A ViewHelper for creating URIs to extbase actions. Tailored for extbase plugins, uses extbase Request and extbase UriBuilder.
@@ -47,8 +44,6 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
  */
 final class ActionViewHelper extends AbstractViewHelper
 {
-    use CompileWithRenderStatic;
-
     public function initializeArguments(): void
     {
         $this->registerArgument('action', 'string', 'Target action');
@@ -59,7 +54,7 @@ final class ActionViewHelper extends AbstractViewHelper
         $this->registerArgument('pageUid', 'int', 'Target page. See TypoLink destination');
         $this->registerArgument('pageType', 'int', 'Type of the target page. See typolink.parameter', false, 0);
         $this->registerArgument('noCache', 'bool', 'Set this to disable caching for the target page. You should not need this.', false);
-        $this->registerArgument('language', 'string', 'link to a specific language - defaults to the current language, use a language ID or "current" to enforce a specific language', false);
+        $this->registerArgument('language', 'string', 'link to a specific language - defaults to the current language, use a language ID or "current" to enforce a specific language');
         $this->registerArgument('section', 'string', 'The anchor to be added to the URI', false, '');
         $this->registerArgument('format', 'string', 'The requested format, e.g. ".html', false, '');
         $this->registerArgument('linkAccessRestrictedPages', 'bool', 'If set, links pointing to access restricted pages will still link to the page even though the page cannot be accessed.', false, false);
@@ -69,16 +64,17 @@ final class ActionViewHelper extends AbstractViewHelper
         $this->registerArgument('argumentsToBeExcludedFromQueryString', 'array', 'arguments to be removed from the URI. Only active if $addQueryString = TRUE', false, []);
     }
 
-    public static function renderStatic(array $arguments, \Closure $renderChildrenClosure, RenderingContextInterface $renderingContext): string
+    public function render(): string
     {
-        /** @var RenderingContext $renderingContext */
-        $request = $renderingContext->getRequest();
-        if ($request instanceof ExtbaseRequestInterface) {
-            return self::renderWithExtbaseContext($request, $arguments);
+        $request = null;
+        if ($this->renderingContext->hasAttribute(ServerRequestInterface::class)) {
+            $request = $this->renderingContext->getAttribute(ServerRequestInterface::class);
         }
-
+        if ($request instanceof ExtbaseRequestInterface) {
+            return self::renderWithExtbaseContext($request, $this->arguments);
+        }
         if ($request instanceof ServerRequestInterface && ApplicationType::fromRequest($request)->isFrontend()) {
-            return self::renderFrontendLinkWithCoreContext($request, $arguments, $renderChildrenClosure);
+            return self::renderFrontendLinkWithCoreContext($request, $this->arguments, $this->renderChildren(...));
         }
         throw new \RuntimeException(
             'The rendering context of ViewHelper f:uri.action is missing a valid request object.',

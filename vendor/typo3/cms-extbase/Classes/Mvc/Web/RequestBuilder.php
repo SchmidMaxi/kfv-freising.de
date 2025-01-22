@@ -26,6 +26,7 @@ use TYPO3\CMS\Core\SingletonInterface;
 use TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface;
 use TYPO3\CMS\Extbase\Mvc\Exception as MvcException;
 use TYPO3\CMS\Extbase\Mvc\Exception\InvalidActionNameException;
+use TYPO3\CMS\Extbase\Mvc\Exception\InvalidArgumentNameException;
 use TYPO3\CMS\Extbase\Mvc\Exception\InvalidControllerNameException;
 use TYPO3\CMS\Extbase\Mvc\ExtbaseRequestParameters;
 use TYPO3\CMS\Extbase\Mvc\Request;
@@ -83,19 +84,9 @@ class RequestBuilder implements SingletonInterface
             $configuration = [
                 'controllerConfiguration' => $module->getControllerActions(),
             ];
-            $useArgumentsWithoutNamespace = !$this->configurationManager->isFeatureEnabled('enableNamespacedArgumentsForBackend');
-            if (!$useArgumentsWithoutNamespace) {
-                // @deprecated since TYPO3 v12, will be removed in TYPO3 v13. Remove together with other extbase feature toggle related code.
-                //             Remove "$useArgumentsWithoutNamespace" from if() below.
-                trigger_error(
-                    'Extbase feature toggle enableNamespacedArgumentsForBackend = 1 is deprecated.' .
-                    ' Change backend modules to not expect namespaced arguments.',
-                    E_USER_DEPRECATED
-                );
-            }
-            // Ensure the "controller" and "action" information are added as fallback
-            // parameters in case "enableNamespacedArgumentsForBackend" is turned off.
-            if ($useArgumentsWithoutNamespace && ($routeOptions = $mainRequest->getAttribute('route')?->getOptions())) {
+            $useArgumentsWithoutNamespace = true;
+            // Ensure the "controller" and "action" information are added as fallback parameters.
+            if ($routeOptions = $mainRequest->getAttribute('route')?->getOptions()) {
                 $fallbackParameters['controller'] = $routeOptions['controller'] ?? null;
                 $fallbackParameters['action'] = $routeOptions['action'];
             }
@@ -131,18 +122,17 @@ class RequestBuilder implements SingletonInterface
         $files = $mainRequest->getUploadedFiles();
         if (!$useArgumentsWithoutNamespace) {
             $files = $files[$pluginNamespace] ?? [];
-        }
-        if ($files instanceof UploadedFile) {
-            // ensure it's always an array
-            $files = [$files];
+            if ($files instanceof UploadedFile) {
+                throw new InvalidArgumentNameException(
+                    'Using only the plugin namespace as argument name is not allowed for uploaded files. Please use plugin_namespace[argument_name] instead.',
+                    1722542546
+                );
+            }
         }
 
-        // backwards compatibility
-        $fileParameters = $this->mapUploadedFilesToParameters($files, []);
-        if ($useArgumentsWithoutNamespace && count($fileParameters) === 1) {
-            $fileParameters = reset($fileParameters);
-        }
-        $parameters = array_replace_recursive($parameters, $fileParameters);
+        // Merge UploadedFiles into request parameters, so that they
+        // are available as arguments for property mapping.
+        $parameters = array_merge_recursive($parameters, $files);
 
         $controllerClassName = $this->resolveControllerClassName($defaultValues, $parameters);
         $actionName = $this->resolveActionName($defaultValues, $controllerClassName, $parameters);
@@ -164,40 +154,6 @@ class RequestBuilder implements SingletonInterface
             $extbaseAttribute->setArgument($argumentName, $argumentValue);
         }
         return new Request($mainRequest->withAttribute('extbase', $extbaseAttribute));
-    }
-
-    protected function mapUploadedFilesToParameters(array|UploadedFile $files, array $parameters)
-    {
-        if (is_array($files)) {
-            foreach ($files as $key => $file) {
-                if (is_array($file)) {
-                    $parameters[$key] = $this->mapUploadedFilesToParameters($file, $parameters[$key] ?? []);
-                } else {
-                    $parameters[$key] = $this->mapUploadedFileToParameters($file);
-                }
-            }
-        } else {
-            $parameters = $this->mapUploadedFileToParameters($files);
-        }
-        return $parameters;
-    }
-
-    /**
-     * Backwards Compatibility File Mapping to Parameters
-     *
-     * @deprecated since v12, will be removed in v13. Use $request->getUploadedFiles() instead
-     */
-    protected function mapUploadedFileToParameters(UploadedFile $uploadedFile): array
-    {
-        $parameters = [];
-        $parameters['name'] = $uploadedFile->getClientFilename();
-        $parameters['type'] = $uploadedFile->getClientMediaType();
-        $parameters['error'] = $uploadedFile->getError();
-        if ($uploadedFile->getSize() > 0) {
-            $parameters['size'] = $uploadedFile->getSize();
-        }
-        $parameters['tmp_name'] = $uploadedFile->getTemporaryFileName();
-        return $parameters;
     }
 
     /**

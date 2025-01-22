@@ -24,20 +24,11 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  */
 class RecordStateFactory
 {
-    /**
-     * @var string
-     */
-    protected $name;
+    protected string $name;
 
-    /**
-     * @return static
-     */
     public static function forName(string $name): self
     {
-        return GeneralUtility::makeInstance(
-            static::class,
-            $name
-        );
+        return GeneralUtility::makeInstance(static::class, $name);
     }
 
     public function __construct(string $name)
@@ -73,6 +64,9 @@ class RecordStateFactory
             ->withVersionLink($this->resolveVersionLink($aspectFieldValues));
     }
 
+    /**
+     * @return array<string, string|null>
+     */
     protected function resolveAspectFieldNames(): array
     {
         return [
@@ -87,7 +81,7 @@ class RecordStateFactory
     protected function resolveAspectFieldValues(array $data): array
     {
         return array_map(
-            static function ($aspectFieldName) use ($data) {
+            static function (?string $aspectFieldName) use ($data): int {
                 return (int)($data[$aspectFieldName] ?? 0);
             },
             $this->resolveAspectFieldNames()
@@ -134,7 +128,7 @@ class RecordStateFactory
     }
 
     /**
-     * @param string|int $identifier
+     * @param string|int|null $identifier
      * @param string|null $name
      * @throws \LogicException
      */

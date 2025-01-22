@@ -25,6 +25,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Install\Attribute\UpgradeWizard;
 
 /**
+ * @since 12.1
  * @internal This class is only meant to be used within EXT:install and is not part of the TYPO3 Core API.
  */
 #[UpgradeWizard('sysTemplateNoWorkspaceMigration')]
@@ -88,7 +89,7 @@ final class SysTemplateNoWorkspaceMigration implements UpgradeWizardInterface
     private function sysTemplateTableExists(): bool
     {
         $schemaManager = $this->getConnectionPool()->getConnectionForTable(self::TABLE_NAME)->createSchemaManager();
-        return $schemaManager->tablesExist(self::TABLE_NAME);
+        return $schemaManager->tablesExist([self::TABLE_NAME]);
     }
 
     private function sysTemplateT3verWsidFieldExists(): bool

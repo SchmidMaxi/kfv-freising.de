@@ -1,4 +1,5 @@
 <?php
+
 /*
 
 Add hook on deploy:
@@ -37,6 +38,7 @@ after('deploy:failed', 'chat:notify:failure');
 ```
 
  */
+
 namespace Deployer;
 
 use Deployer\Utility\Httpie;
@@ -66,7 +68,7 @@ task('chat:notify', function () {
             'title' => get('chat_title'),
             'subtitle' => get('chat_subtitle'),
             'imageUrl' => get('favicon'),
-            'imageStyle' => 'IMAGE'
+            'imageStyle' => 'IMAGE',
         ],
         'sections' => [
             'widgets' => [
@@ -82,14 +84,14 @@ task('chat:notify', function () {
                             'text' => 'Visit site',
                             'onClick' => [
                                 'openLink' => [
-                                    'url' => get('hostname')
-                                ]
-                            ]
-                        ]
-                    ]
-                ]
-            ]
-        ]
+                                    'url' => get('hostname'),
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ],
     ];
 
     Httpie::post(get('chat_webhook'))->jsonBody(['cards' => $card])->send();
@@ -108,7 +110,7 @@ task('chat:notify:success', function () {
             'title' => get('chat_title'),
             'subtitle' => get('chat_subtitle'),
             'imageUrl' => get('favicon'),
-            'imageStyle' => 'IMAGE'
+            'imageStyle' => 'IMAGE',
         ],
         'sections' => [
             'widgets' => [
@@ -124,14 +126,14 @@ task('chat:notify:success', function () {
                             'text' => 'Visit site',
                             'onClick' => [
                                 'openLink' => [
-                                    'url' => get('hostname')
-                                ]
-                            ]
-                        ]
-                    ]
-                ]
-            ]
-        ]
+                                    'url' => get('hostname'),
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ],
     ];
 
     Httpie::post(get('chat_webhook'))->jsonBody(['cards' => $card])->send();
@@ -150,7 +152,7 @@ task('chat:notify:failure', function () {
             'title' => get('chat_title'),
             'subtitle' => get('chat_subtitle'),
             'imageUrl' => get('favicon'),
-            'imageStyle' => 'IMAGE'
+            'imageStyle' => 'IMAGE',
         ],
         'sections' => [
             'widgets' => [
@@ -167,14 +169,14 @@ task('chat:notify:failure', function () {
                             'text' => 'Visit site',
                             'onClick' => [
                                 'openLink' => [
-                                    'url' => get('hostname')
-                                ]
-                            ]
-                        ]
-                    ]
-                ]
-            ]
-        ]
+                                    'url' => get('hostname'),
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ],
     ];
 
     Httpie::post(get('chat_webhook'))->jsonBody(['cards' => $card])->send();

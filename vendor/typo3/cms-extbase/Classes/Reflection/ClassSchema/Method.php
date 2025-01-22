@@ -20,7 +20,6 @@ namespace TYPO3\CMS\Extbase\Reflection\ClassSchema;
 use TYPO3\CMS\Extbase\Reflection\ClassSchema\Exception\NoSuchMethodParameterException;
 
 /**
- * Class TYPO3\CMS\Extbase\Reflection\ClassSchema\Property
  * @internal only to be used within Extbase, not part of TYPO3 Core API.
  */
 class Method
@@ -55,8 +54,6 @@ class Method
             'public' => false,
             'protected' => false,
             'private' => false,
-            'injectMethod' => false,
-            'static' => false,
         ];
 
         foreach ($defaults as $key => $defaultValue) {
@@ -88,31 +85,6 @@ class Method
     /**
      * @throws NoSuchMethodParameterException
      */
-    public function getFirstParameter(): MethodParameter
-    {
-        $position = 0;
-
-        $parameters = array_filter(
-            $this->getParameters(),
-            static fn(MethodParameter $parameter): bool => $parameter->getPosition() === $position
-        );
-
-        $parameter = reset($parameters);
-
-        if (!$parameter instanceof MethodParameter) {
-            throw NoSuchMethodParameterException::createForParameterPosition(
-                $this->className,
-                $this->name,
-                $position
-            );
-        }
-
-        return $parameter;
-    }
-
-    /**
-     * @throws NoSuchMethodParameterException
-     */
     public function getParameter(string $parameterName): MethodParameter
     {
         if (!isset($this->parameters[$parameterName])) {
@@ -139,15 +111,5 @@ class Method
     public function isPrivate(): bool
     {
         return $this->definition['private'];
-    }
-
-    public function isInjectMethod(): bool
-    {
-        return $this->definition['injectMethod'];
-    }
-
-    public function isStatic(): bool
-    {
-        return $this->definition['static'];
     }
 }

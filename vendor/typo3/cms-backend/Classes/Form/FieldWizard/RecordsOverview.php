@@ -20,8 +20,8 @@ namespace TYPO3\CMS\Backend\Form\FieldWizard;
 use TYPO3\CMS\Backend\Form\AbstractNode;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -32,6 +32,10 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  */
 class RecordsOverview extends AbstractNode
 {
+    public function __construct(
+        private readonly IconFactory $iconFactory,
+    ) {}
+
     /**
      * Render table with record details
      */
@@ -45,7 +49,6 @@ class RecordsOverview extends AbstractNode
         $selectedItems = $parameterArray['itemFormElValue'];
         $maxTitleLength = (int)$backendUser->uc['titleLen'];
 
-        $iconFactory = GeneralUtility::makeInstance(IconFactory::class);
         $recordsOverviewHtml = [];
         foreach ($selectedItems as $selectedItem) {
             $title = (string)$selectedItem['title'];
@@ -54,7 +57,7 @@ class RecordsOverview extends AbstractNode
             }
             $shortenedTitle = GeneralUtility::fixed_lgd_cs($title, $maxTitleLength);
             $linkedIcon = BackendUtility::wrapClickMenuOnIcon(
-                $iconFactory->getIconForRecord($selectedItem['table'], $selectedItem['row'], Icon::SIZE_SMALL)->render(),
+                $this->iconFactory->getIconForRecord($selectedItem['table'], $selectedItem['row'], IconSize::SMALL)->render(),
                 $selectedItem['table'],
                 $selectedItem['uid']
             );
@@ -81,7 +84,7 @@ class RecordsOverview extends AbstractNode
 
         $html = [];
         if (!empty($recordsOverviewHtml)) {
-            $html[] = '<div class="table-fit mt-1 mb-0">';
+            $html[] = '<div class="table-fit mt-1">';
             $html[] =   '<table class="table">';
             $html[] =       '<tbody>';
             $html[] =           implode(LF, $recordsOverviewHtml);

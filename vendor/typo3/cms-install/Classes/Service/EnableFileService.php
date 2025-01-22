@@ -55,6 +55,7 @@ class EnableFileService
     {
         $installEnableFilePath = self::getInstallToolEnableFilePath();
         if (!is_file($installEnableFilePath)) {
+            GeneralUtility::mkdir_deep(dirname($installEnableFilePath));
             $result = touch($installEnableFilePath);
         } else {
             $result = true;
@@ -161,6 +162,7 @@ class EnableFileService
     /**
      * Returns a static directory path that is suitable to be presented to
      * unauthenticated visitors, in order to circumvent "Full Path Disclosure" issues.
+     * This is just used for display purposes.
      */
     public static function getStaticLocationForInstallToolEnableFileDirectory(): string
     {
@@ -169,11 +171,20 @@ class EnableFileService
 
     public static function getBestLocationForInstallToolEnableFile(): string
     {
+        return self::getTransientPath() . '/' . self::INSTALL_TOOL_ENABLE_FILE_PATH;
+    }
+
+    /**
+     * Based on composer or legacy mode, return a directory
+     * location where lock file can be stored.
+     */
+    protected static function getTransientPath(): string
+    {
         $possibleLocations = [
-            'default' => Environment::getVarPath() . '/transient/' . self::INSTALL_TOOL_ENABLE_FILE_PATH,
-            'permanent' => Environment::getConfigPath() . '/' . self::INSTALL_TOOL_ENABLE_FILE_PATH,
+            'composer' => Environment::getVarPath() . '/transient',
+            'legacy'   => Environment::getConfigPath(),
         ];
-        return Environment::isComposerMode() ? $possibleLocations['default'] : $possibleLocations['permanent'];
+        return Environment::isComposerMode() ? $possibleLocations['composer'] : $possibleLocations['legacy'];
     }
 
     /**

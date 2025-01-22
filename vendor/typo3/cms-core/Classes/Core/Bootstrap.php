@@ -25,23 +25,25 @@ use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Cache\Backend\BackendInterface;
 use TYPO3\CMS\Core\Cache\Backend\NullBackend;
 use TYPO3\CMS\Core\Cache\Backend\Typo3DatabaseBackend;
-use TYPO3\CMS\Core\Cache\CacheManager;
 use TYPO3\CMS\Core\Cache\Exception\InvalidBackendException;
 use TYPO3\CMS\Core\Cache\Exception\InvalidCacheException;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 use TYPO3\CMS\Core\Cache\Frontend\PhpFrontend;
 use TYPO3\CMS\Core\Cache\Frontend\VariableFrontend;
 use TYPO3\CMS\Core\Configuration\ConfigurationManager;
+use TYPO3\CMS\Core\Configuration\Extension\ExtLocalconfFactory;
+use TYPO3\CMS\Core\Configuration\Extension\ExtTablesFactory;
+use TYPO3\CMS\Core\Configuration\Tca\TcaFactory;
 use TYPO3\CMS\Core\Core\Event\BootCompletedEvent;
 use TYPO3\CMS\Core\DependencyInjection\Cache\ContainerBackend;
 use TYPO3\CMS\Core\DependencyInjection\ContainerBuilder;
-use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
 use TYPO3\CMS\Core\Log\LogManager;
 use TYPO3\CMS\Core\Package\Cache\ComposerPackageArtifact;
 use TYPO3\CMS\Core\Package\Cache\PackageCacheInterface;
 use TYPO3\CMS\Core\Package\Cache\PackageStatesPackageCache;
 use TYPO3\CMS\Core\Package\FailsafePackageManager;
 use TYPO3\CMS\Core\Package\PackageManager;
+use TYPO3\CMS\Core\Schema\TcaSchemaFactory;
 use TYPO3\CMS\Core\Service\DependencyOrderingService;
 use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -94,6 +96,7 @@ class Bootstrap
         static::initializeErrorHandling();
 
         $disableCaching = $failsafe ? true : false;
+        /** @var PhpFrontend $coreCache */
         $coreCache = static::createCache('core', $disableCaching);
         $packageCache = static::createPackageCache($coreCache);
         $packageManager = static::createPackageManager(
@@ -104,7 +107,6 @@ class Bootstrap
         static::setDefaultTimezone();
         static::setMemoryLimit();
 
-        $assetsCache = static::createCache('assets', $disableCaching);
         $dependencyInjectionContainerCache = static::createCache('di');
 
         $bootState = new \stdClass();
@@ -119,7 +121,6 @@ class Bootstrap
             RequestId::class => $requestId,
             'cache.di' => $dependencyInjectionContainerCache,
             'cache.core' => $coreCache,
-            'cache.assets' => $assetsCache,
             PackageManager::class => $packageManager,
 
             // @internal
@@ -145,12 +146,13 @@ class Bootstrap
         }
 
         $eventDispatcher = $container->get(EventDispatcherInterface::class);
-        ExtensionManagementUtility::setEventDispatcher($eventDispatcher);
-        static::loadTypo3LoadedExtAndExtLocalconf(true, $coreCache);
+        $tcaFactory = $container->get(TcaFactory::class);
+        $container->get(ExtLocalconfFactory::class)->load();
         static::unsetReservedGlobalVariables();
-        static::loadBaseTca(true, $coreCache);
+        $GLOBALS['TCA'] = $tcaFactory->get();
         static::checkEncryptionKey();
         $bootState->complete = true;
+        $container->get(TcaSchemaFactory::class)->load($GLOBALS['TCA']);
         $eventDispatcher->dispatch(new BootCompletedEvent(true));
 
         return $container;
@@ -235,7 +237,8 @@ class Bootstrap
             return true;
         }
 
-        // @deprecated All code below is deprecated and can be removed with TYPO3 v14.0 and replaced with `return false;`
+        // @deprecated All code below is deprecated and can be removed with TYPO3 v15.0 (or later as
+        //              it does not hurt to keep this migration for now) and replaced with `return false;`
 
         // All other cases will probably need some migration work
         $migrated = false;
@@ -300,20 +303,6 @@ class Bootstrap
     }
 
     /**
-     * Load ext_localconf of extensions
-     *
-     * @param bool $allowCaching
-     * @internal This is not a public API method, do not use in own extensions
-     */
-    public static function loadTypo3LoadedExtAndExtLocalconf($allowCaching = true, ?FrontendInterface $coreCache = null)
-    {
-        if ($allowCaching) {
-            $coreCache = $coreCache ?? GeneralUtility::makeInstance(CacheManager::class)->getCache('core');
-        }
-        ExtensionManagementUtility::loadExtLocalconf($allowCaching, $coreCache);
-    }
-
-    /**
      * We need an early instance of the configuration manager.
      * Since makeInstance relies on the object configuration, we create it here with new instead.
      */
@@ -342,10 +331,14 @@ class Bootstrap
      *
      * @param string $identifier
      * @param bool $disableCaching
+     * @param class-string<BackendInterface>|null $enforcedCacheBackend
      * @internal
      */
-    public static function createCache(string $identifier, bool $disableCaching = false): FrontendInterface
-    {
+    public static function createCache(
+        string $identifier,
+        bool $disableCaching = false,
+        ?string $enforcedCacheBackend = null
+    ): FrontendInterface {
         $cacheConfigurations = $GLOBALS['TYPO3_CONF_VARS']['SYS']['caching']['cacheConfigurations'] ?? [];
         $cacheConfigurations['di']['frontend'] = PhpFrontend::class;
         $cacheConfigurations['di']['backend'] = ContainerBackend::class;
@@ -353,7 +346,7 @@ class Bootstrap
         $configuration = $cacheConfigurations[$identifier] ?? [];
 
         $frontend = $configuration['frontend'] ?? VariableFrontend::class;
-        $backend = $configuration['backend'] ?? Typo3DatabaseBackend::class;
+        $backend = $enforcedCacheBackend ?? $configuration['backend'] ?? Typo3DatabaseBackend::class;
         $options = $configuration['options'] ?? [];
 
         if ($disableCaching) {
@@ -477,25 +470,7 @@ class Bootstrap
     public static function unsetReservedGlobalVariables()
     {
         unset($GLOBALS['TCA']);
-        unset($GLOBALS['TBE_STYLES']);
         unset($GLOBALS['BE_USER']);
-    }
-
-    /**
-     * Load $TCA
-     *
-     * This will mainly set up $TCA through extMgm API.
-     *
-     * @param bool $allowCaching True, if loading TCA from cache is allowed
-     * @param FrontendInterface|null $coreCache
-     * @internal This is not a public API method, do not use in own extensions
-     */
-    public static function loadBaseTca(bool $allowCaching = true, ?FrontendInterface $coreCache = null)
-    {
-        if ($allowCaching) {
-            $coreCache = $coreCache ?? GeneralUtility::makeInstance(CacheManager::class)->getCache('core');
-        }
-        ExtensionManagementUtility::loadBaseTca($allowCaching, $coreCache);
     }
 
     /**
@@ -519,13 +494,17 @@ class Bootstrap
      *
      * @param bool $allowCaching True, if reading compiled ext_tables file from cache is allowed
      * @internal This is not a public API method, do not use in own extensions
+     * @todo: It would be better to remove this method and use the factory directly.
+     *        Needs a pre-patch in testing-framework.
      */
     public static function loadExtTables(bool $allowCaching = true, ?FrontendInterface $coreCache = null)
     {
+        $container = GeneralUtility::getContainer();
         if ($allowCaching) {
-            $coreCache = $coreCache ?? GeneralUtility::makeInstance(CacheManager::class)->getCache('core');
+            $container->get(ExtTablesFactory::class)->load();
+        } else {
+            $container->get(ExtTablesFactory::class)->loadUncached();
         }
-        ExtensionManagementUtility::loadExtTables($allowCaching, $coreCache);
     }
 
     /**
@@ -553,15 +532,5 @@ class Bootstrap
     public static function initializeBackendAuthentication()
     {
         $GLOBALS['BE_USER']->backendCheckLogin();
-    }
-
-    /**
-     * Initialize language object
-     *
-     * @internal This is not a public API method, do not use in own extensions
-     */
-    public static function initializeLanguageObject()
-    {
-        $GLOBALS['LANG'] = GeneralUtility::makeInstance(LanguageServiceFactory::class)->createFromUserPreferences($GLOBALS['BE_USER']);
     }
 }

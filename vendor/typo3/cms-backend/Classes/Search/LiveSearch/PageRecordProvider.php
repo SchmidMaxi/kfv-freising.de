@@ -36,10 +36,11 @@ use TYPO3\CMS\Core\Database\Query\Restriction\EndTimeRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\HiddenRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\StartTimeRestriction;
 use TYPO3\CMS\Core\Exception\SiteNotFoundException;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
+use TYPO3\CMS\Core\Schema\SearchableSchemaFieldsCollector;
 use TYPO3\CMS\Core\Site\SiteFinder;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -65,6 +66,7 @@ final class PageRecordProvider implements SearchProviderInterface
         protected readonly UriBuilder $uriBuilder,
         protected readonly QueryParser $queryParser,
         protected readonly SiteFinder $siteFinder,
+        protected readonly SearchableSchemaFieldsCollector $searchableSchemaFieldsCollector,
     ) {
         $this->languageService = $this->languageServiceFactory->createFromUserPreferences($this->getBackendUser());
         $this->userPermissions = $this->getBackendUser()->getPagePermsClause(Permission::PAGE_SHOW);
@@ -118,7 +120,7 @@ final class PageRecordProvider implements SearchProviderInterface
                     new DemandProperty(DemandPropertyName::query, $extractedQueryString),
                     ...array_filter(
                         $searchDemand->getProperties(),
-                        static fn(DemandProperty $demandProperty) => $demandProperty->getName() !== DemandPropertyName::query
+                        static fn(DemandProperty $demandProperty): bool => $demandProperty->getName() !== DemandPropertyName::query
                     ),
                 ]);
             }
@@ -206,7 +208,7 @@ final class PageRecordProvider implements SearchProviderInterface
             $actions = [
                 (new ResultItemAction('open_page_details'))
                     ->setLabel($this->languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.showList'))
-                    ->setIcon($this->iconFactory->getIcon('actions-list', Icon::SIZE_SMALL))
+                    ->setIcon($this->iconFactory->getIcon('actions-list', IconSize::SMALL))
                     ->setUrl($this->getShowLink($row)),
             ];
 
@@ -218,11 +220,11 @@ final class PageRecordProvider implements SearchProviderInterface
             if ($previewUrl !== null) {
                 $actions[] = (new ResultItemAction('preview_page'))
                     ->setLabel($this->languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.showPage'))
-                    ->setIcon($this->iconFactory->getIcon('actions-file-view', Icon::SIZE_SMALL))
+                    ->setIcon($this->iconFactory->getIcon('actions-file-view', IconSize::SMALL))
                     ->setUrl((string)$previewUrl);
             }
 
-            $icon = $this->iconFactory->getIconForRecord('pages', $row, Icon::SIZE_SMALL);
+            $icon = $this->iconFactory->getIconForRecord('pages', $row, IconSize::SMALL);
             $items[] = (new ResultItem(self::class))
                 ->setItemTitle(BackendUtility::getRecordTitle('pages', $row))
                 ->setTypeLabel($this->languageService->sL($GLOBALS['TCA']['pages']['ctrl']['title']))
@@ -270,17 +272,7 @@ final class PageRecordProvider implements SearchProviderInterface
     protected function extractSearchableFieldsFromTable(): array
     {
         // Get the list of fields to search in from the TCA, if any
-        if (isset($GLOBALS['TCA']['pages']['ctrl']['searchFields'])) {
-            $fieldListArray = GeneralUtility::trimExplode(',', $GLOBALS['TCA']['pages']['ctrl']['searchFields'], true);
-        } else {
-            $fieldListArray = [];
-        }
-        // Add special fields
-        if ($this->getBackendUser()->isAdmin()) {
-            $fieldListArray[] = 'uid';
-            $fieldListArray[] = 'pid';
-        }
-        return $fieldListArray;
+        return $this->searchableSchemaFieldsCollector->getUniqueFieldList('pages', [], $this->getBackendUser()->isAdmin());
     }
 
     protected function buildConstraintsForTable(string $queryString, QueryBuilder $queryBuilder): array
@@ -385,20 +377,20 @@ final class PageRecordProvider implements SearchProviderInterface
     }
 
     /**
-     * Build a backend edit link based on given record.
+     * Build a link to the record list based on given record.
      *
      * @param array $row Current record row from database.
      * @return string Link to open an edit window for record.
-     * @see \TYPO3\CMS\Backend\Utility\BackendUtility::readPageAccess()
      */
     protected function getShowLink(array $row): string
     {
         $backendUser = $this->getBackendUser();
         $showLink = '';
+        $permissionSet = new Permission($this->getBackendUser()->calcPerms(BackendUtility::getRecord('pages', $row['pid']) ?? []));
         // "View" link - Only with proper permissions
         if ($backendUser->isAdmin()
             || (
-                $this->hasPermissionToView($row)
+                $permissionSet->showPagePermissionIsGranted()
                 && !($GLOBALS['TCA']['pages']['ctrl']['adminOnly'] ?? false)
                 && $backendUser->check('tables_select', 'pages')
             )
@@ -406,13 +398,6 @@ final class PageRecordProvider implements SearchProviderInterface
             $showLink = (string)$this->uriBuilder->buildUriFromRoute('web_list', ['id' => $row['uid']]);
         }
         return $showLink;
-    }
-
-    protected function hasPermissionToView(array $row): bool
-    {
-        $localCalcPerms = new Permission($this->getBackendUser()->calcPerms(BackendUtility::getRecord('pages', $row['uid']) ?? []));
-
-        return $localCalcPerms->showPagePermissionIsGranted();
     }
 
     protected function getBackendUser(): BackendUserAuthentication

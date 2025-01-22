@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Workspaces\Command;
 
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -26,17 +27,14 @@ use TYPO3\CMS\Core\Database\ConnectionPool;
 
 /**
  * Removes unused records from sys_preview
+ *
+ * @internal
  */
+#[AsCommand('cleanup:previewlinks', 'Find all versioned records and possibly cleans up invalid records in the database.')]
 class CleanupPreviewLinksCommand extends Command
 {
-    /**
-     * @var ConnectionPool
-     */
-    private $connectionPool;
-
-    public function __construct(ConnectionPool $connectionPool)
+    public function __construct(private readonly ConnectionPool $connectionPool)
     {
-        $this->connectionPool = $connectionPool;
         parent::__construct();
     }
 

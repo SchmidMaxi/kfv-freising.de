@@ -70,22 +70,25 @@ Next, define the additional fluid template search paths via YAML.
    templates, register the new paths for the backend module as well.
 
 
-EXT:my_site_package/ext_typoscript_setup.typoscript
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+EXT:my_site_package/ext_localconf.php
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Register your EXT:form configuration for the backend via TypoScript. Read
-the :ref:`chapter about configuration concepts <concepts-configuration-yamlregistration-backend>`
-to learn about the recommended ways.
+Register your EXT:form configuration for the backend via TypoScript in a :file:`ext_localconf.php` file.
+See :ref:`chapter about configuration concepts <concepts-configuration-yamlregistration-backend>`
+for more information.
 
-.. code-block:: typoscript
+..  code-block:: php
+    :caption: EXT:my_extension/ext_localconf.php
 
-   module.tx_form {
-       settings {
-           yamlConfigurations {
-               100 = EXT:my_site_package/Configuration/Form/CustomFormSetup.yaml
+    ExtensionManagementUtility::addTypoScriptSetup('
+       module.tx_form {
+           settings {
+               yamlConfigurations {
+                   1732786693 = EXT:my_site_package/Configuration/Form/CustomFormSetup.yaml
+               }
            }
        }
-   }
+    ');
 
 
 .. _faq-prevent-double-submissions:
@@ -117,18 +120,6 @@ corresponding form.
                    button.disabled = true;
                });
        });
-
-
-.. _faq-migrate-from-v7:
-
-How do I migrate from EXT:form v7?
-==================================
-
-The old form extension (used in TYPO3 v7, which is compatible to TYPO3 v6)
-was moved into an own extension called ``form_legacy``.  This extension can
-be found within the official `TER <https://typo3.org/extensions/repository/view/form_legacy>`_.
-When upgrading to TYPO3 v8 an upgrade wizard will tell you if form_legacy is
-still needed.
 
 
 .. _faq-date-picker:

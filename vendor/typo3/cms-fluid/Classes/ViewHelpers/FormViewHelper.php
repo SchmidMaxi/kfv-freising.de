@@ -20,6 +20,7 @@ namespace TYPO3\CMS\Fluid\ViewHelpers;
 use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Context\SecurityAspect;
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Http\ApplicationType;
 use TYPO3\CMS\Core\Security\RequestToken;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -27,9 +28,8 @@ use TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface;
 use TYPO3\CMS\Extbase\Mvc\Controller\MvcPropertyMappingConfigurationService;
 use TYPO3\CMS\Extbase\Mvc\RequestInterface;
 use TYPO3\CMS\Extbase\Mvc\Web\Routing\UriBuilder;
-use TYPO3\CMS\Extbase\Security\Cryptography\HashService;
+use TYPO3\CMS\Extbase\Security\HashScope;
 use TYPO3\CMS\Extbase\Service\ExtensionService;
-use TYPO3\CMS\Fluid\Core\Rendering\RenderingContext;
 use TYPO3\CMS\Fluid\ViewHelpers\Form\AbstractFormViewHelper;
 use TYPO3\CMS\Fluid\ViewHelpers\Form\CheckboxViewHelper;
 
@@ -129,22 +129,15 @@ class FormViewHelper extends AbstractFormViewHelper
         $this->registerArgument('hiddenFieldClassName', 'string', 'hiddenFieldClassName');
         $this->registerArgument('requestToken', 'mixed', 'whether to add that request token to the form');
         $this->registerArgument('signingType', 'string', 'which signing type to be used on the request token (falls back to "nonce")');
-        $this->registerTagAttribute('enctype', 'string', 'MIME type with which the form is submitted');
-        $this->registerTagAttribute('method', 'string', 'Transfer type (get or post)', false, 'post');
-        $this->registerTagAttribute('name', 'string', 'Name of form');
-        $this->registerTagAttribute('onreset', 'string', 'JavaScript: On reset of the form');
-        $this->registerTagAttribute('onsubmit', 'string', 'JavaScript: On submit of the form');
-        $this->registerTagAttribute('target', 'string', 'Target attribute of the form');
-        $this->registerTagAttribute('novalidate', 'bool', 'Indicate that the form is not to be validated on submit.');
-        $this->registerUniversalTagAttributes();
+        $this->registerArgument('method', 'string', 'Transfer type (get or post)', false, 'post');
+        $this->registerArgument('name', 'string', 'Name of form');
+        $this->registerArgument('novalidate', 'bool', 'Indicate that the form is not to be validated on submit.');
     }
 
     public function render(): string
     {
-        /** @var RenderingContext $renderingContext */
-        $renderingContext = $this->renderingContext;
-        $request = $renderingContext->getRequest();
-        if (!$request instanceof RequestInterface) {
+        if (!$this->renderingContext->hasAttribute(ServerRequestInterface::class)
+            || !$this->renderingContext->getAttribute(ServerRequestInterface::class) instanceof RequestInterface) {
             throw new \RuntimeException(
                 'ViewHelper f:form can be used only in extbase context and needs a request implementing extbase RequestInterface.',
                 1639821904
@@ -158,6 +151,10 @@ class FormViewHelper extends AbstractFormViewHelper
             $this->tag->addAttribute('method', 'get');
         } else {
             $this->tag->addAttribute('method', 'post');
+        }
+
+        if (!empty($this->arguments['name'])) {
+            $this->tag->addAttribute('name', $this->arguments['name']);
         }
 
         if (isset($this->arguments['novalidate']) && $this->arguments['novalidate'] === true) {
@@ -204,10 +201,8 @@ class FormViewHelper extends AbstractFormViewHelper
         if ($this->hasArgument('actionUri')) {
             $formActionUri = $this->arguments['actionUri'];
         } else {
-            /** @var RenderingContext $renderingContext */
-            $renderingContext = $this->renderingContext;
             /** @var RequestInterface $request */
-            $request = $renderingContext->getRequest();
+            $request = $this->renderingContext->getAttribute(ServerRequestInterface::class);
             $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
             $uriBuilder
                 ->reset()
@@ -268,10 +263,8 @@ class FormViewHelper extends AbstractFormViewHelper
      */
     protected function renderHiddenReferrerFields(): string
     {
-        /** @var RenderingContext $renderingContext */
-        $renderingContext = $this->renderingContext;
         /** @var RequestInterface $request */
-        $request = $renderingContext->getRequest();
+        $request = $this->renderingContext->getAttribute(ServerRequestInterface::class);
         $extensionName = $request->getControllerExtensionName();
         $controllerName = $request->getControllerName();
         $actionName = $request->getControllerActionName();
@@ -282,11 +275,11 @@ class FormViewHelper extends AbstractFormViewHelper
         ];
 
         $result = LF;
-        $result .= '<input type="hidden" name="' . htmlspecialchars($this->prefixFieldName('__referrer[@extension]')) . '" value="' . htmlspecialchars((string)$extensionName) . '" />' . LF;
-        $result .= '<input type="hidden" name="' . htmlspecialchars($this->prefixFieldName('__referrer[@controller]')) . '" value="' . htmlspecialchars((string)$controllerName) . '" />' . LF;
-        $result .= '<input type="hidden" name="' . htmlspecialchars($this->prefixFieldName('__referrer[@action]')) . '" value="' . htmlspecialchars((string)$actionName) . '" />' . LF;
-        $result .= '<input type="hidden" name="' . htmlspecialchars($this->prefixFieldName('__referrer[arguments]')) . '" value="' . htmlspecialchars($this->hashService->appendHmac(base64_encode(serialize($request->getArguments())))) . '" />' . LF;
-        $result .= '<input type="hidden" name="' . htmlspecialchars($this->prefixFieldName('__referrer[@request]')) . '" value="' . htmlspecialchars($this->hashService->appendHmac(json_encode($actionRequest))) . '" />' . LF;
+        $result .= '<input type="hidden" name="' . htmlspecialchars($this->prefixFieldName('__referrer[@extension]')) . '" value="' . htmlspecialchars($extensionName) . '" />' . LF;
+        $result .= '<input type="hidden" name="' . htmlspecialchars($this->prefixFieldName('__referrer[@controller]')) . '" value="' . htmlspecialchars($controllerName) . '" />' . LF;
+        $result .= '<input type="hidden" name="' . htmlspecialchars($this->prefixFieldName('__referrer[@action]')) . '" value="' . htmlspecialchars($actionName) . '" />' . LF;
+        $result .= '<input type="hidden" name="' . htmlspecialchars($this->prefixFieldName('__referrer[arguments]')) . '" value="' . htmlspecialchars($this->hashService->appendHmac(base64_encode(serialize($request->getArguments())), HashScope::ReferringArguments->prefix())) . '" />' . LF;
+        $result .= '<input type="hidden" name="' . htmlspecialchars($this->prefixFieldName('__referrer[@request]')) . '" value="' . htmlspecialchars($this->hashService->appendHmac(json_encode($actionRequest), HashScope::ReferringRequest->prefix())) . '" />' . LF;
 
         return $result;
     }
@@ -405,18 +398,10 @@ class FormViewHelper extends AbstractFormViewHelper
      */
     protected function getDefaultFieldNamePrefix(): string
     {
-        /** @var RenderingContext $renderingContext */
-        $renderingContext = $this->renderingContext;
         /** @var RequestInterface $request */
-        $request = $renderingContext->getRequest();
-        // New Backend URLs does not have a prefix anymore
-        // @deprecated since TYPO3 v12, will be removed in TYPO3 v13. Remove together with other extbase feature toggle related code.
-        //             Remove "!$this->configurationManager->isFeatureEnabled('enableNamespacedArgumentsForBackend')" from if()
-        if (!$this->configurationManager->isFeatureEnabled('enableNamespacedArgumentsForBackend')
-            && $request instanceof ServerRequestInterface
-            && $request->getAttribute('applicationType')
-            && ApplicationType::fromRequest($request)->isBackend()
-        ) {
+        $request = $this->renderingContext->getAttribute(ServerRequestInterface::class);
+        if ($request->getAttribute('applicationType') && ApplicationType::fromRequest($request)->isBackend()) {
+            // Backend URLs do not have a prefix
             return '';
         }
         if ($this->hasArgument('extensionName')) {

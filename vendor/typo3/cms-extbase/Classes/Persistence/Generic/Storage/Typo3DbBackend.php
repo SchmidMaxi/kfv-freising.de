@@ -18,8 +18,12 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Extbase\Persistence\Generic\Storage;
 
 use Doctrine\DBAL\Exception as DBALException;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
+use TYPO3\CMS\Core\Cache\CacheTag;
+use TYPO3\CMS\Core\Cache\Event\AddCacheTagEvent;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Context\LanguageAspect;
 use TYPO3\CMS\Core\Context\WorkspaceAspect;
@@ -47,23 +51,23 @@ use TYPO3\CMS\Extbase\Persistence\Generic\Storage\Exception\SqlErrorException;
 use TYPO3\CMS\Extbase\Persistence\QueryInterface;
 use TYPO3\CMS\Extbase\Reflection\ReflectionService;
 use TYPO3\CMS\Extbase\Service\CacheService;
+use TYPO3\CMS\Frontend\Cache\CacheLifetimeCalculator;
 
 /**
  * A Storage backend
  * @internal only to be used within Extbase, not part of TYPO3 Core API.
  */
-class Typo3DbBackend implements BackendInterface, SingletonInterface
+readonly class Typo3DbBackend implements BackendInterface, SingletonInterface
 {
-    protected ConnectionPool $connectionPool;
-    protected ReflectionService $reflectionService;
-    protected CacheService $cacheService;
-
-    public function __construct(CacheService $cacheService, ReflectionService $reflectionService)
-    {
-        $this->cacheService = $cacheService;
-        $this->reflectionService = $reflectionService;
-        $this->connectionPool = GeneralUtility::makeInstance(ConnectionPool::class);
-    }
+    public function __construct(
+        protected CacheService $cacheService,
+        protected ConnectionPool $connectionPool,
+        protected ReflectionService $reflectionService,
+        protected EventDispatcherInterface $eventDispatcher,
+        protected CacheLifetimeCalculator $cacheLifetimeCalculator,
+        #[Autowire(expression: 'service("features").isFeatureEnabled("frontend.cache.autoTagging")')]
+        protected bool $autoTagging,
+    ) {}
 
     /**
      * Adds a row to the storage
@@ -89,7 +93,7 @@ class Typo3DbBackend implements BackendInterface, SingletonInterface
         $uid = 0;
         if (!$isRelation) {
             // Relation tables have no auto_increment column, so no retrieval must be tried.
-            $uid = (int)$connection->lastInsertId($tableName);
+            $uid = (int)$connection->lastInsertId();
             $this->cacheService->clearCacheForRecord($tableName, $uid);
         }
         return $uid;
@@ -207,7 +211,7 @@ class Typo3DbBackend implements BackendInterface, SingletonInterface
             } else {
                 $queryBuilder = $queryParser->convertQueryToDoctrineQueryBuilder($query);
             }
-            $selectParts = $queryBuilder->getQueryPart('select');
+            $selectParts = $queryBuilder->getSelect();
             if ($queryParser->isDistinctQuerySuggested() && !empty($selectParts)) {
                 $selectParts[0] = 'DISTINCT ' . $selectParts[0];
                 $queryBuilder->selectLiteral(...$selectParts);
@@ -227,6 +231,17 @@ class Typo3DbBackend implements BackendInterface, SingletonInterface
 
         if (!empty($rows)) {
             $rows = $this->overlayLanguageAndWorkspace($query->getSource(), $rows, $query);
+            if ($this->autoTagging) {
+                $source = $query->getSource();
+                if ($source instanceof JoinInterface) {
+                    $source = $source->getRight();
+                }
+                if (!$source instanceof SelectorInterface) {
+                    throw new \RuntimeException(get_class($source) . ' must implement SelectorInterface at this point.', 1726753183);
+                }
+                $tableName = $source->getSelectorName();
+                $this->addCacheTagsForRows($tableName, $rows);
+            }
         }
 
         return $rows;
@@ -254,7 +269,10 @@ class Typo3DbBackend implements BackendInterface, SingletonInterface
             // Prepared Doctrine DBAL statement
         } elseif ($realStatement instanceof \Doctrine\DBAL\Statement) {
             try {
-                $result = $realStatement->executeQuery($parameters);
+                foreach ($parameters as $parameterIdentifier => $parameterValue) {
+                    $realStatement->bindValue($parameterIdentifier, $parameterValue);
+                }
+                $result = $realStatement->executeQuery();
             } catch (DBALException $e) {
                 throw new SqlErrorException($e->getPrevious()->getMessage(), 1481281404, $e);
             }
@@ -299,14 +317,15 @@ class Typo3DbBackend implements BackendInterface, SingletonInterface
             $queryParser  = GeneralUtility::makeInstance(Typo3DbQueryParser::class);
             $queryBuilder = $queryParser
                 ->convertQueryToDoctrineQueryBuilder($query)
-                ->resetQueryPart('orderBy');
+                ->resetOrderBy();
 
             if ($queryParser->isDistinctQuerySuggested()) {
-                $source = $queryBuilder->getQueryPart('from')[0];
+                $source = $queryBuilder->getFrom()[0];
                 // Tablename is already quoted for the DBMS, we need to treat table and field names separately
-                $tableName = $source['alias'] ?: $source['table'];
+                $tableName = $source->alias ?: $source->table;
                 $fieldName = $queryBuilder->quoteIdentifier('uid');
-                $queryBuilder->resetQueryPart('groupBy')
+                $queryBuilder
+                    ->resetGroupBy()
                     ->selectLiteral(sprintf('COUNT(DISTINCT %s.%s)', $tableName, $fieldName));
             } else {
                 $queryBuilder->count('*');
@@ -341,6 +360,7 @@ class Typo3DbBackend implements BackendInterface, SingletonInterface
     public function getUidOfAlreadyPersistedValueObject(AbstractValueObject $object): ?int
     {
         $className = get_class($object);
+        /** @var DataMapper $dataMapper */
         $dataMapper = GeneralUtility::makeInstance(DataMapper::class);
         $dataMap = $dataMapper->getDataMap($className);
         $tableName = $dataMap->getTableName();
@@ -387,10 +407,6 @@ class Typo3DbBackend implements BackendInterface, SingletonInterface
     /**
      * Performs workspace and language overlay on the given row array. The language and workspace id is automatically
      * detected (depending on FE or BE context). You can also explicitly set the language/workspace id.
-     *
-     * @param Qom\SourceInterface $source The source (selector or join)
-     * @param int|null $workspaceUid
-     * @throws \TYPO3\CMS\Core\Context\Exception\AspectNotFoundException
      */
     protected function overlayLanguageAndWorkspace(SourceInterface $source, array $rows, QueryInterface $query, ?int $workspaceUid = null): array
     {
@@ -455,7 +471,7 @@ class Typo3DbBackend implements BackendInterface, SingletonInterface
         }
         // First, find out the fields that belong to the "main" selected table which is defined by TCA, and take the first
         // record to find out all possible fields in this database table
-        $fieldsOfMainTable = $pageRepository->getRawRecord($tableName, $rows[0]['uid']);
+        $fieldsOfMainTable = $pageRepository->getRawRecord($tableName, (int)$rows[0]['uid']);
         $overlaidRows = [];
         if (is_array($fieldsOfMainTable)) {
             foreach ($rows as $row) {
@@ -511,11 +527,6 @@ class Typo3DbBackend implements BackendInterface, SingletonInterface
         if (is_array($row) && $fetchLocalizedRecord) {
             if ($tableName === 'pages') {
                 $row = $pageRepository->getLanguageOverlay($tableName, $row);
-                // DataMapper only checks for _LOCALIZED_UID when setting '_localizedUid' property
-                // and not _PAGES_OVERLAY_UID.
-                if (isset($row['_PAGES_OVERLAY_UID'])) {
-                    $row['_LOCALIZED_UID'] = $row['_PAGES_OVERLAY_UID'];
-                }
             } else {
                 if (!$querySettings->getRespectSysLanguage()
                     && $languageOfCurrentRecord > 0
@@ -547,7 +558,7 @@ class Typo3DbBackend implements BackendInterface, SingletonInterface
                 && ($row[$GLOBALS['TCA'][$tableName]['ctrl']['transOrigPointerField']] ?? 0) > 0
                 && $languageOfCurrentRecord > 0
             ) {
-                $row['_LOCALIZED_UID'] = $row['uid'];
+                $row['_LOCALIZED_UID'] = (int)$row['uid'];
                 $row['uid'] = $row[$GLOBALS['TCA'][$tableName]['ctrl']['transOrigPointerField']];
             }
         }
@@ -578,7 +589,7 @@ class Typo3DbBackend implements BackendInterface, SingletonInterface
             ->select('*')
             ->from($tableName)
             ->where(
-                $queryBuilder->expr()->eq('t3ver_state', $queryBuilder->createNamedParameter(VersionState::MOVE_POINTER, Connection::PARAM_INT)),
+                $queryBuilder->expr()->eq('t3ver_state', $queryBuilder->createNamedParameter(VersionState::MOVE_POINTER->value, Connection::PARAM_INT)),
                 $queryBuilder->expr()->eq('t3ver_wsid', $queryBuilder->createNamedParameter($workspaceUid, Connection::PARAM_INT)),
                 $queryBuilder->expr()->eq('t3ver_oid', $queryBuilder->createNamedParameter($rows[0]['uid'], Connection::PARAM_INT))
             )
@@ -589,5 +600,17 @@ class Typo3DbBackend implements BackendInterface, SingletonInterface
             $rows = $movedRecords;
         }
         return $rows;
+    }
+
+    protected function addCacheTagsForRows(string $tableName, array $rows): void
+    {
+        foreach ($rows as $row) {
+            $lifetime = $this->cacheLifetimeCalculator->calculateLifetimeForRow($tableName, $row);
+            $this->eventDispatcher->dispatch(
+                new AddCacheTagEvent(
+                    new CacheTag(sprintf('%s_%s', $tableName, ($row['uid'] ?? 0)), $lifetime)
+                )
+            );
+        }
     }
 }

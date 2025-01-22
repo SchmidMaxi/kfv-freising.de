@@ -33,7 +33,6 @@ use TYPO3\CMS\Core\Resource\ResourceInterface;
 use TYPO3\CMS\Core\SysLog\Action\File as SystemLogFileAction;
 use TYPO3\CMS\Core\SysLog\Error as SystemLogErrorClassification;
 use TYPO3\CMS\Core\SysLog\Type as SystemLogType;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
  * @internal
@@ -126,7 +125,6 @@ final class ResourceController
         return [
             'type' => $resource instanceof File ? 'file' : 'folder',
             'identifier' => $resource instanceof File || $resource instanceof Folder ? $resource->getCombinedIdentifier() : null,
-            'stateIdentifier' => $resource->getStorage()->getUid() . '_' . GeneralUtility::md5int($resource->getIdentifier()),
             'name' => $resource->getName(),
             'uid' => $resource instanceof File ? $resource->getUid() : null,
             'metaUid' => $resource instanceof File ? $resource->getMetaData()->offsetGet('uid') : null,

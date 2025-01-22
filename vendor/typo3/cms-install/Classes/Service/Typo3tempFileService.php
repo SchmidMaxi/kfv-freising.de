@@ -30,14 +30,10 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  */
 class Typo3tempFileService
 {
-    private $processedFileRepository;
-    private $storageRepository;
-
-    public function __construct(ProcessedFileRepository $processedFileRepository, StorageRepository $storageRepository)
-    {
-        $this->processedFileRepository = $processedFileRepository;
-        $this->storageRepository = $storageRepository;
-    }
+    public function __construct(
+        private readonly ProcessedFileRepository $processedFileRepository,
+        private readonly StorageRepository $storageRepository
+    ) {}
 
     /**
      * Returns a list of directory names in typo3temp/assets and their number of files
@@ -152,8 +148,7 @@ class Typo3tempFileService
      */
     public function clearProcessedFiles(int $storageUid): int
     {
-        $repository = GeneralUtility::makeInstance(ProcessedFileRepository::class);
-        return $repository->removeAll($storageUid);
+        return $this->processedFileRepository->removeAll($storageUid);
     }
 
     /**

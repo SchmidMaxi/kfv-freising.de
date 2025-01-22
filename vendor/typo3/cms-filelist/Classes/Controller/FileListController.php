@@ -22,6 +22,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
+use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Clipboard\Clipboard;
 use TYPO3\CMS\Backend\Module\ModuleData;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
@@ -32,16 +33,17 @@ use TYPO3\CMS\Backend\Template\Components\Buttons\DropDown\DropDownRadio;
 use TYPO3\CMS\Backend\Template\Components\Buttons\DropDown\DropDownToggle;
 use TYPO3\CMS\Backend\Template\ModuleTemplate;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
+use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Backend\View\BackendViewFactory;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Messaging\FlashMessage;
 use TYPO3\CMS\Core\Messaging\FlashMessageService;
 use TYPO3\CMS\Core\Page\JavaScriptModuleInstruction;
 use TYPO3\CMS\Core\Page\PageRenderer;
-use TYPO3\CMS\Core\Resource\DuplicationBehavior;
+use TYPO3\CMS\Core\Resource\Enum\DuplicationBehavior;
 use TYPO3\CMS\Core\Resource\Exception;
 use TYPO3\CMS\Core\Resource\Exception\FolderDoesNotExistException;
 use TYPO3\CMS\Core\Resource\Exception\InsufficientFolderAccessPermissionsException;
@@ -63,9 +65,11 @@ use TYPO3\CMS\Filelist\Matcher\ResourceFolderTypeMatcher;
 use TYPO3\CMS\Filelist\Type\ViewMode;
 
 /**
- * Script Class for creating the list of files in the File > Filelist module
+ * Script Class for creating the list of files in the File > Filelist module.
+ *
  * @internal this is a concrete TYPO3 controller implementation and solely used for EXT:filelist and not part of TYPO3's Core API.
  */
+#[AsController]
 class FileListController implements LoggerAwareInterface
 {
     use LoggerAwareTrait;
@@ -109,9 +113,8 @@ class FileListController implements LoggerAwareInterface
         $this->cmd = (string)($parsedBody['cmd'] ?? $queryParams['cmd'] ?? '');
         $this->searchTerm = (string)trim($parsedBody['searchTerm'] ?? $queryParams['searchTerm'] ?? '');
         $this->currentPage = (int)($parsedBody['currentPage'] ?? $queryParams['currentPage'] ?? 1);
-        $this->overwriteExistingFiles = DuplicationBehavior::cast(
-            $parsedBody['overwriteExistingFiles'] ?? $queryParams['overwriteExistingFiles'] ?? null
-        );
+        $duplicationBehaviorFromRequest = $parsedBody['overwriteExistingFiles'] ?? $queryParams['overwriteExistingFiles'] ?? '';
+        $this->overwriteExistingFiles = DuplicationBehavior::tryFrom($duplicationBehaviorFromRequest) ?? DuplicationBehavior::getDefaultDuplicationBehaviour();
 
         $storage = null;
         try {
@@ -298,6 +301,11 @@ class FileListController implements LoggerAwareInterface
             $this->moduleData->set('clipBoard', false);
             $this->allowClipboard = false;
         }
+        // Set predefined value for viewMode:
+        $viewMode = ViewMode::tryFrom($this->moduleData->get('viewMode') ?? '')
+            ?? ViewMode::tryFrom($userTsConfig['options.']['defaultResourcesViewMode'] ?? '')
+            ?? ViewMode::TILES;
+        $this->moduleData->set('viewMode', $viewMode->value);
     }
 
     protected function initializeFileList(ServerRequestInterface $request): void
@@ -398,6 +406,19 @@ class FileListController implements LoggerAwareInterface
                         'returnUrl' => $this->filelist->createModuleUri(),
                     ])
                 );
+                $allowedFields = BackendUtility::getAllowedFieldsForTable('sys_file_metadata');
+                $columnsOnly = array_filter($this->filelist->fieldArray, static fn($field) => in_array($field, $allowedFields, true));
+                if ($columnsOnly !== []) {
+                    $this->view->assign(
+                        'editColumnsActionConfiguration',
+                        GeneralUtility::jsonEncodeForHtmlAttribute([
+                            'idField' => 'filelistMetaUid',
+                            'table' => 'sys_file_metadata',
+                            'columnsOnly' => array_values($columnsOnly),
+                            'returnUrl' => $this->filelist->createModuleUri(),
+                        ])
+                    );
+                }
             }
 
             // Assign meta information for the multi record selection
@@ -405,8 +426,8 @@ class FileListController implements LoggerAwareInterface
                 'deleteActionConfiguration',
                 GeneralUtility::jsonEncodeForHtmlAttribute([
                     'ok' => $lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:cm.delete'),
-                    'title' => $lang->sL('LLL:EXT:filelist/Resources/Private/Language/locallang_mod_file_list.xlf:clip_deleteMarked'),
-                    'content' => $lang->sL('LLL:EXT:filelist/Resources/Private/Language/locallang_mod_file_list.xlf:clip_deleteMarkedWarning'),
+                    'title' => $lang->sL('LLL:EXT:filelist/Resources/Private/Language/locallang_mod_file_list.xlf:deleteMarked'),
+                    'content' => $lang->sL('LLL:EXT:filelist/Resources/Private/Language/locallang_mod_file_list.xlf:deleteMarkedWarning'),
                 ]),
             );
 
@@ -441,12 +462,15 @@ class FileListController implements LoggerAwareInterface
                 'type.file' => $lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_common.xlf:file'),
                 'permissions.read' => $lang->sL('LLL:EXT:filelist/Resources/Private/Language/locallang_mod_file_list.xlf:read'),
                 'permissions.write' => $lang->sL('LLL:EXT:filelist/Resources/Private/Language/locallang_mod_file_list.xlf:write'),
+                'online_media.update.success' => $lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:online_media.update.success'),
+                'online_media.update.error' => $lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:online_media.update.error'),
                 'labels.contextMenu.open' => $lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.contextMenu.open'),
             ]);
+            $defaultDuplicationBehavior = DuplicationBehavior::getDefaultDuplicationBehaviour($this->getBackendUser());
             $this->view->assign('dragUploader', [
                 'fileDenyPattern' => $GLOBALS['TYPO3_CONF_VARS']['BE']['fileDenyPattern'] ?? null,
                 'maxFileSize' => GeneralUtility::getMaxUploadFileSize() * 1024,
-                'defaultDuplicationBehaviourAction' => $this->getDefaultDuplicationBehaviourAction(),
+                'defaultDuplicationBehaviourAction' => $defaultDuplicationBehavior->value,
             ]);
         }
     }
@@ -476,7 +500,7 @@ class FileListController implements LoggerAwareInterface
         $refreshButton = $buttonBar->makeLinkButton()
             ->setHref($request->getAttribute('normalizedParams')->getRequestUri())
             ->setTitle($lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.reload'))
-            ->setIcon($this->iconFactory->getIcon('actions-refresh', Icon::SIZE_SMALL));
+            ->setIcon($this->iconFactory->getIcon('actions-refresh', IconSize::SMALL));
         $buttonBar->addButton($refreshButton, ButtonBar::BUTTON_POSITION_RIGHT);
 
         // ViewMode
@@ -556,7 +580,7 @@ class FileListController implements LoggerAwareInterface
                     )
                     ->setShowLabelText(true)
                     ->setTitle($lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.upOneLevel'))
-                    ->setIcon($this->iconFactory->getIcon('actions-view-go-up', Icon::SIZE_SMALL));
+                    ->setIcon($this->iconFactory->getIcon('actions-view-go-up', IconSize::SMALL));
                 $buttonBar->addButton($levelUpButton, ButtonBar::BUTTON_POSITION_LEFT, 1);
             }
         } catch (\Exception $e) {
@@ -586,7 +610,7 @@ class FileListController implements LoggerAwareInterface
                 ->setClasses('t3js-drag-uploader-trigger')
                 ->setShowLabelText(true)
                 ->setTitle($lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:cm.upload'))
-                ->setIcon($this->iconFactory->getIcon('actions-edit-upload', Icon::SIZE_SMALL));
+                ->setIcon($this->iconFactory->getIcon('actions-edit-upload', IconSize::SMALL));
             $buttonBar->addButton($uploadButton, ButtonBar::BUTTON_POSITION_LEFT, 2);
         }
 
@@ -601,7 +625,7 @@ class FileListController implements LoggerAwareInterface
                 ])
                 ->setShowLabelText(true)
                 ->setTitle($lang->sL('LLL:EXT:filelist/Resources/Private/Language/locallang.xlf:actions.create_folder'))
-                ->setIcon($this->iconFactory->getIcon('actions-folder-add', Icon::SIZE_SMALL));
+                ->setIcon($this->iconFactory->getIcon('actions-folder-add', IconSize::SMALL));
             $buttonBar->addButton($newButton, ButtonBar::BUTTON_POSITION_LEFT, 3);
         }
 
@@ -619,7 +643,7 @@ class FileListController implements LoggerAwareInterface
                 ))
                 ->setShowLabelText(true)
                 ->setTitle($lang->sL('LLL:EXT:filelist/Resources/Private/Language/locallang.xlf:actions.create_file'))
-                ->setIcon($this->iconFactory->getIcon('actions-file-add', Icon::SIZE_SMALL));
+                ->setIcon($this->iconFactory->getIcon('actions-file-add', IconSize::SMALL));
             $buttonBar->addButton($newButton, ButtonBar::BUTTON_POSITION_LEFT, 4);
         }
 
@@ -655,7 +679,7 @@ class FileListController implements LoggerAwareInterface
                         ])
                         ->setShowLabelText(true)
                         ->setTitle($pastButtonTitle)
-                        ->setIcon($this->iconFactory->getIcon('actions-document-paste-into', Icon::SIZE_SMALL));
+                        ->setIcon($this->iconFactory->getIcon('actions-document-paste-into', IconSize::SMALL));
                     $buttonBar->addButton($pasteButton, ButtonBar::BUTTON_POSITION_LEFT, 10);
                 }
             }
@@ -680,32 +704,6 @@ class FileListController implements LoggerAwareInterface
             ));
         }
         return (string)$name;
-    }
-
-    /**
-     * Return the default duplication behaviour action, set in TSconfig
-     */
-    protected function getDefaultDuplicationBehaviourAction(): string
-    {
-        $defaultAction = $this->getBackendUser()->getTSConfig()
-            ['options.']['file_list.']['uploader.']['defaultAction'] ?? '';
-
-        if ($defaultAction === '') {
-            return DuplicationBehavior::CANCEL;
-        }
-
-        if (!in_array($defaultAction, [
-            DuplicationBehavior::REPLACE,
-            DuplicationBehavior::RENAME,
-            DuplicationBehavior::CANCEL,
-        ], true)) {
-            $this->logger->warning('TSConfig: options.file_list.uploader.defaultAction contains an invalid value ("{value}"), fallback to default value: "{default}"', [
-                'value' => $defaultAction,
-                'default' => DuplicationBehavior::CANCEL,
-            ]);
-            $defaultAction = DuplicationBehavior::CANCEL;
-        }
-        return $defaultAction;
     }
 
     /**

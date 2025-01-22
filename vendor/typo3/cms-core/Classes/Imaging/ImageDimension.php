@@ -18,11 +18,7 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Core\Imaging;
 
 use TYPO3\CMS\Core\Imaging\Exception\ZeroImageDimensionException;
-use TYPO3\CMS\Core\Imaging\ImageManipulation\Area;
-use TYPO3\CMS\Core\Resource\ProcessedFile;
-use TYPO3\CMS\Core\Resource\Processing\LocalPreviewHelper;
 use TYPO3\CMS\Core\Resource\Processing\TaskInterface;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
  * Representing an image dimension (width and height)
@@ -31,135 +27,36 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 class ImageDimension
 {
     /**
-     * @var int
+     * @param int<0, max> $width
+     * @param int<0, max> $height
      */
-    private $width;
+    public function __construct(
+        private readonly int $width,
+        private readonly int $height
+    ) {}
 
     /**
-     * @var int
+     * @return int<0, max>
      */
-    private $height;
-
-    public function __construct(int $width, int $height)
-    {
-        $this->width = $width;
-        $this->height = $height;
-    }
-
     public function getWidth(): int
     {
         return $this->width;
     }
 
+    /**
+     * @return int<0, max>
+     */
     public function getHeight(): int
     {
         return $this->height;
     }
 
+    /**
+     * @throws ZeroImageDimensionException
+     */
     public static function fromProcessingTask(TaskInterface $task): self
     {
-        $config = self::getConfigurationForImageCropScaleMask($task);
-        $processedFile = $task->getTargetFile();
-        $isCropped = false;
-        if (($config['crop'] ?? null) instanceof Area) {
-            $isCropped = true;
-            $imageDimension = new self(
-                (int)round($config['crop']->getWidth()),
-                (int)round($config['crop']->getHeight())
-            );
-        } else {
-            $imageDimension = new self(
-                (int)$processedFile->getOriginalFile()->getProperty('width'),
-                (int)$processedFile->getOriginalFile()->getProperty('height')
-            );
-        }
-        if ($imageDimension->width <= 0 || $imageDimension->height <= 0) {
-            throw new ZeroImageDimensionException('Width and height of the image must be greater than zero.', 1597310560);
-        }
-        $result = GeneralUtility::makeInstance(GraphicalFunctions::class)->getImageScale(
-            [
-                $imageDimension->width,
-                $imageDimension->height,
-                $processedFile->getExtension(),
-            ],
-            (string)($config['width'] ?? ''),
-            (string)($config['height'] ?? ''),
-            $config
-        );
-        $imageWidth = $geometryWidth = (int)$result[0];
-        $imageHeight = $geometryHeight = (int)$result[1];
-        $isCropScaled = $result['crs'];
-
-        if ($isCropScaled) {
-            $cropWidth = (int)$result['origW'];
-            $cropHeight = (int)$result['origH'];
-            // If the image is crop scaled, use the dimension of the crop
-            // unless crop area exceeds the dimension of the scaled image
-            if ($cropWidth <= $geometryWidth && $cropHeight <= $geometryHeight) {
-                $imageWidth = $cropWidth;
-                $imageHeight = $cropHeight;
-            }
-            if (!$isCropped && $task->getTargetFileExtension() === 'svg') {
-                // Keep aspect ratio of SVG files, when crop-scaling is requested
-                // but no crop is applied
-                if ($geometryWidth > $geometryHeight) {
-                    $imageHeight = (int)round($imageWidth * $geometryHeight / $geometryWidth);
-                } else {
-                    $imageWidth = (int)round($imageHeight * $geometryWidth / $geometryHeight);
-                }
-            }
-        }
-        $imageDimension->width = $imageWidth;
-        $imageDimension->height = $imageHeight;
-
-        return $imageDimension;
-    }
-
-    private static function getConfigurationForImageCropScaleMask(TaskInterface $task): array
-    {
-        $configuration = $task->getConfiguration();
-
-        if ($task->getTargetFile()->getTaskIdentifier() === ProcessedFile::CONTEXT_IMAGEPREVIEW) {
-            $configuration = LocalPreviewHelper::preProcessConfiguration($configuration);
-            $configuration['maxWidth'] = $configuration['width'];
-            unset($configuration['width']);
-            $configuration['maxHeight'] = $configuration['height'];
-            unset($configuration['height']);
-        }
-
-        $options = $configuration;
-        if ($configuration['maxWidth'] ?? null) {
-            $options['maxW'] = $configuration['maxWidth'];
-        }
-        if ($configuration['maxHeight'] ?? null) {
-            $options['maxH'] = $configuration['maxHeight'];
-        }
-        if ($configuration['minWidth'] ?? null) {
-            $options['minW'] = $configuration['minWidth'];
-        }
-        if ($configuration['minHeight'] ?? null) {
-            $options['minH'] = $configuration['minHeight'];
-        }
-        if ($configuration['crop'] ?? null) {
-            $options['crop'] = $configuration['crop'];
-            if (is_string($configuration['crop'])) {
-                // check if it is a json object
-                $cropData = json_decode($configuration['crop']);
-                if ($cropData) {
-                    $options['crop'] = new Area((float)$cropData->x, (float)$cropData->y, (float)$cropData->width, (float)$cropData->height);
-                } else {
-                    [$offsetLeft, $offsetTop, $newWidth, $newHeight] = explode(',', $configuration['crop'], 4);
-                    $options['crop'] = new Area((float)$offsetLeft, (float)$offsetTop, (float)$newWidth, (float)$newHeight);
-                }
-                if ($options['crop']->isEmpty()) {
-                    unset($options['crop']);
-                }
-            }
-        }
-        if ($configuration['noScale'] ?? null) {
-            $options['noScale'] = $configuration['noScale'];
-        }
-
-        return $options;
+        $result = ImageProcessingInstructions::fromProcessingTask($task);
+        return new self($result->width, $result->height);
     }
 }

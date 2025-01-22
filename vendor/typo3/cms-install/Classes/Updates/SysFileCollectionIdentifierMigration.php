@@ -24,6 +24,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Install\Attribute\UpgradeWizard;
 
 /**
+ * @since 12.4
  * @internal This class is only meant to be used within EXT:install and is not part of the TYPO3 Core API.
  */
 #[UpgradeWizard('sysFileCollectionIdentifierMigration')]
@@ -102,7 +103,10 @@ class SysFileCollectionIdentifierMigration implements UpgradeWizardInterface
             ->where(
                 $queryBuilder->expr()->gt('storage', $queryBuilder->createNamedParameter(0, Connection::PARAM_INT)),
                 $queryBuilder->expr()->neq('folder', $queryBuilder->createNamedParameter('')),
-                $queryBuilder->expr()->eq('folder_identifier', $queryBuilder->createNamedParameter('')),
+                $queryBuilder->expr()->or(
+                    $queryBuilder->expr()->eq('folder_identifier', $queryBuilder->createNamedParameter('')),
+                    $queryBuilder->expr()->isNull('folder_identifier'),
+                ),
                 $queryBuilder->expr()->eq('type', $queryBuilder->createNamedParameter('folder'))
             );
 

@@ -19,6 +19,7 @@ namespace TYPO3\CMS\Extensionmanager\Controller;
 
 use Psr\Http\Message\ResponseInterface;
 use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
+use TYPO3\CMS\Core\Http\AllowedMethodsTrait;
 use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
 use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
 use TYPO3\CMS\Extbase\Http\ForwardResponse;
@@ -28,7 +29,6 @@ use TYPO3\CMS\Extensionmanager\Domain\Model\Extension;
 use TYPO3\CMS\Extensionmanager\Domain\Repository\ExtensionRepository;
 use TYPO3\CMS\Extensionmanager\Exception\ExtensionManagerException;
 use TYPO3\CMS\Extensionmanager\Service\ExtensionManagementService;
-use TYPO3\CMS\Fluid\View\TemplateView;
 
 /**
  * Controller for actions related to the TER download of an extension
@@ -36,10 +36,7 @@ use TYPO3\CMS\Fluid\View\TemplateView;
  */
 class DownloadController extends AbstractController
 {
-    /**
-     * @var string
-     */
-    protected $defaultViewObjectName = JsonView::class;
+    use AllowedMethodsTrait;
 
     /**
      * @var JsonView
@@ -47,10 +44,12 @@ class DownloadController extends AbstractController
     protected $view;
 
     public function __construct(
-        protected readonly ExtensionRepository $extensionRepository,
-        protected readonly ExtensionManagementService $managementService,
-        protected readonly ExtensionConfiguration $extensionConfiguration,
-    ) {}
+        private readonly ExtensionRepository $extensionRepository,
+        private readonly ExtensionManagementService $managementService,
+        private readonly ExtensionConfiguration $extensionConfiguration,
+    ) {
+        $this->defaultViewObjectName = JsonView::class;
+    }
 
     /**
      * Check extension dependencies
@@ -137,15 +136,17 @@ class DownloadController extends AbstractController
     protected function initializeInstallFromTerAction()
     {
         // @todo: Switch to JsonView
-        $this->defaultViewObjectName = TemplateView::class;
+        $this->defaultViewObjectName = null;
     }
 
     /**
      * Install an extension from TER action
      */
-    public function installFromTerAction(Extension $extension, string $downloadPath = 'Local'): ResponseInterface
+    public function installFromTerAction(Extension $extension): ResponseInterface
     {
-        [$result, $errorMessages] = $this->installFromTer($extension, $downloadPath);
+        $this->assertAllowedHttpMethod($this->request, 'POST');
+
+        [$result, $errorMessages] = $this->installFromTer($extension);
         $isAutomaticInstallationEnabled = (bool)$this->extensionConfiguration->get('extensionmanager', 'automaticInstallation');
         $this->view->assignMultiple([
             'result'  => $result,
@@ -162,8 +163,10 @@ class DownloadController extends AbstractController
      */
     public function installExtensionWithoutSystemDependencyCheckAction(Extension $extension): ResponseInterface
     {
+        $this->assertAllowedHttpMethod($this->request, 'POST');
+
         $this->managementService->setSkipDependencyCheck(true);
-        return (new ForwardResponse('installFromTer'))->withArguments(['extension' => $extension, 'downloadPath' => 'Local']);
+        return (new ForwardResponse('installFromTer'))->withArguments(['extension' => $extension]);
     }
 
     /**
@@ -172,6 +175,8 @@ class DownloadController extends AbstractController
      */
     public function installDistributionAction(Extension $extension): ResponseInterface
     {
+        $this->assertAllowedHttpMethod($this->request, 'POST');
+
         if (!ExtensionManagementUtility::isLoaded('impexp')) {
             return (new ForwardResponse('distributions'))->withControllerName('List');
         }
@@ -214,6 +219,8 @@ class DownloadController extends AbstractController
      */
     protected function updateExtensionAction(): ResponseInterface
     {
+        $this->assertAllowedHttpMethod($this->request, 'POST');
+
         $extensionKey = $this->request->getArgument('extension');
         $version = $this->request->getArgument('version');
         $extension = $this->extensionRepository->findOneByExtensionKeyAndVersion($extensionKey, $version);
@@ -283,19 +290,18 @@ class DownloadController extends AbstractController
      *
      * @return array{
      *     0: array{
-         *     downloaded?: array<string, Extension>,
-         *     updated?: array<string, Extension>,
-         *     installed?: array<string, string>,
-         * }|false,
+     *         downloaded?: array<string, Extension>,
+     *         updated?: array<string, Extension>,
+     *         installed?: array<string, string>,
+     *     }|false,
      *     1: array<string, array<int, array{code: int, message: string}>>,
      * }
      */
-    protected function installFromTer(Extension $extension, string $downloadPath = 'Local'): array
+    protected function installFromTer(Extension $extension): array
     {
         $result = false;
         $errorMessages = [];
         try {
-            $this->managementService->setDownloadPath($downloadPath);
             $isAutomaticInstallationEnabled = (bool)$this->extensionConfiguration->get('extensionmanager', 'automaticInstallation');
             $this->managementService->setAutomaticInstallationEnabled($isAutomaticInstallationEnabled);
             if (($result = $this->managementService->installExtension($extension)) === false) {

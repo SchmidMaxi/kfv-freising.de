@@ -19,6 +19,7 @@ namespace TYPO3\CMS\Info\Controller;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Routing\Exception\RouteNotFoundException;
 use TYPO3\CMS\Backend\Routing\PreviewUriBuilder;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
@@ -28,7 +29,7 @@ use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\WorkspaceRestriction;
 use TYPO3\CMS\Core\Domain\Repository\PageRepository;
-use TYPO3\CMS\Core\Imaging\Icon;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -36,6 +37,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  * Class for displaying page information (records, page record properties) in Web -> Info
  * @internal This class is a specific Backend controller implementation and is not part of the TYPO3's Core API.
  */
+#[AsController]
 class PageInformationController extends InfoModuleController
 {
     protected ?BackendLayoutView $backendLayoutView = null;
@@ -212,7 +214,7 @@ class PageInformationController extends InfoModuleController
                     $url = (string)$this->uriBuilder->buildUriFromRoute('record_edit', $urlParameters);
                     $editButton = '<a class="btn btn-default" href="' . htmlspecialchars($url)
                         . '" title="' . htmlspecialchars($iTitle) . '">'
-                        . $this->iconFactory->getIcon('actions-document-open', Icon::SIZE_SMALL)->render() . '</a>';
+                        . $this->iconFactory->getIcon('actions-document-open', IconSize::SMALL)->render() . '</a>';
                 }
                 switch ($field) {
                     case 'title':
@@ -234,7 +236,7 @@ class PageInformationController extends InfoModuleController
                                     '<span title="' .
                                     htmlspecialchars($lang->sL($GLOBALS['TCA'][$f2]['ctrl']['title'])) .
                                     '">' .
-                                    $this->iconFactory->getIconForRecord($f2, [], Icon::SIZE_SMALL)->render() .
+                                    $this->iconFactory->getIconForRecord($f2, [], IconSize::SMALL)->render() .
                                     '</span>';
                             }
                         } else {
@@ -292,8 +294,10 @@ class PageInformationController extends InfoModuleController
         }
 
         if ($depth >= 0) {
+            $countQueryBuilder = clone $queryBuilder;
+            $countQueryBuilder->resetOrderBy()->count('uid');
+            $rowCount = $countQueryBuilder->executeQuery()->fetchOne();
             $result = $queryBuilder->executeQuery();
-            $rowCount = $queryBuilder->count('uid')->executeQuery()->fetchOne();
             $count = 0;
             while ($row = $result->fetchAssociative()) {
                 BackendUtility::workspaceOL('pages', $row);
@@ -337,8 +341,13 @@ class PageInformationController extends InfoModuleController
             switch ($field) {
                 case 'title':
                     $showPageId = !empty($userTsConfig['options.']['pageTree.']['showPageIdWithTitle']);
-                    $pTitle = htmlspecialchars((string)BackendUtility::getProcessedValue('pages', $field, $row[$field], 20));
-                    $theData[$field] = ($row['treeIcons'] ?? '') . $theIcon . ($showPageId ? '[' . $row['uid'] . '] ' : '') . $pTitle;
+                    $pTitle = htmlspecialchars((string)BackendUtility::getProcessedValue('pages', $field, $row[$field], 20, false, false, 0, true, 0, $row));
+                    $theData[$field] = '<div class="treeline-container">'
+                        . ($row['treeIcons'] ?? '')
+                        . $theIcon
+                        . ($showPageId ? '[' . $row['uid'] . '] ' : '')
+                        . $pTitle
+                        . '</div>';
                     break;
                 case 'php_tree_stop':
                     // Intended fall through
@@ -379,14 +388,14 @@ class PageInformationController extends InfoModuleController
                         $editButton =
                             '<button ' . ($attributes ?? 'disabled="true"') . ' class="btn btn-default" title="' .
                             htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.showPage')) . '">' .
-                            $this->iconFactory->getIcon('actions-view-page', Icon::SIZE_SMALL)->render() .
+                            $this->iconFactory->getIcon('actions-view-page', IconSize::SMALL)->render() .
                             '</button>';
 
                         if ($this->getBackendUser()->check('tables_modify', 'pages')) {
                             $editButton .=
                                 '<a class="btn btn-default" href="' . htmlspecialchars($url) . '" title="' .
                                 htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:backend/Resources/Private/Language/locallang_layout.xlf:editDefaultLanguagePage')) . '">' .
-                                $this->iconFactory->getIcon('actions-page-open', Icon::SIZE_SMALL)->render() .
+                                $this->iconFactory->getIcon('actions-page-open', IconSize::SMALL)->render() .
                                 '</a>';
                         }
                     }
@@ -394,7 +403,7 @@ class PageInformationController extends InfoModuleController
                     // the actual uid to be able to add it as data attribute to the table data cell.
                     // This also makes distinction between record rows and the header line simpler.
                     $theData['_UID_'] = $uid;
-                    $theData[$field] = '<div class="btn-group" role="group">' . $editButton . '</div>';
+                    $theData[$field] = '<div class="btn-group btn-group-sm" role="group">' . $editButton . '</div>';
                     break;
                 case 'shortcut':
                 case 'shortcut_mode':
@@ -414,7 +423,7 @@ class PageInformationController extends InfoModuleController
                     }
             }
         }
-        $this->addElement_tdCssClass['title'] = $row['_CSSCLASS'] ?? '';
+        $this->addElement_tdCssClass['title'] = 'col-title-flexible';
         return $this->addElement($theData);
     }
 
@@ -424,7 +433,7 @@ class PageInformationController extends InfoModuleController
     protected function getIcon(array $row): string
     {
         // Initialization
-        $icon = '<span title="' . BackendUtility::getRecordIconAltText($row, 'pages') . '">' . $this->iconFactory->getIconForRecord('pages', $row, Icon::SIZE_SMALL)->render() . '</span>';
+        $icon = '<span title="' . BackendUtility::getRecordIconAltText($row, 'pages') . '">' . $this->iconFactory->getIconForRecord('pages', $row, IconSize::SMALL)->render() . '</span>';
         // The icon with link
         if ($this->getBackendUser()->recordEditAccessInternals('pages', $row)) {
             $icon = BackendUtility::wrapClickMenuOnIcon($icon, 'pages', $row['uid']);
@@ -441,7 +450,7 @@ class PageInformationController extends InfoModuleController
      */
     protected function getPagesTableFieldValue(string $field, array $row): string
     {
-        return htmlspecialchars((string)BackendUtility::getProcessedValue('pages', $field, $row[$field]));
+        return htmlspecialchars((string)BackendUtility::getProcessedValue('pages', $field, $row[$field], 0, false, false, 0, true, 0, $row));
     }
 
     /**
@@ -501,8 +510,7 @@ class PageInformationController extends InfoModuleController
             if (isset($data[$vKey])) {
                 if ($lastKey) {
                     $cssClass = $this->addElement_tdCssClass[$lastKey] ?? '';
-                    $out .= '
-						<' . $rowTag . ' class="' . $cssClass . ' nowrap"' . $colsp . '>' . $data[$lastKey] . '</' . $rowTag . '>';
+                    $out .= '<' . $rowTag . ' class="' . $cssClass . ' nowrap"' . $colsp . '>' . $data[$lastKey] . '</' . $rowTag . '>';
                 }
                 $lastKey = $vKey;
                 $c = 1;

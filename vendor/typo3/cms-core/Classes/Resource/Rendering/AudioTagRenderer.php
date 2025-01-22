@@ -19,9 +19,6 @@ use TYPO3\CMS\Core\Resource\FileInterface;
 use TYPO3\CMS\Core\Resource\FileReference;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
-/**
- * Class AudioTagRenderer
- */
 class AudioTagRenderer implements FileRendererInterface
 {
     /**
@@ -79,7 +76,7 @@ class AudioTagRenderer implements FileRendererInterface
             $additionalAttributes[] = GeneralUtility::implodeAttributes($options['additionalAttributes'], true, true);
         }
         if (isset($options['data']) && is_array($options['data'])) {
-            array_walk($options['data'], static function (&$value, $key) {
+            array_walk($options['data'], static function (string &$value, string $key): void {
                 $value = 'data-' . htmlspecialchars($key) . '="' . htmlspecialchars($value) . '"';
             });
             $additionalAttributes[] = implode(' ', $options['data']);

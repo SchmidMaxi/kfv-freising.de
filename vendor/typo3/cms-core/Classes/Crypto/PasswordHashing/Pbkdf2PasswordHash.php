@@ -145,7 +145,7 @@ class Pbkdf2PasswordHash implements PasswordHashInterface
      * Method creates a salted hash for a given plaintext password
      *
      * @param string $password plaintext password to create a salted hash from
-     * @param string|null $salt Optional custom salt with setting to use
+     * @param string $salt Optional custom salt with setting to use
      * @return string|null Salted hashed password
      */
     protected function getHashedPasswordInternal(string $password, ?string $salt = null)

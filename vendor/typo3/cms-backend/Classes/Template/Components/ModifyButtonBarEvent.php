@@ -25,17 +25,9 @@ use TYPO3\CMS\Backend\Template\Components\Buttons\ButtonInterface;
 final class ModifyButtonBarEvent
 {
     /**
-     * @var ButtonInterface[]
+     * @param array<ButtonInterface> $buttons
      */
-    private array $buttons;
-
-    private ButtonBar $buttonBar;
-
-    public function __construct(array $buttons, ButtonBar $buttonBar)
-    {
-        $this->buttons = $buttons;
-        $this->buttonBar = $buttonBar;
-    }
+    public function __construct(private array $buttons, private readonly ButtonBar $buttonBar) {}
 
     public function getButtons(): array
     {

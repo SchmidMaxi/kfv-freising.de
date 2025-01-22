@@ -20,9 +20,6 @@ namespace TYPO3\CMS\Extbase\Validation;
 use TYPO3\CMS\Extbase\Validation\Exception\NoSuchValidatorException;
 use TYPO3\CMS\Extbase\Validation\Validator\ValidatorInterface;
 
-/**
- * Class TYPO3\CMS\Extbase\Validation\ValidatorClassNameResolver
- */
 final class ValidatorClassNameResolver
 {
     /**
@@ -37,7 +34,6 @@ final class ValidatorClassNameResolver
      * However, developers should be aware that this method might vanish
      * without any deprecation.
      *
-     * @param string $validatorIdentifier
      * @throws NoSuchValidatorException
      * @internal
      */
@@ -48,6 +44,11 @@ final class ValidatorClassNameResolver
 
         $validatorClassName = $validatorIdentifier;
         if (strpbrk($validatorIdentifier, ':') !== false) {
+            trigger_error(
+                'Namespaced shorthand validator usage "' . $validatorIdentifier . '" is deprecated and will be removed in TYPO3 v14.0. Use validator classname instead.',
+                E_USER_DEPRECATED
+            );
+
             // Found shorthand validator, either extbase or foreign extension
             // NotEmpty or Acme.MyPck.Ext:MyValidator
             [$vendorNamespace, $validatorBaseName] = explode(':', $validatorIdentifier);

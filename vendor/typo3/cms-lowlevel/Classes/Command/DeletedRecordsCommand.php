@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Lowlevel\Command;
 
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -33,6 +34,7 @@ use TYPO3\CMS\Core\Utility\MathUtility;
 /**
  * Force-deletes all records in the database which have a deleted=1 flag
  */
+#[AsCommand('cleanup:deletedrecords', 'Permanently deletes all records marked as "deleted" in the database.')]
 class DeletedRecordsCommand extends Command
 {
     public function __construct(private readonly ConnectionPool $connectionPool)
@@ -324,7 +326,7 @@ class DeletedRecordsCommand extends Command
                     // Notice, we are deleting pages with no regard to subpages/subrecords - we do this since they
                     // should also be included in the set of deleted pages of course (no un-deleted record can exist
                     // under a deleted page...)
-                    $dataHandler->deleteRecord($table, $uid, true, true);
+                    $dataHandler->deleteRecord($table, (int)$uid, true, true);
                     // Return errors if any:
                     if (!empty($dataHandler->errorLog)) {
                         $errorMessage = array_merge(['DataHandler reported an error'], $dataHandler->errorLog);

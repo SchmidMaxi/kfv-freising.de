@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -16,19 +18,20 @@
 namespace TYPO3\CMS\Workspaces\Service;
 
 use Psr\EventDispatcher\EventDispatcherInterface;
-use Psr\Http\Message\ServerRequestInterface;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Backend\Configuration\TranslationConfigurationProvider;
 use TYPO3\CMS\Backend\Module\ModuleProvider;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Cache\CacheManager;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Versioning\VersionState;
+use TYPO3\CMS\Workspaces\Authorization\WorkspacePublishGate;
 use TYPO3\CMS\Workspaces\Controller\Remote\RemoteServer;
 use TYPO3\CMS\Workspaces\Domain\Model\CombinedRecord;
 use TYPO3\CMS\Workspaces\Event\AfterCompiledCacheableDataForWorkspaceEvent;
@@ -39,8 +42,9 @@ use TYPO3\CMS\Workspaces\Preview\PreviewUriBuilder;
 use TYPO3\CMS\Workspaces\Service\Dependency\CollectionService;
 
 /**
- * Grid data service
+ * @internal
  */
+#[Autoconfigure(public: true)]
 class GridDataService implements LoggerAwareInterface
 {
     use LoggerAwareTrait;
@@ -53,46 +57,32 @@ class GridDataService implements LoggerAwareInterface
 
     /**
      * Id of the current active workspace.
-     *
-     * @var int
      */
-    protected $currentWorkspace;
+    protected int $currentWorkspace = 0;
 
     /**
      * Version record information (filtered, sorted and limited)
-     *
-     * @var array
      */
-    protected $dataArray = [];
+    protected array $dataArray = [];
 
     /**
      * Name of the field used for sorting.
-     *
-     * @var string
      */
-    protected $sort = '';
+    protected string $sort = '';
 
     /**
      * Direction used for sorting (ASC, DESC).
-     *
-     * @var string
      */
-    protected $sortDir = '';
+    protected string $sortDir = '';
 
-    /**
-     * @var FrontendInterface
-     */
-    protected $workspacesCache;
-
-    /**
-     * @var IntegrityService|null
-     */
-    protected $integrityService;
+    protected ?FrontendInterface $workspacesCache;
+    protected ?IntegrityService $integrityService;
 
     public function __construct(
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly WorkspaceService $workspaceService,
         private readonly ModuleProvider $moduleProvider,
+        private readonly WorkspacePublishGate $workspacePublishGate,
     ) {}
 
     /**
@@ -102,9 +92,8 @@ class GridDataService implements LoggerAwareInterface
      * @param \stdClass $parameter Parameters as submitted by JavaScript component
      * @param int $currentWorkspace The current workspace
      * @return array Version record information (filtered, sorted and limited)
-     * @throws \InvalidArgumentException
      */
-    public function generateGridListFromVersions($versions, $parameter, $currentWorkspace, ServerRequestInterface $request)
+    public function generateGridListFromVersions(array $versions, \stdClass $parameter, int $currentWorkspace): array
     {
         // Read the given parameters from grid. If the parameter is not set use default values.
         $filterTxt = $parameter->filterTxt ?? '';
@@ -112,12 +101,8 @@ class GridDataService implements LoggerAwareInterface
         $limit = isset($parameter->limit) ? (int)$parameter->limit : 30;
         $this->sort = $parameter->sort ?? 't3ver_oid';
         $this->sortDir = $parameter->dir ?? 'ASC';
-        if (is_int($currentWorkspace)) {
-            $this->currentWorkspace = $currentWorkspace;
-        } else {
-            throw new \InvalidArgumentException('No such workspace defined', 1476048304);
-        }
-        $this->generateDataArray($versions, $filterTxt, $request);
+        $this->currentWorkspace = $currentWorkspace;
+        $this->generateDataArray($versions, $filterTxt);
         return [
             // Only count parent records for pagination
             'total' => count(array_filter($this->dataArray, static function ($element) {
@@ -133,12 +118,13 @@ class GridDataService implements LoggerAwareInterface
      * @param array $versions All available version records
      * @param string $filterTxt Text to be used to filter record result
      */
-    protected function generateDataArray(array $versions, $filterTxt, ServerRequestInterface $request)
+    protected function generateDataArray(array $versions, string $filterTxt): void
     {
         $backendUser = $this->getBackendUser();
         $workspaceAccess = $backendUser->checkWorkspace($backendUser->workspace);
-        $swapStage = ($workspaceAccess['publish_access'] ?? 0) & 1 ? StagesService::STAGE_PUBLISH_ID : 0;
-        $swapAccess = $backendUser->workspacePublishAccess($backendUser->workspace);
+        $swapStage = ($workspaceAccess['publish_access'] ?? 0) & WorkspaceService::PUBLISH_ACCESS_ONLY_IN_PUBLISH_STAGE ? StagesService::STAGE_PUBLISH_ID : StagesService::STAGE_EDIT_ID;
+
+        $isAllowedToPublish = $this->workspacePublishGate->isGranted($backendUser, $backendUser->workspace);
         $this->initializeWorkspacesCachingFramework();
         $iconFactory = GeneralUtility::makeInstance(IconFactory::class);
         // check for dataArray in cache
@@ -160,11 +146,11 @@ class GridDataService implements LoggerAwareInterface
                     $origRecord = (array)BackendUtility::getRecord($table, $record['t3ver_oid']);
                     $versionRecord = (array)BackendUtility::getRecord($table, $record['uid']);
                     $combinedRecord = CombinedRecord::createFromArrays($table, $origRecord, $versionRecord);
-                    $hasDiff = $this->versionIsModified($combinedRecord, $request);
+                    $hasDiff = $this->versionIsModified($combinedRecord);
                     $this->getIntegrityService()->checkElement($combinedRecord);
 
                     if ($hiddenField !== null) {
-                        $recordState = $this->workspaceState($versionRecord['t3ver_state'], $origRecord[$hiddenField], $versionRecord[$hiddenField], $hasDiff);
+                        $recordState = $this->workspaceState($versionRecord['t3ver_state'], (bool)$origRecord[$hiddenField], (bool)$versionRecord[$hiddenField], $hasDiff);
                     } else {
                         $recordState = $this->workspaceState($versionRecord['t3ver_state'], $hasDiff);
                     }
@@ -177,12 +163,10 @@ class GridDataService implements LoggerAwareInterface
                     }
                     $viewUrl = GeneralUtility::makeInstance(PreviewUriBuilder::class)->buildUriForElement($table, (int)$record['uid'], $origRecord, $versionRecord);
                     $workspaceRecordLabel = BackendUtility::getRecordTitle($table, $versionRecord);
-                    $liveRecordLabel = BackendUtility::getRecordTitle($table, $origRecord);
-                    $iconLive = $iconFactory->getIconForRecord($table, $origRecord, Icon::SIZE_SMALL);
-                    $iconWorkspace = $iconFactory->getIconForRecord($table, $versionRecord, Icon::SIZE_SMALL);
+                    $iconWorkspace = $iconFactory->getIconForRecord($table, $versionRecord, IconSize::SMALL);
                     [$pathWorkspaceCropped, $pathWorkspace] = BackendUtility::getRecordPath((int)$record['wspid'], '', 15, 1000);
                     $calculatedT3verOid = $record['t3ver_oid'];
-                    if ((int)($record['t3ver_state'] ?? 0) === VersionState::NEW_PLACEHOLDER) {
+                    if (VersionState::tryFrom($record['t3ver_state'] ?? 0) === VersionState::NEW_PLACEHOLDER) {
                         // If we're dealing with a 'new' record, this one has no t3ver_oid. On publish, there is no
                         // live counterpart, but the publish methods later need a live uid to publish to. We thus
                         // use the uid as t3ver_oid here to be transparent on javascript side.
@@ -196,14 +180,12 @@ class GridDataService implements LoggerAwareInterface
                     $versionArray = array_merge($versionArray, $defaultGridColumns);
                     $versionArray['label_Workspace'] = htmlspecialchars($workspaceRecordLabel);
                     $versionArray['label_Workspace_crop'] = htmlspecialchars(GeneralUtility::fixed_lgd_cs($workspaceRecordLabel, (int)$backendUser->uc['titleLen']));
-                    $versionArray['label_Live'] = htmlspecialchars($liveRecordLabel);
-                    $versionArray['label_Live_crop'] = htmlspecialchars(GeneralUtility::fixed_lgd_cs($liveRecordLabel, (int)$backendUser->uc['titleLen']));
-                    $versionArray['label_Stage'] = htmlspecialchars($stagesObj->getStageTitle($versionRecord['t3ver_stage']));
+                    $versionArray['label_Stage'] = htmlspecialchars($stagesObj->getStageTitle((int)$versionRecord['t3ver_stage']));
                     $tempStage = $stagesObj->getNextStage($versionRecord['t3ver_stage']);
-                    $versionArray['label_nextStage'] = htmlspecialchars($stagesObj->getStageTitle($tempStage['uid']));
+                    $versionArray['label_nextStage'] = htmlspecialchars($stagesObj->getStageTitle((int)$tempStage['uid']));
                     $versionArray['value_nextStage'] = (int)$tempStage['uid'];
                     $tempStage = $stagesObj->getPrevStage($versionRecord['t3ver_stage']);
-                    $versionArray['label_prevStage'] = htmlspecialchars($stagesObj->getStageTitle($tempStage['uid'] ?? 0));
+                    $versionArray['label_prevStage'] = htmlspecialchars($stagesObj->getStageTitle((int)($tempStage['uid'] ?? 0)));
                     $versionArray['value_prevStage'] = (int)($tempStage['uid'] ?? 0);
                     $versionArray['path_Live'] = htmlspecialchars(BackendUtility::getRecordPath($record['livepid'], '', 999));
                     $versionArray['path_Workspace'] = htmlspecialchars($pathWorkspace);
@@ -220,20 +202,20 @@ class GridDataService implements LoggerAwareInterface
                     $versionArray['t3ver_oid'] = $calculatedT3verOid;
                     $versionArray['livepid'] = $record['livepid'];
                     $versionArray['stage'] = $versionRecord['t3ver_stage'];
-                    $versionArray['icon_Live'] = $iconLive->getIdentifier();
-                    $versionArray['icon_Live_Overlay'] = $iconLive->getOverlayIcon()?->getIdentifier() ?? '';
                     $versionArray['icon_Workspace'] = $iconWorkspace->getIdentifier();
                     $versionArray['icon_Workspace_Overlay'] = $iconWorkspace->getOverlayIcon()?->getIdentifier() ?? '';
                     $languageValue = $this->getLanguageValue($table, $versionRecord);
                     $versionArray['languageValue'] = $languageValue;
                     $versionArray['language'] = [
-                        'icon' => $iconFactory->getIcon($this->getSystemLanguageValue($languageValue, $pageId, 'flagIcon'), Icon::SIZE_SMALL)->getIdentifier(),
+                        'icon' => $iconFactory->getIcon($this->getSystemLanguageValue($languageValue, $pageId, 'flagIcon'), IconSize::SMALL)->getIdentifier(),
+                        'title' => $this->getSystemLanguageValue($languageValue, $pageId, 'title'),
+                        'title_crop' => htmlspecialchars(GeneralUtility::fixed_lgd_cs($this->getSystemLanguageValue($languageValue, $pageId, 'title'), (int)$backendUser->uc['titleLen'])),
                     ];
                     $versionArray['allowedAction_nextStage'] = $isRecordTypeAllowedToModify && $stagesObj->isNextStageAllowedForUser($versionRecord['t3ver_stage']);
                     $versionArray['allowedAction_prevStage'] = $isRecordTypeAllowedToModify && $stagesObj->isPrevStageAllowedForUser($versionRecord['t3ver_stage']);
-                    if ($swapAccess && $swapStage != 0 && $versionRecord['t3ver_stage'] == $swapStage) {
+                    if ($isAllowedToPublish && $swapStage !== StagesService::STAGE_EDIT_ID && (int)$versionRecord['t3ver_stage'] === $swapStage) {
                         $versionArray['allowedAction_publish'] = $isRecordTypeAllowedToModify && $stagesObj->isNextStageAllowedForUser($swapStage);
-                    } elseif ($swapAccess && $swapStage == 0) {
+                    } elseif ($isAllowedToPublish && $swapStage === StagesService::STAGE_EDIT_ID) {
                         $versionArray['allowedAction_publish'] = $isRecordTypeAllowedToModify;
                     } else {
                         $versionArray['allowedAction_publish'] = false;
@@ -244,7 +226,7 @@ class GridDataService implements LoggerAwareInterface
                     $versionArray['allowedAction_edit'] = $isRecordTypeAllowedToModify && !$isDeletedPage;
                     $versionArray['allowedAction_versionPageOpen'] = $this->isPageModuleAllowed() && !$isDeletedPage;
                     $versionArray['state_Workspace'] = $recordState;
-                    $versionArray['hasChanges'] = ($recordState === 'unchanged') ? false : true;
+                    $versionArray['hasChanges'] = $recordState !== 'unchanged';
                     // Allows to be overridden by PSR-14 event to dynamically modify the expand / collapse state
                     $versionArray['expanded'] = false;
 
@@ -263,9 +245,10 @@ class GridDataService implements LoggerAwareInterface
             // Enrich elements after everything has been processed:
             foreach ($this->dataArray as &$element) {
                 $identifier = $element['table'] . ':' . $element['t3ver_oid'];
+                $messages = $this->getIntegrityService()->getIssueMessages($identifier);
                 $element['integrity'] = [
                     'status' => $this->getIntegrityService()->getStatusRepresentation($identifier),
-                    'messages' => htmlspecialchars((string)$this->getIntegrityService()->getIssueMessages($identifier, true)),
+                    'messages' => htmlspecialchars(implode('<br>', $messages)),
                 ];
             }
             $this->setDataArrayIntoCache($versions, $filterTxt);
@@ -279,17 +262,17 @@ class GridDataService implements LoggerAwareInterface
         $this->resolveDataArrayDependencies();
     }
 
-    protected function versionIsModified(CombinedRecord $combinedRecord, ServerRequestInterface $request): bool
+    protected function versionIsModified(CombinedRecord $combinedRecord): bool
     {
         $remoteServer = GeneralUtility::makeInstance(RemoteServer::class);
 
-        $params = new \StdClass();
-        $params->stage = $combinedRecord->getVersionRecord()->getRow()['t3ver_stage'];
+        $params = new \stdClass();
+        $params->stage = (int)$combinedRecord->getVersionRecord()->getRow()['t3ver_stage'];
         $params->t3ver_oid = $combinedRecord->getLiveRecord()->getUid();
         $params->table = $combinedRecord->getLiveRecord()->getTable();
         $params->uid = $combinedRecord->getVersionRecord()->getUid();
 
-        $result = $remoteServer->getRowDetails($params, $request);
+        $result = $remoteServer->getRowDetails($params);
         return !empty($result['data'][0]['diff']);
     }
 
@@ -297,7 +280,7 @@ class GridDataService implements LoggerAwareInterface
      * Resolves dependencies of nested structures
      * and sort data elements considering these dependencies.
      */
-    protected function resolveDataArrayDependencies()
+    protected function resolveDataArrayDependencies(): void
     {
         $collectionService = $this->getDependencyCollectionService();
         $dependencyResolver = $collectionService->getDependencyResolver();
@@ -311,12 +294,8 @@ class GridDataService implements LoggerAwareInterface
 
     /**
      * Gets the data array by considering the page to be shown in the grid view.
-     *
-     * @param int $start
-     * @param int $limit
-     * @return array
      */
-    protected function getDataArray($start, $limit)
+    protected function getDataArray(int $start, int $limit): array
     {
         $dataArrayCount = count($this->dataArray);
         $start = $this->calculateStartWithCollections($start);
@@ -337,7 +316,7 @@ class GridDataService implements LoggerAwareInterface
     /**
      * Initializes the workspace cache
      */
-    protected function initializeWorkspacesCachingFramework()
+    protected function initializeWorkspacesCachingFramework(): void
     {
         $this->workspacesCache = GeneralUtility::makeInstance(CacheManager::class)->getCache('workspaces_cache');
     }
@@ -348,7 +327,7 @@ class GridDataService implements LoggerAwareInterface
      * @param array $versions All records uids etc. First key is table name, second key incremental integer. Records are associative arrays with uid and t3ver_oid fields. The pid of the online record is found as "livepid" the pid of the offline record is found in "wspid
      * @param string $filterTxt The given filter text from the grid.
      */
-    protected function setDataArrayIntoCache(array $versions, $filterTxt)
+    protected function setDataArrayIntoCache(array $versions, string $filterTxt): void
     {
         $hash = $this->calculateHash($versions, $filterTxt);
         $this->workspacesCache->set(
@@ -368,7 +347,7 @@ class GridDataService implements LoggerAwareInterface
      * @param string $filterTxt The given filter text from the grid.
      * @return bool TRUE if cache entry was successfully fetched from cache and content put to $this->dataArray
      */
-    protected function getDataArrayFromCache(array $versions, $filterTxt)
+    protected function getDataArrayFromCache(array $versions, string $filterTxt): bool
     {
         $cacheEntry = false;
         $hash = $this->calculateHash($versions, $filterTxt);
@@ -385,9 +364,8 @@ class GridDataService implements LoggerAwareInterface
      *
      * @param array $versions All records uids etc. First key is table name, second key incremental integer. Records are associative arrays with uid and t3ver_oid fields. The pid of the online record is found as "livepid" the pid of the offline record is found in "wspid
      * @param string $filterTxt The given filter text from the grid.
-     * @return string
      */
-    protected function calculateHash(array $versions, $filterTxt)
+    protected function calculateHash(array $versions, string $filterTxt): string
     {
         $backendUser = $this->getBackendUser();
         $hashArray = [
@@ -407,7 +385,7 @@ class GridDataService implements LoggerAwareInterface
      * Performs sorting on the data array accordant to the
      * selected column in the grid view to be used for sorting.
      */
-    protected function sortDataArray()
+    protected function sortDataArray(): void
     {
         switch ($this->sort) {
             case 'uid':
@@ -420,7 +398,6 @@ class GridDataService implements LoggerAwareInterface
                 uasort($this->dataArray, [$this, 'intSort']);
                 break;
             case 'label_Workspace':
-            case 'label_Live':
             case 'label_Stage':
             case 'workspace_Title':
             case 'path_Live':
@@ -441,12 +418,8 @@ class GridDataService implements LoggerAwareInterface
 
     /**
      * Implements individual sorting for columns based on integer comparison.
-     *
-     * @param array $a First value
-     * @param array $b Second value
-     * @return int
      */
-    protected function intSort(array $a, array $b)
+    protected function intSort(array $a, array $b): int
     {
         if (!$this->isSortable($a, $b)) {
             return 0;
@@ -473,12 +446,8 @@ class GridDataService implements LoggerAwareInterface
 
     /**
      * Implements individual sorting for columns based on string comparison.
-     *
-     * @param array $a First value
-     * @param array $b Second value
-     * @return int
      */
-    protected function stringSort($a, $b)
+    protected function stringSort(array $a, array $b): int
     {
         if (!$this->isSortable($a, $b)) {
             return 0;
@@ -507,10 +476,8 @@ class GridDataService implements LoggerAwareInterface
      * Determines whether dataArray elements are sortable.
      * Only elements on the first level (0) or below the same
      * parent element are directly sortable.
-     *
-     * @return bool
      */
-    protected function isSortable(array $a, array $b)
+    protected function isSortable(array $a, array $b): bool
     {
         return
             $a[self::GridColumn_CollectionLevel] === 0 && $b[self::GridColumn_CollectionLevel] === 0
@@ -524,20 +491,14 @@ class GridDataService implements LoggerAwareInterface
      */
     protected function isPageModuleAllowed(): bool
     {
-        return $this->moduleProvider->accessGranted(
-            trim($this->getBackendUser()->getTSConfig()['options.']['overridePageModule'] ?? 'web_layout'),
-            $this->getBackendUser()
-        );
+        return $this->moduleProvider->accessGranted('web_layout', $this->getBackendUser());
     }
 
     /**
      * Determines whether the text used to filter the results is part of
      * a column that is visible in the grid view.
-     *
-     * @param string $filterText
-     * @return bool
      */
-    protected function isFilterTextInVisibleColumns($filterText, array $versionArray)
+    protected function isFilterTextInVisibleColumns(string $filterText, array $versionArray): bool
     {
         $backendUser = $this->getBackendUser();
         if (is_array($backendUser->uc['moduleData']['Workspaces'][$backendUser->workspace]['columns'] ?? false)) {
@@ -548,7 +509,6 @@ class GridDataService implements LoggerAwareInterface
                 'change' => ['hidden' => 0],
                 'path_Workspace' => ['hidden' => 0],
                 'path_Live' => ['hidden' => 0],
-                'label_Live' => ['hidden' => 0],
                 'label_Stage' => ['hidden' => 0],
                 'label_Workspace' => ['hidden' => 0],
             ];
@@ -585,18 +545,16 @@ class GridDataService implements LoggerAwareInterface
      * @param bool $hiddenOnline  hidden status of online record
      * @param bool $hiddenOffline hidden status of offline record
      * @param bool $hasDiff    whether the version has any changes
-     *
-     * @return string
      */
-    protected function workspaceState($stateId, $hiddenOnline = false, $hiddenOffline = false, $hasDiff = true)
+    protected function workspaceState(int $stateId, bool $hiddenOnline = false, bool $hiddenOffline = false, bool $hasDiff = true): string
     {
         $hiddenState = null;
-        if ($hiddenOnline == 0 && $hiddenOffline == 1) {
+        if (!$hiddenOnline && $hiddenOffline) {
             $hiddenState = 'hidden';
-        } elseif ($hiddenOnline == 1 && $hiddenOffline == 0) {
+        } elseif ($hiddenOnline && !$hiddenOffline) {
             $hiddenState = 'unhidden';
         }
-        switch ($stateId) {
+        switch (VersionState::tryFrom($stateId)) {
             case VersionState::NEW_PLACEHOLDER:
                 $state = 'new';
                 break;
@@ -624,7 +582,7 @@ class GridDataService implements LoggerAwareInterface
      * @param string $type Type to be fetches (e.g. 'disabled', 'starttime', 'endtime', 'fe_group)
      * @return string|null The accordant field name or NULL if not defined
      */
-    protected function getTcaEnableColumnsFieldName($table, $type)
+    protected function getTcaEnableColumnsFieldName(string $table, string $type): ?string
     {
         $fieldName = null;
 
@@ -642,13 +600,13 @@ class GridDataService implements LoggerAwareInterface
      * @param array $record Database record
      * @return int
      */
-    protected function getLanguageValue($table, array $record)
+    protected function getLanguageValue(string $table, array $record): int
     {
         $languageValue = 0;
         if (BackendUtility::isTableLocalizable($table)) {
             $languageField = $GLOBALS['TCA'][$table]['ctrl']['languageField'];
             if (!empty($record[$languageField])) {
-                $languageValue = $record[$languageField];
+                $languageValue = (int)$record[$languageField];
             }
         }
         return $languageValue;
@@ -663,10 +621,10 @@ class GridDataService implements LoggerAwareInterface
      * @return string|null
      * @see getSystemLanguages
      */
-    protected function getSystemLanguageValue($id, $pageId, $key)
+    protected function getSystemLanguageValue(int $id, int $pageId, string $key): ?string
     {
         $value = null;
-        $systemLanguages = $this->getSystemLanguages((int)$pageId);
+        $systemLanguages = $this->getSystemLanguages($pageId);
         if (!empty($systemLanguages[$id][$key])) {
             $value = $systemLanguages[$id][$key];
         }
@@ -776,20 +734,16 @@ class GridDataService implements LoggerAwareInterface
 
     /**
      * Gets all available system languages.
-     *
-     * @return array
      */
-    protected function getSystemLanguages(int $pageId)
+    protected function getSystemLanguages(int $pageId): array
     {
         return GeneralUtility::makeInstance(TranslationConfigurationProvider::class)->getSystemLanguages($pageId);
     }
 
     /**
      * Gets an instance of the integrity service.
-     *
-     * @return IntegrityService
      */
-    protected function getIntegrityService()
+    protected function getIntegrityService(): IntegrityService
     {
         if (!isset($this->integrityService)) {
             $this->integrityService = GeneralUtility::makeInstance(IntegrityService::class);
@@ -797,10 +751,7 @@ class GridDataService implements LoggerAwareInterface
         return $this->integrityService;
     }
 
-    /**
-     * @return Dependency\CollectionService
-     */
-    protected function getDependencyCollectionService()
+    protected function getDependencyCollectionService(): CollectionService
     {
         return GeneralUtility::makeInstance(CollectionService::class);
     }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -16,11 +18,14 @@
 namespace TYPO3\CMS\Extensionmanager\Domain\Repository;
 
 use Doctrine\DBAL\Exception as DBALException;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Platform\PlatformInformation;
 use TYPO3\CMS\Core\Utility\VersionNumberUtility;
 use TYPO3\CMS\Extensionmanager\Domain\Model\Extension;
+use TYPO3\CMS\Extensionmanager\Enum\ExtensionCategory;
+use TYPO3\CMS\Extensionmanager\Enum\ExtensionState;
 use TYPO3\CMS\Extensionmanager\Parser\ExtensionXmlParser;
 
 /**
@@ -28,6 +33,7 @@ use TYPO3\CMS\Extensionmanager\Parser\ExtensionXmlParser;
  *
  * @internal This class is a specific domain repository implementation and is not part of the Public TYPO3 API.
  */
+#[Autoconfigure(public: true)]
 class BulkExtensionRepositoryWriter implements \SplObserver
 {
     /**
@@ -231,9 +237,9 @@ class BulkExtensionRepositoryWriter implements \SplObserver
             $subject->getLastuploaddate(),
             $subject->getT3xfilemd5(),
             $this->remoteIdentifier,
-            $this->extensionModel->getDefaultState($subject->getState() ?: ''),
+            ExtensionState::fromValue($subject->getState() ?: '')->value,
             $subject->getReviewstate(),
-            $this->extensionModel->getCategoryIndexFromStringOrNumber($subject->getCategory() ?: ''),
+            ExtensionCategory::fromValue($subject->getCategory() ?: '')->value,
             $subject->getDescription() ?: '',
             $subject->getDependencies() ?: '',
             $subject->getUploadcomment() ?: '',

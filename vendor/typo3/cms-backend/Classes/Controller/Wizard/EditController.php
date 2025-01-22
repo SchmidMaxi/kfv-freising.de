@@ -19,6 +19,7 @@ namespace TYPO3\CMS\Backend\Controller\Wizard;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Core\Configuration\FlexForm\FlexFormTools;
 use TYPO3\CMS\Core\Database\RelationHandler;
@@ -34,6 +35,7 @@ use TYPO3\CMS\Core\Utility\PathUtility;
  *
  * @internal This class is a specific Backend controller implementation and is not considered part of the Public TYPO3 API.
  */
+#[AsController]
 class EditController
 {
     protected const JAVASCRIPT_HELPER = 'EXT:backend/Resources/Public/JavaScript/helper.js';
@@ -67,8 +69,9 @@ class EditController
      */
     protected string $closeWindow;
 
-    public function __construct()
-    {
+    public function __construct(
+        private readonly FlexFormTools $flexFormTools,
+    ) {
         $this->closeWindow = sprintf(
             '<script %s></script>',
             GeneralUtility::implodeAttributes([
@@ -116,8 +119,7 @@ class EditController
         } else {
             // If there is a flex data structure identifier, parse that data structure and
             // fetch config defined by given flex path
-            $flexFormTools = GeneralUtility::makeInstance(FlexFormTools::class);
-            $dataStructure = $flexFormTools->parseDataStructureByIdentifier($this->P['flexFormDataStructureIdentifier']);
+            $dataStructure = $this->flexFormTools->parseDataStructureByIdentifier($this->P['flexFormDataStructureIdentifier']);
             $config = ArrayUtility::getValueByPath($dataStructure, $this->P['flexFormDataStructurePath']);
             if (!is_array($config)) {
                 throw new \RuntimeException(

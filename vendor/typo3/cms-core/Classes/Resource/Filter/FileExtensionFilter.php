@@ -17,7 +17,6 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Core\Resource\Filter;
 
-use TYPO3\CMS\Backend\RecordList\DatabaseRecordList;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
 use TYPO3\CMS\Core\Resource\Driver\DriverInterface;
 use TYPO3\CMS\Core\Resource\Exception\ResourceDoesNotExistException;
@@ -47,7 +46,7 @@ class FileExtensionFilter
         array $references,
         string $allowedFileExtensions,
         string $disallowedFileExtensions,
-        DataHandler|DatabaseRecordList $dataHandler
+        ?DataHandler $dataHandler = null,
     ): array {
         if ($allowedFileExtensions !== '') {
             $this->setAllowedFileExtensions($allowedFileExtensions);
@@ -62,7 +61,7 @@ class FileExtensionFilter
                 continue;
             }
             $parts = GeneralUtility::revExplode('_', (string)$reference, 2);
-            $fileReferenceUid = $parts[count($parts) - 1];
+            $fileReferenceUid = (int)$parts[count($parts) - 1];
             try {
                 $fileReference = GeneralUtility::makeInstance(ResourceFactory::class)->getFileReferenceObject($fileReferenceUid);
                 $file = $fileReference->getOriginalFile();
@@ -70,37 +69,13 @@ class FileExtensionFilter
                     $cleanReferences[] = $reference;
                 } else {
                     // Remove the erroneously created reference record again
-                    $dataHandler->deleteAction('sys_file_reference', $fileReferenceUid);
+                    $dataHandler?->deleteAction('sys_file_reference', $fileReferenceUid);
                 }
             } catch (ResourceDoesNotExistException $e) {
                 // do nothing
             }
         }
         return $cleanReferences;
-    }
-
-    /**
-     * Entry method for use as DataHandler "inline" field filter
-     *
-     * @deprecated Will be removed in TYPO3 v13. Use filterFileReferences() directly instead.
-     */
-    public function filterInlineChildren(array $parameters, DataHandler|DatabaseRecordList $dataHandler): array
-    {
-        trigger_error(
-            'FileExtensionFilter->filterInlineChildren() will be removed in TYPO3 v13.0. Use FileExtensionFilter->filter() instead.',
-            E_USER_DEPRECATED
-        );
-
-        $references = $parameters['values'] ?? [];
-        if (!is_array($references)) {
-            $references = [];
-        }
-        return $this->filter(
-            $references,
-            (string)($parameters['allowedFileExtensions'] ?? ''),
-            (string)($parameters['disallowedFileExtensions'] ?? ''),
-            $dataHandler
-        );
     }
 
     /**
@@ -203,7 +178,7 @@ class FileExtensionFilter
             return ['disallowedFileExtensions' => $this->disallowedFileExtensions];
         }
 
-        return ['allowedFileExtensions' => array_filter($this->allowedFileExtensions, function ($fileExtension) {
+        return ['allowedFileExtensions' => array_filter($this->allowedFileExtensions, function (string $fileExtension): bool {
             return !in_array($fileExtension, $this->disallowedFileExtensions, true);
         })];
     }
@@ -223,7 +198,7 @@ class FileExtensionFilter
         }
 
         if (is_array($returnValue)) {
-            $returnValue = array_map('strtolower', $returnValue);
+            $returnValue = array_map(strtolower(...), $returnValue);
         }
 
         return $returnValue;

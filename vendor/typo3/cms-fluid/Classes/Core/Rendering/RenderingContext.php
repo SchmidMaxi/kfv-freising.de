@@ -19,7 +19,6 @@ namespace TYPO3\CMS\Fluid\Core\Rendering;
 
 use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Extbase\Mvc\RequestInterface;
 use TYPO3\CMS\Fluid\Core\ViewHelper\ViewHelperResolver;
 use TYPO3\CMS\Fluid\View\TemplatePaths;
 use TYPO3Fluid\Fluid\Core\Cache\FluidCacheInterface;
@@ -33,8 +32,6 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\ViewHelperVariableContainer;
 
 class RenderingContext extends \TYPO3Fluid\Fluid\Core\Rendering\RenderingContext
 {
-    protected ?ServerRequestInterface $request = null;
-
     /**
      * @var string
      */
@@ -99,10 +96,6 @@ class RenderingContext extends \TYPO3Fluid\Fluid\Core\Rendering\RenderingContext
             $action = substr($action, 0, $dotPosition);
         }
         $this->controllerAction = $action;
-        if ($this->request instanceof RequestInterface) {
-            // @todo: Avoid altogether?!
-            $this->request = $this->request->withControllerActionName(lcfirst($action));
-        }
     }
 
     /**
@@ -111,41 +104,51 @@ class RenderingContext extends \TYPO3Fluid\Fluid\Core\Rendering\RenderingContext
     public function setControllerName($controllerName): void
     {
         $this->controllerName = $controllerName;
-        if ($this->request instanceof RequestInterface) {
-            // @todo: Avoid altogether?!
-            $this->request = $this->request->withControllerName($controllerName);
-        }
     }
 
     public function getControllerName(): string
     {
-        // @todo: Why fallback to request here? This is not consistent!
-        return $this->request instanceof RequestInterface ? $this->request->getControllerName() : $this->controllerName;
+        return $this->controllerName;
     }
 
     public function getControllerAction(): string
     {
-        // @todo: Why fallback to request here? This is not consistent!
-        return $this->request instanceof RequestInterface ? $this->request->getControllerActionName() : $this->controllerAction;
+        return $this->controllerAction;
     }
 
     /**
      * It is currently allowed to setRequest(null) to unset a
      * request object created by factories. Some tests use this
      * to make sure no extbase request is set. This may change.
+     *
+     * @deprecated since TYPO3 v13, will be removed in TYPO3 v14.
+     *             Use RenderingContextFactory->create($pathArray, $request) instead.
      */
-    public function setRequest(?ServerRequestInterface $request): void
+    public function setRequest(?ServerRequestInterface $request = null): void
     {
-        $this->request = $request;
-        if ($request instanceof RequestInterface) {
-            // Set magic if this is an extbase request
-            $this->setControllerAction($request->getControllerActionName());
-            $this->setControllerName($request->getControllerName());
+        trigger_error(
+            __CLASS__ . '->' . __METHOD__ . ' is deprecated and will be removed in TYPO3 v14. Use RenderingContextFactory->create($pathArray, $request) instead',
+            E_USER_DEPRECATED
+        );
+        if ($request) {
+            $this->setAttribute(ServerRequestInterface::class, $request);
         }
     }
 
+    /**
+     * @deprecated since TYPO3 v13, will be removed in TYPO3 v14.
+     *             Use $renderingContext->hasAttribute(ServerRequestInterface::class) and
+     *             $renderingContext->getAttribute(ServerRequestInterface::class) instead.
+     */
     public function getRequest(): ?ServerRequestInterface
     {
-        return $this->request;
+        trigger_error(
+            __CLASS__ . '->' . __METHOD__ . ' is deprecated and will be removed in TYPO3 v14. Use $renderingContext->getAttribute(ServerRequestInterface::class) instead',
+            E_USER_DEPRECATED
+        );
+        if (!$this->hasAttribute(ServerRequestInterface::class)) {
+            return null;
+        }
+        return $this->getAttribute(ServerRequestInterface::class);
     }
 }

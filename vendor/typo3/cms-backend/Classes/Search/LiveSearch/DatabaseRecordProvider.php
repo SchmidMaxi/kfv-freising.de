@@ -36,10 +36,11 @@ use TYPO3\CMS\Core\Database\Query\QueryHelper;
 use TYPO3\CMS\Core\Database\Query\Restriction\EndTimeRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\HiddenRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\StartTimeRestriction;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
+use TYPO3\CMS\Core\Schema\SearchableSchemaFieldsCollector;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\MathUtility;
@@ -63,6 +64,7 @@ final class DatabaseRecordProvider implements SearchProviderInterface
         protected readonly LanguageServiceFactory $languageServiceFactory,
         protected readonly UriBuilder $uriBuilder,
         protected readonly QueryParser $queryParser,
+        protected readonly SearchableSchemaFieldsCollector $searchableSchemaFieldsCollector,
     ) {
         $this->languageService = $this->languageServiceFactory->createFromUserPreferences($this->getBackendUser());
         $this->userPermissions = $this->getBackendUser()->getPagePermsClause(Permission::PAGE_SHOW);
@@ -170,7 +172,7 @@ final class DatabaseRecordProvider implements SearchProviderInterface
                 new DemandProperty(DemandPropertyName::query, $extractedQueryString),
                 ...array_filter(
                     $searchDemand->getProperties(),
-                    static fn(DemandProperty $demandProperty) => $demandProperty->getName() !== DemandPropertyName::query
+                    static fn(DemandProperty $demandProperty): bool => $demandProperty->getName() !== DemandPropertyName::query
                 ),
             ]);
         }
@@ -248,11 +250,19 @@ final class DatabaseRecordProvider implements SearchProviderInterface
             }
 
             $actions = [];
+            $showLink = $this->getShowLink($row);
+            if ($showLink !== '') {
+                $actions[] = (new ResultItemAction('open_page_details'))
+                    ->setLabel($this->languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.showList'))
+                    ->setIcon($this->iconFactory->getIcon('actions-list', IconSize::SMALL))
+                    ->setUrl($showLink);
+            }
+
             $editLink = $this->getEditLink($tableName, $row);
             if ($editLink !== '') {
                 $actions[] = (new ResultItemAction('edit_record'))
                     ->setLabel($this->languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_common.xlf:edit'))
-                    ->setIcon($this->iconFactory->getIcon('actions-open', Icon::SIZE_SMALL))
+                    ->setIcon($this->iconFactory->getIcon('actions-open', IconSize::SMALL))
                     ->setUrl($editLink);
             }
 
@@ -264,7 +274,7 @@ final class DatabaseRecordProvider implements SearchProviderInterface
                 $extraData['breadcrumb'] = BackendUtility::getRecordPath($row['pid'], 'AND ' . $this->userPermissions, 0);
             }
 
-            $icon = $this->iconFactory->getIconForRecord($tableName, $row, Icon::SIZE_SMALL);
+            $icon = $this->iconFactory->getIconForRecord($tableName, $row, IconSize::SMALL);
             $items[] = (new ResultItem(self::class))
                 ->setItemTitle(BackendUtility::getRecordTitle($tableName, $row))
                 ->setTypeLabel($this->languageService->sL($GLOBALS['TCA'][$tableName]['ctrl']['title']))
@@ -296,7 +306,7 @@ final class DatabaseRecordProvider implements SearchProviderInterface
 
     protected function getAccessibleTables(BeforeSearchInDatabaseRecordProviderEvent $event): array
     {
-        return array_filter(array_keys($GLOBALS['TCA']), function (string $tableName) use ($event) {
+        return array_filter(array_keys($GLOBALS['TCA']), function (string $tableName) use ($event): bool {
             return $this->canAccessTable($tableName) && !$event->isTableIgnored($tableName);
         });
     }
@@ -330,17 +340,7 @@ final class DatabaseRecordProvider implements SearchProviderInterface
     protected function extractSearchableFieldsFromTable(string $tableName): array
     {
         // Get the list of fields to search in from the TCA, if any
-        if (isset($GLOBALS['TCA'][$tableName]['ctrl']['searchFields'])) {
-            $fieldListArray = GeneralUtility::trimExplode(',', $GLOBALS['TCA'][$tableName]['ctrl']['searchFields'], true);
-        } else {
-            $fieldListArray = [];
-        }
-        // Add special fields
-        if ($this->getBackendUser()->isAdmin()) {
-            $fieldListArray[] = 'uid';
-            $fieldListArray[] = 'pid';
-        }
-        return $fieldListArray;
+        return $this->searchableSchemaFieldsCollector->getUniqueFieldList($tableName, [], $this->getBackendUser()->isAdmin());
     }
 
     /**
@@ -450,6 +450,30 @@ final class DatabaseRecordProvider implements SearchProviderInterface
     }
 
     /**
+     * Build a link to the record list based on given record.
+     *
+     * @param array $row Current record row from database.
+     * @return string Link to open an edit window for record.
+     */
+    protected function getShowLink(array $row): string
+    {
+        $backendUser = $this->getBackendUser();
+        $showLink = '';
+        $permissionSet = new Permission($this->getBackendUser()->calcPerms(BackendUtility::getRecord('pages', $row['pid']) ?? []));
+        // "View" link - Only with proper permissions
+        if ($backendUser->isAdmin()
+            || (
+                $permissionSet->showPagePermissionIsGranted()
+                && !($GLOBALS['TCA']['pages']['ctrl']['adminOnly'] ?? false)
+                && $backendUser->check('tables_select', 'pages')
+            )
+        ) {
+            $showLink = (string)$this->uriBuilder->buildUriFromRoute('web_list', ['id' => $row['pid']]);
+        }
+        return $showLink;
+    }
+
+    /**
      * Build a backend edit link based on given record.
      *
      * @param string $tableName Record table name
@@ -461,14 +485,13 @@ final class DatabaseRecordProvider implements SearchProviderInterface
     {
         $backendUser = $this->getBackendUser();
         $editLink = '';
-        $calcPerms = new Permission($backendUser->calcPerms(BackendUtility::readPageAccess($row['pid'], $this->userPermissions) ?: []));
-        $permsEdit = $calcPerms->editContentPermissionIsGranted();
+        $permissionSet = new Permission($backendUser->calcPerms(BackendUtility::readPageAccess($row['pid'], $this->userPermissions) ?: []));
         // "Edit" link - Only with proper edit permissions
         if (!($GLOBALS['TCA'][$tableName]['ctrl']['readOnly'] ?? false)
             && (
                 $backendUser->isAdmin()
                 || (
-                    $permsEdit
+                    $permissionSet->editContentPermissionIsGranted()
                     && !($GLOBALS['TCA'][$tableName]['ctrl']['adminOnly'] ?? false)
                     && $backendUser->check('tables_modify', $tableName)
                     && $backendUser->recordEditAccessInternals($tableName, $row)

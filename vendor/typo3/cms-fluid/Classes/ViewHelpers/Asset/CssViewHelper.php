@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Fluid\ViewHelpers\Asset;
 
 use TYPO3\CMS\Core\Page\AssetCollector;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractTagBasedViewHelper;
 use TYPO3Fluid\Fluid\Core\ViewHelper\TagBuilder;
 
@@ -43,6 +44,8 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\TagBuilder;
  * Some available attributes are defaults but do not make sense for this ViewHelper. Relevant attributes specific
  * for this ViewHelper are: as, crossorigin, disabled, href, hreflang, importance, integrity, media, referrerpolicy,
  * sizes, type, nonce.
+ *
+ * Using the "inline" argument, the file content of the referenced file is added as inline style.
  */
 final class CssViewHelper extends AbstractTagBasedViewHelper
 {
@@ -85,34 +88,11 @@ final class CssViewHelper extends AbstractTagBasedViewHelper
     public function initializeArguments(): void
     {
         parent::initializeArguments();
-        $this->registerUniversalTagAttributes();
-        $this->registerTagAttribute('as', 'string', 'Define the type of content being loaded (For rel="preload" or rel="prefetch" only).', false);
-        $this->registerTagAttribute('crossorigin', 'string', 'Define how to handle crossorigin requests.', false);
-        $this->registerTagAttribute('disabled', 'bool', 'Define whether or not the described stylesheet should be loaded and applied to the document.', false);
-        $this->registerTagAttribute('href', 'string', 'Define the URL of the resource (absolute or relative).', false);
-        $this->registerTagAttribute('hreflang', 'string', 'Define the language of the resource (Only to be used if \'href\' is set).', false);
-        $this->registerTagAttribute('importance', 'string', 'Define the relative fetch priority of the resource.', false);
-        $this->registerTagAttribute('integrity', 'string', 'Define base64-encoded cryptographic hash of the resource that allows browsers to verify what they fetch.', false);
-        $this->registerTagAttribute('media', 'string', 'Define which media type the resources applies to.', false);
-        $this->registerTagAttribute('referrerpolicy', 'string', 'Define which referrer is sent when fetching the resource.', false);
-        $this->registerTagAttribute('rel', 'string', 'Define the relationship of the target object to the link object.', false);
-        $this->registerTagAttribute('sizes', 'string', 'Define the icon size of the resource.', false);
-        $this->registerTagAttribute('type', 'string', 'Define the MIME type (usually \'text/css\').', false);
-        $this->registerTagAttribute('nonce', 'string', 'Define a cryptographic nonce (number used once) used to whitelist inline styles in a style-src Content-Security-Policy.', false);
+        $this->registerArgument('disabled', 'bool', 'Define whether or not the described stylesheet should be loaded and applied to the document.');
         $this->registerArgument('useNonce', 'bool', 'Whether to use the global nonce value', false, false);
-        $this->registerArgument(
-            'identifier',
-            'string',
-            'Use this identifier within templates to only inject your CSS once, even though it is added multiple times.',
-            true
-        );
-        $this->registerArgument(
-            'priority',
-            'boolean',
-            'Define whether the CSS should be included before other CSS. CSS will always be output in the <head> tag.',
-            false,
-            false
-        );
+        $this->registerArgument('identifier', 'string', 'Use this identifier within templates to only inject your CSS once, even though it is added multiple times.', true);
+        $this->registerArgument('priority', 'boolean', 'Define whether the CSS should be included before other CSS. CSS will always be output in the <head> tag.', false, false);
+        $this->registerArgument('inline', 'bool', 'Define whether or not the referenced file should be loaded as inline styles (Only to be used if \'href\' is set).', false, false);
     }
 
     public function render(): string
@@ -121,7 +101,7 @@ final class CssViewHelper extends AbstractTagBasedViewHelper
         $attributes = $this->tag->getAttributes();
 
         // boolean attributes shall output attr="attr" if set
-        if ($attributes['disabled'] ?? false) {
+        if ($this->arguments['disabled'] ?? false) {
             $attributes['disabled'] = 'disabled';
         }
 
@@ -132,7 +112,14 @@ final class CssViewHelper extends AbstractTagBasedViewHelper
             'useNonce' => $this->arguments['useNonce'],
         ];
         if ($file !== null) {
-            $this->assetCollector->addStyleSheet($identifier, $file, $attributes, $options);
+            if ($this->arguments['inline'] ?? false) {
+                $content = @file_get_contents(GeneralUtility::getFileAbsFileName(trim($file)));
+                if ($content !== false) {
+                    $this->assetCollector->addInlineStyleSheet($identifier, $content, $attributes, $options);
+                }
+            } else {
+                $this->assetCollector->addStyleSheet($identifier, $file, $attributes, $options);
+            }
         } else {
             $content = (string)$this->renderChildren();
             if ($content !== '') {

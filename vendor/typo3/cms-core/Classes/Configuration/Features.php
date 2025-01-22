@@ -17,6 +17,8 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Core\Configuration;
 
+use Symfony\Component\DependencyInjection\Attribute\AsAlias;
+
 /**
  * A lightweight API class to check if a feature is enabled.
  *
@@ -52,6 +54,7 @@ namespace TYPO3\CMS\Core\Configuration;
  *   ... do stuff here ...
  * }
  */
+#[AsAlias('features', public: true)]
 class Features
 {
     /**
@@ -60,6 +63,9 @@ class Features
      * returns "enabled" for future versions.
      */
     protected array $alwaysActiveFeatures = [
+        // Enabled since v13.0 at any time.
+        'security.usePasswordPolicyForFrontendUsers',
+        'security.backend.enforceContentSecurityPolicy',
         // Enabled since v12.0 at any time.
         'subrequestPageErrors',
         'yamlImportsFollowDeclarationOrder',

@@ -18,27 +18,30 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Core\Database\Schema;
 
 use Doctrine\DBAL\Exception as DBALException;
-use Doctrine\DBAL\Platforms\SqlitePlatform;
+use Doctrine\DBAL\Schema\Column;
+use Doctrine\DBAL\Schema\Index;
 use Doctrine\DBAL\Schema\SchemaDiff;
 use Doctrine\DBAL\Schema\SchemaException;
 use Doctrine\DBAL\Schema\Table;
-use Doctrine\DBAL\Types\IntegerType;
 use TYPO3\CMS\Core\Core\Bootstrap;
-use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Schema\Exception\StatementException;
-use TYPO3\CMS\Core\Database\Schema\Exception\UnexpectedSignalReturnValueTypeException;
 use TYPO3\CMS\Core\Database\Schema\Parser\Parser;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
  * Helper methods to handle SQL files and transform them into individual statements
  * for further processing.
  *
- * @internal
+ * @internal not part of public core API.
  */
 class SchemaMigrator
 {
+    public function __construct(
+        private readonly ConnectionPool $connectionPool,
+        private readonly Parser $parser,
+        private readonly DefaultTcaSchema $defaultTcaSchema,
+    ) {}
+
     /**
      * Compare current and expected schema definitions and provide updates suggestions in the form
      * of SQL statements.
@@ -50,27 +53,17 @@ class SchemaMigrator
      * @throws SchemaException
      * @throws \InvalidArgumentException
      * @throws \RuntimeException
-     * @throws UnexpectedSignalReturnValueTypeException
      * @throws StatementException
      */
     public function getUpdateSuggestions(array $statements, bool $remove = false): array
     {
-        $connectionPool = GeneralUtility::makeInstance(ConnectionPool::class);
         $tables = $this->parseCreateTableStatements($statements);
-
         $updateSuggestions = [];
-
-        foreach ($connectionPool->getConnectionNames() as $connectionName) {
-            $this->adoptDoctrineAutoincrementDetectionForSqlite($tables, $connectionPool->getConnectionByName($connectionName));
-            $connectionMigrator = ConnectionMigrator::create(
-                $connectionName,
-                $tables
-            );
-
-            $updateSuggestions[$connectionName] =
-                $connectionMigrator->getUpdateSuggestions($remove);
+        foreach ($this->connectionPool->getConnectionNames() as $connectionName) {
+            $connection = $this->connectionPool->getConnectionByName($connectionName);
+            $connectionMigrator = ConnectionMigrator::create($connectionName, $connection, $tables);
+            $updateSuggestions[$connectionName] = $connectionMigrator->getUpdateSuggestions($remove);
         }
-
         return $updateSuggestions;
     }
 
@@ -83,24 +76,17 @@ class SchemaMigrator
      * @throws SchemaException
      * @throws \InvalidArgumentException
      * @throws \RuntimeException
-     * @throws UnexpectedSignalReturnValueTypeException
      * @throws StatementException
      */
     public function getSchemaDiffs(array $statements): array
     {
-        $connectionPool = GeneralUtility::makeInstance(ConnectionPool::class);
         $tables = $this->parseCreateTableStatements($statements);
-
         $schemaDiffs = [];
-
-        foreach ($connectionPool->getConnectionNames() as $connectionName) {
-            $connectionMigrator = ConnectionMigrator::create(
-                $connectionName,
-                $tables
-            );
+        foreach ($this->connectionPool->getConnectionNames() as $connectionName) {
+            $connection = $this->connectionPool->getConnectionByName($connectionName);
+            $connectionMigrator = ConnectionMigrator::create($connectionName, $connection, $tables);
             $schemaDiffs[$connectionName] = $connectionMigrator->getSchemaDiff();
         }
-
         return $schemaDiffs;
     }
 
@@ -113,14 +99,12 @@ class SchemaMigrator
      * @throws DBALException
      * @throws SchemaException
      * @throws \InvalidArgumentException
-     * @throws UnexpectedSignalReturnValueTypeException
      * @throws StatementException
      * @throws \RuntimeException
      */
     public function migrate(array $statements, array $selectedStatements): array
     {
         $result = [];
-        $connectionPool = GeneralUtility::makeInstance(ConnectionPool::class);
         $updateSuggestionsPerConnection = array_replace_recursive(
             $this->getUpdateSuggestions($statements),
             $this->getUpdateSuggestions($statements, true)
@@ -134,7 +118,7 @@ class SchemaMigrator
                 continue;
             }
 
-            $connection = $connectionPool->getConnectionByName($connectionName);
+            $connection = $this->connectionPool->getConnectionByName($connectionName);
             foreach ($statementsToExecute as $hash => $statement) {
                 try {
                     $connection->executeStatement($statement);
@@ -143,15 +127,13 @@ class SchemaMigrator
                 }
             }
         }
-        Bootstrap::createCache('database_schema')->flush();
+        $this->flushDatabaseSchemaCache();
 
         return $result;
     }
 
     /**
-     * Perform add/change/create operations on tables and fields in an optimized,
-     * non-interactive, mode using the original doctrine SchemaManager ->toSaveSql()
-     * method.
+     * Perform add/change/create operations on tables and fields in an optimized, non-interactive, mode.
      *
      * @param string[] $statements The CREATE TABLE statements
      * @param bool $createOnly Only perform changes that add fields or create tables
@@ -160,25 +142,19 @@ class SchemaMigrator
      * @throws SchemaException
      * @throws \InvalidArgumentException
      * @throws \RuntimeException
-     * @throws UnexpectedSignalReturnValueTypeException
      * @throws StatementException
      */
     public function install(array $statements, bool $createOnly = false): array
     {
-        $connectionPool = GeneralUtility::makeInstance(ConnectionPool::class);
         $tables = $this->parseCreateTableStatements($statements);
         $result = [];
-
-        foreach ($connectionPool->getConnectionNames() as $connectionName) {
-            $connectionMigrator = ConnectionMigrator::create(
-                $connectionName,
-                $tables
-            );
-
+        foreach ($this->connectionPool->getConnectionNames() as $connectionName) {
+            $connection = $this->connectionPool->getConnectionByName($connectionName);
+            $connectionMigrator = ConnectionMigrator::create($connectionName, $connection, $tables);
             $lastResult = $connectionMigrator->install($createOnly);
             $result = array_merge($result, $lastResult);
         }
-        Bootstrap::createCache('database_schema')->flush();
+        $this->flushDatabaseSchemaCache();
 
         return $result;
     }
@@ -189,7 +165,6 @@ class SchemaMigrator
     public function importStaticData(array $statements, bool $truncate = false): array
     {
         $result = [];
-        $connectionPool = GeneralUtility::makeInstance(ConnectionPool::class);
         $insertStatements = [];
 
         foreach ($statements as $statement) {
@@ -199,14 +174,14 @@ class SchemaMigrator
                 [, $tableName, $sqlFragment] = $matches;
                 $insertStatements[$tableName][] = sprintf(
                     'INSERT INTO %s %s',
-                    $connectionPool->getConnectionForTable($tableName)->quoteIdentifier($tableName),
+                    $this->connectionPool->getConnectionForTable($tableName)->quoteIdentifier($tableName),
                     rtrim($sqlFragment, ';')
                 );
             }
         }
 
         foreach ($insertStatements as $tableName => $perTableStatements) {
-            $connection = $connectionPool->getConnectionForTable($tableName);
+            $connection = $this->connectionPool->getConnectionForTable($tableName);
 
             if ($truncate) {
                 $connection->truncate($tableName);
@@ -229,23 +204,182 @@ class SchemaMigrator
      * Parse CREATE TABLE statements into Doctrine Table objects.
      *
      * @param string[] $statements The SQL CREATE TABLE statements
-     * @return Table[]
+     * @return array<non-empty-string, Table>
      * @throws SchemaException
      * @throws \InvalidArgumentException
      * @throws \RuntimeException
      * @throws StatementException
-     * @throws UnexpectedSignalReturnValueTypeException
      */
-    public function parseCreateTableStatements(array $statements): array
+    protected function parseCreateTableStatements(array $statements): array
+    {
+        $tables = $this->prepareTablesFromStatements($statements);
+        $tables = $this->ensureTableDefinitionForAllTCAManagedTables($tables);
+        $tables = $this->mergeTableDefinitions($tables);
+        $tables = $this->enrichTablesFromDefaultTCASchema($tables);
+        $tables = $this->ensureDefaultTCAFieldsAreOrdered($tables);
+        return $tables;
+    }
+
+    /**
+     * Have fields triggered by 'ctrl' settings first in the list. This is done for cosmetic
+     * reasons to improve readability of db schema when opening tables in a database browser.
+     *
+     * @return string[]
+     */
+    protected function getPrioritizedFieldNames(string $tableName): array
+    {
+        if (!isset($GLOBALS['TCA'][$tableName]['ctrl'])) {
+            return [];
+        }
+
+        $prioritizedFieldNames = [
+            'uid',
+            'pid',
+        ];
+
+        $tableDefinition = $GLOBALS['TCA'][$tableName]['ctrl'];
+
+        if (!empty($tableDefinition['crdate'])) {
+            $prioritizedFieldNames[] = $tableDefinition['crdate'];
+        }
+        if (!empty($tableDefinition['tstamp'])) {
+            $prioritizedFieldNames[] = $tableDefinition['tstamp'];
+        }
+        if (!empty($tableDefinition['delete'])) {
+            $prioritizedFieldNames[] = $tableDefinition['delete'];
+        }
+        if (!empty($tableDefinition['enablecolumns']['disabled'])) {
+            $prioritizedFieldNames[] = $tableDefinition['enablecolumns']['disabled'];
+        }
+        if (!empty($tableDefinition['enablecolumns']['starttime'])) {
+            $prioritizedFieldNames[] = $tableDefinition['enablecolumns']['starttime'];
+        }
+        if (!empty($tableDefinition['enablecolumns']['endtime'])) {
+            $prioritizedFieldNames[] = $tableDefinition['enablecolumns']['endtime'];
+        }
+        if (!empty($tableDefinition['enablecolumns']['fe_group'])) {
+            $prioritizedFieldNames[] = $tableDefinition['enablecolumns']['fe_group'];
+        }
+        if (!empty($tableDefinition['languageField'])) {
+            $prioritizedFieldNames[] = $tableDefinition['languageField'];
+            if (!empty($tableDefinition['transOrigPointerField'])) {
+                $prioritizedFieldNames[] = $tableDefinition['transOrigPointerField'];
+                $prioritizedFieldNames[] = 'l10n_state';
+            }
+            if (!empty($tableDefinition['translationSource'])) {
+                $prioritizedFieldNames[] = $tableDefinition['translationSource'];
+            }
+            if (!empty($tableDefinition['transOrigDiffSourceField'])) {
+                $prioritizedFieldNames[] = $tableDefinition['transOrigDiffSourceField'];
+            }
+        }
+        if (!empty($tableDefinition['sortby'])) {
+            $prioritizedFieldNames[] = $tableDefinition['sortby'];
+        }
+        if (!empty($tableDefinition['descriptionColumn'])) {
+            $prioritizedFieldNames[] = $tableDefinition['descriptionColumn'];
+        }
+        if (!empty($tableDefinition['editlock'])) {
+            $prioritizedFieldNames[] = $tableDefinition['editlock'];
+        }
+        if (!empty($tableDefinition['origUid'])) {
+            $prioritizedFieldNames[] = $tableDefinition['origUid'];
+        }
+        if (!empty($tableDefinition['versioningWS'])) {
+            $prioritizedFieldNames[] = 't3ver_wsid';
+            $prioritizedFieldNames[] = 't3ver_oid';
+            $prioritizedFieldNames[] = 't3ver_state';
+            $prioritizedFieldNames[] = 't3ver_stage';
+        }
+
+        return $prioritizedFieldNames;
+    }
+
+    /**
+     * To give extensions the ability to extend or modify the database schema for core or other extension tables, a
+     * collection of DDL statement parts are parsed into partial table classes. This method merges the table definition
+     * parts to end up with a single table representation to ease further handling.
+     *
+     * @param Table[] $tables
+     * @return array<non-empty-string, Table>
+     */
+    private function mergeTableDefinitions(array $tables): array
+    {
+        $return = [];
+        foreach ($tables as $table) {
+            $tableName = $this->trimIdentifierQuotes($table->getName());
+            if (!array_key_exists($tableName, $return)) {
+                $return[$tableName] = $table;
+                continue;
+            }
+
+            // Merge multiple table definitions. Later definitions overrule identical
+            // columns, indexes and foreign_keys. Order of definitions is based on
+            // extension load order.
+            $currentTableDefinition = $return[$tableName];
+            $return[$tableName] = new Table(
+                $tableName,
+                $this->mergeColumns(...array_values($currentTableDefinition->getColumns()), ...array_values($table->getColumns())),
+                $this->mergeIndexes(...array_values($currentTableDefinition->getIndexes()), ...array_values($table->getIndexes())),
+                [],
+                array_merge($currentTableDefinition->getForeignKeys(), $table->getForeignKeys()),
+                array_merge($currentTableDefinition->getOptions(), $table->getOptions())
+            );
+        }
+
+        return $return;
+    }
+
+    /**
+     * @param Column ...$columns
+     * @return Column[]
+     */
+    private function mergeColumns(Column ...$columns): array
+    {
+        $mergedColumns = [];
+        foreach ($columns as $column) {
+            $mergedColumns[$column->getName()] = $column;
+        }
+        return array_values($mergedColumns);
+    }
+
+    /**
+     * @param Index ...$indexes
+     * @return Index[]
+     */
+    private function mergeIndexes(Index ...$indexes): array
+    {
+        $mergedIndexes = [];
+        foreach ($indexes as $index) {
+            $mergedIndexes[$index->getName()] = $index;
+        }
+        return array_values($mergedIndexes);
+    }
+
+    /**
+     * Trim all possible identifier quotes from identifier. This method has been cloned from Doctrine DBAL.
+     *
+     * @see \Doctrine\DBAL\Schema\AbstractAsset::trimQuotes()
+     */
+    private function trimIdentifierQuotes(string $identifier): string
+    {
+        return str_replace(['`', '"', '[', ']'], '', $identifier);
+    }
+
+    /**
+     * @param string[] $statements
+     * @return Table[]
+     * @throws SchemaException
+     * @throws StatementException
+     */
+    protected function prepareTablesFromStatements(array $statements): array
     {
         $tables = [];
         foreach ($statements as $statement) {
-            $createTableParser = GeneralUtility::makeInstance(Parser::class, $statement);
-
             // We need to keep multiple table definitions at this point so
             // that Extensions can modify existing tables.
             try {
-                $tables[] = $createTableParser->parse();
+                $tables[] = $this->parser->parse($statement);
             } catch (StatementException $statementException) {
                 // Enrich the error message with the full invalid statement
                 throw new StatementException(
@@ -259,12 +393,56 @@ class SchemaMigrator
         // Flatten the array of arrays by one level
         $tables = array_merge(...$tables);
 
-        // Add default TCA fields
-        $defaultTcaSchema = GeneralUtility::makeInstance(DefaultTcaSchema::class);
-        $tables = $defaultTcaSchema->enrich($tables);
-        // Ensure the default TCA fields are ordered
+        return $tables;
+    }
+
+    /**
+     * Ensure we have a table definition for all tables within TCA, add missing ones
+     * as "empty" tables without columns. This is needed for DefaultTcaSchema: It goes
+     * through TCA to add columns automatically, but needs a table definition of all
+     * TCA tables. We're not doing this in DefaultTcaSchema to not introduce a dependency
+     * to the Parser class in there, which we have here so conveniently already.
+     *
+     * @param Table[] $tables
+     * @return Table[]
+     * @throws SchemaException
+     * @throws StatementException
+     */
+    protected function ensureTableDefinitionForAllTCAManagedTables(array $tables): array
+    {
+        $tableNamesFromTca = array_keys($GLOBALS['TCA']);
+        $tableNamesFromExtTables = [];
+        foreach ($tables as $table) {
+            $tableNamesFromExtTables[] = $table->getName();
+        }
+        $tableNamesFromExtTables = array_unique($tableNamesFromExtTables);
+        $missingTableNames = array_diff($tableNamesFromTca, $tableNamesFromExtTables);
+        foreach ($missingTableNames as $tableName) {
+            $createTableSql = 'CREATE TABLE ' . $tableName . '();';
+            $tables[] = $this->parser->parse($createTableSql)[0];
+        }
+        return $tables;
+    }
+
+    /**
+     * @param array<non-empty-string, Table> $tables
+     * @return array<non-empty-string, Table>
+     */
+    protected function enrichTablesFromDefaultTCASchema(array $tables): array
+    {
+        return $this->defaultTcaSchema->enrich($tables);
+    }
+
+    /**
+     * Ensure the default TCA fields are ordered.
+     *
+     * @param array<non-empty-string, Table> $tables
+     * @return array<non-empty-string, Table>
+     */
+    protected function ensureDefaultTCAFieldsAreOrdered(array $tables): array
+    {
         foreach ($tables as $k => $table) {
-            $prioritizedColumnNames = $defaultTcaSchema->getPrioritizedFieldNames($table->getName());
+            $prioritizedColumnNames = $this->getPrioritizedFieldNames($table->getName());
             // no TCA table
             if (empty($prioritizedColumnNames)) {
                 continue;
@@ -290,39 +468,11 @@ class SchemaMigrator
                 $table->getOptions()
             );
         }
-
         return $tables;
     }
 
-    /**
-     * doctrine/dbal detects both sqlite autoincrement variants (row_id alias and autoincrement) through assumptions
-     * which have been made. TYPO3 reads the ext_tables.sql files as MySQL/MariaDB variant, thus not setting the
-     * autoincrement value to true for the row_id alias variant, which leads to an endless missmatch during database
-     * comparison. This method adopts the doctrine/dbal assumption and apply it to the meta schema to mitigate
-     * endless database compare detections in these cases.
-     *
-     * @see https://github.com/doctrine/dbal/commit/33555d36e7e7d07a5880e01
-     *
-     * @param Table[] $tables
-     */
-    protected function adoptDoctrineAutoincrementDetectionForSqlite(array $tables, Connection $connection): void
+    protected function flushDatabaseSchemaCache(): void
     {
-        if (!($connection->getDatabasePlatform() instanceof SqlitePlatform)) {
-            return;
-        }
-        array_walk($tables, static function (Table $table): void {
-            $primaryColumns = $table->getPrimaryKey()?->getColumns() ?? [];
-            $primaryKeyColumnCount = count($primaryColumns);
-            $firstPrimaryKeyColumnName = $primaryColumns[0] ?? '';
-            $singlePrimaryKeyColumn = $table->hasColumn($firstPrimaryKeyColumnName)
-                ? $table->getColumn($firstPrimaryKeyColumnName)
-                : null;
-            if ($primaryKeyColumnCount === 1
-                && $singlePrimaryKeyColumn !== null
-                && $singlePrimaryKeyColumn->getType() instanceof IntegerType
-            ) {
-                $singlePrimaryKeyColumn->setAutoincrement(true);
-            }
-        });
+        Bootstrap::createCache('database_schema')->flush();
     }
 }

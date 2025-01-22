@@ -19,9 +19,13 @@ namespace TYPO3\CMS\Core\Core;
 
 use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
+use TYPO3\CMS\Core\Configuration\Extension\ExtLocalconfFactory;
+use TYPO3\CMS\Core\Configuration\Extension\ExtTablesFactory;
+use TYPO3\CMS\Core\Configuration\Tca\TcaFactory;
 use TYPO3\CMS\Core\Core\Event\BootCompletedEvent;
 use TYPO3\CMS\Core\DependencyInjection\ContainerBuilder;
 use TYPO3\CMS\Core\Package\PackageManager;
+use TYPO3\CMS\Core\Schema\TcaSchemaFactory;
 use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -63,7 +67,6 @@ class BootService
             // Core cache is initialized with a NullBackend in failsafe mode.
             // Replace it with a new cache that uses the real backend.
             $this->container->set('_early.cache.core', $coreCache);
-            $this->container->set('_early.cache.assets', Bootstrap::createCache('assets'));
             if (!Environment::isComposerMode()) {
                 $this->container->get(PackageManager::class)->setPackageCache(Bootstrap::createPackageCache($coreCache));
             }
@@ -112,7 +115,7 @@ class BootService
      * @param bool $resetContainer
      * @param bool $allowCaching
      */
-    public function loadExtLocalconfDatabaseAndExtTables(bool $resetContainer = false, bool $allowCaching = true): ContainerInterface
+    public function loadExtLocalconfDatabaseAndExtTables(bool $resetContainer = false, bool $allowCaching = true, bool $loadExtTables = true): ContainerInterface
     {
         $container = $this->getContainer($allowCaching);
 
@@ -121,14 +124,33 @@ class BootService
 
         $container->get('boot.state')->complete = false;
         $eventDispatcher = $container->get(EventDispatcherInterface::class);
-        ExtensionManagementUtility::setEventDispatcher($eventDispatcher);
-        Bootstrap::loadTypo3LoadedExtAndExtLocalconf($allowCaching, $container->get('cache.core'));
+        $tcaFactory = $container->get(TcaFactory::class);
+        if ($allowCaching) {
+            $container->get(ExtLocalconfFactory::class)->load();
+        } else {
+            $container->get(ExtLocalconfFactory::class)->loadUncached();
+        }
         Bootstrap::unsetReservedGlobalVariables();
         $GLOBALS['BE_USER'] = $beUserBackup;
-        Bootstrap::loadBaseTca($allowCaching, $container->get('cache.core'));
+        if ($allowCaching) {
+            $GLOBALS['TCA'] = $tcaFactory->get();
+        } else {
+            $GLOBALS['TCA'] = $tcaFactory->create();
+        }
         $container->get('boot.state')->complete = true;
+        if ($allowCaching) {
+            $container->get(TcaSchemaFactory::class)->load($GLOBALS['TCA']);
+        } else {
+            $container->get(TcaSchemaFactory::class)->rebuild($GLOBALS['TCA']);
+        }
         $eventDispatcher->dispatch(new BootCompletedEvent($allowCaching));
-        Bootstrap::loadExtTables($allowCaching, $container->get('cache.core'));
+        if ($loadExtTables) {
+            if ($allowCaching) {
+                $container->get(ExtTablesFactory::class)->load();
+            } else {
+                $container->get(ExtTablesFactory::class)->loadUncached();
+            }
+        }
 
         if ($resetContainer) {
             $this->makeCurrent(null, $backup);

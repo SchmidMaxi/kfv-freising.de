@@ -18,22 +18,15 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Fluid\ViewHelpers;
 
 use Psr\Http\Message\ServerRequestInterface;
-use TYPO3\CMS\Core\Context\Context;
-use TYPO3\CMS\Core\Routing\PageArguments;
-use TYPO3\CMS\Core\Site\Entity\SiteInterface;
-use TYPO3\CMS\Core\Site\SiteFinder;
+use TYPO3\CMS\Core\Domain\RecordInterface;
 use TYPO3\CMS\Core\TimeTracker\TimeTracker;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface;
 use TYPO3\CMS\Extbase\Reflection\ObjectAccess;
-use TYPO3\CMS\Fluid\Core\Rendering\RenderingContext;
-use TYPO3\CMS\Frontend\Authentication\FrontendUserAuthentication;
 use TYPO3\CMS\Frontend\ContentObject\ContentObjectRenderer;
 use TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController;
-use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
 use TYPO3Fluid\Fluid\Core\ViewHelper\Exception;
-use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithContentArgumentAndRenderStatic;
 
 /**
  * This ViewHelper renders CObjects from the global TypoScript configuration.
@@ -90,8 +83,6 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithContentArgumentAndRenderS
  */
 final class CObjectViewHelper extends AbstractViewHelper
 {
-    use CompileWithContentArgumentAndRenderStatic;
-
     /**
      * Disable escaping of child nodes' output
      *
@@ -119,14 +110,16 @@ final class CObjectViewHelper extends AbstractViewHelper
      *
      * @throws Exception
      */
-    public static function renderStatic(array $arguments, \Closure $renderChildrenClosure, RenderingContextInterface $renderingContext): string
+    public function render(): string
     {
-        $data = $renderChildrenClosure();
-        $typoscriptObjectPath = (string)$arguments['typoscriptObjectPath'];
-        $currentValueKey = $arguments['currentValueKey'];
-        $table = $arguments['table'];
-        /** @var RenderingContext $renderingContext */
-        $request = $renderingContext->getRequest();
+        $data = $this->renderChildren() ?? [];
+        $typoscriptObjectPath = (string)$this->arguments['typoscriptObjectPath'];
+        $currentValueKey = $this->arguments['currentValueKey'];
+        $table = $this->arguments['table'];
+        if (!$this->renderingContext->hasAttribute(ServerRequestInterface::class)) {
+            throw new \RuntimeException('Required request not found in RenderingContext', 1724243608);
+        }
+        $request = $this->renderingContext->getAttribute(ServerRequestInterface::class);
         $contentObjectRenderer = self::getContentObjectRenderer($request);
         $contentObjectRenderer->setRequest($request);
         $tsfeBackup = null;
@@ -135,7 +128,7 @@ final class CObjectViewHelper extends AbstractViewHelper
         }
         $currentValue = null;
         if (is_object($data)) {
-            $data = ObjectAccess::getGettableProperties($data);
+            $data = $data instanceof RecordInterface ? ($data->getRawRecord()?->toArray() ?? $data->toArray()) : ObjectAccess::getGettableProperties($data);
         } elseif (is_string($data) || is_numeric($data)) {
             $currentValue = (string)$data;
             $data = [$data];
@@ -200,21 +193,9 @@ final class CObjectViewHelper extends AbstractViewHelper
         if (($GLOBALS['TSFE'] ?? null) instanceof TypoScriptFrontendController) {
             $tsfe = $GLOBALS['TSFE'];
         } else {
-            $site = $request->getAttribute('site');
-            if (!($site instanceof SiteInterface)) {
-                $sites = GeneralUtility::makeInstance(SiteFinder::class)->getAllSites();
-                $site = reset($sites);
-            }
-            $language = $request->getAttribute('language') ?? $site->getDefaultLanguage();
-            $pageArguments = $request->getAttribute('routing') ?? new PageArguments(0, '0', []);
-            $tsfe = GeneralUtility::makeInstance(
-                TypoScriptFrontendController::class,
-                GeneralUtility::makeInstance(Context::class),
-                $site,
-                $language,
-                $pageArguments,
-                GeneralUtility::makeInstance(FrontendUserAuthentication::class)
-            );
+            $tsfe = GeneralUtility::makeInstance(TypoScriptFrontendController::class);
+            $tsfe->initializePageRenderer($request);
+            $tsfe->initializeLanguageService($request);
         }
         $contentObjectRenderer = GeneralUtility::makeInstance(ContentObjectRenderer::class, $tsfe);
         $parent = $request->getAttribute('currentContentObject');
@@ -246,7 +227,7 @@ final class CObjectViewHelper extends AbstractViewHelper
     /**
      * Explicitly set argument name to be used as content.
      */
-    public function resolveContentArgumentName(): string
+    public function getContentArgumentName(): string
     {
         return 'data';
     }

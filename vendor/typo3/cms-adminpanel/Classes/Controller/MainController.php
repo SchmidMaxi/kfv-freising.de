@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Adminpanel\Controller;
 
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Adminpanel\ModuleApi\ConfigurableInterface;
 use TYPO3\CMS\Adminpanel\ModuleApi\DataProviderInterface;
 use TYPO3\CMS\Adminpanel\ModuleApi\ModuleDataStorageCollection;
@@ -31,10 +32,10 @@ use TYPO3\CMS\Adminpanel\Utility\ResourceUtility;
 use TYPO3\CMS\Adminpanel\Utility\StateUtility;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
-use TYPO3\CMS\Core\Cache\CacheManager;
 use TYPO3\CMS\Core\Core\RequestId;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Fluid\View\StandaloneView;
+use TYPO3\CMS\Core\View\ViewFactoryData;
+use TYPO3\CMS\Core\View\ViewFactoryInterface;
 
 /**
  * Main controller for the admin panel.
@@ -45,28 +46,26 @@ use TYPO3\CMS\Fluid\View\StandaloneView;
  *
  * @internal
  */
+#[Autoconfigure(public: true)]
 class MainController
 {
     /** @var array<string, ModuleInterface> */
     protected array $modules = [];
-    protected array $adminPanelModuleConfiguration;
 
     public function __construct(
         private readonly ModuleLoader $moduleLoader,
         private readonly UriBuilder $uriBuilder,
         private readonly RequestId $requestId,
-    ) {
-        $this->adminPanelModuleConfiguration = $GLOBALS['TYPO3_CONF_VARS']['EXTCONF']['adminpanel']['modules'] ?? [];
-    }
+        private readonly ViewFactoryInterface $viewFactory,
+    ) {}
 
     /**
      * Initializes settings for the admin panel.
      */
     public function initialize(ServerRequestInterface $request): ServerRequestInterface
     {
-        $this->modules = $this->moduleLoader->validateSortAndInitializeModules(
-            $this->adminPanelModuleConfiguration
-        );
+        $adminPanelModuleConfiguration = $GLOBALS['TYPO3_CONF_VARS']['EXTCONF']['adminpanel']['modules'] ?? [];
+        $this->modules = $this->moduleLoader->validateSortAndInitializeModules($adminPanelModuleConfiguration);
         if (StateUtility::isActivatedForUser()) {
             $request = $this->initializeModules($request, $this->modules);
         }
@@ -103,24 +102,26 @@ class MainController
             $GLOBALS['TYPO3_REQUEST'] = $request;
         }
 
-        $view = GeneralUtility::makeInstance(StandaloneView::class);
-        $templateNameAndPath = 'EXT:adminpanel/Resources/Private/Templates/Main.html';
-        $view->setTemplatePathAndFilename(GeneralUtility::getFileAbsFileName($templateNameAndPath));
-        $view->setPartialRootPaths(['EXT:adminpanel/Resources/Private/Partials']);
-        $view->setLayoutRootPaths(['EXT:adminpanel/Resources/Private/Layouts']);
-
-        $view->assignMultiple(
-            [
-                'toggleActiveUrl' => $this->generateBackendUrl('ajax_adminPanel_toggle'),
-                'resources' => $resources,
-                'adminPanelActive' => StateUtility::isOpen(),
-                'languageKey' => $this->getBackendUser()->user['lang'] ?? null,
-            ]
+        $viewFactoryData = new ViewFactoryData(
+            templateRootPaths: ['EXT:adminpanel/Resources/Private/Templates'],
+            partialRootPaths: ['EXT:adminpanel/Resources/Private/Partials'],
+            layoutRootPaths: ['EXT:adminpanel/Resources/Private/Layouts'],
+            request: $request,
         );
+        $view = $this->viewFactory->create($viewFactoryData);
+
+        $view->assignMultiple([
+            'toggleActiveUrl' => $this->generateBackendUrl('ajax_adminPanel_toggle'),
+            'resources' => $resources,
+            'adminPanelActive' => StateUtility::isOpen(),
+            'languageKey' => $this->getBackendUser()->user['lang'] ?? null,
+        ]);
         if (StateUtility::isOpen()) {
-            $cache = GeneralUtility::makeInstance(CacheManager::class)->getCache('adminpanel_requestcache');
-            $requestId = $request->getAttribute('adminPanelRequestId');
-            $data = $cache->get($requestId);
+            $data = $this->storeDataPerModule(
+                $request,
+                $this->modules,
+                GeneralUtility::makeInstance(ModuleDataStorageCollection::class)
+            );
             $moduleResources = ResourceUtility::getAdditionalResourcesForModules($this->modules, ['nonce' => $this->requestId->nonce]);
             $settingsModules = array_filter($this->modules, static function (ModuleInterface $module): bool {
                 return $module instanceof PageSettingsProviderInterface;
@@ -132,23 +133,12 @@ class MainController
                 }
             );
             foreach ($parentModules as $parentModule) {
-                if ($parentModule instanceof ShortInfoProviderInterface) {
-                    if (method_exists($parentModule, 'setModuleData')) {
-                        $parentModule->setModuleData($data);
-                    } else {
-                        trigger_error(
-                            'Using ' . ShortInfoProviderInterface::class . ' without implementing' .
-                            ' setModuleData() is deprecated in v12 and breaking in v13.',
-                            E_USER_DEPRECATED
-                        );
-                    }
-                }
+                $parentModule->setModuleData($data);
             }
 
-            $frontendController = $request->getAttribute('frontend.controller');
             $routeIdentifier = 'web_layout';
             $arguments = [
-                'id' => $frontendController->id ?? 0,
+                'id' => $request->getAttribute('frontend.page.information')->getId(),
             ];
             $backendUrl = (string)$this->uriBuilder->buildUriFromRoute(
                 $routeIdentifier,
@@ -156,43 +146,22 @@ class MainController
                 UriBuilder::SHAREABLE_URL
             );
 
-            $view->assignMultiple(
-                [
-                    'modules' => $this->modules,
-                    'settingsModules' => $settingsModules,
-                    'parentModules' => $parentModules,
-                    'saveUrl' => $this->generateBackendUrl('ajax_adminPanel_saveForm'),
-                    'moduleResources' => $moduleResources,
-                    'requestId' => $requestId,
-                    'data' => $data ?? [],
-                    'backendUrl' => $backendUrl,
-                ]
-            );
+            $view->assignMultiple([
+                'modules' => $this->modules,
+                'settingsModules' => $settingsModules,
+                'parentModules' => $parentModules,
+                'saveUrl' => $this->generateBackendUrl('ajax_adminPanel_saveForm'),
+                'moduleResources' => $moduleResources,
+                'requestId' => $request->getAttribute('adminPanelRequestId'),
+                'data' => $data,
+                'backendUrl' => $backendUrl,
+            ]);
         }
-        $result = $view->render();
+        $result = $view->render('Main');
         if ($backupRequest) {
             $GLOBALS['TYPO3_REQUEST'] = $backupRequest;
         }
         return $result;
-    }
-
-    /**
-     * Stores data for admin panel in cache - Called in PSR-15 Middleware
-     *
-     * @see \TYPO3\CMS\Adminpanel\Middleware\AdminPanelDataPersister
-     */
-    public function storeData(ServerRequestInterface $request): void
-    {
-        if (StateUtility::isOpen()) {
-            $data = $this->storeDataPerModule(
-                $request,
-                $this->modules,
-                GeneralUtility::makeInstance(ModuleDataStorageCollection::class)
-            );
-            $cache = GeneralUtility::makeInstance(CacheManager::class)->getCache('adminpanel_requestcache');
-            $cache->set($request->getAttribute('adminPanelRequestId'), $data);
-            $cache->collectGarbage();
-        }
     }
 
     /**

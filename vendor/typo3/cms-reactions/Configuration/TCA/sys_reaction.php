@@ -57,6 +57,7 @@ return [
                 'items' => [
                     ['label' => 'LLL:EXT:reactions/Resources/Private/Language/locallang_db.xlf:sys_reaction.reaction_type.select', 'value' => ''],
                 ],
+                'dbFieldLength' => 255,
             ],
         ],
         'name' => [
@@ -65,16 +66,8 @@ return [
             'config' => [
                 'type' => 'input',
                 'required' => true,
+                'max' => 100,
                 'eval' => 'trim',
-            ],
-        ],
-        'description' => [
-            'label' => 'LLL:EXT:reactions/Resources/Private/Language/locallang_db.xlf:sys_reaction.description',
-            'description' => 'LLL:EXT:reactions/Resources/Private/Language/locallang_db.xlf:sys_reaction.description.description',
-            'config' => [
-                'type' => 'text',
-                'rows' => 5,
-                'cols' => 30,
             ],
         ],
         'identifier' => [
@@ -114,7 +107,7 @@ return [
                 'type' => 'group',
                 'allowed' => 'be_users',
                 'size' => 1,
-                'maxitems' => 1,
+                'relationship' => 'manyToOne',
             ],
         ],
         // "table_name" is not referenced in this TCA but needs to be defined here to ensure extensions can
@@ -130,36 +123,7 @@ return [
                 'default' => '',
                 'items' => [],
                 'itemsProcFunc' => \TYPO3\CMS\Reactions\Form\ReactionItemsProcFunc::class . '->validateAllowedTablesForExternalCreation',
-            ],
-        ],
-        'disabled' => [
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.enabled',
-            'config' => [
-                'type' => 'check',
-                'renderType' => 'checkboxToggle',
-                'items' => [
-                    [
-                        'label' => '',
-                        'invertStateDisplay' => true,
-                    ],
-                ],
-            ],
-        ],
-        'starttime' => [
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.starttime',
-            'config' => [
-                'type' => 'datetime',
-                'default' => 0,
-            ],
-        ],
-        'endtime' => [
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.endtime',
-            'config' => [
-                'type' => 'datetime',
-                'default' => 0,
-                'range' => [
-                    'upper' => mktime(0, 0, 0, 1, 1, 2038),
-                ],
+                'dbFieldLength' => 255,
             ],
         ],
     ],

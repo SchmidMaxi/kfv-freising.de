@@ -19,12 +19,15 @@ namespace TYPO3\CMS\Dashboard\Controller;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Backend\Attribute\AsController;
+use TYPO3\CMS\Backend\Domain\Model\Element\ImmediateActionElement;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
+use TYPO3\CMS\Core\Http\AllowedMethodsTrait;
+use TYPO3\CMS\Core\Http\HtmlResponse;
 use TYPO3\CMS\Core\Http\RedirectResponse;
 use TYPO3\CMS\Core\Localization\LanguageService;
-use TYPO3\CMS\Core\Page\JavaScriptModuleInstruction;
 use TYPO3\CMS\Core\Page\PageRenderer;
 use TYPO3\CMS\Dashboard\Dashboard;
 use TYPO3\CMS\Dashboard\DashboardInitializationService;
@@ -37,8 +40,11 @@ use TYPO3\CMS\Extbase\Mvc\Controller\Exception\RequiredArgumentMissingException;
 /**
  * @internal
  */
+#[AsController]
 class DashboardController
 {
+    use AllowedMethodsTrait;
+
     protected Dashboard $currentDashboard;
 
     public function __construct(
@@ -89,6 +95,7 @@ class DashboardController
 
     protected function configureDashboardAction(ServerRequestInterface $request): ResponseInterface
     {
+        $this->assertAllowedHttpMethod($request, 'POST');
         $parameters = $request->getParsedBody();
         $currentDashboard = $parameters['currentDashboard'] ?? '';
         $route = $this->uriBuilder->buildUriFromRoute('dashboard', ['action' => 'main'], UriBuilder::ABSOLUTE_URL);
@@ -100,13 +107,15 @@ class DashboardController
 
     protected function setActiveDashboardAction(ServerRequestInterface $request): ResponseInterface
     {
-        $this->saveCurrentDashboard((string)($request->getQueryParams()['currentDashboard'] ?? ''));
+        $this->assertAllowedHttpMethod($request, 'POST');
+        $this->saveCurrentDashboard((string)($request->getParsedBody()['currentDashboard'] ?? ''));
         $route = $this->uriBuilder->buildUriFromRoute('dashboard', ['action' => 'main']);
         return new RedirectResponse($route);
     }
 
     protected function addDashboardAction(ServerRequestInterface $request): ResponseInterface
     {
+        $this->assertAllowedHttpMethod($request, 'POST');
         $parameters = $request->getParsedBody();
         $dashboardIdentifier = (string)($parameters['dashboard'] ?? '');
         $dashboardPreset = $this->dashboardPresetRepository->getDashboardPresets()[$dashboardIdentifier] ?? null;
@@ -123,14 +132,16 @@ class DashboardController
         return new RedirectResponse($this->uriBuilder->buildUriFromRoute('dashboard', ['action' => 'main']));
     }
 
-    protected function deleteDashboardAction(): ResponseInterface
+    protected function deleteDashboardAction(ServerRequestInterface $request): ResponseInterface
     {
+        $this->assertAllowedHttpMethod($request, 'POST');
         $this->dashboardRepository->delete($this->currentDashboard);
         return new RedirectResponse($this->uriBuilder->buildUriFromRoute('dashboard', ['action' => 'main']));
     }
 
     protected function addWidgetAction(ServerRequestInterface $request): ResponseInterface
     {
+        $this->assertAllowedHttpMethod($request, 'POST');
         $widgetKey = (string)($request->getQueryParams()['widget'] ?? '');
         if ($widgetKey === '') {
             throw new RequiredArgumentMissingException('Argument "widget" not set.', 1624436360);
@@ -139,13 +150,13 @@ class DashboardController
         $hash = sha1($widgetKey . '-' . time());
         $widgets[$hash] = ['identifier' => $widgetKey];
         $this->dashboardRepository->updateWidgetConfig($this->currentDashboard, $widgets);
-        $route = $this->uriBuilder->buildUriFromRoute('dashboard', ['action' => 'main']);
-        return new RedirectResponse($route);
+        return new HtmlResponse((string)ImmediateActionElement::dispatchCustomEvent('typo3.dashboard.addWidgetDone'));
     }
 
     protected function removeWidgetAction(ServerRequestInterface $request): ResponseInterface
     {
-        $parameters = $request->getQueryParams();
+        $this->assertAllowedHttpMethod($request, 'POST');
+        $parameters = $request->getParsedBody();
         $widgetHash = $parameters['widgetHash'] ?? '';
         $widgets = $this->currentDashboard->getWidgetConfig();
         if ($widgetHash !== '' && array_key_exists($widgetHash, $widgets)) {
@@ -164,17 +175,6 @@ class DashboardController
         $javaScriptRenderer = $this->pageRenderer->getJavaScriptRenderer();
         foreach ($this->dashboardInitializationService->getJavaScriptModuleInstructions() as $instruction) {
             $javaScriptRenderer->addJavaScriptModuleInstruction($instruction);
-        }
-        foreach ($this->dashboardInitializationService->getRequireJsModules() as $requireJsModule) {
-            if (is_array($requireJsModule)) {
-                // Deprecation message is triggered by DashboardInitializationService::defineResourcesOfWidgets, and therefore silenced here.
-                $this->pageRenderer->loadRequireJsModule($requireJsModule[0], $requireJsModule[1], true);
-            } else {
-                // Deprecation message is triggered by DashboardInitializationService::defineResourcesOfWidgets, and therefore silenced here.
-                $javaScriptRenderer->addJavaScriptModuleInstruction(
-                    JavaScriptModuleInstruction::forRequireJS($requireJsModule, null, true)
-                );
-            }
         }
         foreach ($this->dashboardInitializationService->getCssFiles() as $cssFile) {
             $this->pageRenderer->addCssFile($cssFile);

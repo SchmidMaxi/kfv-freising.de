@@ -18,7 +18,6 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Backend\Form\Element;
 
 use TYPO3\CMS\Backend\Utility\BackendUtility;
-use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Resource\File;
 use TYPO3\CMS\Core\Resource\ProcessedFile;
 use TYPO3\CMS\Core\Resource\ResourceFactory;
@@ -31,6 +30,10 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  */
 class FileInfoElement extends AbstractFormElement
 {
+    public function __construct(
+        private readonly ResourceFactory $resourceFactory,
+    ) {}
+
     /**
      * Handler for single nodes
      *
@@ -39,8 +42,6 @@ class FileInfoElement extends AbstractFormElement
     public function render(): array
     {
         $resultArray = $this->initializeResultArray();
-        // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-        $resultArray['labelHasBeenHandled'] = true;
 
         $fileUid = 0;
         if ($this->data['tableName'] === 'sys_file') {
@@ -51,7 +52,7 @@ class FileInfoElement extends AbstractFormElement
 
         $fileObject = null;
         if ($fileUid > 0) {
-            $fileObject = GeneralUtility::makeInstance(ResourceFactory::class)->getFileObject($fileUid);
+            $fileObject = $this->resourceFactory->getFileObject($fileUid);
         }
         $resultArray['html'] = $this->renderFileInformationContent($fileObject);
         return $resultArray;
@@ -62,8 +63,7 @@ class FileInfoElement extends AbstractFormElement
      */
     protected function renderFileInformationContent(?File $file = null): string
     {
-        /** @var LanguageService $lang */
-        $lang = $GLOBALS['LANG'];
+        $lang = $this->getLanguageService();
 
         if ($file !== null) {
             $content = '';

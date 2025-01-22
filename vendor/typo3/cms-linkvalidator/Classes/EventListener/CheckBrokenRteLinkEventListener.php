@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Linkvalidator\EventListener;
 
 use TYPO3\CMS\Backend\Utility\BackendUtility;
+use TYPO3\CMS\Core\Attribute\AsEventListener;
 use TYPO3\CMS\Core\Html\Event\BrokenLinkAnalysisEvent;
 use TYPO3\CMS\Core\LinkHandling\LinkService;
 use TYPO3\CMS\Core\Resource\FileInterface;
@@ -32,6 +33,7 @@ final class CheckBrokenRteLinkEventListener
 {
     public function __construct(private readonly BrokenLinkRepository $brokenLinkRepository) {}
 
+    #[AsEventListener('rte-check-link-external')]
     public function checkExternalLink(BrokenLinkAnalysisEvent $event): void
     {
         if ($event->getLinkType() !== LinkService::TYPE_URL) {
@@ -46,6 +48,7 @@ final class CheckBrokenRteLinkEventListener
         $event->markAsCheckedLink();
     }
 
+    #[AsEventListener('rte-check-link-to-page')]
     public function checkPageLink(BrokenLinkAnalysisEvent $event): void
     {
         if ($event->getLinkType() !== LinkService::TYPE_PAGE) {
@@ -79,6 +82,7 @@ final class CheckBrokenRteLinkEventListener
         }
     }
 
+    #[AsEventListener('rte-check-link-to-file')]
     public function checkFileLink(BrokenLinkAnalysisEvent $event): void
     {
         if ($event->getLinkType() !== LinkService::TYPE_FILE) {

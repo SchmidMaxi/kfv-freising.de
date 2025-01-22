@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -20,30 +22,27 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\PathUtility;
 
 /**
- * Class AbstractHierarchicalFilesystemDriver
+ * Contains a few classes that might be useful for hierarchical drivers.
  */
 abstract class AbstractHierarchicalFilesystemDriver extends AbstractDriver
 {
     /**
      * Wrapper for \TYPO3\CMS\Core\Utility\GeneralUtility::validPathStr()
      *
-     * @param string $theFile Filepath to evaluate
      * @return bool TRUE if no '/', '..' or '\' is in the $theFile
-     * @see \TYPO3\CMS\Core\Utility\GeneralUtility::validPathStr()
      */
-    protected function isPathValid($theFile)
+    protected function isPathValid(string $theFile): bool
     {
         return GeneralUtility::validPathStr($theFile);
     }
 
     /**
-     * Makes sure the Path given as parameter is valid
+     * Makes sure the given path is valid.
      *
-     * @param string $filePath The file path (including the file name!)
-     * @return string
-     * @throws InvalidPathException
+     * @phpstan-param non-empty-string $filePath The file path (including the file name!)
+     * @phpstan-return non-empty-string
      */
-    protected function canonicalizeAndCheckFilePath($filePath)
+    protected function canonicalizeAndCheckFilePath(string $filePath): string
     {
         $filePath = PathUtility::getCanonicalPath($filePath);
         // $filePath must be valid
@@ -54,13 +53,12 @@ abstract class AbstractHierarchicalFilesystemDriver extends AbstractDriver
     }
 
     /**
-     * Makes sure the Path given as parameter is valid
+     * Makes sure the Path given as parameter is valid.
      *
-     * @param string $fileIdentifier The file path (including the file name!)
-     * @return string
-     * @throws InvalidPathException
+     * @phpstan-param non-empty-string $fileIdentifier The file path (including the file name!)
+     * @phpstan-return non-empty-string
      */
-    protected function canonicalizeAndCheckFileIdentifier($fileIdentifier)
+    protected function canonicalizeAndCheckFileIdentifier(string $fileIdentifier): string
     {
         if ($fileIdentifier !== '') {
             $fileIdentifier = $this->canonicalizeAndCheckFilePath($fileIdentifier);
@@ -73,28 +71,26 @@ abstract class AbstractHierarchicalFilesystemDriver extends AbstractDriver
     }
 
     /**
-     * Makes sure the Path given as parameter is valid
+     * Makes sure the Path given as parameter is valid.
      *
-     * @param string $folderPath The file path (including the file name!)
-     * @return string
+     * @phpstan-param non-empty-string $folderIdentifier The file path (including the file name!)
+     * @phpstan-return non-empty-string
      */
-    protected function canonicalizeAndCheckFolderIdentifier($folderPath)
+    protected function canonicalizeAndCheckFolderIdentifier(string $folderIdentifier): string
     {
-        if ($folderPath === '/') {
-            $canonicalizedIdentifier = $folderPath;
-        } else {
-            $canonicalizedIdentifier = rtrim($this->canonicalizeAndCheckFileIdentifier($folderPath), '/') . '/';
+        if ($folderIdentifier === '/') {
+            return '/';
         }
-        return $canonicalizedIdentifier;
+        return rtrim($this->canonicalizeAndCheckFileIdentifier($folderIdentifier), '/') . '/';
     }
 
     /**
-     * Returns the identifier of the folder the file resides in
+     * Returns the identifier of the folder the file resides in.
      *
-     * @param string $fileIdentifier
-     * @return mixed
+     * @phpstan-param non-empty-string $fileIdentifier
+     * @phpstan-return non-empty-string
      */
-    public function getParentFolderIdentifierOfIdentifier($fileIdentifier)
+    public function getParentFolderIdentifierOfIdentifier(string $fileIdentifier): string
     {
         $fileIdentifier = $this->canonicalizeAndCheckFileIdentifier($fileIdentifier);
         return rtrim(GeneralUtility::fixWindowsFilePath(PathUtility::dirname($fileIdentifier)), '/') . '/';

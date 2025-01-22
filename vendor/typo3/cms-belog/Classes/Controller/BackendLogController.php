@@ -25,12 +25,12 @@ use TYPO3\CMS\Belog\Domain\Model\LogEntry;
 use TYPO3\CMS\Belog\Domain\Repository\LogEntryRepository;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Http\AllowedMethodsTrait;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
 use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Mvc\Controller\ActionController;
-use TYPO3\CMS\Extbase\Persistence\QueryResultInterface;
 use TYPO3\CMS\Extbase\Utility\LocalizationUtility;
 
 /**
@@ -40,6 +40,8 @@ use TYPO3\CMS\Extbase\Utility\LocalizationUtility;
  */
 class BackendLogController extends ActionController
 {
+    use AllowedMethodsTrait;
+
     public function __construct(
         protected readonly ModuleTemplateFactory $moduleTemplateFactory,
         protected readonly LogEntryRepository $logEntryRepository,
@@ -125,13 +127,17 @@ class BackendLogController extends ActionController
             ->renderResponse('BackendLog/List');
     }
 
+    public function initializeDeleteMessageAction(): void
+    {
+        $this->assertAllowedHttpMethod($this->request, 'POST');
+    }
+
     /**
      * Delete all log entries that share the same message with the log entry given
      * in $errorUid
      */
     public function deleteMessageAction(int $errorUid): ResponseInterface
     {
-        /** @var LogEntry|null $logEntry */
         $logEntry = $this->logEntryRepository->findByUid($errorUid);
         if (!$logEntry) {
             $this->addFlashMessage(LocalizationUtility::translate('actions.delete.noRowFound', 'belog') ?? '', '', ContextualFeedbackSeverity::WARNING);
@@ -139,6 +145,7 @@ class BackendLogController extends ActionController
         }
         $numberOfDeletedRows = $this->logEntryRepository->deleteByMessageDetails($logEntry);
         $this->addFlashMessage(sprintf(LocalizationUtility::translate('actions.delete.message', 'belog') ?? '', $numberOfDeletedRows));
+        BackendUtility::setUpdateSignal('updateSystemInformationMenu');
         return $this->redirect('list');
     }
 
@@ -190,11 +197,12 @@ class BackendLogController extends ActionController
      * '12345' is a sub array to split entries by day, number is first second of day
      *
      * [pid][dayTimestamp][items]
+     *
+     * @param array<LogEntry> $logEntries
      */
-    protected function groupLogEntriesDay(QueryResultInterface $logEntries): array
+    protected function groupLogEntriesDay(array $logEntries): array
     {
         $targetStructure = [];
-        /** @var LogEntry $entry */
         foreach ($logEntries as $entry) {
             $pid = -1;
             // Create array if it is not defined yet

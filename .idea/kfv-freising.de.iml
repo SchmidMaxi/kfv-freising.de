@@ -2,20 +2,18 @@
 <module type="WEB_MODULE" version="4">
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
-      <sourceFolder url="file://$MODULE_DIR$/packages/kfv_template/Classes" isTestSource="false" packagePrefix="MaxiSchmid\KfvTemplate\" />
+      <sourceFolder url="file://$MODULE_DIR$/packages/kfv_template/Classes" isTestSource="false" packagePrefix="Schmid\KfvTemplate\" />
       <sourceFolder url="file://$MODULE_DIR$/packages/scss_compiler/Classes" isTestSource="false" packagePrefix="Trion\ScssCompiler\" />
       <sourceFolder url="file://$MODULE_DIR$/packages/scss_compiler/Contrib/scssphp/src" isTestSource="false" packagePrefix="ScssPhp\ScssPhp\" />
-      <sourceFolder url="file://$MODULE_DIR$/packages/scss_compiler/Contrib/scssphp/tests" isTestSource="true" packagePrefix="ScssPhp\ScssPhp\Tests\" />
       <sourceFolder url="file://$MODULE_DIR$/packages/scss_compiler/Contrib/scssphp/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/packages/scss_compiler/Contrib/scssphp/tests" isTestSource="true" packagePrefix="ScssPhp\ScssPhp\Tests\" />
       <sourceFolder url="file://$MODULE_DIR$/tests" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/bacon/bacon-qr-code" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/christian-riesen/base32" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/composer" />
-      <excludeFolder url="file://$MODULE_DIR$/vendor/contentblocks/content-blocks" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/dasprid/enum" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/deployer/deployer" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/doctrine/annotations" />
-      <excludeFolder url="file://$MODULE_DIR$/vendor/doctrine/cache" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/doctrine/dbal" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/doctrine/deprecations" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/doctrine/event-manager" />
@@ -80,7 +78,6 @@
       <excludeFolder url="file://$MODULE_DIR$/vendor/symfony/string" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/symfony/type-info" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/symfony/uid" />
-      <excludeFolder url="file://$MODULE_DIR$/vendor/symfony/var-dumper" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/symfony/var-exporter" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/symfony/yaml" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/typo3/class-alias-loader" />
@@ -117,7 +114,6 @@
       <excludeFolder url="file://$MODULE_DIR$/vendor/typo3/cms-seo" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/typo3/cms-setup" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/typo3/cms-sys-note" />
-      <excludeFolder url="file://$MODULE_DIR$/vendor/typo3/cms-t3editor" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/typo3/cms-tstemplate" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/typo3/cms-viewpage" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/typo3/cms-webhooks" />
@@ -125,6 +121,9 @@
       <excludeFolder url="file://$MODULE_DIR$/vendor/typo3/html-sanitizer" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/typo3fluid/fluid" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/webmozart/assert" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/friendsoftypo3/content-blocks" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/symfony/process" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/wapplersystems/ws-scss" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

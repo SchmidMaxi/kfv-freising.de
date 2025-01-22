@@ -20,6 +20,7 @@ namespace TYPO3\CMS\Beuser\Controller;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\Components\ButtonBar;
 use TYPO3\CMS\Backend\Template\Components\Buttons\DropDown\DropDownHeader;
@@ -31,8 +32,8 @@ use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Backend\View\BackendViewFactory;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Messaging\FlashMessage;
 use TYPO3\CMS\Core\Messaging\FlashMessageService;
@@ -47,6 +48,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  *
  * @internal This class is a TYPO3 Backend implementation and is not considered part of the Public TYPO3 API.
  */
+#[AsController]
 class PermissionController
 {
     private const SESSION_PREFIX = 'tx_Beuser_';
@@ -397,7 +399,7 @@ class PermissionController
                     ->setHref($this->returnUrl)
                     ->setTitle($lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:rm.closeDoc'))
                     ->setShowLabelText(true)
-                    ->setIcon($this->iconFactory->getIcon('actions-close', Icon::SIZE_SMALL));
+                    ->setIcon($this->iconFactory->getIcon('actions-close', IconSize::SMALL));
                 $buttonBar->addButton($closeButton);
             }
 
@@ -408,7 +410,7 @@ class PermissionController
                 ->setForm('PermissionControllerEdit')
                 ->setTitle($lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:rm.saveCloseDoc'))
                 ->setShowLabelText(true)
-                ->setIcon($this->iconFactory->getIcon('actions-document-save', Icon::SIZE_SMALL));
+                ->setIcon($this->iconFactory->getIcon('actions-document-save', IconSize::SMALL));
             $buttonBar->addButton($saveButton, ButtonBar::BUTTON_POSITION_LEFT, 2);
         }
 
@@ -458,9 +460,9 @@ class PermissionController
 
         // Create the tree from $this->id
         if ($this->id) {
-            $icon = $this->iconFactory->getIconForRecord('pages', $this->pageInfo, Icon::SIZE_SMALL);
+            $icon = $this->iconFactory->getIconForRecord('pages', $this->pageInfo, IconSize::SMALL);
         } else {
-            $icon = $this->iconFactory->getIcon('apps-pagetree-root', Icon::SIZE_SMALL);
+            $icon = $this->iconFactory->getIcon('apps-pagetree-root', IconSize::SMALL);
         }
         $iconMarkup = '<span title="' . BackendUtility::getRecordIconAltText($this->pageInfo, 'pages') . '">' . $icon->render() . '</span>';
         $tree->tree[] = ['row' => $this->pageInfo, 'HTML' => '', 'icon' => $iconMarkup];

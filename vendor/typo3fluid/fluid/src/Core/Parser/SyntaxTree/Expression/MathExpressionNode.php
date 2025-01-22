@@ -26,23 +26,19 @@ class MathExpressionNode extends AbstractExpressionNode
      *
      * {variable * 10}, {100 / variable}, {variable + variable2} etc.
      */
-    public static $detectionExpression = '/
+    public static string $detectionExpression = '/
 		(
 			{                                # Start of shorthand syntax
+                \s*                          # Allow whitespace before expression
 				(?:                          # Math expression is composed of...
 					[_a-zA-Z0-9\.]+(?:[\s]*[*+\^\/\%\-]{1}[\s]*[_a-zA-Z0-9\.]+)+   # Various math expressions left and right sides with any spaces
 					|(?R)                    # Other expressions inside
 				)+
+                \s*                          # Allow whitespace after expression
 			}                                # End of shorthand syntax
 		)/x';
 
-    /**
-     * @param RenderingContextInterface $renderingContext
-     * @param string $expression
-     * @param array $matches
-     * @return int|float
-     */
-    public static function evaluateExpression(RenderingContextInterface $renderingContext, $expression, array $matches): int|float
+    public static function evaluateExpression(RenderingContextInterface $renderingContext, string $expression, array $matches): int|float
     {
         // Split the expression on all recognized operators
         $matches = [];

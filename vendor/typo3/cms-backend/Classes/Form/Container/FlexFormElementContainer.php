@@ -17,9 +17,8 @@ namespace TYPO3\CMS\Backend\Form\Container;
 
 use TYPO3\CMS\Backend\Form\Behavior\ReloadOnFieldChange;
 use TYPO3\CMS\Backend\Form\Behavior\UpdateValueOnFieldChange;
-use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
+use TYPO3\CMS\Core\Authentication\JsConfirmation;
 use TYPO3\CMS\Core\Localization\LanguageService;
-use TYPO3\CMS\Core\Type\Bitmask\JsConfirmation;
 
 /**
  * The container handles single elements.
@@ -36,7 +35,7 @@ class FlexFormElementContainer extends AbstractContainer
      *
      * @return array As defined in initializeResultArray() of AbstractNode
      */
-    public function render()
+    public function render(): array
     {
         $flexFormDataStructureArray = $this->data['flexFormDataStructureArray'];
         $flexFormRowData = $this->data['flexFormRowData'];
@@ -45,8 +44,6 @@ class FlexFormElementContainer extends AbstractContainer
 
         $languageService = $this->getLanguageService();
         $resultArray = $this->initializeResultArray();
-        // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-        $resultArray['labelHasBeenHandled'] = true;
 
         foreach ($flexFormDataStructureArray as $flexFormFieldName => $flexFormFieldArray) {
             if (
@@ -106,7 +103,6 @@ class FlexFormElementContainer extends AbstractContainer
                         $fakeParameterArray['fieldChangeFunc']['TBE_EDITOR_fieldChanged'] = $onFieldChange->withElementName($fakeParameterArray['itemFormElName']);
                     }
                 }
-                $fakeParameterArray['itemFormElID'] = ($parameterArray['itemFormElID'] ?? '') . '_' . preg_replace('/[^a-zA-Z0-9_-]/', '_', $flexFormFieldName) . '_' . md5($fakeParameterArray['itemFormElName']);
                 if (isset($flexFormRowData[$flexFormFieldName]['vDEF'])) {
                     $fakeParameterArray['itemFormElValue'] = $flexFormRowData[$flexFormFieldName]['vDEF'];
                 } else {
@@ -135,15 +131,6 @@ class FlexFormElementContainer extends AbstractContainer
                     $html = [];
                     $html[] = '<div class="form-section" data-id="' . htmlspecialchars($flexFormFieldName) . '">';
                     $html[] =     '<div class="form-group t3js-formengine-palette-field t3js-formengine-validation-marker">';
-                    if (!($childResult['labelHasBeenHandled'] ?? false)) {
-                        // Possible line breaks in the label through xml: \n => <br/>, usage of nl2br() not possible, so it's done through str_replace (?!)
-                        $processedTitle = str_replace('\\n', '<br />', htmlspecialchars($fakeParameterArray['fieldConf']['label']));
-                        if ($this->getBackendUserAuthentication()->shallDisplayDebugInformation()) {
-                            $processedTitle .= ' <code>[' . htmlspecialchars($flexFormFieldName) . ']</code>';
-                        }
-                        // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-                        $html[] = '<label class="form-label t3js-formengine-label">' . $processedTitle . '</label>';
-                    }
                     $html[] =         '<div class="formengine-field-item t3js-formengine-field-item">';
                     $html[] =             $childResult['html'];
                     $html[] =         '</div>';
@@ -163,8 +150,4 @@ class FlexFormElementContainer extends AbstractContainer
         return $GLOBALS['LANG'];
     }
 
-    protected function getBackendUserAuthentication(): BackendUserAuthentication
-    {
-        return $GLOBALS['BE_USER'];
-    }
 }

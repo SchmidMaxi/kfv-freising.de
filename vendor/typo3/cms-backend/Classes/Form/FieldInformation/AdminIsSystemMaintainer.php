@@ -51,7 +51,7 @@ class AdminIsSystemMaintainer extends AbstractNode
 
         // False, if the current user is not in the list of system maintainers, or if the switch to user mode is active
         $isCurrentUserSystemMaintainer = $this->getBackendUser()->isSystemMaintainer();
-        $systemMaintainers = array_map('intval', $GLOBALS['TYPO3_CONF_VARS']['SYS']['systemMaintainers'] ?? []);
+        $systemMaintainers = array_map(intval(...), $GLOBALS['TYPO3_CONF_VARS']['SYS']['systemMaintainers'] ?? []);
         $isTargetUserInSystemMaintainerList = in_array((int)$this->data['vanillaUid'], $systemMaintainers, true);
 
         if ($isTargetUserInSystemMaintainerList) {

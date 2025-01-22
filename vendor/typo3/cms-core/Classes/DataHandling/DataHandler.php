@@ -16,24 +16,20 @@
 namespace TYPO3\CMS\Core\DataHandling;
 
 use Doctrine\DBAL\Exception as DBALException;
-use Doctrine\DBAL\Platforms\PostgreSQL94Platform as PostgreSQLPlatform;
+use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\DBAL\Types\IntegerType;
 use Doctrine\DBAL\Types\JsonType;
 use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
-use Psr\Log\LoggerAwareInterface;
-use Psr\Log\LoggerAwareTrait;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Uid\Uuid;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Cache\CacheManager;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
-use TYPO3\CMS\Core\Configuration\Features;
 use TYPO3\CMS\Core\Configuration\FlexForm\Exception\InvalidIdentifierException;
-use TYPO3\CMS\Core\Configuration\FlexForm\Exception\InvalidParentRowException;
-use TYPO3\CMS\Core\Configuration\FlexForm\Exception\InvalidParentRowLoopException;
-use TYPO3\CMS\Core\Configuration\FlexForm\Exception\InvalidParentRowRootException;
-use TYPO3\CMS\Core\Configuration\FlexForm\Exception\InvalidPointerFieldValueException;
 use TYPO3\CMS\Core\Configuration\FlexForm\FlexFormTools;
 use TYPO3\CMS\Core\Configuration\Richtext;
 use TYPO3\CMS\Core\Core\Environment;
@@ -66,7 +62,13 @@ use TYPO3\CMS\Core\PasswordPolicy\PasswordPolicyAction;
 use TYPO3\CMS\Core\PasswordPolicy\PasswordPolicyValidator;
 use TYPO3\CMS\Core\PasswordPolicy\Validator\Dto\ContextData;
 use TYPO3\CMS\Core\Resource\Filter\FileExtensionFilter;
-use TYPO3\CMS\Core\Resource\ResourceFactory;
+use TYPO3\CMS\Core\Schema\Capability\LanguageAwareSchemaCapability;
+use TYPO3\CMS\Core\Schema\Capability\RootLevelCapability;
+use TYPO3\CMS\Core\Schema\Capability\TcaSchemaCapability;
+use TYPO3\CMS\Core\Schema\Field\FieldTranslationBehaviour;
+use TYPO3\CMS\Core\Schema\Field\FileFieldType;
+use TYPO3\CMS\Core\Schema\Field\InlineFieldType;
+use TYPO3\CMS\Core\Schema\TcaSchemaFactory;
 use TYPO3\CMS\Core\Service\OpcodeCacheService;
 use TYPO3\CMS\Core\Site\Entity\SiteLanguage;
 use TYPO3\CMS\Core\Site\SiteFinder;
@@ -96,10 +98,10 @@ use TYPO3\CMS\Core\Versioning\VersionState;
  *
  * Also see document 'TYPO3 Core API' for details.
  */
-class DataHandler implements LoggerAwareInterface
+#[Autoconfigure(public: true, shared: false)]
+class DataHandler
 {
     use LogDataTrait;
-    use LoggerAwareTrait;
 
     // *********************
     // Public variables you can configure before using the class:
@@ -107,96 +109,68 @@ class DataHandler implements LoggerAwareInterface
     /**
      * If TRUE, the default log-messages will be stored. This should not be necessary if the locallang-file for the
      * log-display is properly configured. So disabling this will just save some database-space as the default messages are not saved.
-     *
-     * @var bool
      */
-    public $storeLogMessages = true;
+    public bool $storeLogMessages = true;
 
     /**
      * If TRUE, actions are logged to sys_log.
-     *
-     * @var bool
      */
-    public $enableLogging = true;
+    public bool $enableLogging = true;
 
     /**
      * If TRUE, the datamap array is reversed in the order, which is a nice thing if you're creating a whole new
      * bunch of records.
-     *
-     * @var bool
      */
-    public $reverseOrder = false;
+    public bool $reverseOrder = false;
 
-    /**
-     * This will read the record after having updated or inserted it. If anything is not properly submitted an error
-     * is written to the log. This feature consumes extra time by selecting records
-     *
-     * @var bool
-     */
+    /** @deprecated Unused. Will be removed with TYPO3 v14. */
     public $checkStoredRecords = true;
-
-    /**
-     * If set, values '' and 0 will equal each other when the stored records are checked.
-     *
-     * @var bool
-     */
+    /** @deprecated Unused. Will be removed with TYPO3 v14. */
     public $checkStoredRecords_loose = true;
 
     /**
      * If set, then the 'hideAtCopy' flag for tables will be ignored.
-     *
-     * @var bool
      */
-    public $neverHideAtCopy = false;
+    public bool $neverHideAtCopy = false;
 
     /**
      * If set, then the TCE class has been instantiated during an import action of a T3D
-     *
-     * @var bool
      */
-    public $isImporting = false;
+    public bool $isImporting = false;
 
     /**
      * If set, then transformations are NOT performed on the input.
-     *
-     * @var bool
      */
-    public $dontProcessTransformations = false;
+    public bool $dontProcessTransformations = false;
 
     /**
      * Will distinguish between translations (with parent) and localizations (without parent) while still using the same methods to copy the records
      * TRUE: translation of a record connected to the default language
      * FALSE: localization of a record without connection to the default language
-     *
-     * @var bool
      */
-    protected $useTransOrigPointerField = true;
+    protected bool $useTransOrigPointerField = true;
 
     /**
      * If TRUE, workspace restrictions are bypassed on edit and create actions (process_datamap()).
      * YOU MUST KNOW what you do if you use this feature!
      *
-     * @var bool
      * @internal should only be used from within TYPO3 Core
      */
-    public $bypassWorkspaceRestrictions = false;
+    public bool $bypassWorkspaceRestrictions = false;
 
     /**
      * If TRUE, access check, check for deleted etc. for records is bypassed.
      * YOU MUST KNOW what you are doing if you use this feature!
-     *
-     * @var bool
      */
-    public $bypassAccessCheckForRecords = false;
+    public bool $bypassAccessCheckForRecords = false;
 
     /**
      * Comma-separated list. This list of tables decides which tables will be copied. If empty then none will.
      * If '*' then all will (that the user has permission to of course)
      *
-     * @var string
      * @internal should only be used from within TYPO3 Core
      */
-    public $copyWhichTables = '*';
+    public string $copyWhichTables = '*';
 
     /**
      * If 0 then branch is NOT copied.
@@ -213,30 +187,9 @@ class DataHandler implements LoggerAwareInterface
      * If ->setDefaultsFromUserTS is called UserTSconfig default values will overrule existing values in this array
      * (thus UserTSconfig overrules externally set defaults which overrules TCA defaults)
      *
-     * @var array
      * @internal should only be used from within TYPO3 Core
      */
-    public $defaultValues = [];
-
-    /**
-     * [table][fields]=value: You can set this array on the form $overrideValues[$table][$field] = $value to
-     * override the incoming data. You must set this externally. You must make sure the fields in this array are also
-     * found in the table, because it's not checked. All columns can be set by this array!
-     *
-     * @var array
-     * @internal should only be used from within TYPO3 Core
-     */
-    public $overrideValues = [];
-
-    /**
-     * If entries are set in this array corresponding to fields for update, they are ignored and thus NOT updated.
-     * You could set this array from a series of checkboxes with value=0 and hidden fields before the checkbox with 1.
-     * Then an empty checkbox will disable the field.
-     *
-     * @var array
-     * @internal should only be used from within TYPO3 Core
-     */
-    public $data_disableFields = [];
+    public array $defaultValues = [];
 
     /**
      * Use this array to validate suggested uids for tables by setting [table]:[uid]. This is a dangerous option
@@ -244,99 +197,85 @@ class DataHandler implements LoggerAwareInterface
      * it to "DELETE" it will make sure any record with that UID will be deleted first (raw delete).
      * The option is used for import of T3D files when synchronizing between two mirrored servers.
      * As a security measure this feature is available only for Admin Users (for now)
-     *
-     * @var array
      */
-    public $suggestedInsertUids = [];
+    public array $suggestedInsertUids = [];
 
     /**
      * Object. Call back object for FlexForm traversal. Useful when external classes wants to use the
      * iteration functions inside DataHandler for traversing a FlexForm structure.
      *
-     * @var object
      * @internal should only be used from within TYPO3 Core
      */
-    public $callBackObj;
+    public ?object $callBackObj = null;
 
     /**
      * A string which can be used as correlationId for RecordHistory entries.
      * The string can later be used to rollback multiple changes at once.
-     *
-     * @var CorrelationId|null
      */
-    protected $correlationId;
+    protected ?CorrelationId $correlationId = null;
 
     // *********************
     // Internal variables (mapping arrays) which can be used (read-only) from outside
     // *********************
     /**
-     * Contains mapping of auto-versionized records.
+     * Contains mapping of auto-versioned records.
      *
      * @var array<string, array<int, string>>
      * @internal should only be used from within TYPO3 Core
      */
-    public $autoVersionIdMap = [];
+    public array $autoVersionIdMap = [];
 
     /**
-     * When new elements are created, this array contains a map between their "NEW..." string IDs and the eventual UID they got when stored in database
-     *
-     * @var array
+     * When new elements are created, this array contains a map between their "NEW..." string IDs
+     * and the final uid they got when stored in database. This public array is rather important
+     * since it is used by many DH consumers to further work with records after creation.
      */
-    public $substNEWwithIDs = [];
+    public array $substNEWwithIDs = [];
 
     /**
      * Like $substNEWwithIDs, but where each old "NEW..." id is mapped to the table it was from.
      *
-     * @var array
      * @internal should only be used from within TYPO3 Core
      */
-    public $substNEWwithIDs_table = [];
+    public array $substNEWwithIDs_table = [];
 
     /**
      * Holds the tables and there the ids of newly created child records from IRRE
      *
-     * @var array
      * @internal should only be used from within TYPO3 Core
      */
-    public $newRelatedIDs = [];
+    public array $newRelatedIDs = [];
 
     /**
      * This array is the sum of all copying operations in this class.
      *
-     * @var array
      * @internal should only be used from within TYPO3 Core
      */
-    public $copyMappingArray_merged = [];
+    public array $copyMappingArray_merged = [];
 
     /**
      * Per-table array with UIDs that have been deleted.
-     *
-     * @var array
      */
-    protected $deletedRecords = [];
+    protected array $deletedRecords = [];
 
     /**
      * Errors are collected in this variable.
      *
-     * @var array
      * @internal should only be used from within TYPO3 Core
      */
-    public $errorLog = [];
+    public array $errorLog = [];
 
     /**
      * Fields from the pages-table for which changes will trigger a pagetree refresh
-     *
-     * @var array
      */
-    public $pagetreeRefreshFieldsFromPages = ['pid', 'sorting', 'deleted', 'hidden', 'title', 'doktype', 'is_siteroot', 'fe_group', 'nav_hide', 'nav_title', 'module', 'starttime', 'endtime', 'content_from_pid', 'extendToSubpages'];
+    public array $pagetreeRefreshFieldsFromPages = ['pid', 'sorting', 'deleted', 'hidden', 'title', 'doktype', 'is_siteroot', 'fe_group', 'nav_hide', 'nav_title', 'module', 'starttime', 'endtime', 'content_from_pid', 'extendToSubpages'];
 
     /**
      * Indicates whether the pagetree needs a refresh because of important changes
      *
-     * @var bool
      * @internal should only be used from within TYPO3 Core
      */
-    public $pagetreeNeedsRefresh = false;
+    public bool $pagetreeNeedsRefresh = false;
 
     // *********************
     // Internal Variables, do not touch.
@@ -346,74 +285,63 @@ class DataHandler implements LoggerAwareInterface
 
     /**
      * The user-object the script uses. If not set from outside, this is set to the current global $BE_USER.
-     *
-     * @var BackendUserAuthentication
      */
-    public $BE_USER;
+    public BackendUserAuthentication $BE_USER;
 
     /**
      * Will be set to uid of be_user executing this script
      *
-     * @var int
      * @internal should only be used from within TYPO3 Core
      */
-    public $userid;
+    public int $userid;
 
     /**
      * Will be set if user is admin
      *
-     * @var bool
      * @internal should only be used from within TYPO3 Core
      */
-    public $admin;
-
-    /**
-     * @var PagePermissionAssembler
-     */
-    protected $pagePermissionAssembler;
+    public bool $admin;
 
     /**
      * The list of <table>-<fields> that cannot be edited by user. This is compiled from TCA/exclude-flag combined with non_exclude_fields for the user.
-     *
-     * @var array
      */
-    protected $excludedTablesAndFields = [];
+    protected array $excludedTablesAndFields = [];
 
     /**
      * Data submitted from the form view, used to control behaviours,
      * e.g. this is used to activate/deactivate fields and thus store NULL values
-     *
-     * @var array
      */
-    protected $control = [];
+    protected array $control = [];
 
     /**
-     * Set with incoming data array
+     * Set with incoming data array. The array shape is checked in start() before setting this property.
      *
-     * @var array<int|string, array<int|string, array>>
-     */
-    public $datamap = [];
-
-    /**
-     * Set with incoming cmd array
-     *
+     * @todo: This is public to allow manipulation by hooks (e.g. workspaces). Consider
+     *        introduction of a public setter setCommandMap() that checks the array shape
+     *        as done in start() already. Then have a getter as well and protect this property.
      * @var array<string, array<int|string, array>>
      */
-    public $cmdmap = [];
+    public array $datamap = [];
+
+    /**
+     * Incoming command array. The array shape is checked in start() before setting this property.
+     *
+     * @todo: This is public to allow manipulation by hooks (e.g. workspaces). Consider
+     *        introduction of a public setter setCommandMap() that checks the array shape
+     *        as done in start() already. Then have a getter as well and protect this property.
+     * @var array<string, array<int|string, array>>
+     */
+    public array $cmdmap = [];
 
     /**
      * List of changed old record ids to new records ids
-     *
-     * @var array
      */
-    protected $mmHistoryRecords = [];
+    protected array $mmHistoryRecords = [];
 
     /**
      * List of changed old record ids to new records ids
-     *
-     * @var array
      */
-    protected $historyRecords = [];
+    protected array $historyRecords = [];
 
     // Internal static:
 
@@ -422,48 +350,40 @@ class DataHandler implements LoggerAwareInterface
      *
      * Min 1, should be power of 2
      *
-     * @var int
      * @internal should only be used from within TYPO3 Core
      */
-    public $sortIntervals = 256;
+    public int $sortIntervals = 256;
 
     // Internal caching arrays
     /**
      * User by function checkRecordInsertAccess() to store whether a record can be inserted on a page id
-     *
-     * @var array
      */
-    protected $recInsertAccessCache = [];
+    protected array $recInsertAccessCache = [];
 
     /**
      * Caching array for check of whether records are in a webmount
-     *
-     * @var array
      */
-    protected $isRecordInWebMount_Cache = [];
+    protected array $isRecordInWebMount_Cache = [];
 
     /**
      * Caching array for page ids in webmounts
-     *
-     * @var array
      */
-    protected $isInWebMount_Cache = [];
+    protected array $isInWebMount_Cache = [];
 
     /**
      * Used for caching page records in pageInfo()
      *
-     * @var array<int, array<string, array>>
+     * @var array<int, array<string, int|string|null>>
      */
-    protected $pageCache = [];
+    protected array $pageCache = [];
 
     // Other arrays:
     /**
      * For accumulation of MM relations that must be written after new records are created.
      *
-     * @var array
      * @internal
      */
-    public $dbAnalysisStore = [];
+    public array $dbAnalysisStore = [];
 
     /**
      * Used for tracking references that might need correction after operations
@@ -471,15 +391,14 @@ class DataHandler implements LoggerAwareInterface
      * @var array<string, array<int, array>>
      * @internal
      */
-    public $registerDBList = [];
+    public array $registerDBList = [];
 
     /**
      * Used for tracking references that might need correction in pid field after operations (e.g. IRRE)
      *
-     * @var array
      * @internal
      */
-    public $registerDBPids = [];
+    public array $registerDBPids = [];
 
     /**
      * Used by the copy action to track the ids of new pages so subpages are correctly inserted!
@@ -492,49 +411,35 @@ class DataHandler implements LoggerAwareInterface
      * @var array<string, array>
      * @internal
      */
-    public $copyMappingArray = [];
+    public array $copyMappingArray = [];
 
     /**
      * Array used for remapping uids and values at the end of process_datamap
      *
-     * @var array
      * @internal
      */
-    public $remapStack = [];
+    public array $remapStack = [];
 
     /**
      * Array used for remapping uids and values at the end of process_datamap
      * (e.g. $remapStackRecords[<table>][<uid>] = <index in $remapStack>)
      *
-     * @var array
      * @internal
      */
-    public $remapStackRecords = [];
-
-    /**
-     * Array used for checking whether new children need to be remapped
-     *
-     * @var array
-     */
-    protected $remapStackChildIds = [];
+    public array $remapStackRecords = [];
 
     /**
      * Array used for executing addition actions after remapping happened (set processRemapStack())
-     *
-     * @var array
      */
-    protected $remapStackActions = [];
+    protected array $remapStackActions = [];
 
     /**
      * Registry object to gather reference index update requests and perform updates after
-     * main processing has been done. The first call to start() instantiates this object.
-     * Recursive sub instances receive this instance via __construct().
-     * The final update() call is done at the end of process_cmdmap() or process_datamap()
-     * in the outer most instance.
-     *
-     * @var ReferenceIndexUpdater
+     * main processing has been done. It is created upon first start() call and hand over
+     * when dealing with internal sub instances. The final update() call is done at the end of
+     * process_cmdmap() or process_datamap() in the outermost instance.
      */
-    protected $referenceIndexUpdater;
+    protected ReferenceIndexUpdater $referenceIndexUpdater;
 
     // Various
 
@@ -548,76 +453,56 @@ class DataHandler implements LoggerAwareInterface
 
     /**
      * Disable delete clause
-     *
-     * @var bool
      */
-    protected $disableDeleteClause = false;
+    protected bool $disableDeleteClause = false;
+
+    protected ?array $checkModifyAccessListHookObjects = null;
 
     /**
-     * @var array|null
-     */
-    protected $checkModifyAccessListHookObjects;
-
-    /**
-     * The outer most instance of \TYPO3\CMS\Core\DataHandling\DataHandler:
+     * The outermost instance of \TYPO3\CMS\Core\DataHandling\DataHandler:
      * This object instantiates itself on versioning and localization ...
-     *
-     * @var \TYPO3\CMS\Core\DataHandling\DataHandler|null
      */
-    protected $outerMostInstance;
+    protected ?self $outerMostInstance = null;
 
     /**
      * Internal cache for collecting records that should trigger cache clearing
-     *
-     * @var array
      */
-    protected static $recordsToClearCacheFor = [];
+    protected static array $recordsToClearCacheFor = [];
 
     /**
      * Internal cache for pids of records which were deleted. It's not possible
      * to retrieve the parent folder/page at a later stage
-     *
-     * @var array
      */
-    protected static $recordPidsForDeletedRecords = [];
-
-    /**
-     * Runtime Cache to store and retrieve data computed for a single request
-     *
-     * @var FrontendInterface
-     */
-    protected $runtimeCache;
+    protected static array $recordPidsForDeletedRecords = [];
 
     /**
      * Prefix for the cache entries of nested element calls since the runtimeCache has a global scope.
-     *
-     * @var string
      */
-    protected $cachePrefixNestedElementCalls = 'core-datahandler-nestedElementCalls-';
+    protected const CACHE_IDENTIFIER_NESTED_ELEMENT_CALLS_PREFIX = 'core-datahandler-nestedElementCalls-';
+    protected const CACHE_IDENTIFIER_ELEMENTS_TO_BE_DELETED = 'core-datahandler-elementsToBeDeleted';
 
-    /**
-     * Sets up the data handler cache and some additional options, the main logic is done in the start() method.
-     *
-     * @param ReferenceIndexUpdater|null $referenceIndexUpdater Hand over from outer most instance to sub instances
-     */
-    public function __construct(?ReferenceIndexUpdater $referenceIndexUpdater = null)
-    {
-        $this->checkStoredRecords = (bool)$GLOBALS['TYPO3_CONF_VARS']['BE']['checkStoredRecords'];
-        $this->checkStoredRecords_loose = (bool)$GLOBALS['TYPO3_CONF_VARS']['BE']['checkStoredRecordsLoose'];
-        $this->runtimeCache = $this->getRuntimeCache();
-        $this->pagePermissionAssembler = GeneralUtility::makeInstance(PagePermissionAssembler::class, $GLOBALS['TYPO3_CONF_VARS']['BE']['defaultPermissions']);
-        if ($referenceIndexUpdater === null) {
-            // Create ReferenceIndexUpdater object. This should only happen on outer most instance,
-            // sub instances should receive the reference index updater from a parent.
-            $referenceIndexUpdater = GeneralUtility::makeInstance(ReferenceIndexUpdater::class);
-        }
-        $this->referenceIndexUpdater = $referenceIndexUpdater;
-    }
+    public function __construct(
+        private readonly EventDispatcherInterface $eventDispatcher,
+        private readonly CacheManager $cacheManager,
+        #[Autowire(service: 'cache.runtime')]
+        private readonly FrontendInterface $runtimeCache,
+        private readonly ConnectionPool $connectionPool,
+        private readonly LoggerInterface $logger,
+        private readonly PagePermissionAssembler $pagePermissionAssembler,
+        private readonly TcaSchemaFactory $tcaSchemaFactory,
+        private readonly PageDoktypeRegistry $pageDoktypeRegistry,
+        private readonly FlexFormTools $flexFormTools,
+        private readonly PasswordHashFactory $passwordHashFactory,
+        private readonly Random $randomGenerator,
+        private readonly TypoLinkCodecService $typoLinkCodecService,
+        private readonly OpcodeCacheService $opcodeCacheService,
+        private readonly FlashMessageService $flashMessageService,
+    ) {}
 
     /**
      * @internal
      */
-    public function setControl(array $control)
+    public function setControl(array $control): void
     {
         $this->control = $control;
     }
@@ -625,18 +510,25 @@ class DataHandler implements LoggerAwareInterface
     /**
      * Initializing.
      * For details, see 'TYPO3 Core API' document.
-     * This function does not start the processing of data, but merely initializes the object
+     * This method does not start the processing of data, but merely initializes the object.
      *
-     * @param array $data Data to be modified or inserted in the database
-     * @param array $cmd Commands to copy, move, delete, localize, versionize records.
-     * @param BackendUserAuthentication|null $altUserObject An alternative userobject you can set instead of the default, which is $GLOBALS['BE_USER']
+     * @param array $dataMap Data to be modified or inserted in the database
+     * @param array $commandMap Commands to copy, move, delete, localize, versionize records.
+     * @param BackendUserAuthentication|null $backendUser An alternative user, default is $GLOBALS['BE_USER']
      */
-    public function start($data, $cmd, $altUserObject = null)
-    {
+    public function start(
+        array $dataMap,
+        array $commandMap,
+        ?BackendUserAuthentication $backendUser = null,
+        ?ReferenceIndexUpdater $referenceIndexUpdater = null
+    ): void {
         // Initializing BE_USER
-        $this->BE_USER = is_object($altUserObject) ? $altUserObject : $GLOBALS['BE_USER'];
+        $this->BE_USER = $backendUser ?: $GLOBALS['BE_USER'];
         $this->userid = (int)($this->BE_USER->user['uid'] ?? 0);
         $this->admin = $this->BE_USER->user['admin'] ?? false;
+        // Sub instances should receive ReferenceIndexUpdater via start() and not from __construct() DI since
+        // it is a stateful object for *this* DH chain run. If this is the outermost instance, a new one is created.
+        $this->referenceIndexUpdater = $referenceIndexUpdater ?? GeneralUtility::makeInstance(ReferenceIndexUpdater::class);
 
         // set correlation id for each new set of data or commands
         $this->correlationId = CorrelationId::forScope(
@@ -653,15 +545,27 @@ class DataHandler implements LoggerAwareInterface
         if (!$this->admin) {
             $this->excludedTablesAndFields = array_flip($this->getExcludeListArray());
         }
-        // Setting the data and cmd arrays
-        if (is_array($data)) {
-            reset($data);
-            $this->datamap = $data;
+
+        foreach ($dataMap as $tableName => $tableRecordArray) {
+            // @todo: Move this to a public setter and call it here. Then protect the property.
+            if (!is_string($tableName) || !is_array($tableRecordArray)) {
+                throw new \UnexpectedValueException('Data array must be shaped ["tableName" => [uid/"NEW.." => ["fieldName" => value]]]', 1709035799);
+            }
         }
-        if (is_array($cmd)) {
-            reset($cmd);
-            $this->cmdmap = $cmd;
+        $this->datamap = $dataMap;
+
+        foreach ($commandMap as $idCommandArray) {
+            // @todo: Move this to a public setter and call it here. Then protect the property.
+            if (!is_array($idCommandArray)) {
+                throw new \UnexpectedValueException('Command array must be shaped ["table" => [uid => ["command" => value]]]', 1708586415);
+            }
+            foreach ($idCommandArray as $id => $commandValueArray) {
+                if (!MathUtility::canBeInterpretedAsInteger($id) || !is_array($commandValueArray)) {
+                    throw new \UnexpectedValueException('Single record commands must be shaped [uid => ["command" => value]]', 1708586979);
+                }
+            }
         }
+        $this->cmdmap = $commandMap;
     }
 
     /**
@@ -671,22 +575,19 @@ class DataHandler implements LoggerAwareInterface
      * @param array $mirror This array has the syntax $mirror[table_name][uid] = [list of uids to copy data-value TO!]
      * @internal
      */
-    public function setMirror($mirror)
+    public function setMirror($mirror): void
     {
         if (!is_array($mirror)) {
             return;
         }
-
         foreach ($mirror as $table => $uid_array) {
             if (!isset($this->datamap[$table])) {
                 continue;
             }
-
             foreach ($uid_array as $id => $uidList) {
                 if (!isset($this->datamap[$table][$id])) {
                     continue;
                 }
-
                 $theIdsInArray = GeneralUtility::trimExplode(',', $uidList, true);
                 foreach ($theIdsInArray as $copyToUid) {
                     $this->datamap[$table][$copyToUid] = $this->datamap[$table][$id];
@@ -701,18 +602,16 @@ class DataHandler implements LoggerAwareInterface
      * @param array $userTS User TSconfig array
      * @internal should only be used from within DataHandler
      */
-    public function setDefaultsFromUserTS($userTS)
+    public function setDefaultsFromUserTS($userTS): void
     {
         if (!is_array($userTS)) {
             return;
         }
-
         foreach ($userTS as $k => $v) {
             $k = mb_substr($k, 0, -1);
-            if (!$k || !is_array($v) || !isset($GLOBALS['TCA'][$k])) {
+            if (!$k || !is_array($v) || !$this->tcaSchemaFactory->has($k)) {
                 continue;
             }
-
             if (is_array($this->defaultValues[$k] ?? false)) {
                 $this->defaultValues[$k] = array_merge($this->defaultValues[$k], $v);
             } else {
@@ -727,10 +626,6 @@ class DataHandler implements LoggerAwareInterface
      *
      * This is only executed for new records. The most important part is that the pageTS of the actual resolved $pid
      * is taken, and a new field array with empty defaults is set again.
-     *
-     * @param string $table
-     * @param int $pageId
-     * @param array $prepopulatedFieldArray
      */
     protected function applyDefaultsForFieldArray(string $table, int $pageId, array $prepopulatedFieldArray): array
     {
@@ -742,9 +637,15 @@ class DataHandler implements LoggerAwareInterface
         if (isset($prepopulatedFieldArray['pid'])) {
             $cleanFieldArray['pid'] = $prepopulatedFieldArray['pid'];
         }
-        $sortColumn = $GLOBALS['TCA'][$table]['ctrl']['sortby'] ?? null;
-        if ($sortColumn !== null && isset($prepopulatedFieldArray[$sortColumn])) {
-            $cleanFieldArray[$sortColumn] = $prepopulatedFieldArray[$sortColumn];
+        if (!$this->tcaSchemaFactory->has($table)) {
+            return $cleanFieldArray;
+        }
+        $schema = $this->tcaSchemaFactory->get($table);
+        if ($schema->hasCapability(TcaSchemaCapability::SortByField)) {
+            $sortByField = $schema->getCapability(TcaSchemaCapability::SortByField)->getFieldName();
+            if (isset($prepopulatedFieldArray[$sortByField])) {
+                $cleanFieldArray[$sortByField] = $prepopulatedFieldArray[$sortByField];
+            }
         }
         return $cleanFieldArray;
     }
@@ -768,7 +669,7 @@ class DataHandler implements LoggerAwareInterface
      * @param array $fieldArray (reference) The field array of a record
      * @internal should only be used from within DataHandler
      */
-    public function hook_processDatamap_afterDatabaseOperations(&$hookObjectsArr, &$status, &$table, &$id, &$fieldArray)
+    public function hook_processDatamap_afterDatabaseOperations(&$hookObjectsArr, &$status, &$table, &$id, &$fieldArray): void
     {
         // Process hook directly:
         if (!isset($this->remapStackRecords[$table][$id])) {
@@ -793,9 +694,9 @@ class DataHandler implements LoggerAwareInterface
      * @return array The 'checkModifyAccessList' hook objects (if any)
      * @throws \UnexpectedValueException
      */
-    protected function getCheckModifyAccessListHookObjects()
+    protected function getCheckModifyAccessListHookObjects(): array
     {
-        if (!isset($this->checkModifyAccessListHookObjects)) {
+        if ($this->checkModifyAccessListHookObjects === null) {
             $this->checkModifyAccessListHookObjects = [];
             foreach ($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_tcemain.php']['checkModifyAccessList'] ?? [] as $className) {
                 $hookObject = GeneralUtility::makeInstance($className);
@@ -841,8 +742,15 @@ class DataHandler implements LoggerAwareInterface
             }
             $hookObjectsArr[] = $hookObject;
         }
-        // Pre-process data-map and synchronize localization states
-        $this->datamap = GeneralUtility::makeInstance(SlugEnricher::class)->enrichDataMap($this->datamap);
+
+        foreach ($this->datamap as $tableName => $tableDataMap) {
+            foreach ($tableDataMap as $identifier => $fieldValues) {
+                if (!MathUtility::canBeInterpretedAsInteger($identifier)) {
+                    $this->datamap[$tableName][$identifier] = $this->initializeSlugFieldsToEmptyString($tableName, $fieldValues);
+                }
+            }
+        }
+
         $this->datamap = DataMapProcessor::instance($this->datamap, $this->BE_USER, $this->referenceIndexUpdater)->process();
         // Organize tables so that the pages-table is always processed first. This is required if you want to make sure that content pointing to a new page will be created.
         $orderOfTables = [];
@@ -862,7 +770,11 @@ class DataHandler implements LoggerAwareInterface
             if (!$modifyAccessList) {
                 $this->log($table, 0, SystemLogDatabaseAction::UPDATE, 0, SystemLogErrorClassification::USER_ERROR, 'Attempt to modify table "{table}" without permission', 1, ['table' => $table]);
             }
-            if (!isset($GLOBALS['TCA'][$table]) || $this->tableReadOnly($table) || !is_array($this->datamap[$table]) || !$modifyAccessList) {
+            if (!$this->tcaSchemaFactory->has($table)) {
+                continue;
+            }
+            $schema = $this->tcaSchemaFactory->get($table);
+            if ($schema->hasCapability(TcaSchemaCapability::AccessReadOnly) || !is_array($this->datamap[$table]) || !$modifyAccessList) {
                 continue;
             }
 
@@ -928,8 +840,14 @@ class DataHandler implements LoggerAwareInterface
                     $theRealPid = $fieldArray['pid'];
                     // Checks if records can be inserted on this $pid.
                     // If this is a page translation, the check needs to be done for the l10n_parent record
-                    $languageField = $GLOBALS['TCA'][$table]['ctrl']['languageField'] ?? null;
-                    $transOrigPointerField = $GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField'] ?? null;
+                    $languageField = null;
+                    $transOrigPointerField = null;
+                    if ($schema->isLanguageAware()) {
+                        /** @var LanguageAwareSchemaCapability $languageCapability */
+                        $languageCapability = $schema->getCapability(TcaSchemaCapability::Language);
+                        $languageField = $languageCapability->getLanguageField()->getName();
+                        $transOrigPointerField = $languageCapability->getTranslationOriginPointerField()->getName();
+                    }
                     if ($table === 'pages'
                         && $languageField && isset($incomingFieldArray[$languageField]) && $incomingFieldArray[$languageField] > 0
                         && $transOrigPointerField && isset($incomingFieldArray[$transOrigPointerField]) && $incomingFieldArray[$transOrigPointerField] > 0
@@ -939,14 +857,14 @@ class DataHandler implements LoggerAwareInterface
                         $recordAccess = $this->checkRecordInsertAccess($table, $theRealPid);
                     }
                     if ($recordAccess) {
-                        $this->addDefaultPermittedLanguageIfNotSet($table, $incomingFieldArray, $theRealPid);
+                        $incomingFieldArray = $this->addDefaultPermittedLanguageIfNotSet($table, $incomingFieldArray, $theRealPid);
                         $recordAccess = $this->BE_USER->recordEditAccessInternals($table, $incomingFieldArray, true);
                         if (!$recordAccess) {
                             $this->log($table, 0, SystemLogDatabaseAction::INSERT, 0, SystemLogErrorClassification::USER_ERROR, 'recordEditAccessInternals() check failed [{reason}]', -1, ['reason' => $this->BE_USER->errorMsg]);
                         } elseif (!$this->bypassWorkspaceRestrictions && !$this->BE_USER->workspaceAllowsLiveEditingInTable($table)) {
                             // If LIVE records cannot be created due to workspace restrictions, prepare creation of placeholder-record
                             // So, if no live records were allowed in the current workspace, we have to create a new version of this record
-                            if (BackendUtility::isTableWorkspaceEnabled($table)) {
+                            if ($schema->isWorkspaceAware()) {
                                 $createNewVersion = true;
                             } else {
                                 $recordAccess = false;
@@ -972,7 +890,20 @@ class DataHandler implements LoggerAwareInterface
                     // Nope... $id is a number
                     $id = (int)$id;
                     $fieldArray = [];
-                    $recordAccess = $this->checkRecordUpdateAccess($table, $id, $incomingFieldArray, $hookObjectsArr);
+
+                    $recordAccess = null;
+                    if (is_array($hookObjectsArr)) {
+                        foreach ($hookObjectsArr as $hookObj) {
+                            if (method_exists($hookObj, 'checkRecordUpdateAccess')) {
+                                $recordAccess = $hookObj->checkRecordUpdateAccess($table, $id, $incomingFieldArray, $recordAccess, $this);
+                            }
+                        }
+                    }
+                    if ($recordAccess !== null) {
+                        $recordAccess = (bool)$recordAccess;
+                    } else {
+                        $recordAccess = $this->checkRecordUpdateAccess($table, $id);
+                    }
                     if (!$recordAccess) {
                         if ($this->enableLogging) {
                             $propArr = $this->getRecordProperties($table, $id);
@@ -980,6 +911,7 @@ class DataHandler implements LoggerAwareInterface
                         }
                         continue;
                     }
+
                     // Next check of the record permissions (internals)
                     $recordAccess = $this->BE_USER->recordEditAccessInternals($table, $id);
                     if (!$recordAccess) {
@@ -1009,7 +941,7 @@ class DataHandler implements LoggerAwareInterface
                                 // new version of a record created in a workspace - so always refresh pagetree to indicate there is a change in the workspace
                                 $this->pagetreeNeedsRefresh = true;
 
-                                $tce = GeneralUtility::makeInstance(self::class, $this->referenceIndexUpdater);
+                                $tce = GeneralUtility::makeInstance(self::class);
                                 $tce->enableLogging = $this->enableLogging;
                                 // Setting up command for creating a new version of the record:
                                 $cmd = [];
@@ -1018,7 +950,7 @@ class DataHandler implements LoggerAwareInterface
                                     // Default is to create a version of the individual records
                                     'label' => 'Auto-created for WS #' . $this->BE_USER->workspace,
                                 ];
-                                $tce->start([], $cmd, $this->BE_USER);
+                                $tce->start([], $cmd, $this->BE_USER, $this->referenceIndexUpdater);
                                 $tce->process_cmdmap();
                                 $this->errorLog = array_merge($this->errorLog, $tce->errorLog);
                                 // If copying was successful, share the new uids (also of related children):
@@ -1100,26 +1032,22 @@ class DataHandler implements LoggerAwareInterface
                 }
                 // Processing of all fields in incomingFieldArray and setting them in $fieldArray
                 $fieldArray = $this->fillInFieldArray($table, $id, $fieldArray, $incomingFieldArray, $theRealPid, $status, $tscPID);
-                // NOTICE! All manipulation beyond this point bypasses both "excludeFields" AND possible "MM" relations to field!
-                // Forcing some values unto field array:
-                // NOTICE: This overriding is potentially dangerous; permissions per field is not checked!!!
-                $fieldArray = $this->overrideFieldArray($table, $fieldArray);
                 // Setting system fields
                 if ($status === 'new') {
-                    if ($GLOBALS['TCA'][$table]['ctrl']['crdate'] ?? false) {
-                        $fieldArray[$GLOBALS['TCA'][$table]['ctrl']['crdate']] = $GLOBALS['EXEC_TIME'];
+                    if ($schema->hasCapability(TcaSchemaCapability::CreatedAt)) {
+                        $fieldArray[$schema->getCapability(TcaSchemaCapability::CreatedAt)->getFieldName()] = $GLOBALS['EXEC_TIME'];
                     }
                 }
                 // Set stage to "Editing" to make sure we restart the workflow
-                if (BackendUtility::isTableWorkspaceEnabled($table)) {
+                if ($schema->isWorkspaceAware()) {
                     $fieldArray['t3ver_stage'] = 0;
                 }
                 if ($status !== 'new') {
                     // Removing fields which are equal to the current value:
                     $fieldArray = $this->compareFieldArrayWithCurrentAndUnset($table, $id, $fieldArray);
                 }
-                if (($GLOBALS['TCA'][$table]['ctrl']['tstamp'] ?? false) && !empty($fieldArray)) {
-                    $fieldArray[$GLOBALS['TCA'][$table]['ctrl']['tstamp']] = $GLOBALS['EXEC_TIME'];
+                if ($schema->hasCapability(TcaSchemaCapability::UpdatedAt) && !empty($fieldArray)) {
+                    $fieldArray[$schema->getCapability(TcaSchemaCapability::UpdatedAt)->getFieldName()] = $GLOBALS['EXEC_TIME'];
                 }
                 // Hook: processDatamap_postProcessFieldArray
                 foreach ($hookObjectsArr as $hookObj) {
@@ -1143,7 +1071,7 @@ class DataHandler implements LoggerAwareInterface
                             $fieldArray['pid'] = $theRealPid;
                             $fieldArray['t3ver_oid'] = 0;
                             // Setting state for version (so it can know it is currently a new version...)
-                            $fieldArray['t3ver_state'] = (string)new VersionState(VersionState::NEW_PLACEHOLDER);
+                            $fieldArray['t3ver_state'] = VersionState::NEW_PLACEHOLDER->value;
                             $fieldArray['t3ver_wsid'] = $this->BE_USER->workspace;
                             $this->insertDB($table, $id, $fieldArray, true, (int)($incomingFieldArray['uid'] ?? 0));
                             // Hold auto-versionized ids of placeholders
@@ -1188,6 +1116,23 @@ class DataHandler implements LoggerAwareInterface
     }
 
     /**
+     *  New records capable of handling slugs (TCA type 'slug'), always
+     *  require the field value to be set, in order to run through the validation
+     *  process to create a new slug. Fields having `null` as value are ignored
+     *  and can be used to by-pass implicit slug initialization.
+     */
+    protected function initializeSlugFieldsToEmptyString(string $tableName, array $fieldValues): array
+    {
+        $schema = $this->tcaSchemaFactory->get($tableName);
+        foreach ($schema->getFields() as $fieldName => $field) {
+            if ($field->isType(TableColumnType::SLUG) && !isset($fieldValues[$fieldName])) {
+                $fieldValues[$fieldName] = '';
+            }
+        }
+        return $fieldValues;
+    }
+
+    /**
      * Sets the "sorting" DB field and the "pid" field of an incoming record that should be added (NEW1234)
      * depending on the record that should be added or where it should be added.
      *
@@ -1200,7 +1145,7 @@ class DataHandler implements LoggerAwareInterface
      */
     protected function resolveSortingAndPidForNewRecord(string $table, int $pid, array $fieldArray): array
     {
-        $sortColumn = $GLOBALS['TCA'][$table]['ctrl']['sortby'] ?? '';
+        $schema = $this->tcaSchemaFactory->get($table);
         // Points to a page on which to insert the element, possibly in the top of the page
         if ($pid >= 0) {
             // Ensure that the "pid" is not a translated page ID, but the default page ID
@@ -1208,16 +1153,16 @@ class DataHandler implements LoggerAwareInterface
             // The numerical pid is inserted in the data array
             $fieldArray['pid'] = $pid;
             // If this table is sorted we better find the top sorting number
-            if ($sortColumn) {
-                $fieldArray[$sortColumn] = $this->getSortNumber($table, 0, $pid);
+            if ($schema->hasCapability(TcaSchemaCapability::SortByField)) {
+                $fieldArray[$schema->getCapability(TcaSchemaCapability::SortByField)->getFieldName()] = $this->getSortNumber($table, 0, $pid);
             }
-        } elseif ($sortColumn) {
+        } elseif ($schema->hasCapability(TcaSchemaCapability::SortByField)) {
             // Points to another record before itself
             // If this table is sorted we better find the top sorting number
             // Because $pid is < 0, getSortNumber() returns an array
             $sortingInfo = $this->getSortNumber($table, 0, $pid);
             $fieldArray['pid'] = $sortingInfo['pid'];
-            $fieldArray[$sortColumn] = $sortingInfo['sortNumber'];
+            $fieldArray[$schema->getCapability(TcaSchemaCapability::SortByField)->getFieldName()] = $sortingInfo['sortNumber'];
         } else {
             // Here we fetch the PID of the record that we point to
             $record = $this->recordInfo($table, abs($pid));
@@ -1241,22 +1186,19 @@ class DataHandler implements LoggerAwareInterface
      * @return array Field Array
      * @internal should only be used from within DataHandler
      */
-    public function fillInFieldArray($table, $id, $fieldArray, $incomingFieldArray, $realPid, $status, $tscPID)
+    public function fillInFieldArray($table, $id, array $fieldArray, array $incomingFieldArray, $realPid, $status, $tscPID)
     {
         // Initialize:
+        $schema = $this->tcaSchemaFactory->get($table);
         $originalLanguageRecord = null;
         $originalLanguage_diffStorage = null;
         $diffStorageFlag = false;
         $isNewRecord = str_contains((string)$id, 'NEW');
         // Setting 'currentRecord' and 'checkValueRecord':
         if ($isNewRecord) {
-            // Must have the 'current' array - not the values after processing below...
+            // Overlay default values with incoming values.
             $checkValueRecord = $fieldArray;
-            // IF $incomingFieldArray is an array, overlay it.
-            // The point is that when new records are created as copies with flex type fields there might be a field containing information about which DataStructure to use and without that information the flexforms cannot be correctly processed.... This should be OK since the $checkValueRecord is used by the flexform evaluation only anyways...
-            if (is_array($incomingFieldArray) && is_array($checkValueRecord)) {
-                ArrayUtility::mergeRecursiveWithOverrule($checkValueRecord, $incomingFieldArray);
-            }
+            ArrayUtility::mergeRecursiveWithOverrule($checkValueRecord, $incomingFieldArray);
             $currentRecord = $checkValueRecord;
         } else {
             $id = (int)$id;
@@ -1265,19 +1207,24 @@ class DataHandler implements LoggerAwareInterface
         }
 
         // Get original language record if available:
-        if (is_array($currentRecord)
-            && ($GLOBALS['TCA'][$table]['ctrl']['transOrigDiffSourceField'] ?? false)
-            && !empty($GLOBALS['TCA'][$table]['ctrl']['languageField'])
-            && (int)($currentRecord[$GLOBALS['TCA'][$table]['ctrl']['languageField']] ?? 0) > 0
-            && ($GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField'] ?? false)
-            && (int)($currentRecord[$GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField']] ?? 0) > 0
-        ) {
-            $originalLanguageRecord = $this->recordInfo($table, $currentRecord[$GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField']]);
-            BackendUtility::workspaceOL($table, $originalLanguageRecord);
-            $originalLanguage_diffStorage = json_decode(
-                (string)($currentRecord[$GLOBALS['TCA'][$table]['ctrl']['transOrigDiffSourceField']] ?? ''),
-                true
-            );
+        /** @var LanguageAwareSchemaCapability|null $languageCapability */
+        $languageCapability = null;
+        if ($schema->isLanguageAware() && is_array($currentRecord)) {
+            /** @var LanguageAwareSchemaCapability $languageCapability */
+            $languageCapability = $schema->getCapability(TcaSchemaCapability::Language);
+            if ($languageCapability->hasDiffSourceField()) {
+                // Get original language record if available
+                if ((int)($currentRecord[$languageCapability->getLanguageField()->getName()] ?? 0) > 0
+                    && (int)($currentRecord[$languageCapability->getTranslationOriginPointerField()->getName()] ?? 0) > 0
+                ) {
+                    $originalLanguageRecord = $this->recordInfo($table, $currentRecord[$languageCapability->getTranslationOriginPointerField()->getName()]);
+                    BackendUtility::workspaceOL($table, $originalLanguageRecord);
+                    $originalLanguage_diffStorage = json_decode(
+                        (string)($currentRecord[$languageCapability->getDiffSourceField()->getName()] ?? ''),
+                        true
+                    );
+                }
+            }
         }
 
         $this->checkValue_currentRecord = $checkValueRecord;
@@ -1288,14 +1235,14 @@ class DataHandler implements LoggerAwareInterface
         // - If the field is nothing of the above and the field is configured in TCA, the fieldvalues are evaluated by ->checkValue
         // If everything is OK, the field is entered into $fieldArray[]
         foreach ($incomingFieldArray as $field => $fieldValue) {
-            if (isset($this->excludedTablesAndFields[$table . '-' . $field]) || (bool)($this->data_disableFields[$table][$id][$field] ?? false)) {
+            if (isset($this->excludedTablesAndFields[$table . '-' . $field])) {
                 continue;
             }
 
             // The field must be editable.
             // Checking if a value for language can be changed:
-            if (($GLOBALS['TCA'][$table]['ctrl']['languageField'] ?? false)
-                && (string)$GLOBALS['TCA'][$table]['ctrl']['languageField'] === (string)$field
+            if ($languageCapability
+                && $languageCapability->getLanguageField()->getName() === (string)$field
                 && !$this->BE_USER->checkLanguageAccess($fieldValue)
             ) {
                 continue;
@@ -1335,18 +1282,18 @@ class DataHandler implements LoggerAwareInterface
                     $fieldArray[$field] = $fieldValue;
                     break;
                 default:
-                    if (isset($GLOBALS['TCA'][$table]['columns'][$field])) {
+                    if ($schema->hasField($field)) {
                         // Evaluating the value
                         $res = $this->checkValue($table, $field, $fieldValue, $id, $status, $realPid, $tscPID, $incomingFieldArray);
                         if (array_key_exists('value', $res)) {
                             $fieldArray[$field] = $res['value'];
                         }
                         // Add the value of the original record to the diff-storage content:
-                        if ($GLOBALS['TCA'][$table]['ctrl']['transOrigDiffSourceField'] ?? false) {
+                        if ($languageCapability && $languageCapability->hasDiffSourceField()) {
                             $originalLanguage_diffStorage[$field] = (string)($originalLanguageRecord[$field] ?? '');
                             $diffStorageFlag = true;
                         }
-                    } elseif (isset($GLOBALS['TCA'][$table]['ctrl']['origUid']) && $GLOBALS['TCA'][$table]['ctrl']['origUid'] === $field) {
+                    } elseif ($schema->hasCapability(TcaSchemaCapability::AncestorReferenceField) && $schema->getCapability(TcaSchemaCapability::AncestorReferenceField)->getFieldName() === $field) {
                         // Allow value for original UID to pass by...
                         $fieldArray[$field] = $fieldValue;
                     }
@@ -1366,13 +1313,13 @@ class DataHandler implements LoggerAwareInterface
         // Add diff-storage information
         if ($diffStorageFlag
             && (
-                !array_key_exists($GLOBALS['TCA'][$table]['ctrl']['transOrigDiffSourceField'], $fieldArray)
+                !array_key_exists($languageCapability->getDiffSourceField()->getName(), $fieldArray)
                 || ($isNewRecord && $originalLanguageRecord !== null)
             )
         ) {
             // If the field is set it would probably be because of an undo-operation - in which case we should not
             // update the field of course. On the other hand, e.g. for record localization, we need to update the field.
-            $fieldArray[$GLOBALS['TCA'][$table]['ctrl']['transOrigDiffSourceField']] = json_encode($originalLanguage_diffStorage);
+            $fieldArray[$languageCapability->getDiffSourceField()->getName()] = json_encode($originalLanguage_diffStorage);
         }
         return $fieldArray;
     }
@@ -1398,7 +1345,7 @@ class DataHandler implements LoggerAwareInterface
      * @return array Returns the evaluated $value as key "value" in this array. Can be checked with isset($res['value']) ...
      * @internal should only be used from within DataHandler
      */
-    public function checkValue($table, $field, $value, $id, $status, $realPid, $tscPID, $incomingFieldArray = [])
+    public function checkValue($table, $field, $value, $id, $status, $realPid, $tscPID, $incomingFieldArray = []): array
     {
         $curValueRec = null;
         // Result array
@@ -1416,7 +1363,7 @@ class DataHandler implements LoggerAwareInterface
             }
             if ($status === 'update') {
                 // This checks 1) if we should check for disallowed tables and 2) if there are records from disallowed tables on the current page
-                $onlyAllowedTables = GeneralUtility::makeInstance(PageDoktypeRegistry::class)->doesDoktypeOnlyAllowSpecifiedRecordTypes((int)$value);
+                $onlyAllowedTables = $this->pageDoktypeRegistry->doesDoktypeOnlyAllowSpecifiedRecordTypes((int)$value);
                 if ($onlyAllowedTables) {
                     // use the real page id (default language)
                     $recordId = $this->getDefaultLanguagePageId((int)$id);
@@ -1447,7 +1394,7 @@ class DataHandler implements LoggerAwareInterface
             && $status === 'update'
         ) {
             // Do not allow a non system maintainer admin to change admin flag and password of system maintainers
-            $systemMaintainers = array_map('intval', $GLOBALS['TYPO3_CONF_VARS']['SYS']['systemMaintainers'] ?? []);
+            $systemMaintainers = array_map(intval(...), $GLOBALS['TYPO3_CONF_VARS']['SYS']['systemMaintainers'] ?? []);
             // False if current user is not in system maintainer list or if switch to user mode is active
             $isCurrentUserSystemMaintainer = $this->BE_USER->isSystemMaintainer();
             $isTargetUserInSystemMaintainerList = in_array((int)$id, $systemMaintainers, true);
@@ -1489,19 +1436,15 @@ class DataHandler implements LoggerAwareInterface
      *
      * Fetch the TCA ["config"] part for a specific field, including the columnsOverrides value.
      * Used for checkValue purposes currently (as it takes the checkValue_currentRecord value).
-     *
-     * @param string $table
-     * @param string $field
      */
     protected function resolveFieldConfigurationAndRespectColumnsOverrides(string $table, string $field): array
     {
-        $tcaFieldConf = $GLOBALS['TCA'][$table]['columns'][$field]['config'];
+        $schema = $this->tcaSchemaFactory->get($table);
         $recordType = BackendUtility::getTCAtypeValue($table, $this->checkValue_currentRecord);
-        $columnsOverridesConfigOfField = $GLOBALS['TCA'][$table]['types'][$recordType]['columnsOverrides'][$field]['config'] ?? null;
-        if ($columnsOverridesConfigOfField) {
-            ArrayUtility::mergeRecursiveWithOverrule($tcaFieldConf, $columnsOverridesConfigOfField);
+        if ($schema->hasSubSchema($recordType) && $schema->getSubSchema($recordType)->hasField($field)) {
+            return $schema->getSubSchema($recordType)->getField($field)->getConfiguration();
         }
-        return $tcaFieldConf;
+        return $schema->getField($field)->getConfiguration();
     }
 
     /**
@@ -1524,12 +1467,11 @@ class DataHandler implements LoggerAwareInterface
      * @return array Returns the evaluated $value as key "value" in this array.
      * @internal should only be used from within DataHandler
      */
-    public function checkValue_SW($res, $value, $tcaFieldConf, $table, $id, $curValue, $status, $realPid, $recFID, $field, $tscPID, ?array $additionalData = null)
+    public function checkValue_SW($res, $value, $tcaFieldConf, $table, $id, $curValue, $status, $realPid, $recFID, $field, $tscPID, ?array $additionalData = null): array
     {
         // Convert to NULL value if defined in TCA
         if ($value === null && ($tcaFieldConf['nullable'] ?? false)) {
-            $res = ['value' => null];
-            return $res;
+            return ['value' => null];
         }
 
         // This is either a normal field or a FlexForm field.
@@ -1560,8 +1502,7 @@ class DataHandler implements LoggerAwareInterface
             default => [],
         };
 
-        $res = $this->checkValueForInternalReferences($res, $value, $tcaFieldConf, $table, $id, $field);
-        return $res;
+        return $this->checkValueForInternalReferences($res, $value, $tcaFieldConf, $table, $id, $field);
     }
 
     /**
@@ -1582,12 +1523,20 @@ class DataHandler implements LoggerAwareInterface
      * @param string $field The field name
      * @return array The result array. The processed value (if any!) is set in the "value" key.
      */
-    protected function checkValueForInternalReferences(array $res, $value, $tcaFieldConf, $table, $id, $field)
+    protected function checkValueForInternalReferences(array $res, $value, $tcaFieldConf, $table, $id, $field): array
     {
-        $relevantFieldNames = [
-            $GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField'] ?? null,
-            $GLOBALS['TCA'][$table]['ctrl']['translationSource'] ?? null,
-        ];
+        $relevantFieldNames = [];
+        if ($this->tcaSchemaFactory->has($table)) {
+            $schema = $this->tcaSchemaFactory->get($table);
+            if ($schema->isLanguageAware()) {
+                /** @var LanguageAwareSchemaCapability $languageCapability */
+                $languageCapability = $schema->getCapability(TcaSchemaCapability::Language);
+                $relevantFieldNames[] = $languageCapability->getTranslationOriginPointerField()->getName();
+                if ($languageCapability->hasTranslationSourceField()) {
+                    $relevantFieldNames[] = $languageCapability->getTranslationSourceField()->getName();
+                }
+            }
+        }
 
         if (
             // in case field is empty
@@ -1604,7 +1553,6 @@ class DataHandler implements LoggerAwareInterface
 
         $valueArray = [$value];
         $this->remapStackRecords[$table][$id] = ['remapStackIndex' => count($this->remapStack)];
-        $this->addNewValuesToRemapStackChildIds($valueArray);
         $this->remapStack[] = [
             'args' => [$valueArray, $tcaFieldConf, $id, $table, $field],
             'pos' => ['valueArray' => 0, 'tcaFieldConf' => 1, 'id' => 2, 'table' => 3],
@@ -1674,7 +1622,7 @@ class DataHandler implements LoggerAwareInterface
      * @param string $field Field name
      * @return array $res The result array. The processed value (if any!) is set in the "value" key.
      */
-    protected function checkValueForInput($value, $tcaFieldConf, $table, $id, $realPid, $field)
+    protected function checkValueForInput($value, $tcaFieldConf, $table, $id, $realPid, $field): array
     {
         // Secures the string-length to be less than max.
         if (isset($tcaFieldConf['max']) && (int)$tcaFieldConf['max'] > 0) {
@@ -1739,11 +1687,11 @@ class DataHandler implements LoggerAwareInterface
             }
             $valueArray = explode('.', $value);
             $dec = array_pop($valueArray);
-            $value = implode('', $valueArray) . '.' . $dec;
+            $value = (float)(implode('', $valueArray) . '.' . $dec);
             if ($negative) {
-                $value *= -1;
+                $value = $value * -1;
             }
-            $result['value'] = number_format((float)$value, $precision, '.', '');
+            $result['value'] = number_format($value, $precision, '.', '');
         } else {
             $result['value'] = (int)$value;
         }
@@ -1772,15 +1720,13 @@ class DataHandler implements LoggerAwareInterface
     {
         // Always trim the value
         $value = trim($value);
-
-        // Secures the string-length to be <= 7.
-        $value = mb_substr($value, 0, 7, 'utf-8');
-
+        // Secures the string-length to be <= 7 or <= 9 if opacity enabled.
+        $opacity = (bool)($tcaFieldConf['opacity'] ?? false);
+        $value = mb_substr($value, 0, $opacity ? 9 : 7, 'utf-8');
         // Early return if required validation fails
         if (!$this->validateValueForRequired($tcaFieldConf, $value)) {
             return [];
         }
-
         return [
             'value' => $value,
         ];
@@ -1886,24 +1832,16 @@ class DataHandler implements LoggerAwareInterface
         // The strategy is to see if a salt instance can be created from the incoming value. If so,
         // no new password was submitted and we keep the value. If no salting instance can be created,
         // incoming value must be a new plain text value that needs to be hashed.
-        $hashFactory = GeneralUtility::makeInstance(PasswordHashFactory::class);
         $mode = $table === 'fe_users' ? 'FE' : 'BE';
         $isNewUser = str_contains((string)$id, 'NEW');
-        $newHashInstance = $hashFactory->getDefaultHashInstance($mode);
+        $newHashInstance = $this->passwordHashFactory->getDefaultHashInstance($mode);
 
         try {
-            $hashFactory->get($value, $mode);
+            $this->passwordHashFactory->get($value, $mode);
         } catch (InvalidPasswordHashException $e) {
             // We got no salted password instance, incoming value must be a new plaintext password
             // Validate new password against password policy for field
             $passwordPolicy = $tcaFieldConf['passwordPolicy'] ?? '';
-
-            // Ignore password policy for frontend users, if "security.usePasswordPolicyForFrontendUsers" is disabled
-            $features = GeneralUtility::makeInstance(Features::class);
-            if ($table === 'fe_users' && !$features->isFeatureEnabled('security.usePasswordPolicyForFrontendUsers')) {
-                $passwordPolicy = '';
-            }
-
             $passwordPolicyValidator = GeneralUtility::makeInstance(
                 PasswordPolicyValidator::class,
                 PasswordPolicyAction::NEW_USER_PASSWORD,
@@ -1917,7 +1855,7 @@ class DataHandler implements LoggerAwareInterface
                 newUserLastName: $incomingFieldArray['last_name'] ?? '',
                 newUserFullName: $incomingFieldArray['realName'] ?? '',
             );
-            $event = GeneralUtility::makeInstance(EventDispatcherInterface::class)->dispatch(
+            $event = $this->eventDispatcher->dispatch(
                 new EnrichPasswordValidationContextDataEvent(
                     $contextData,
                     $incomingFieldArray,
@@ -1949,7 +1887,7 @@ class DataHandler implements LoggerAwareInterface
                     return [];
                 }
                 // Password not valid for new user. To prevent empty passwords in the database, we set a random password.
-                $value = GeneralUtility::makeInstance(Random::class)->generateRandomHexString(96);
+                $value = $this->randomGenerator->generateRandomHexString(96);
             }
 
             // Get an instance of the current configured salted password strategy and hash the value
@@ -1972,14 +1910,13 @@ class DataHandler implements LoggerAwareInterface
      * @param string $field Field name
      * @param array $incomingFieldArray the fields being explicitly set by the outside (unlike $fieldArray) for the record
      * @return array $res The result array. The processed value (if any!) is set in the "value" key.
-     * @see SlugEnricher
      * @see SlugHelper
      */
     protected function checkValueForSlug(string $value, array $tcaFieldConf, string $table, $id, int $realPid, string $field, array $incomingFieldArray = []): array
     {
         $workspaceId = $this->BE_USER->workspace;
         $helper = GeneralUtility::makeInstance(SlugHelper::class, $table, $field, $tcaFieldConf, $workspaceId);
-        $fullRecord = array_replace_recursive($this->checkValue_currentRecord, $incomingFieldArray ?? []);
+        $fullRecord = array_replace_recursive($this->checkValue_currentRecord, $incomingFieldArray);
         // Generate a value if there is none, otherwise ensure that all characters are cleaned up
         if ($value === '') {
             $value = $helper->generate($fullRecord, $realPid);
@@ -2024,15 +1961,14 @@ class DataHandler implements LoggerAwareInterface
         // languageField, check if the selected language is allowed for the user.
         // Note: Usually this method should never be reached, in case the language value is
         // not valid, since recordEditAccessInternals checks for proper permission beforehand.
-        if (BackendUtility::isTableLocalizable($table)
-            && ($GLOBALS['TCA'][$table]['ctrl']['languageField'] ?? '') === $field
+        $schema = $this->tcaSchemaFactory->get($table);
+        if ($schema->isLanguageAware()
+            && $schema->getCapability(TcaSchemaCapability::Language)->getLanguageField()->getName() === $field
             && !$this->BE_USER->checkLanguageAccess($value)
         ) {
             return [];
         }
-
         // @todo Should we also check if the language is allowed for the current site - if record has site context?
-
         return ['value' => $value];
     }
 
@@ -2065,7 +2001,7 @@ class DataHandler implements LoggerAwareInterface
 
         if ($value !== '') {
             // Extract the actual link from the link definition for further evaluation
-            $linkParameter = GeneralUtility::makeInstance(TypoLinkCodecService::class)->decode($value)['url'];
+            $linkParameter = $this->typoLinkCodecService->decode($value)['url'];
             if ($linkParameter === '') {
                 $this->log($table, $id, SystemLogDatabaseAction::UPDATE, 0, SystemLogErrorClassification::USER_ERROR, '"{link}" is not a valid link definition for the field "{field}" of the table "{table}"', -1, ['link' => $value, 'field' => $field, 'table' => $table]);
                 $value = '';
@@ -2131,7 +2067,6 @@ class DataHandler implements LoggerAwareInterface
         $unsetResult = false;
         if (str_contains($value, 'NEW')) {
             $this->remapStackRecords[$table][$id] = ['remapStackIndex' => count($this->remapStack)];
-            $this->addNewValuesToRemapStackChildIds($valueArray);
             $this->remapStack[] = [
                 'func' => 'checkValue_category_processDBdata',
                 'args' => [$valueArray, $tcaFieldConf, $id, $status, $table, $field],
@@ -2169,14 +2104,12 @@ class DataHandler implements LoggerAwareInterface
         $isNativeDateTimeField = false;
         $nativeDateTimeFieldFormat = '';
         $nativeDateTimeFieldEmptyValue = '';
-        $nativeDateTimeFieldResetValue = '';
         $nativeDateTimeType = $tcaFieldConf['dbType'] ?? '';
         if (in_array($nativeDateTimeType, QueryHelper::getDateTimeTypes(), true)) {
             $isNativeDateTimeField = true;
             $dateTimeFormats = QueryHelper::getDateTimeFormats();
             $nativeDateTimeFieldFormat = $dateTimeFormats[$nativeDateTimeType]['format'];
             $nativeDateTimeFieldEmptyValue = $dateTimeFormats[$nativeDateTimeType]['empty'];
-            $nativeDateTimeFieldResetValue = $dateTimeFormats[$nativeDateTimeType]['reset'];
             if (empty($value)) {
                 $value = null;
             } else {
@@ -2237,13 +2170,15 @@ class DataHandler implements LoggerAwareInterface
 
         // Handle native date/time fields
         if ($isNativeDateTimeField) {
-            if ($tcaFieldConf['nullable'] ?? false) {
+            if ($tcaFieldConf['nullable'] ?? true) {
                 // Convert the timestamp back to a date/time if not null
                 $value = $value !== null ? gmdate($nativeDateTimeFieldFormat, $value) : null;
             } else {
                 // Convert the timestamp back to a date/time
-                $value = $value !== null ? gmdate($nativeDateTimeFieldFormat, $value) : $nativeDateTimeFieldResetValue;
+                $value = $value !== null ? gmdate($nativeDateTimeFieldFormat, $value) : $nativeDateTimeFieldEmptyValue;
             }
+        } elseif ((string)$value === '' && ($tcaFieldConf['nullable'] ?? false)) {
+            $value = null;
         } else {
             // Ensure value is always an int if no native field is used
             $value = (int)$value;
@@ -2294,11 +2229,11 @@ class DataHandler implements LoggerAwareInterface
         }
         if ($value > $maxV) {
             // @todo: This case is pretty ugly: If there is an itemsProcFunc registered, and if it returns a dynamic,
-            // @todo: changing list of items, then it may happen that a value is transformed and vanished checkboxes
-            // @todo: are permanently removed from the value.
-            // @todo: Suggestion: Throw an exception instead? Maybe a specific, catchable exception that generates a
-            // @todo: error message to the user - dynamic item sets via itemProcFunc on check would be a bad idea anyway.
-            $value = $value & $maxV;
+            //        changing list of items, then it may happen that a value is transformed and vanished checkboxes
+            //        are permanently removed from the value.
+            //        Suggestion: Throw an exception instead? Maybe a specific, catchable exception that generates a
+            //        error message to the user - dynamic item sets via itemProcFunc on check would be a bad idea anyway.
+            $value = (int)$value & $maxV;
         }
         if ($field && $value > 0 && !empty($tcaFieldConf['eval'])) {
             $evalCodesArray = GeneralUtility::trimExplode(',', $tcaFieldConf['eval'], true);
@@ -2346,7 +2281,7 @@ class DataHandler implements LoggerAwareInterface
      * @param string $field The field to check
      * @return array Modified $res array
      */
-    protected function checkValueForRadio($res, $value, $tcaFieldConf, $table, $id, $pid, $field)
+    protected function checkValueForRadio(array $res, $value, $tcaFieldConf, $table, $id, $pid, $field): array
     {
         if (!is_array($tcaFieldConf['items'] ?? null)) {
             $tcaFieldConf['items'] = [];
@@ -2476,7 +2411,6 @@ class DataHandler implements LoggerAwareInterface
             // check, if there is a NEW... id in the value, that should be substituted later
             if (str_contains($value, 'NEW')) {
                 $this->remapStackRecords[$table][$id] = ['remapStackIndex' => count($this->remapStack)];
-                $this->addNewValuesToRemapStackChildIds($valueArray);
                 $this->remapStack[] = [
                     'func' => 'checkValue_group_select_processDBdata',
                     'args' => [$valueArray, $tcaFieldConf, $id, $status, $tcaFieldConf['type'], $table, $field],
@@ -2588,15 +2522,14 @@ class DataHandler implements LoggerAwareInterface
         // ok in certain scenarios, for instance on new record rows. Those are ok to "eat" here
         // and substitute with a dummy DS.
         try {
-            $flexFormTools = GeneralUtility::makeInstance(FlexFormTools::class);
-            $dataStructureIdentifier = $flexFormTools->getDataStructureIdentifier(
+            $dataStructureIdentifier = $this->flexFormTools->getDataStructureIdentifier(
                 ['config' => $tcaFieldConf],
                 $table,
                 $field,
                 $row
             );
-            $dataStructureArray = $flexFormTools->parseDataStructureByIdentifier($dataStructureIdentifier);
-        } catch (InvalidParentRowException|InvalidParentRowLoopException|InvalidParentRowRootException|InvalidPointerFieldValueException|InvalidIdentifierException) {
+            $dataStructureArray = $this->flexFormTools->parseDataStructureByIdentifier($dataStructureIdentifier);
+        } catch (InvalidIdentifierException) {
             $dataStructureArray = ['sheets' => ['sDEF' => []]];
         }
 
@@ -2609,7 +2542,7 @@ class DataHandler implements LoggerAwareInterface
         // Evaluation of input values:
         $value['data'] = $this->checkValue_flex_procInData($value['data'] ?? [], $currentValueArray['data'] ?? [], $dataStructureArray, [$table, $id, $curValue, $status, $realPid, $recFID, $tscPID]);
         // Create XML from input value:
-        $xmlValue = $this->checkValue_flexArray2Xml($value);
+        $xmlValue = $this->flexFormTools->flexArray2Xml($value);
 
         // Here we convert the currently submitted values BACK to an array, then merge the two and then BACK to XML again. This is needed to ensure the charsets are the same
         // (provided that the current value was already stored IN the charset that the new value is converted to).
@@ -2623,27 +2556,14 @@ class DataHandler implements LoggerAwareInterface
         }
 
         ArrayUtility::mergeRecursiveWithOverrule($currentValueArray, $xmlAsArray);
-        $xmlValue = $this->checkValue_flexArray2Xml($currentValueArray);
+        $xmlValue = $this->flexFormTools->flexArray2Xml($currentValueArray);
 
         $xmlAsArray = GeneralUtility::xml2array($xmlValue);
         $xmlAsArray = $this->sortAndDeleteFlexSectionContainerElements($xmlAsArray, $dataStructureArray);
-        $xmlValue = $this->checkValue_flexArray2Xml($xmlAsArray);
+        $xmlValue = $this->flexFormTools->flexArray2Xml($xmlAsArray);
 
         $res['value'] = $xmlValue;
         return $res;
-    }
-
-    /**
-     * Converts an array to FlexForm XML
-     *
-     * @param array $array Array with FlexForm data
-     * @return string Input array converted to XML
-     * @internal should only be used from within DataHandler
-     */
-    public function checkValue_flexArray2Xml($array): string
-    {
-        $flexObj = GeneralUtility::makeInstance(FlexFormTools::class);
-        return $flexObj->flexArray2Xml($array, true);
     }
 
     /**
@@ -2744,7 +2664,6 @@ class DataHandler implements LoggerAwareInterface
         // We need to decide whether we use the stack or can save the relation directly.
         if (!empty($value) && (str_contains($value, 'NEW') || !MathUtility::canBeInterpretedAsInteger($id))) {
             $this->remapStackRecords[$table][$id] = ['remapStackIndex' => count($this->remapStack)];
-            $this->addNewValuesToRemapStackChildIds($valueArray);
             $this->remapStack[] = [
                 'func' => 'checkValue_inline_processDBdata',
                 'args' => [$valueArray, $tcaFieldConf, $id, $status, $table, $field, $additionalData],
@@ -2774,7 +2693,6 @@ class DataHandler implements LoggerAwareInterface
         $valueArray = array_unique(GeneralUtility::trimExplode(',', $value));
         if ($value !== '' && (str_contains($value, 'NEW') || !MathUtility::canBeInterpretedAsInteger($id))) {
             $this->remapStackRecords[$table][$id] = ['remapStackIndex' => count($this->remapStack)];
-            $this->addNewValuesToRemapStackChildIds($valueArray);
             $this->remapStack[] = [
                 'func' => 'checkValue_file_processDBdata',
                 'args' => [$valueArray, $tcaFieldConf, $id, $table],
@@ -2798,13 +2716,13 @@ class DataHandler implements LoggerAwareInterface
      * @return array The truncated value array of items
      * @internal should only be used from within DataHandler
      */
-    public function checkValue_checkMax($tcaFieldConf, $valueArray)
+    public function checkValue_checkMax($tcaFieldConf, $valueArray): array
     {
         // BTW, checking for min and max items here does NOT make any sense when MM is used because the above function
         // calls will just return an array with a single item (the count) if MM is used... Why didn't I perform the check
         // before? Probably because we could not evaluate the validity of record uids etc... Hmm...
         // NOTE to the comment: It's not really possible to check for too few items, because you must then determine first,
-        // if the field is actual used regarding the CType.
+        // if the field is actually used regarding the CType.
         $maxitems = isset($tcaFieldConf['maxitems']) ? (int)$tcaFieldConf['maxitems'] : 99999;
         return array_slice($valueArray, 0, $maxitems);
     }
@@ -2828,13 +2746,15 @@ class DataHandler implements LoggerAwareInterface
      */
     public function getUnique($table, $field, $value, $id, $newPid = 0)
     {
-        if (!is_array($GLOBALS['TCA'][$table]) || !is_array($GLOBALS['TCA'][$table]['columns'][$field])) {
+        if (!$this->tcaSchemaFactory->has($table) || !$this->tcaSchemaFactory->get($table)->hasField($field)) {
             // Field is not configured in TCA
             return $value;
         }
 
-        if (($GLOBALS['TCA'][$table]['columns'][$field]['l10n_mode'] ?? '') === 'exclude') {
-            $transOrigPointerField = $GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField'];
+        $schema = $this->tcaSchemaFactory->get($table);
+        $tcaField = $schema->getField($field);
+        if ($tcaField->getTranslationBehaviour() === FieldTranslationBehaviour::Excluded && $schema->isLanguageAware()) {
+            $transOrigPointerField = $schema->getCapability(TcaSchemaCapability::Language)->getTranslationOriginPointerField()->getName();
             $l10nParent = (int)$this->checkValue_currentRecord[$transOrigPointerField];
             if ($l10nParent > 0) {
                 // Current record is a translation and l10n_mode "exclude" just copies the value from source language
@@ -2851,7 +2771,7 @@ class DataHandler implements LoggerAwareInterface
             for ($counter = 0; $counter <= 100; $counter++) {
                 $result->free();
                 $newValue = $value . $counter;
-                $statement->bindValue(1, $newValue);
+                $statement->bindValue(1, $newValue, Connection::PARAM_STR);
                 $result = $statement->executeQuery();
                 if (!$result->fetchOne()) {
                     break;
@@ -2883,8 +2803,8 @@ class DataHandler implements LoggerAwareInterface
         string $field,
         int $uid,
         int $pid
-    ) {
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($table);
+    ): QueryBuilder {
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable($table);
         $this->addDeleteRestriction($queryBuilder->getRestrictions()->removeAll());
         $queryBuilder
             ->count('uid')
@@ -2894,20 +2814,22 @@ class DataHandler implements LoggerAwareInterface
                 $queryBuilder->expr()->neq('uid', $queryBuilder->createPositionalParameter($uid, Connection::PARAM_INT))
             );
         // ignore translations of current record if field is configured with l10n_mode = "exclude"
-        if (($GLOBALS['TCA'][$table]['columns'][$field]['l10n_mode'] ?? '') === 'exclude'
-            && ($GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField'] ?? '') !== ''
-            && ($GLOBALS['TCA'][$table]['ctrl']['languageField'] ?? '') !== '') {
+        $schema = $this->tcaSchemaFactory->get($table);
+        $tcaField = $schema->getField($field);
+        if ($schema->isLanguageAware() && $tcaField->getTranslationBehaviour() === FieldTranslationBehaviour::Excluded) {
+            /** @var LanguageAwareSchemaCapability $languageCapability */
+            $languageCapability = $schema->getCapability(TcaSchemaCapability::Language);
             $queryBuilder
                 ->andWhere(
                     $queryBuilder->expr()->or(
                         // records without l10n_parent must be taken into account (in any language)
                         $queryBuilder->expr()->eq(
-                            $GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField'],
+                            $languageCapability->getTranslationOriginPointerField()->getName(),
                             $queryBuilder->createPositionalParameter(0, Connection::PARAM_INT)
                         ),
                         // translations of other records must be taken into account
                         $queryBuilder->expr()->neq(
-                            $GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField'],
+                            $languageCapability->getTranslationOriginPointerField()->getName(),
                             $queryBuilder->createPositionalParameter($uid, Connection::PARAM_INT)
                         )
                     )
@@ -2933,24 +2855,22 @@ class DataHandler implements LoggerAwareInterface
      * @param string $tableName Table name
      * @param int $uid UID to filter out in the lookup (the record itself...)
      * @param string $fieldName Field name for which $value must be unique
-     * @param string $value Value string.
+     * @param string|int $value Value string.
      * @param int $pageId If set, the value will be unique for this PID
-     * @return array
      * @internal should only be used from within DataHandler
      */
-    public function getRecordsWithSameValue($tableName, $uid, $fieldName, $value, $pageId = 0)
+    public function getRecordsWithSameValue($tableName, $uid, $fieldName, $value, $pageId = 0): array
     {
         $result = [];
-        if (empty($GLOBALS['TCA'][$tableName]['columns'][$fieldName])) {
+        if (!$this->tcaSchemaFactory->has($tableName) || !$this->tcaSchemaFactory->get($tableName)->hasField($fieldName)) {
             return $result;
         }
 
         $uid = (int)$uid;
         $pageId = (int)$pageId;
 
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($tableName);
-        $queryBuilder->getRestrictions()
-            ->removeAll()
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable($tableName);
+        $queryBuilder->getRestrictions()->removeAll()
             ->add(GeneralUtility::makeInstance(DeletedRestriction::class))
             ->add(GeneralUtility::makeInstance(WorkspaceRestriction::class, (int)$this->BE_USER->workspace));
 
@@ -2973,9 +2893,7 @@ class DataHandler implements LoggerAwareInterface
             );
         }
 
-        $result = $queryBuilder->executeQuery()->fetchAllAssociative();
-
-        return $result;
+        return $queryBuilder->executeQuery()->fetchAllAssociative();
     }
 
     /**
@@ -3111,7 +3029,6 @@ class DataHandler implements LoggerAwareInterface
         if (!isset($tcaFieldConfig['required']) || !$tcaFieldConfig['required']) {
             return true;
         }
-
         return !empty($value) || $value === '0';
     }
 
@@ -3219,7 +3136,7 @@ class DataHandler implements LoggerAwareInterface
      * @return array The value array.
      * @internal should only be used from within DataHandler
      */
-    public function checkValue_group_select_explodeSelectGroupValue($value)
+    public function checkValue_group_select_explodeSelectGroupValue($value): array
     {
         $valueArray = GeneralUtility::trimExplode(',', $value, true);
         foreach ($valueArray as &$newVal) {
@@ -3279,7 +3196,7 @@ class DataHandler implements LoggerAwareInterface
      * @see checkValue_flex_procInData()
      * @internal should only be used from within DataHandler
      */
-    public function checkValue_flex_procInData_travDS(&$dataValues, $dataValues_current, $DSelements, $pParams, $callBackFunc, $structurePath, array $workspaceOptions = [])
+    public function checkValue_flex_procInData_travDS(&$dataValues, $dataValues_current, $DSelements, $pParams, $callBackFunc, $structurePath, array $workspaceOptions = []): void
     {
         if (!is_array($DSelements)) {
             return;
@@ -3302,7 +3219,6 @@ class DataHandler implements LoggerAwareInterface
                         if (!is_array($dataValues_current[$key]['el'] ?? false)) {
                             $dataValues_current[$key]['el'] = [];
                         }
-                        // @todo: Ugly! This relies on the fact that _TOGGLE and _ACTION are *below* the business fields!
                         $theKey = key($el);
                         if (!is_array($dataValues[$key]['el'][$ik][$theKey]['el'] ?? false)) {
                             continue;
@@ -3419,7 +3335,7 @@ class DataHandler implements LoggerAwareInterface
         // IRRE with a pointer field (database normalization):
         if ($tcaFieldConf['foreign_field'] ?? false) {
             // update record in intermediate table (sorting & pointer uid to parent record)
-            $dbAnalysis->writeForeignField($tcaFieldConf, $id, 0);
+            $dbAnalysis->writeForeignField($tcaFieldConf, $id);
             $newValue = $dbAnalysis->countItems(false);
         } elseif ($this->getRelationFieldType($tcaFieldConf) === 'mm') {
             // In order to fully support all the MM stuff, directly call checkValue_group_select_processDBdata instead of repeating the needed code here
@@ -3481,19 +3397,19 @@ class DataHandler implements LoggerAwareInterface
         }
         $pasteDatamap = [];
         // Traverse command map:
-        foreach ($this->cmdmap as $table => $_) {
+        foreach ($this->cmdmap as $table => $idCommandArray) {
             // Check if the table may be modified!
             $modifyAccessList = $this->checkModifyAccessList($table);
             if (!$modifyAccessList) {
                 $this->log($table, 0, SystemLogDatabaseAction::UPDATE, 0, SystemLogErrorClassification::USER_ERROR, 'Attempt to modify table "{table}" without permission', 1, ['table' => $table]);
             }
             // Check basic permissions and circumstances:
-            if (!isset($GLOBALS['TCA'][$table]) || $this->tableReadOnly($table) || !is_array($this->cmdmap[$table]) || !$modifyAccessList) {
+            if (!$this->tcaSchemaFactory->has($table) || $this->tcaSchemaFactory->get($table)->hasCapability(TcaSchemaCapability::AccessReadOnly) || !$modifyAccessList) {
                 continue;
             }
 
             // Traverse the command map:
-            foreach ($this->cmdmap[$table] as $id => $incomingCmdArray) {
+            foreach ($idCommandArray as $id => $incomingCmdArray) {
                 if (!is_array($incomingCmdArray)) {
                     continue;
                 }
@@ -3525,17 +3441,22 @@ class DataHandler implements LoggerAwareInterface
                     $commandIsProcessed = false;
                     foreach ($hookObjectsArr as $hookObj) {
                         if (method_exists($hookObj, 'processCmdmap')) {
+                            /** @var bool $commandIsProcessed */
                             $hookObj->processCmdmap($command, $table, $id, $value, $commandIsProcessed, $this, $pasteUpdate);
                         }
                     }
                     // Only execute default commands if a hook hasn't been processed the command already
+                    $pasteDatamap = [];
                     if (!$commandIsProcessed) {
                         $procId = $id;
-                        $backupUseTransOrigPointerField = $this->useTransOrigPointerField;
                         // Branch, based on command
                         switch ($command) {
                             case 'move':
                                 $this->moveRecord($table, (int)$id, $value);
+                                if (is_array($pasteUpdate) && $procId > 0) {
+                                    // Update after copy/move operation
+                                    $pasteDatamap[$table][$procId] = $pasteUpdate;
+                                }
                                 break;
                             case 'copy':
                                 $target = $value['target'] ?? $value;
@@ -3546,14 +3467,45 @@ class DataHandler implements LoggerAwareInterface
                                     $this->copyRecord($table, (int)$id, $target, true, [], '', 0, $ignoreLocalization);
                                 }
                                 $procId = $this->copyMappingArray[$table][$id] ?? null;
+                                if (is_array($pasteUpdate) && $procId > 0) {
+                                    // Update after copy/move operation
+                                    $pasteDatamap[$table][$procId] = $pasteUpdate;
+                                    // Update language field of relations after copy operation (record was copied to a different language)
+                                    // When 'copy' is called to copy/paste some record that has inline children to *some other language*,
+                                    // the copied children must have the same "sys_language_uid" (TCA ctrl languageField) value as their
+                                    // copied parent. The loop goes through the copied elements to set their "sys_language_uid"
+                                    // @todo: localize() in 'copyToLanguage' does this already, mainly by calling copyRecord() with a negative uid/pid,
+                                    //        and by not calling copyRecord() with 0 for $language (7th argument), but with the target
+                                    //        language id. Trying to implement this here however leads to different "sorting" values, but
+                                    //        in general, this loop should not be needed and streamlined with details from 'copyToLanguage'.
+                                    // @todo: Make this work for move operation as well? May need additional test coverage.
+                                    foreach ($this->copyMappingArray as $procTable => $copyProcIds) {
+                                        foreach ($copyProcIds as $copyProcId) {
+                                            if ($copyProcId !== $procId) {
+                                                $schema = $this->tcaSchemaFactory->get($procTable);
+                                                if ($schema->isLanguageAware()) {
+                                                    $languageField = $schema->getCapability(TcaSchemaCapability::Language)->getLanguageField()->getName();
+                                                    if (isset($pasteUpdate[$languageField])) {
+                                                        $pasteDatamap[$procTable][$copyProcId][$languageField] = $pasteUpdate[$languageField];
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                                 break;
                             case 'localize':
+                                // @todo: Hand this state change around as method argument to localize() instead.
+                                $backupUseTransOrigPointerField = $this->useTransOrigPointerField;
                                 $this->useTransOrigPointerField = true;
                                 $this->localize($table, (int)$id, $value);
+                                $this->useTransOrigPointerField = $backupUseTransOrigPointerField;
                                 break;
                             case 'copyToLanguage':
+                                $backupUseTransOrigPointerField = $this->useTransOrigPointerField;
                                 $this->useTransOrigPointerField = false;
                                 $this->localize($table, (int)$id, $value);
+                                $this->useTransOrigPointerField = $backupUseTransOrigPointerField;
                                 break;
                             case 'inlineLocalizeSynchronize':
                                 $this->inlineLocalizeSynchronize($table, (int)$id, $value);
@@ -3564,10 +3516,6 @@ class DataHandler implements LoggerAwareInterface
                             case 'undelete':
                                 $this->undeleteRecord((string)$table, (int)$id);
                                 break;
-                        }
-                        $this->useTransOrigPointerField = $backupUseTransOrigPointerField;
-                        if (is_array($pasteUpdate) && $procId > 0) {
-                            $pasteDatamap[$table][$procId] = $pasteUpdate;
                         }
                     }
                     foreach ($hookObjectsArr as $hookObj) {
@@ -3581,7 +3529,7 @@ class DataHandler implements LoggerAwareInterface
             }
         }
         $copyTCE = $this->getLocalTCE();
-        $copyTCE->start($pasteDatamap, [], $this->BE_USER);
+        $copyTCE->start($pasteDatamap, [], $this->BE_USER, $this->referenceIndexUpdater);
         $copyTCE->process_datamap();
         $this->errorLog = array_merge($this->errorLog, $copyTCE->errorLog);
         unset($copyTCE);
@@ -3624,8 +3572,8 @@ class DataHandler implements LoggerAwareInterface
     public function copyRecord($table, $uid, $destPid, $first = false, $overrideValues = [], $excludeFields = '', $language = 0, $ignoreLocalization = false)
     {
         $uid = ($origUid = (int)$uid);
-        // Only copy if the table is defined in $GLOBALS['TCA'], a uid is given and the record wasn't copied before:
-        if (empty($GLOBALS['TCA'][$table]) || $uid === 0) {
+        // Only copy if the table has a Schema, a uid is given and the record wasn't copied before:
+        if (!$this->tcaSchemaFactory->has($table) || $uid === 0) {
             return null;
         }
         if ($this->isRecordCopied($table, $uid)) {
@@ -3660,12 +3608,20 @@ class DataHandler implements LoggerAwareInterface
         $data = [];
         $nonFields = array_unique(GeneralUtility::trimExplode(',', 'uid,perms_userid,perms_groupid,perms_user,perms_group,perms_everybody,t3ver_oid,t3ver_wsid,t3ver_state,t3ver_stage,' . $excludeFields, true));
         BackendUtility::workspaceOL($table, $row, $this->BE_USER->workspace);
+        if (BackendUtility::isTableWorkspaceEnabled($table)
+            && $this->BE_USER->workspace > 0
+            && VersionState::tryFrom($row['t3ver_state'] ?? 0) === VersionState::DELETE_PLACEHOLDER
+        ) {
+            // The to-copy record turns out to be a delete placeholder. Those do not make sense to be copied and are skipped.
+            return null;
+        }
         $row = BackendUtility::purgeComputedPropertiesFromRecord($row);
 
         // Initializing:
+        $schema = $this->tcaSchemaFactory->get($table);
         $theNewID = StringUtility::getUniqueId('NEW');
-        $enableField = $GLOBALS['TCA'][$table]['ctrl']['enablecolumns']['disabled'] ?? '';
-        $headerField = $GLOBALS['TCA'][$table]['ctrl']['label'];
+        $disabledField = $schema->hasCapability(TcaSchemaCapability::RestrictionDisabledField) ? $schema->getCapability(TcaSchemaCapability::RestrictionDisabledField)->getField() : null;
+        $labelFieldName = $schema->hasCapability(TcaSchemaCapability::Label) ? $schema->getCapability(TcaSchemaCapability::Label)->getPrimaryField()?->getName() : '';
         // Getting "copy-after" fields if applicable:
         $copyAfterFields = $destPid < 0 ? $this->fixCopyAfterDuplFields((string)$table, (int)abs($destPid)) : [];
         // Page TSconfig related:
@@ -3674,8 +3630,6 @@ class DataHandler implements LoggerAwareInterface
         // Traverse ALL fields of the selected record:
         foreach ($row as $field => $value) {
             if (!in_array($field, $nonFields, true)) {
-                // Get TCA configuration for the field:
-                $conf = $GLOBALS['TCA'][$table]['columns'][$field]['config'] ?? [];
                 // Preparation/Processing of the value:
                 // "pid" is hardcoded of course:
                 // isset() won't work here, since values can be NULL in each of the arrays
@@ -3690,20 +3644,22 @@ class DataHandler implements LoggerAwareInterface
                     $value = $copyAfterFields[$field];
                 } else {
                     // Hide at copy may override:
-                    if ($first && $field == $enableField
-                        && ($GLOBALS['TCA'][$table]['ctrl']['hideAtCopy'] ?? false)
+                    if ($first && $field === $disabledField?->getName()
+                        && $schema->hasCapability(TcaSchemaCapability::HideRecordsAtCopy)
                         && !$this->neverHideAtCopy
                         && !($tE['disableHideAtCopy'] ?? false)
                     ) {
                         $value = 1;
                     }
                     // Prepend label on copy:
-                    if ($first && $field == $headerField
-                        && ($GLOBALS['TCA'][$table]['ctrl']['prependAtCopy'] ?? false)
+                    if ($first && $field === $labelFieldName
+                        && $schema->hasCapability(TcaSchemaCapability::PrependLabelTextAtCopy)
                         && !($tE['disablePrependAtCopy'] ?? false)
                     ) {
                         $value = $this->getCopyHeader($table, $this->resolvePid($table, $destPid), $field, $this->clearPrefixFromValue($table, $value), 0);
                     }
+                    // Get TCA configuration for the field:
+                    $conf = $schema->hasField($field) ? $schema->getField($field)->getConfiguration() : [];
                     // Processing based on the TCA config field type (files, references, flexforms...)
                     $value = $this->copyRecord_procBasedOnFieldType($table, $uid, $field, $value, $row, $conf, $tscPID, $language);
                 }
@@ -3712,16 +3668,16 @@ class DataHandler implements LoggerAwareInterface
             }
         }
         // Overriding values:
-        if ($GLOBALS['TCA'][$table]['ctrl']['editlock'] ?? false) {
-            $data[$table][$theNewID][$GLOBALS['TCA'][$table]['ctrl']['editlock']] = 0;
+        if ($schema->hasCapability(TcaSchemaCapability::EditLock)) {
+            $data[$table][$theNewID][$schema->getCapability(TcaSchemaCapability::EditLock)->getFieldName()] = 0;
         }
         // Setting original UID:
-        if ($GLOBALS['TCA'][$table]['ctrl']['origUid'] ?? false) {
-            $data[$table][$theNewID][$GLOBALS['TCA'][$table]['ctrl']['origUid']] = $uid;
+        if ($schema->hasCapability(TcaSchemaCapability::AncestorReferenceField)) {
+            $data[$table][$theNewID][$schema->getCapability(TcaSchemaCapability::AncestorReferenceField)->getFieldName()] = $uid;
         }
         // Do the copy by simply submitting the array through DataHandler:
         $copyTCE = $this->getLocalTCE();
-        $copyTCE->start($data, [], $this->BE_USER);
+        $copyTCE->start($data, [], $this->BE_USER, $this->referenceIndexUpdater);
         $copyTCE->process_datamap();
         // Getting the new UID:
         $theNewSQLID = $copyTCE->substNEWwithIDs[$theNewID] ?? null;
@@ -3734,14 +3690,14 @@ class DataHandler implements LoggerAwareInterface
         }
         $this->errorLog = array_merge($this->errorLog, $copyTCE->errorLog);
         unset($copyTCE);
-        if (!$ignoreLocalization && $language == 0) {
-            //repointing the new translation records to the parent record we just created
-            if (isset($GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField'])) {
-                $overrideValues[$GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField']] = $theNewSQLID;
-            }
-            // This value is evaluated in DataMapItem->getType() so it is very important
-            if (isset($GLOBALS['TCA'][$table]['ctrl']['translationSource'])) {
-                $overrideValues[$GLOBALS['TCA'][$table]['ctrl']['translationSource']] = 0;
+        if (!$ignoreLocalization && $language == 0 && $schema->isLanguageAware()) {
+            // repointing the new translation records to the parent record we just created
+            /** @var LanguageAwareSchemaCapability $languageCapability */
+            $languageCapability = $schema->getCapability(TcaSchemaCapability::Language);
+            // repointing the new translation records to the parent record we just created
+            $overrideValues[$languageCapability->getTranslationOriginPointerField()->getName()] = $theNewSQLID;
+            if ($languageCapability->hasTranslationSourceField()) {
+                $overrideValues[$languageCapability->getTranslationSourceField()->getName()] = 0;
             }
             $this->copyL10nOverlayRecords($table, $uid, $destPid, $first, $overrideValues, $excludeFields);
         }
@@ -3757,7 +3713,7 @@ class DataHandler implements LoggerAwareInterface
      * @param int $destPid Destination PID: >=0 then it points to a page-id on which to insert the record (as the first element). <0 then it points to a uid from its own table after which to insert it (works if
      * @internal should only be used from within DataHandler
      */
-    public function copyPages($uid, $destPid)
+    public function copyPages($uid, $destPid): void
     {
         // Initialize:
         $uid = (int)$uid;
@@ -3800,7 +3756,7 @@ class DataHandler implements LoggerAwareInterface
     {
         // Finding list of tables to copy.
         // These are the tables, the user may modify
-        $copyTablesArray = $this->admin ? $this->compileAdminTables() : explode(',', $this->BE_USER->groupData['tables_modify']);
+        $copyTablesArray = $this->admin ? $this->tcaSchemaFactory->all()->getNames() : explode(',', $this->BE_USER->groupData['tables_modify']);
         // If not all tables are allowed then make a list of allowed tables.
         // That is the tables that figure in both allowed tables AND the copyTable-list
         if (!str_contains($this->copyWhichTables, '*')) {
@@ -3836,28 +3792,31 @@ class DataHandler implements LoggerAwareInterface
         if ($theNewRootID) {
             foreach ($copyTablesArray as $table) {
                 // All records under the page is copied.
-                if ($table && is_array($GLOBALS['TCA'][$table] ?? false) && $table !== 'pages') {
+                if ($table && $this->tcaSchemaFactory->has($table) && $table !== 'pages') {
+                    $schema = $this->tcaSchemaFactory->get($table);
                     $fields = ['uid'];
                     $languageField = null;
                     $transOrigPointerField = null;
                     $translationSourceField = null;
-                    if (BackendUtility::isTableLocalizable($table)) {
-                        $languageField = $GLOBALS['TCA'][$table]['ctrl']['languageField'];
-                        $transOrigPointerField = $GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField'];
+                    if ($schema->isLanguageAware()) {
+                        /** @var LanguageAwareSchemaCapability $languageCapability */
+                        $languageCapability = $schema->getCapability(TcaSchemaCapability::Language);
+                        $languageField = $languageCapability->getLanguageField()->getName();
+                        $transOrigPointerField = $languageCapability->getTranslationOriginPointerField()->getName();
                         $fields[] = $languageField;
                         $fields[] = $transOrigPointerField;
-                        if (isset($GLOBALS['TCA'][$table]['ctrl']['translationSource'])) {
-                            $translationSourceField = $GLOBALS['TCA'][$table]['ctrl']['translationSource'];
+                        if ($languageCapability->hasTranslationSourceField()) {
+                            $translationSourceField = $languageCapability->getTranslationSourceField()->getName();
                             $fields[] = $translationSourceField;
                         }
                     }
-                    $isTableWorkspaceEnabled = BackendUtility::isTableWorkspaceEnabled($table);
+                    $isTableWorkspaceEnabled = $schema->isWorkspaceAware();
                     if ($isTableWorkspaceEnabled) {
                         $fields[] = 't3ver_oid';
                         $fields[] = 't3ver_state';
                         $fields[] = 't3ver_wsid';
                     }
-                    $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($table);
+                    $queryBuilder = $this->connectionPool->getQueryBuilderForTable($table);
                     $this->addDeleteRestriction($queryBuilder->getRestrictions()->removeAll());
                     $queryBuilder->getRestrictions()->add(GeneralUtility::makeInstance(WorkspaceRestriction::class, $currentWorkspaceId));
                     $queryBuilder
@@ -3869,8 +3828,8 @@ class DataHandler implements LoggerAwareInterface
                                 $queryBuilder->createNamedParameter($uid, Connection::PARAM_INT)
                             )
                         );
-                    if (!empty($GLOBALS['TCA'][$table]['ctrl']['sortby'])) {
-                        $queryBuilder->orderBy($GLOBALS['TCA'][$table]['ctrl']['sortby'], 'DESC');
+                    if ($schema->hasCapability(TcaSchemaCapability::SortByField)) {
+                        $queryBuilder->orderBy($schema->getCapability(TcaSchemaCapability::SortByField)->getFieldName(), 'DESC');
                     }
                     $queryBuilder->addOrderBy('uid');
                     try {
@@ -3879,7 +3838,7 @@ class DataHandler implements LoggerAwareInterface
                         $movedLiveIds = [];
                         $movedLiveRecords = [];
                         while ($row = $result->fetchAssociative()) {
-                            if ($isTableWorkspaceEnabled && (int)$row['t3ver_state'] === VersionState::MOVE_POINTER) {
+                            if ($isTableWorkspaceEnabled && VersionState::tryFrom($row['t3ver_state'] ?? 0) === VersionState::MOVE_POINTER) {
                                 $movedLiveIds[(int)$row['t3ver_oid']] = (int)$row['uid'];
                             }
                             $rows[(int)$row['uid']] = $row;
@@ -3901,7 +3860,7 @@ class DataHandler implements LoggerAwareInterface
                                 $this->resolveVersionedRecords(
                                     $table,
                                     implode(',', $fields),
-                                    $GLOBALS['TCA'][$table]['ctrl']['sortby'] ?? '',
+                                    $schema->hasCapability(TcaSchemaCapability::SortByField) ? $schema->getCapability(TcaSchemaCapability::SortByField)->getFieldName() : '',
                                     array_keys($rows)
                                 ),
                                 true
@@ -3976,7 +3935,7 @@ class DataHandler implements LoggerAwareInterface
             return null;
         }
         // Only copy if the table is defined in TCA, a uid is given and the record wasn't copied before:
-        if (!$GLOBALS['TCA'][$table] || !$uid || $this->isRecordCopied($table, $uid)) {
+        if (!$this->tcaSchemaFactory->has($table) || !$uid || $this->isRecordCopied($table, $uid)) {
             return null;
         }
 
@@ -3996,6 +3955,8 @@ class DataHandler implements LoggerAwareInterface
             return null;
         }
 
+        $schema = $this->tcaSchemaFactory->get($table);
+
         // Set up fields which should not be processed. They are still written - just passed through no-questions-asked!
         $nonFields = ['uid', 'pid', 't3ver_oid', 't3ver_wsid', 't3ver_state', 't3ver_stage', 'perms_userid', 'perms_groupid', 'perms_user', 'perms_group', 'perms_everybody'];
 
@@ -4006,7 +3967,7 @@ class DataHandler implements LoggerAwareInterface
             /** @var string $field */
             if (!in_array($field, $nonFields, true)) {
                 // Get TCA configuration for the field:
-                $conf = $GLOBALS['TCA'][$table]['columns'][$field]['config'] ?? false;
+                $conf = $schema->hasField($field) ? $schema->getField($field)->getConfiguration() : false;
                 if (is_array($conf)) {
                     // Processing based on the TCA config field type (files, references, flexforms...)
                     $value = $this->copyRecord_procBasedOnFieldType($table, $uid, $field, $value, $row, $conf, $pid, 0, $workspaceOptions);
@@ -4017,8 +3978,8 @@ class DataHandler implements LoggerAwareInterface
         }
         $row['pid'] = $pid;
         // Setting original UID:
-        if ($GLOBALS['TCA'][$table]['ctrl']['origUid'] ?? '') {
-            $row[$GLOBALS['TCA'][$table]['ctrl']['origUid']] = $uid;
+        if ($schema->hasCapability(TcaSchemaCapability::AncestorReferenceField)) {
+            $row[$schema->getCapability(TcaSchemaCapability::AncestorReferenceField)->getFieldName()] = $uid;
         }
         // Do the copy by internal function
         $theNewSQLID = $this->insertNewCopyVersion($table, $row, $pid);
@@ -4051,6 +4012,7 @@ class DataHandler implements LoggerAwareInterface
      */
     public function insertNewCopyVersion($table, $fieldArray, $realPid)
     {
+        $schema = $this->tcaSchemaFactory->get($table);
         $id = StringUtility::getUniqueId('NEW');
         // $fieldArray is set as current record.
         // The point is that when new records are created as copies with flex type fields there might be a field containing information about which DataStructure to use and without that information the flexforms cannot be correctly processed.... This should be OK since the $checkValueRecord is used by the flexform evaluation only anyways...
@@ -4060,7 +4022,7 @@ class DataHandler implements LoggerAwareInterface
         $this->dontProcessTransformations = true;
         // Traverse record and input-process each value:
         foreach ($fieldArray as $field => $fieldValue) {
-            if (isset($GLOBALS['TCA'][$table]['columns'][$field])) {
+            if ($schema->hasField($field)) {
                 // Evaluating the value.
                 $res = $this->checkValue($table, $field, $fieldValue, $id, 'new', $realPid, 0, $fieldArray);
                 if (isset($res['value'])) {
@@ -4069,14 +4031,14 @@ class DataHandler implements LoggerAwareInterface
             }
         }
         // System fields being set:
-        if ($GLOBALS['TCA'][$table]['ctrl']['crdate'] ?? false) {
-            $fieldArray[$GLOBALS['TCA'][$table]['ctrl']['crdate']] = $GLOBALS['EXEC_TIME'];
+        if ($schema->hasCapability(TcaSchemaCapability::CreatedAt)) {
+            $fieldArray[$schema->getCapability(TcaSchemaCapability::CreatedAt)->getFieldName()] = $GLOBALS['EXEC_TIME'];
         }
-        if ($GLOBALS['TCA'][$table]['ctrl']['tstamp'] ?? false) {
-            $fieldArray[$GLOBALS['TCA'][$table]['ctrl']['tstamp']] = $GLOBALS['EXEC_TIME'];
+        if ($schema->hasCapability(TcaSchemaCapability::UpdatedAt)) {
+            $fieldArray[$schema->getCapability(TcaSchemaCapability::UpdatedAt)->getFieldName()] = $GLOBALS['EXEC_TIME'];
         }
         // Finally, insert record:
-        $this->insertDB($table, $id, $fieldArray, BackendUtility::isTableWorkspaceEnabled($table));
+        $this->insertDB($table, $id, $fieldArray, $schema->isWorkspaceAware());
         // Resets dontProcessTransformations to the previous state.
         $this->dontProcessTransformations = $backupDontProcessTransformations;
         // Return new id:
@@ -4112,14 +4074,13 @@ class DataHandler implements LoggerAwareInterface
         // For "flex" fieldtypes we need to traverse the structure for two reasons: If there are file references they have to be prepended with absolute paths and if there are database reference they MIGHT need to be remapped (still done in remapListedDBRecords())
         if (isset($conf['type']) && $conf['type'] === 'flex') {
             // Get current value array:
-            $flexFormTools = GeneralUtility::makeInstance(FlexFormTools::class);
-            $dataStructureIdentifier = $flexFormTools->getDataStructureIdentifier(
+            $dataStructureIdentifier = $this->flexFormTools->getDataStructureIdentifier(
                 ['config' => $conf],
                 $table,
                 $field,
                 $row
             );
-            $dataStructureArray = $flexFormTools->parseDataStructureByIdentifier($dataStructureIdentifier);
+            $dataStructureArray = $this->flexFormTools->parseDataStructureByIdentifier($dataStructureIdentifier);
             $currentValue = is_string($value) ? GeneralUtility::xml2array($value) : null;
             // Traversing the XML structure, processing files:
             if (is_array($currentValue)) {
@@ -4159,7 +4120,7 @@ class DataHandler implements LoggerAwareInterface
             // Check whether allowed tables can be localized.
             $localizeTables = [];
             foreach ($allowedTablesArray as $allowedTable) {
-                $localizeTables[$allowedTable] = BackendUtility::isTableLocalizable($allowedTable);
+                $localizeTables[$allowedTable] = (bool)$this->tcaSchemaFactory->get($allowedTable)->isLanguageAware();
             }
 
             foreach ($dbAnalysis->itemArray as $index => $item) {
@@ -4215,21 +4176,25 @@ class DataHandler implements LoggerAwareInterface
         $language,
         array $workspaceOptions
     ) {
+        $schema = $this->tcaSchemaFactory->get($table);
         // Fetch the related child records using \TYPO3\CMS\Core\Database\RelationHandler
         $dbAnalysis = $this->createRelationHandlerInstance();
         $dbAnalysis->start($value, $conf['foreign_table'], '', $uid, $table, $conf);
         // Walk through the items, copy them and remember the new id:
         foreach ($dbAnalysis->itemArray as $k => $v) {
             $newId = null;
+            $childTableIsWorkspaceAware = $this->tcaSchemaFactory->has($v['table'])
+                ? $this->tcaSchemaFactory->get($v['table'])->isWorkspaceAware()
+                : false;
             // If language is set and differs from original record, this isn't a copy action but a localization of our parent/ancestor:
-            if ($language > 0 && BackendUtility::isTableLocalizable($table) && $language != $row[$GLOBALS['TCA'][$table]['ctrl']['languageField']]) {
+            if ($language > 0 && $schema->isLanguageAware() && $language != $row[$schema->getCapability(TcaSchemaCapability::Language)->getLanguageField()->getName()]) {
                 // Children should be localized when the parent gets localized the first time, just do it:
                 $newId = $this->localize($v['table'], $v['id'], $language);
             } else {
                 if (!MathUtility::canBeInterpretedAsInteger($realDestPid)) {
                     $newId = $this->copyRecord($v['table'], $v['id'], -(int)($v['id']));
                     // If the destination page id is a NEW string, keep it on the same page
-                } elseif ($this->BE_USER->workspace > 0 && BackendUtility::isTableWorkspaceEnabled($v['table'])) {
+                } elseif ($this->BE_USER->workspace > 0 && $childTableIsWorkspaceAware) {
                     // A filled $workspaceOptions indicated that this call
                     // has it's origin in previous versionizeRecord() processing
                     if (!empty($workspaceOptions)) {
@@ -4252,7 +4217,7 @@ class DataHandler implements LoggerAwareInterface
                             $newId = $this->copyRecord($v['table'], $v['id'], $realDestPid);
                         }
                     }
-                } elseif ($this->BE_USER->workspace > 0 && !BackendUtility::isTableWorkspaceEnabled($v['table'])) {
+                } elseif ($this->BE_USER->workspace > 0 && !$childTableIsWorkspaceAware) {
                     // We are in workspace context creating a new parent version and have a child table
                     // that is not workspace aware. We don't do anything with this child.
                     continue;
@@ -4295,7 +4260,7 @@ class DataHandler implements LoggerAwareInterface
      * @see checkValue_flex_procInData_travDS()
      * @internal should only be used from within DataHandler
      */
-    public function copyRecord_flexFormCallBack($pParams, $dsConf, $dataValue, $_1, $_2, $workspaceOptions)
+    public function copyRecord_flexFormCallBack($pParams, $dsConf, $dataValue, $_1, $_2, $workspaceOptions): array
     {
         // Extract parameters:
         [$table, $uid, $field, $realDestPid] = $pParams;
@@ -4311,30 +4276,34 @@ class DataHandler implements LoggerAwareInterface
     /**
      * Find l10n-overlay records and perform the requested copy action for these records.
      *
-     * @param string $table Record Table
-     * @param int $uid UID of the record in the default language
+     * @param int $uid uid default language record
      * @param int $destPid Position to copy to
      * @param bool $first
      * @param array $overrideValues
      * @param string $excludeFields
-     * @internal should only be used from within DataHandler
      */
-    public function copyL10nOverlayRecords($table, $uid, $destPid, $first = false, $overrideValues = [], $excludeFields = '')
+    protected function copyL10nOverlayRecords(string $table, int $uid, $destPid, $first = false, $overrideValues = [], $excludeFields = ''): void
     {
-        // There's no need to perform this for tables that are not localizable
-        if (!BackendUtility::isTableLocalizable($table)) {
+        if (!$this->tcaSchemaFactory->has($table)) {
+            return;
+        }
+        $schema = $this->tcaSchemaFactory->get($table);
+        if (!$schema->isLanguageAware()) {
+            return;
+        }
+        /** @var LanguageAwareSchemaCapability $languageCapability */
+        $languageCapability = $schema->getCapability(TcaSchemaCapability::Language);
+        $languageField = $languageCapability->getLanguageField()->getName();
+        $transOrigPointerField = $languageCapability->getTranslationOriginPointerField()->getName();
+        // Nothing to do if records of this table are not localizable
+        if (empty($languageField) || empty($transOrigPointerField)) {
             return;
         }
 
-        $languageField = $GLOBALS['TCA'][$table]['ctrl']['languageField'] ?? null;
-        $transOrigPointerField = $GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField'] ?? null;
-
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($table);
-        $queryBuilder->getRestrictions()
-            ->removeAll()
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable($table);
+        $queryBuilder->getRestrictions()->removeAll()
             ->add(GeneralUtility::makeInstance(DeletedRestriction::class))
-            ->add(GeneralUtility::makeInstance(WorkspaceRestriction::class, (int)$this->BE_USER->workspace));
-
+            ->add(GeneralUtility::makeInstance(WorkspaceRestriction::class, $this->BE_USER->workspace));
         $queryBuilder->select('*')
             ->from($table)
             ->where(
@@ -4346,48 +4315,69 @@ class DataHandler implements LoggerAwareInterface
 
         // Never copy the actual placeholders around, as the newly copied records are
         // always created as new record / new placeholder pairs
-        if (BackendUtility::isTableWorkspaceEnabled($table)) {
+        if ($schema->isWorkspaceAware()) {
             $queryBuilder->andWhere(
                 $queryBuilder->expr()->neq(
                     't3ver_state',
-                    VersionState::DELETE_PLACEHOLDER
+                    VersionState::DELETE_PLACEHOLDER->value
                 )
             );
         }
 
         // If $destPid is < 0, get the pid of the record with uid equal to abs($destPid)
+        // @todo: getTSconfig_pidValue() may return -1 or -2, which is an ugly interface and not handled below properly.
         $tscPID = BackendUtility::getTSconfig_pidValue($table, $uid, $destPid) ?? 0;
         // Get the localized records to be copied
         $l10nRecords = $queryBuilder->executeQuery()->fetchAllAssociative();
-        if (is_array($l10nRecords)) {
-            $localizedDestPids = [];
-            // If $destPid < 0, then it is the uid of the original language record we are inserting after
-            if ($destPid < 0) {
-                // Get the localized records of the record we are inserting after
-                $queryBuilder->setParameter('pointer', abs($destPid), Connection::PARAM_INT);
-                $destL10nRecords = $queryBuilder->executeQuery()->fetchAllAssociative();
-                // Index the localized record uids by language
-                if (is_array($destL10nRecords)) {
-                    foreach ($destL10nRecords as $record) {
-                        $localizedDestPids[$record[$languageField]] = -$record['uid'];
-                    }
-                }
-            }
-            $languageSourceMap = [
-                $uid => $overrideValues[$transOrigPointerField],
-            ];
-            // Copy the localized records after the corresponding localizations of the destination record
-            foreach ($l10nRecords as $record) {
-                $localizedDestPid = (int)($localizedDestPids[$record[$languageField]] ?? 0);
-                if ($localizedDestPid < 0) {
-                    $newUid = $this->copyRecord($table, $record['uid'], $localizedDestPid, $first, $overrideValues, $excludeFields, $record[$GLOBALS['TCA'][$table]['ctrl']['languageField']]);
-                } else {
-                    $newUid = $this->copyRecord($table, $record['uid'], $destPid < 0 ? $tscPID : $destPid, $first, $overrideValues, $excludeFields, $record[$GLOBALS['TCA'][$table]['ctrl']['languageField']]);
-                }
-                $languageSourceMap[$record['uid']] = $newUid;
-            }
-            $this->copy_remapTranslationSourceField($table, $l10nRecords, $languageSourceMap);
+        if (empty($l10nRecords)) {
+            return;
         }
+
+        $localizedDestPids = [];
+        // If $destPid < 0, then it is the uid of the original language record we are inserting after
+        if ($destPid < 0) {
+            // Get the localized records of the record we are inserting after
+            $queryBuilder->setParameter('pointer', abs($destPid), Connection::PARAM_INT);
+            $destL10nRecords = $queryBuilder->executeQuery()->fetchAllAssociative();
+            // Index the localized record uids by language
+            if (is_array($destL10nRecords)) {
+                foreach ($destL10nRecords as $record) {
+                    $localizedDestPids[$record[$languageField]] = -$record['uid'];
+                }
+            }
+        }
+        $languageSourceMap = [
+            $uid => $overrideValues[$transOrigPointerField],
+        ];
+
+        // Get available page translations
+        if ($table !== 'pages') {
+            $availableLanguages = [];
+            $pageTranslations = BackendUtility::getExistingPageTranslations($destPid < 0 ? $tscPID : $destPid);
+            // Build array with language ids for comparison
+            foreach ($pageTranslations as $translation) {
+                $availableLanguages[] = $translation[$languageField];
+            }
+            // Filter records
+            foreach ($l10nRecords as $key => $record) {
+                // Remove record when target page in not available in the corresponding language
+                if (!in_array($record[$languageField], $availableLanguages, true)) {
+                    unset($l10nRecords[$key]);
+                }
+            }
+        }
+
+        // Copy the localized records after the corresponding localizations of the destination record
+        foreach ($l10nRecords as $record) {
+            $localizedDestPid = (int)($localizedDestPids[$record[$languageField]] ?? 0);
+            if ($localizedDestPid < 0) {
+                $newUid = $this->copyRecord($table, $record['uid'], $localizedDestPid, $first, $overrideValues, $excludeFields, $record[$languageField]);
+            } else {
+                $newUid = $this->copyRecord($table, $record['uid'], $destPid < 0 ? $tscPID : $destPid, $first, $overrideValues, $excludeFields, $record[$languageField]);
+            }
+            $languageSourceMap[$record['uid']] = $newUid;
+        }
+        $this->copy_remapTranslationSourceField($table, $l10nRecords, $languageSourceMap);
     }
 
     /**
@@ -4397,13 +4387,22 @@ class DataHandler implements LoggerAwareInterface
      * @param array $l10nRecords array of localized records from the page we're copying from (source records)
      * @param array $languageSourceMap array mapping source records uids to newly copied uids
      */
-    protected function copy_remapTranslationSourceField($table, $l10nRecords, $languageSourceMap)
+    protected function copy_remapTranslationSourceField($table, $l10nRecords, $languageSourceMap): void
     {
-        if (empty($GLOBALS['TCA'][$table]['ctrl']['translationSource']) || empty($GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField'])) {
+        if (!$this->tcaSchemaFactory->has($table)) {
             return;
         }
-        $translationSourceFieldName = $GLOBALS['TCA'][$table]['ctrl']['translationSource'];
-        $translationParentFieldName = $GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField'];
+        $schema = $this->tcaSchemaFactory->get($table);
+        if (!$schema->isLanguageAware()) {
+            return;
+        }
+        /** @var LanguageAwareSchemaCapability $languageCapability */
+        $languageCapability = $schema->getCapability(TcaSchemaCapability::Language);
+        if (!$languageCapability->hasTranslationSourceField()) {
+            return;
+        }
+        $translationSourceFieldName = $languageCapability->getTranslationSourceField()->getName();
+        $translationParentFieldName = $languageCapability->getTranslationOriginPointerField()->getName();
 
         //We can avoid running these update queries by sorting the $l10nRecords by languageSource dependency (in copyL10nOverlayRecords)
         //and first copy records depending on default record (and map the field).
@@ -4423,12 +4422,10 @@ class DataHandler implements LoggerAwareInterface
                     $translationSourceFieldName => $newFieldValue,
                 ];
                 if (isset($languageSourceMap[$record['uid']])) {
-                    GeneralUtility::makeInstance(ConnectionPool::class)
-                        ->getConnectionForTable($table)
+                    $this->connectionPool->getConnectionForTable($table)
                         ->update($table, $updateFields, ['uid' => (int)$languageSourceMap[$record['uid']]]);
                     if ($this->BE_USER->workspace > 0) {
-                        GeneralUtility::makeInstance(ConnectionPool::class)
-                            ->getConnectionForTable($table)
+                        $this->connectionPool->getConnectionForTable($table)
                             ->update($table, $updateFields, ['t3ver_oid' => (int)$languageSourceMap[$record['uid']], 't3ver_wsid' => $this->BE_USER->workspace]);
                     }
                 }
@@ -4449,9 +4446,9 @@ class DataHandler implements LoggerAwareInterface
      * @param int $destPid Position to move to: $destPid: >=0 then it points to a page-id on which to insert the record (as the first element). <0 then it points to a uid from its own table after which to insert it (works if
      * @internal should only be used from within DataHandler
      */
-    public function moveRecord($table, $uid, $destPid)
+    public function moveRecord($table, $uid, $destPid): void
     {
-        if (!$GLOBALS['TCA'][$table]) {
+        if (!$this->tcaSchemaFactory->has($table)) {
             return;
         }
 
@@ -4508,6 +4505,7 @@ class DataHandler implements LoggerAwareInterface
         foreach ($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_tcemain.php']['moveRecordClass'] ?? [] as $className) {
             $hookObj = GeneralUtility::makeInstance($className);
             if (method_exists($hookObj, 'moveRecord')) {
+                /** @var bool $recordWasMoved */
                 $hookObj->moveRecord($table, $uid, $destPid, $propArr, $moveRec, $resolvedPid, $recordWasMoved, $this);
             }
         }
@@ -4527,16 +4525,16 @@ class DataHandler implements LoggerAwareInterface
      * @see moveRecord()
      * @internal should only be used from within DataHandler
      */
-    public function moveRecord_raw($table, $uid, $destPid)
+    public function moveRecord_raw($table, $uid, $destPid): void
     {
-        $sortColumn = $GLOBALS['TCA'][$table]['ctrl']['sortby'] ?? '';
+        $schema = $this->tcaSchemaFactory->get($table);
         $origDestPid = $destPid;
         // This is the actual pid of the moving to destination
         $resolvedPid = $this->resolvePid($table, $destPid);
         // Checking if the pid is negative, but no sorting row is defined. In that case, find the correct pid.
         // Basically this check make the error message 4-13 meaning less... But you can always remove this check if you
         // prefer the error instead of a no-good action (which is to move the record to its own page...)
-        if (($destPid < 0 && !$sortColumn) || $destPid >= 0) {
+        if (($destPid < 0 && !$schema->hasCapability(TcaSchemaCapability::SortByField)) || $destPid >= 0) {
             $destPid = $resolvedPid;
         }
         // Get this before we change the pid (for logging)
@@ -4549,8 +4547,8 @@ class DataHandler implements LoggerAwareInterface
         }
         // Timestamp field:
         $updateFields = [];
-        if ($GLOBALS['TCA'][$table]['ctrl']['tstamp'] ?? false) {
-            $updateFields[$GLOBALS['TCA'][$table]['ctrl']['tstamp']] = $GLOBALS['EXEC_TIME'];
+        if ($schema->hasCapability(TcaSchemaCapability::UpdatedAt)) {
+            $updateFields[$schema->getCapability(TcaSchemaCapability::UpdatedAt)->getFieldName()] = $GLOBALS['EXEC_TIME'];
         }
 
         // Check if this is a translation of a page, if so then it just needs to be kept "sorting" in sync
@@ -4568,7 +4566,7 @@ class DataHandler implements LoggerAwareInterface
                 // If the default language page has been moved, localized pages need to be moved to
                 // that pid and sorting, too.
                 $originalTranslationRecord = $this->recordInfo($table, $defaultLanguagePageUid);
-                $updateFields[$sortColumn] = $originalTranslationRecord[$sortColumn];
+                $updateFields[$schema->getCapability(TcaSchemaCapability::SortByField)->getFieldName()] = $originalTranslationRecord[$schema->getCapability(TcaSchemaCapability::SortByField)->getFieldName()];
                 $destPid = $originalTranslationRecord['pid'];
             }
         }
@@ -4582,19 +4580,18 @@ class DataHandler implements LoggerAwareInterface
                 // Setting PID
                 $updateFields['pid'] = $destPid;
                 // Table is sorted by 'sortby'
-                if ($sortColumn && !isset($updateFields[$sortColumn])) {
+                if ($schema->hasCapability(TcaSchemaCapability::SortByField) && !isset($updateFields[$schema->getCapability(TcaSchemaCapability::SortByField)->getFieldName()])) {
                     $sortNumber = $this->getSortNumber($table, $uid, $destPid);
-                    $updateFields[$sortColumn] = $sortNumber;
+                    $updateFields[$schema->getCapability(TcaSchemaCapability::SortByField)->getFieldName()] = $sortNumber;
                 }
                 // Check for child records that have also to be moved
                 $this->moveRecord_procFields($table, $uid, $destPid);
                 // Create query for update:
-                GeneralUtility::makeInstance(ConnectionPool::class)
-                    ->getConnectionForTable($table)
+                $this->connectionPool->getConnectionForTable($table)
                     ->update($table, $updateFields, ['uid' => (int)$uid]);
                 // Check for the localizations of that element
                 $this->moveL10nOverlayRecords($table, $uid, $destPid, $destPid);
-                // Call post processing hooks:
+                // Call post-processing hooks:
                 foreach ($hookObjectsArr as $hookObj) {
                     if (method_exists($hookObj, 'moveRecord_firstElementPostProcess')) {
                         $hookObj->moveRecord_firstElementPostProcess($table, $uid, $destPid, $moveRec, $updateFields, $this);
@@ -4628,7 +4625,7 @@ class DataHandler implements LoggerAwareInterface
                 $destPropArr = $this->getRecordProperties('pages', $destPid);
                 $this->log($table, $uid, SystemLogDatabaseAction::MOVE, 0, SystemLogErrorClassification::USER_ERROR, 'Attempt to move page "{title}" ({uid}) to inside of its own rootline (at page "{pageTitle}" ({pid}))', 10, ['title' => $propArr['header'], 'uid' => $uid, 'pageTitle' => $destPropArr['header'], 'pid' => $destPid], $propArr['pid']);
             }
-        } elseif ($sortColumn) {
+        } elseif ($schema->hasCapability(TcaSchemaCapability::SortByField)) {
             // Put after another record
             // Table is being sorted
             // Save the position to which the original record is requested to be moved
@@ -4643,18 +4640,17 @@ class DataHandler implements LoggerAwareInterface
                     $this->registerRecordIdForPageCacheClearing($table, $uid);
                     // We now update the pid and sortnumber (if not set for page translations)
                     $updateFields['pid'] = $destPid;
-                    if (!isset($updateFields[$sortColumn])) {
-                        $updateFields[$sortColumn] = $sortInfo['sortNumber'];
+                    if (!isset($updateFields[$schema->getCapability(TcaSchemaCapability::SortByField)->getFieldName()])) {
+                        $updateFields[$schema->getCapability(TcaSchemaCapability::SortByField)->getFieldName()] = $sortInfo['sortNumber'];
                     }
                     // Check for child records that have also to be moved
                     $this->moveRecord_procFields($table, $uid, $destPid);
                     // Create query for update:
-                    GeneralUtility::makeInstance(ConnectionPool::class)
-                        ->getConnectionForTable($table)
+                    $this->connectionPool->getConnectionForTable($table)
                         ->update($table, $updateFields, ['uid' => (int)$uid]);
                     // Check for the localizations of that element
                     $this->moveL10nOverlayRecords($table, $uid, $destPid, $originalRecordDestinationPid);
-                    // Call post processing hooks:
+                    // Call post-processing hooks:
                     foreach ($hookObjectsArr as $hookObj) {
                         if (method_exists($hookObj, 'moveRecord_afterAnotherElementPostProcess')) {
                             $hookObj->moveRecord_afterAnotherElementPostProcess($table, $uid, $destPid, $origDestPid, $moveRec, $updateFields, $this);
@@ -4702,13 +4698,14 @@ class DataHandler implements LoggerAwareInterface
      * @param int $destPid Position to move to
      * @internal should only be used from within DataHandler
      */
-    public function moveRecord_procFields($table, $uid, $destPid)
+    public function moveRecord_procFields($table, $uid, $destPid): void
     {
         $row = BackendUtility::getRecordWSOL($table, $uid);
         if (is_array($row) && (int)$destPid !== (int)$row['pid']) {
-            $conf = $GLOBALS['TCA'][$table]['columns'];
+            $schema = $this->tcaSchemaFactory->get($table);
             foreach ($row as $field => $value) {
-                $this->moveRecord_procBasedOnFieldType($table, $uid, $destPid, $value, $conf[$field]['config'] ?? []);
+                $conf = $schema->hasField($field) ? $schema->getField($field)->getConfiguration() : [];
+                $this->moveRecord_procBasedOnFieldType($table, $uid, $destPid, $value, $conf);
             }
         }
     }
@@ -4755,26 +4752,27 @@ class DataHandler implements LoggerAwareInterface
      * @param int $originalRecordDestinationPid Position to move the original record to
      * @internal should only be used from within DataHandler
      */
-    public function moveL10nOverlayRecords($table, $uid, $destPid, $originalRecordDestinationPid)
+    public function moveL10nOverlayRecords($table, $uid, $destPid, $originalRecordDestinationPid): void
     {
+        $schema = $this->tcaSchemaFactory->get($table);
         // There's no need to perform this for non-localizable tables
-        if (!BackendUtility::isTableLocalizable($table)) {
+        if (!$schema->isLanguageAware()) {
             return;
         }
 
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($table);
-        $queryBuilder->getRestrictions()
-            ->removeAll()
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable($table);
+        $queryBuilder->getRestrictions()->removeAll()
             ->add(GeneralUtility::makeInstance(DeletedRestriction::class))
             ->add(GeneralUtility::makeInstance(WorkspaceRestriction::class, $this->BE_USER->workspace));
 
-        $languageField = $GLOBALS['TCA'][$table]['ctrl']['languageField'];
-        $transOrigPointerField = $GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField'] ?? null;
+        /** @var LanguageAwareSchemaCapability $languageCapability */
+        $languageCapability = $schema->getCapability(TcaSchemaCapability::Language);
+        $languageField = $languageCapability->getLanguageField()->getName();
         $l10nRecords = $queryBuilder->select('*')
             ->from($table)
             ->where(
                 $queryBuilder->expr()->eq(
-                    $transOrigPointerField,
+                    $languageCapability->getTranslationOriginPointerField()->getName(),
                     $queryBuilder->createNamedParameter($uid, Connection::PARAM_INT, ':pointer')
                 )
             )
@@ -4820,15 +4818,21 @@ class DataHandler implements LoggerAwareInterface
     {
         $newId = false;
         $uid = (int)$uid;
-        if (!$GLOBALS['TCA'][$table] || !$uid || $this->isNestedElementCallRegistered($table, $uid, 'localize-' . (string)$language) !== false) {
+        if (!$this->tcaSchemaFactory->has($table) || !$uid || $this->isNestedElementCallRegistered($table, $uid, 'localize-' . (string)$language) !== false) {
             return false;
         }
 
+        $schema = $this->tcaSchemaFactory->get($table);
         $this->registerNestedElementCall($table, $uid, 'localize-' . (string)$language);
-        if (empty($GLOBALS['TCA'][$table]['ctrl']['languageField']) || empty($GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField'])) {
+        if (!$schema->isLanguageAware()) {
             $this->log($table, $uid, SystemLogDatabaseAction::LOCALIZE, 0, SystemLogErrorClassification::USER_ERROR, 'Localization failed; "languageField" and "transOrigPointerField" must be defined for the table {table}', -1, ['table' => $table]);
             return false;
         }
+
+        /** @var LanguageAwareSchemaCapability $languageCapability */
+        $languageCapability = $schema->getCapability(TcaSchemaCapability::Language);
+        $languageFieldName = $languageCapability->getLanguageField()->getName();
+        $translationOriginPointerFieldName = $languageCapability->getTranslationOriginPointerField()->getName();
 
         if (!$this->doesRecordExist($table, $uid, Permission::PAGE_SHOW)) {
             $this->log($table, $uid, SystemLogDatabaseAction::LOCALIZE, 0, SystemLogErrorClassification::USER_ERROR, 'Attempt to localize record {table}:{uid} without permission', -1, ['table' => $table, 'uid' => (int)$uid]);
@@ -4852,21 +4856,21 @@ class DataHandler implements LoggerAwareInterface
 
         // Make sure that records which are translated from another language than the default language have a correct
         // localization source set themselves, before translating them to another language.
-        if ((int)$row[$GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField']] !== 0
-            && $row[$GLOBALS['TCA'][$table]['ctrl']['languageField']] > 0) {
+        if ((int)$row[$translationOriginPointerFieldName] !== 0
+            && $row[$languageFieldName] > 0) {
             $localizationParentRecord = BackendUtility::getRecord(
                 $table,
-                $row[$GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField']]
+                $row[$translationOriginPointerFieldName]
             );
-            if ((int)$localizationParentRecord[$GLOBALS['TCA'][$table]['ctrl']['languageField']] !== 0) {
+            if ((int)$localizationParentRecord[$languageFieldName] !== 0) {
                 $this->log($table, $localizationParentRecord['uid'], SystemLogDatabaseAction::LOCALIZE, 0, SystemLogErrorClassification::USER_ERROR, 'Localization failed: Source record {table}:{originalRecordId} contained a reference to an original record that is not a default record (which is strange)', -1, ['table' => $table, 'originalRecordId' => $localizationParentRecord['uid']]);
                 return false;
             }
         }
 
         // Default language records must never have a localization parent as they are the origin of any translation.
-        if ((int)$row[$GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField']] !== 0
-            && (int)$row[$GLOBALS['TCA'][$table]['ctrl']['languageField']] === 0) {
+        if ((int)$row[$translationOriginPointerFieldName] !== 0
+            && (int)$row[$languageFieldName] === 0) {
             $this->log($table, $row['uid'], SystemLogDatabaseAction::LOCALIZE, 0, SystemLogErrorClassification::USER_ERROR, 'Localization failed: Source record {table}:{uid} contained a reference to an original default record but is a default record itself (which is strange)', -1, ['table' => $table, 'uid' => (int)$row['uid']]);
             return false;
         }
@@ -4895,38 +4899,32 @@ class DataHandler implements LoggerAwareInterface
         // Initialize:
         $overrideValues = [];
         // Set override values:
-        $overrideValues[$GLOBALS['TCA'][$table]['ctrl']['languageField']] = (int)$language;
+        $overrideValues[$languageFieldName] = (int)$language;
         // If the translated record is a default language record, set it's uid as localization parent of the new record.
         // If translating from any other language, no override is needed; we just can copy the localization parent of
         // the original record (which is pointing to the correspondent default language record) to the new record.
         // In copy / free mode the TransOrigPointer field is always set to 0, as no connection to the localization parent is wanted in that case.
         // For pages, there is no "copy/free mode".
-        if (($this->useTransOrigPointerField || $table === 'pages') && (int)$row[$GLOBALS['TCA'][$table]['ctrl']['languageField']] === 0) {
-            $overrideValues[$GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField']] = $uid;
+        if (($this->useTransOrigPointerField || $table === 'pages') && (int)$row[$languageFieldName] === 0) {
+            $overrideValues[$translationOriginPointerFieldName] = $uid;
         } elseif (!$this->useTransOrigPointerField) {
-            $overrideValues[$GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField']] = 0;
+            $overrideValues[$translationOriginPointerFieldName] = 0;
         }
-        if (isset($GLOBALS['TCA'][$table]['ctrl']['translationSource'])) {
-            $overrideValues[$GLOBALS['TCA'][$table]['ctrl']['translationSource']] = $uid;
+        if ($languageCapability->hasTranslationSourceField()) {
+            $overrideValues[$languageCapability->getTranslationSourceField()->getName()] = $uid;
         }
         // Copy the type (if defined in both tables) from the original record so that translation has same type as original record
-        if (isset($GLOBALS['TCA'][$table]['ctrl']['type'])) {
+        if ($schema->getSubSchemaDivisorField() !== null) {
             // @todo: Possible bug here? type can be something like 'table:field', which is then null in $row, writing null to $overrideValues
-            $overrideValues[$GLOBALS['TCA'][$table]['ctrl']['type']] = $row[$GLOBALS['TCA'][$table]['ctrl']['type']] ?? null;
+            $overrideValues[$schema->getSubSchemaDivisorField()->getName()] = $row[$schema->getSubSchemaDivisorField()->getName()] ?? null;
         }
         // Set exclude Fields:
-        foreach ($GLOBALS['TCA'][$table]['columns'] as $fN => $fCfg) {
+        foreach ($schema->getFields() as $field) {
             $translateToMsg = '';
             // Check if we are just prefixing:
-            if (isset($fCfg['l10n_mode'], $fCfg['config']['type'])
-                && $fCfg['l10n_mode'] === 'prefixLangTitle'
-                && (
-                    $fCfg['config']['type'] === 'text'
-                    || $fCfg['config']['type'] === 'input'
-                    || $fCfg['config']['type'] === 'email'
-                    || $fCfg['config']['type'] === 'link'
-                )
-                && (string)$row[$fN] !== ''
+            if ($field->getTranslationBehaviour() === FieldTranslationBehaviour::PrefixLanguageTitle
+                && $field->isType(TableColumnType::TEXT, TableColumnType::INPUT, TableColumnType::EMAIL, TableColumnType::LINK)
+                && (string)$row[$field->getName()] !== ''
             ) {
                 $TSConfig = BackendUtility::getPagesTSconfig($pageId)['TCEMAIN.'] ?? [];
                 $tableEntries = $this->getTableEntries($table, $TSConfig);
@@ -4940,24 +4938,24 @@ class DataHandler implements LoggerAwareInterface
                     if (method_exists($hookObj, 'processTranslateTo_copyAction')) {
                         // @todo Deprecate passing an array and pass the full SiteLanguage object instead
                         $hookObj->processTranslateTo_copyAction(
-                            $row[$fN],
+                            $row[$field->getName()],
                             ['uid' => $siteLanguage->getLanguageId(), 'title' => $siteLanguage->getTitle()],
                             $this,
-                            $fN
+                            $field->getName()
                         );
                     }
                 }
                 if (!empty($translateToMsg)) {
-                    $overrideValues[$fN] = '[' . $translateToMsg . '] ' . $row[$fN];
+                    $overrideValues[$field->getName()] = '[' . $translateToMsg . '] ' . $row[$field->getName()];
                 } else {
-                    $overrideValues[$fN] = $row[$fN];
+                    $overrideValues[$field->getName()] = $row[$field->getName()];
                 }
             }
-            if (($fCfg['config']['MM'] ?? false) && !empty($fCfg['config']['MM_oppositeUsage'])) {
+            if (($field->getConfiguration()['MM'] ?? false) && !empty($field->getConfiguration()['MM_oppositeUsage'])) {
                 // We are localizing the 'local' side of an MM relation. (eg. localizing a category).
                 // In this case, MM relations connected to the default lang record should not be copied,
                 // so we set an override here to not trigger mm handling of 'items' field for this.
-                $overrideValues[$fN] = 0;
+                $overrideValues[$field->getName()] = 0;
             }
         }
 
@@ -4971,16 +4969,17 @@ class DataHandler implements LoggerAwareInterface
             $overrideValues['pid'] = $row['pid'];
             // Take over the hidden state of the original language state, this is done due to legacy reasons where-as
             // pages_language_overlay was set to "hidden -> default=0" but pages hidden -> default 1"
-            if (!empty($GLOBALS['TCA'][$table]['ctrl']['enablecolumns']['disabled'])) {
-                $hiddenFieldName = $GLOBALS['TCA'][$table]['ctrl']['enablecolumns']['disabled'];
-                $overrideValues[$hiddenFieldName] = $row[$hiddenFieldName] ?? $GLOBALS['TCA'][$table]['columns'][$hiddenFieldName]['config']['default'];
+            if ($schema->hasCapability(TcaSchemaCapability::RestrictionDisabledField)) {
+                $hiddenField = $schema->getCapability(TcaSchemaCapability::RestrictionDisabledField)->getField();
+                $hiddenFieldName = $hiddenField->getName();
+                $overrideValues[$hiddenFieldName] = $row[$hiddenFieldName] ?? $hiddenField->getDefaultValue();
                 // Override by TCA "hideAtCopy" or pageTS "disableHideAtCopy"
                 // Only for visible pages to get the same behaviour as for copy
                 if (!$overrideValues[$hiddenFieldName]) {
                     $TSConfig = BackendUtility::getPagesTSconfig($uid)['TCEMAIN.'] ?? [];
                     $tableEntries = $this->getTableEntries($table, $TSConfig);
                     if (
-                        ($GLOBALS['TCA'][$table]['ctrl']['hideAtCopy'] ?? false)
+                        $schema->hasCapability(TcaSchemaCapability::HideRecordsAtCopy)
                         && !$this->neverHideAtCopy
                         && !($tableEntries['disableHideAtCopy'] ?? false)
                     ) {
@@ -4990,7 +4989,7 @@ class DataHandler implements LoggerAwareInterface
             }
             $temporaryId = StringUtility::getUniqueId('NEW');
             $copyTCE = $this->getLocalTCE();
-            $copyTCE->start([$table => [$temporaryId => $overrideValues]], [], $this->BE_USER);
+            $copyTCE->start([$table => [$temporaryId => $overrideValues]], [], $this->BE_USER, $this->referenceIndexUpdater);
             $copyTCE->process_datamap();
             // Getting the new UID as if it had been copied:
             $theNewSQLID = $copyTCE->substNEWwithIDs[$temporaryId];
@@ -5019,12 +5018,16 @@ class DataHandler implements LoggerAwareInterface
      * @param int $id The uid of the localized parent record
      * @param array $command Defines the command to be performed (see example above)
      */
-    protected function inlineLocalizeSynchronize($table, $id, array $command)
+    protected function inlineLocalizeSynchronize($table, $id, array $command): void
     {
+        $schema = $this->tcaSchemaFactory->get($table);
         $parentRecord = BackendUtility::getRecordWSOL($table, $id);
 
+        /** @var LanguageAwareSchemaCapability $languageCapability */
+        $languageCapability = $schema->getCapability(TcaSchemaCapability::Language);
+
         // In case the parent record is the default language record, fetch the localization
-        if (empty($parentRecord[$GLOBALS['TCA'][$table]['ctrl']['languageField']])) {
+        if (empty($parentRecord[$languageCapability->getLanguageField()->getName()])) {
             // Fetch the live record
             // @todo: this needs to be revisited, as getRecordLocalization() does a WorkspaceRestriction
             //        based on $GLOBALS[BE_USER], which could differ from the $this->BE_USER->workspace value
@@ -5046,15 +5049,17 @@ class DataHandler implements LoggerAwareInterface
         $action = $command['action'] ?? '';
         $ids = $command['ids'] ?? [];
 
-        if (!$field || !($action === 'localize' || $action === 'synchronize') && empty($ids) || !isset($GLOBALS['TCA'][$table]['columns'][$field]['config'])) {
+        if (!$field || !($action === 'localize' || $action === 'synchronize') && empty($ids) || !$schema->hasField($field)) {
             return;
         }
 
-        $config = $GLOBALS['TCA'][$table]['columns'][$field]['config'];
+        $fieldDefinition = $schema->getField($field);
+        $config = $fieldDefinition->getConfiguration();
         $foreignTable = $config['foreign_table'];
 
-        $transOrigPointer = (int)$parentRecord[$GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField']];
-        $childTransOrigPointerField = $GLOBALS['TCA'][$foreignTable]['ctrl']['transOrigPointerField'];
+        $foreignTableSchema = $this->tcaSchemaFactory->get($foreignTable);
+        $transOrigPointer = (int)$parentRecord[$languageCapability->getTranslationOriginPointerField()->getName()];
+        $childTransOrigPointerField = $foreignTableSchema->getCapability(TcaSchemaCapability::Language)->getTranslationOriginPointerField()->getName();
 
         if (!$parentRecord || !is_array($parentRecord) || $language <= 0 || !$transOrigPointer) {
             return;
@@ -5096,7 +5101,7 @@ class DataHandler implements LoggerAwareInterface
         }
         // Perform synchronization/localization: Possibly add unlocalized records for original language:
         if ($action === 'localize' || $action === 'synchronize') {
-            foreach ($elementsOriginal as $originalId => $item) {
+            foreach ($elementsOriginal as $item) {
                 if ($this->isRecordLocalized((string)$item['table'], (int)$item['id'], (int)$language)) {
                     continue;
                 }
@@ -5128,9 +5133,9 @@ class DataHandler implements LoggerAwareInterface
         $this->registerDBList[$table][$id][$field] = $value;
         // Remove child records (if synchronization requested it):
         if (is_array($removeArray) && !empty($removeArray)) {
-            $tce = GeneralUtility::makeInstance(self::class, $this->referenceIndexUpdater);
+            $tce = GeneralUtility::makeInstance(self::class);
             $tce->enableLogging = $this->enableLogging;
-            $tce->start([], $removeArray, $this->BE_USER);
+            $tce->start([], $removeArray, $this->BE_USER, $this->referenceIndexUpdater);
             $tce->process_cmdmap();
             unset($tce);
         }
@@ -5179,7 +5184,7 @@ class DataHandler implements LoggerAwareInterface
      * @param int $id Record UID
      * @internal should only be used from within DataHandler
      */
-    public function deleteAction($table, $id)
+    public function deleteAction($table, $id): void
     {
         $recordToDelete = BackendUtility::getRecord($table, $id);
 
@@ -5195,6 +5200,7 @@ class DataHandler implements LoggerAwareInterface
             foreach ($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_tcemain.php']['processCmdmapClass'] ?? [] as $className) {
                 $hookObj = GeneralUtility::makeInstance($className);
                 if (method_exists($hookObj, 'processCmdmap_deleteAction')) {
+                    /** @var bool $recordWasDeleted */
                     $hookObj->processCmdmap_deleteAction($table, $id, $recordToDelete, $recordWasDeleted, $this);
                 }
             }
@@ -5215,12 +5221,12 @@ class DataHandler implements LoggerAwareInterface
      * @param bool $deleteRecordsOnPage If false and if deleting pages, records on the page will not be deleted (edge case while swapping workspaces)
      * @internal should only be used from within DataHandler
      */
-    public function deleteEl($table, $uid, $noRecordCheck = false, $forceHardDelete = false, bool $deleteRecordsOnPage = true)
+    public function deleteEl(string $table, int $uid, bool $noRecordCheck = false, bool $forceHardDelete = false, bool $deleteRecordsOnPage = true): void
     {
         if ($table === 'pages') {
             $this->deletePages($uid, $noRecordCheck, $forceHardDelete, $deleteRecordsOnPage);
         } else {
-            $this->discardLocalizedWorkspaceVersionsOfRecord((string)$table, (int)$uid);
+            $this->discardLocalizedWorkspaceVersionsOfRecord($table, $uid);
             $this->discardWorkspaceVersionsOfRecord($table, $uid);
             $this->deleteRecord($table, $uid, $noRecordCheck, $forceHardDelete);
         }
@@ -5234,20 +5240,23 @@ class DataHandler implements LoggerAwareInterface
      */
     protected function discardLocalizedWorkspaceVersionsOfRecord(string $table, int $uid): void
     {
-        if (!BackendUtility::isTableLocalizable($table)
-            || !BackendUtility::isTableWorkspaceEnabled($table)
+        $schema = $this->tcaSchemaFactory->get($table);
+        if (!$schema->isLanguageAware()
+            || !$schema->isWorkspaceAware()
             || !$this->BE_USER->recordEditAccessInternals($table, $uid)
         ) {
             return;
         }
-        $languageField = $GLOBALS['TCA'][$table]['ctrl']['languageField'];
-        $localizationParentFieldName = $GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField'];
+        /** @var LanguageAwareSchemaCapability $languageCapability */
+        $languageCapability = $schema->getCapability(TcaSchemaCapability::Language);
+        $languageField = $languageCapability->getLanguageField()->getName();
+        $localizationParentFieldName = $languageCapability->getTranslationOriginPointerField()->getName();
         $liveRecord = BackendUtility::getRecord($table, $uid);
         if ((int)($liveRecord[$languageField] ?? 0) !== 0 || (int)($liveRecord['t3ver_wsid'] ?? 0) !== 0) {
             // Don't do anything if we're not deleting a live record in default language
             return;
         }
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($table);
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable($table);
         $queryBuilder->getRestrictions()->removeAll();
         $queryBuilder = $queryBuilder->select('*')->from($table)
             ->where(
@@ -5256,7 +5265,7 @@ class DataHandler implements LoggerAwareInterface
                 // with sys_language_uid > 0
                 $queryBuilder->expr()->gt($languageField, $queryBuilder->createNamedParameter(0, Connection::PARAM_INT)),
                 // in state 'new'
-                $queryBuilder->expr()->eq('t3ver_state', $queryBuilder->createNamedParameter(VersionState::NEW_PLACEHOLDER, Connection::PARAM_INT)),
+                $queryBuilder->expr()->eq('t3ver_state', $queryBuilder->createNamedParameter(VersionState::NEW_PLACEHOLDER->value, Connection::PARAM_INT)),
                 // with "l10n_parent" set to uid of live record
                 $queryBuilder->expr()->eq($localizationParentFieldName, $queryBuilder->createNamedParameter($uid, Connection::PARAM_INT))
             );
@@ -5315,11 +5324,10 @@ class DataHandler implements LoggerAwareInterface
      * @param bool $forceHardDelete If TRUE, the "deleted" flag is ignored if applicable for record and the record is deleted COMPLETELY!
      * @internal should only be used from within DataHandler
      */
-    public function deleteRecord($table, $uid, $noRecordCheck = false, $forceHardDelete = false)
+    public function deleteRecord(string $table, int $uid, bool $noRecordCheck = false, bool $forceHardDelete = false): void
     {
-        $currentUserWorkspace = (int)$this->BE_USER->workspace;
-        $uid = (int)$uid;
-        if (!$GLOBALS['TCA'][$table] || !$uid) {
+        $currentUserWorkspace = $this->BE_USER->workspace;
+        if (!$this->tcaSchemaFactory->has($table) || !$uid) {
             $this->log($table, $uid, SystemLogDatabaseAction::DELETE, 0, SystemLogErrorClassification::USER_ERROR, 'Attempt to delete record without delete-permissions [{reason}]', -1, ['reason' => $this->BE_USER->errorMsg]);
             return;
         }
@@ -5327,6 +5335,8 @@ class DataHandler implements LoggerAwareInterface
         if (!$forceHardDelete && $this->hasDeletedRecord($table, $uid)) {
             return;
         }
+
+        $schema = $this->tcaSchemaFactory->get($table);
 
         // Checking if there is anything else disallowing deleting the record by checking if editing is allowed
         $fullLanguageAccessCheck = true;
@@ -5356,7 +5366,7 @@ class DataHandler implements LoggerAwareInterface
 
         $recordToDelete = [];
         $recordWorkspaceId = 0;
-        if (BackendUtility::isTableWorkspaceEnabled($table)) {
+        if ($schema->isWorkspaceAware()) {
             $recordToDelete = BackendUtility::getRecord($table, $uid);
             $recordWorkspaceId = (int)($recordToDelete['t3ver_wsid'] ?? 0);
         }
@@ -5364,7 +5374,6 @@ class DataHandler implements LoggerAwareInterface
         // Clear cache before deleting the record, else the correct page cannot be identified by clear_cache
         [$parentUid] = BackendUtility::getTSCpid($table, $uid, '');
         $this->registerRecordIdForPageCacheClearing($table, $uid, $parentUid);
-        $deleteField = $GLOBALS['TCA'][$table]['ctrl']['delete'] ?? false;
         $databaseErrorMessage = '';
         if ($recordWorkspaceId > 0) {
             // If this is a workspace record, use discard
@@ -5372,30 +5381,29 @@ class DataHandler implements LoggerAwareInterface
             $this->discard($table, null, $recordToDelete);
             // Switch user back to original workspace
             $this->BE_USER->workspace = $currentUserWorkspace;
-        } elseif ($deleteField && !$forceHardDelete) {
+        } elseif ($schema->hasCapability(TcaSchemaCapability::SoftDelete) && !$forceHardDelete) {
             $updateFields = [
-                $deleteField => 1,
+                $schema->getCapability(TcaSchemaCapability::SoftDelete)->getFieldName() => 1,
             ];
-            if ($GLOBALS['TCA'][$table]['ctrl']['tstamp'] ?? false) {
-                $updateFields[$GLOBALS['TCA'][$table]['ctrl']['tstamp']] = $GLOBALS['EXEC_TIME'];
+            if ($schema->hasCapability(TcaSchemaCapability::UpdatedAt)) {
+                $updateFields[$schema->getCapability(TcaSchemaCapability::UpdatedAt)->getFieldName()] = $GLOBALS['EXEC_TIME'];
             }
             // before deleting this record, check for child records or references
             $this->deleteRecord_procFields($table, $uid);
             try {
                 // Delete all l10n records as well
-                $this->deletedRecords[$table][] = (int)$uid;
+                $this->deletedRecords[$table][] = $uid;
                 $this->deleteL10nOverlayRecords($table, $uid);
-                GeneralUtility::makeInstance(ConnectionPool::class)
-                    ->getConnectionForTable($table)
-                    ->update($table, $updateFields, ['uid' => (int)$uid]);
+                $this->connectionPool->getConnectionForTable($table)
+                    ->update($table, $updateFields, ['uid' => $uid]);
             } catch (DBALException $e) {
                 $databaseErrorMessage = $e->getPrevious()->getMessage();
             }
         } else {
             // Delete the hard way...:
             try {
-                $this->hardDeleteSingleRecord($table, (int)$uid);
-                $this->deletedRecords[$table][] = (int)$uid;
+                $this->hardDeleteSingleRecord($table, $uid);
+                $this->deletedRecords[$table][] = $uid;
                 $this->deleteL10nOverlayRecords($table, $uid);
             } catch (DBALException $e) {
                 $databaseErrorMessage = $e->getPrevious()->getMessage();
@@ -5442,22 +5450,23 @@ class DataHandler implements LoggerAwareInterface
      * @param bool $deleteRecordsOnPage If false, records on the page will not be deleted (edge case while swapping workspaces)
      * @internal should only be used from within DataHandler
      */
-    public function deletePages($uid, $force = false, $forceHardDelete = false, bool $deleteRecordsOnPage = true)
+    public function deletePages(int $uid, bool $force = false, bool $forceHardDelete = false, bool $deleteRecordsOnPage = true): void
     {
-        $uid = (int)$uid;
         if ($uid === 0) {
             $this->log('pages', $uid, SystemLogDatabaseAction::DELETE, 0, SystemLogErrorClassification::SYSTEM_ERROR, 'Deleting all pages starting from the root-page is disabled', -1, [], 0);
             return;
         }
         // Getting list of pages to delete:
         if ($force) {
-            // Returns the branch WITHOUT permission checks (0 secures that), so it cannot return -1
-            $pageIdsInBranch = $this->doesBranchExist('', $uid, 0, true);
-            $res = GeneralUtility::intExplode(',', $pageIdsInBranch . $uid, true);
+            // Returns the branch WITHOUT permission checks, so it cannot return null
+            $res = $this->doesBranchExist($uid, Permission::NOTHING);
+            if (is_array($res)) {
+                $res[] = $uid;
+            }
         } else {
             $res = $this->canDeletePage($uid);
         }
-        // Perform deletion if not error:
+        // Perform deletion if no error occurred
         if (is_array($res)) {
             foreach ($res as $deleteId) {
                 $this->deleteSpecificPage($deleteId, $forceHardDelete, $deleteRecordsOnPage);
@@ -5483,14 +5492,12 @@ class DataHandler implements LoggerAwareInterface
      * @internal
      * @see deletePages()
      */
-    public function deleteSpecificPage($uid, $forceHardDelete = false, bool $deleteRecordsOnPage = true)
+    protected function deleteSpecificPage(int $uid, bool $forceHardDelete, bool $deleteRecordsOnPage): void
     {
-        $uid = (int)$uid;
         if (!$uid) {
             // Early void return on invalid uid
             return;
         }
-        $forceHardDelete = (bool)$forceHardDelete;
 
         // Delete either a default language page or a translated page
         $pageIdInDefaultLanguage = $this->getDefaultLanguagePageId($uid);
@@ -5505,18 +5512,18 @@ class DataHandler implements LoggerAwareInterface
             // adapts the query for other tables to use the uid of the default language page as pid together
             // with the language id of the translated page.
             $isPageTranslation = true;
-            $pageLanguageId = $this->pageInfo($uid, $GLOBALS['TCA']['pages']['ctrl']['languageField']);
+            $pageLanguageId = $this->pageInfo($uid, $this->tcaSchemaFactory->get('pages')->getCapability(TcaSchemaCapability::Language)->getLanguageField()->getName());
         }
 
         if ($deleteRecordsOnPage) {
-            $tableNames = $this->compileAdminTables();
-            foreach ($tableNames as $table) {
-                if ($table === 'pages' || ($isPageTranslation && !BackendUtility::isTableLocalizable($table))) {
+            foreach ($this->tcaSchemaFactory->all() as $schema) {
+                $table = $schema->getName();
+                if ($table === 'pages' || ($isPageTranslation && !$schema->isLanguageAware())) {
                     // Skip pages table. And skip table if not translatable, but a translated page is deleted
                     continue;
                 }
 
-                $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($table);
+                $queryBuilder = $this->connectionPool->getQueryBuilderForTable($table);
                 $this->addDeleteRestriction($queryBuilder->getRestrictions()->removeAll());
                 $queryBuilder
                     ->select('uid')
@@ -5535,7 +5542,7 @@ class DataHandler implements LoggerAwareInterface
                             $queryBuilder->createNamedParameter($pageIdInDefaultLanguage, Connection::PARAM_INT)
                         ),
                         $queryBuilder->expr()->eq(
-                            $GLOBALS['TCA'][$table]['ctrl']['languageField'],
+                            $schema->getCapability(TcaSchemaCapability::Language)->getLanguageField()->getName(),
                             $queryBuilder->createNamedParameter($pageLanguageId, Connection::PARAM_INT)
                         )
                     );
@@ -5549,8 +5556,8 @@ class DataHandler implements LoggerAwareInterface
                     );
                 }
 
-                $currentUserWorkspace = (int)$this->BE_USER->workspace;
-                if ($currentUserWorkspace !== 0 && BackendUtility::isTableWorkspaceEnabled($table)) {
+                $currentUserWorkspace = $this->BE_USER->workspace;
+                if ($currentUserWorkspace !== 0 && $schema->isWorkspaceAware()) {
                     // If we are in a workspace, make sure only records of this workspace are deleted.
                     $queryBuilder->andWhere(
                         $queryBuilder->expr()->eq(
@@ -5565,7 +5572,7 @@ class DataHandler implements LoggerAwareInterface
                 while ($row = $statement->fetchAssociative()) {
                     // Delete any further workspace overlays of the record in question, then delete the record.
                     $this->discardWorkspaceVersionsOfRecord($table, $row['uid']);
-                    $this->deleteRecord($table, $row['uid'], true, $forceHardDelete);
+                    $this->deleteRecord($table, (int)$row['uid'], true, $forceHardDelete);
                 }
             }
         }
@@ -5601,20 +5608,19 @@ class DataHandler implements LoggerAwareInterface
             return 'Attempt to delete page without permissions';
         }
 
-        $pageIdsInBranch = $this->doesBranchExist('', $uid, Permission::PAGE_DELETE, true);
-
-        if ($pageIdsInBranch === -1) {
+        $pagesInBranch = $this->doesBranchExist($uid, Permission::PAGE_DELETE);
+        if ($pagesInBranch === null) {
             return 'Attempt to delete pages in branch without permissions';
         }
 
-        $pagesInBranch = GeneralUtility::intExplode(',', $pageIdsInBranch . $uid, true);
+        $pagesInBranch[] = $uid;
 
         if ($disallowedTables = $this->checkForRecordsFromDisallowedTables($pagesInBranch)) {
             return 'Attempt to delete records from disallowed tables (' . implode(', ', $disallowedTables) . ')';
         }
 
         foreach ($pagesInBranch as $pageInBranch) {
-            if (!$this->BE_USER->recordEditAccessInternals('pages', $pageInBranch, false, false, $isTranslatedPage ? false : true)) {
+            if (!$this->BE_USER->recordEditAccessInternals('pages', $pageInBranch, false, false, !$isTranslatedPage)) {
                 return 'Attempt to delete page which has prohibited localizations';
             }
         }
@@ -5653,15 +5659,16 @@ class DataHandler implements LoggerAwareInterface
      * @see deleteRecord()
      * @internal should only be used from within DataHandler
      */
-    public function deleteRecord_procFields($table, $uid)
+    public function deleteRecord_procFields($table, $uid): void
     {
-        $conf = $GLOBALS['TCA'][$table]['columns'];
         $row = BackendUtility::getRecord($table, $uid, '*', '', false);
         if (empty($row)) {
             return;
         }
+        $schema = $this->tcaSchemaFactory->get($table);
         foreach ($row as $field => $value) {
-            $this->deleteRecord_procBasedOnFieldType($table, $uid, $value, $conf[$field]['config'] ?? []);
+            $configuration = $schema->hasField($field) ? $schema->getField($field)->getConfiguration() : [];
+            $this->deleteRecord_procBasedOnFieldType($table, $uid, $value, $configuration);
         }
     }
 
@@ -5715,16 +5722,19 @@ class DataHandler implements LoggerAwareInterface
      * @param int $uid Record UID
      * @internal should only be used from within DataHandler
      */
-    public function deleteL10nOverlayRecords($table, $uid)
+    public function deleteL10nOverlayRecords($table, $uid): void
     {
+        $schema = $this->tcaSchemaFactory->get($table);
         // Check whether table can be localized
-        if (!BackendUtility::isTableLocalizable($table)) {
+        if (!$schema->isLanguageAware()) {
             return;
         }
 
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($table);
-        $queryBuilder->getRestrictions()
-            ->removeAll()
+        /** @var LanguageAwareSchemaCapability $languageCapability */
+        $languageCapability = $schema->getCapability(TcaSchemaCapability::Language);
+
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable($table);
+        $queryBuilder->getRestrictions()->removeAll()
             ->add(GeneralUtility::makeInstance(DeletedRestriction::class))
             ->add(GeneralUtility::makeInstance(WorkspaceRestriction::class, (int)$this->BE_USER->workspace));
 
@@ -5732,7 +5742,7 @@ class DataHandler implements LoggerAwareInterface
             ->from($table)
             ->where(
                 $queryBuilder->expr()->eq(
-                    $GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField'],
+                    $languageCapability->getTranslationOriginPointerField()->getName(),
                     $queryBuilder->createNamedParameter($uid, Connection::PARAM_INT)
                 )
             );
@@ -5741,9 +5751,9 @@ class DataHandler implements LoggerAwareInterface
         while ($record = $result->fetchAssociative()) {
             // Ignore workspace delete placeholders. Those records have been marked for
             // deletion before - deleting them again in a workspace would revert that state.
-            if ((int)$this->BE_USER->workspace > 0 && BackendUtility::isTableWorkspaceEnabled($table)) {
+            if ((int)$this->BE_USER->workspace > 0 && $schema->isWorkspaceAware()) {
                 BackendUtility::workspaceOL($table, $record, $this->BE_USER->workspace);
-                if (VersionState::cast($record['t3ver_state'])->equals(VersionState::DELETE_PLACEHOLDER)) {
+                if (VersionState::tryFrom($record['t3ver_state'] ?? 0) === VersionState::DELETE_PLACEHOLDER) {
                     continue;
                 }
             }
@@ -5769,9 +5779,10 @@ class DataHandler implements LoggerAwareInterface
      */
     protected function undeleteRecord(string $table, int $uid): void
     {
+        $schema = $this->tcaSchemaFactory->get($table);
         $record = BackendUtility::getRecord($table, $uid, '*', '', false);
-        $deleteField = (string)($GLOBALS['TCA'][$table]['ctrl']['delete'] ?? '');
-        $timestampField = (string)($GLOBALS['TCA'][$table]['ctrl']['tstamp'] ?? '');
+        $deleteField = $schema->hasCapability(TcaSchemaCapability::SoftDelete) ? $schema->getCapability(TcaSchemaCapability::SoftDelete)->getFieldName() : '';
+        $timestampField = $schema->hasCapability(TcaSchemaCapability::UpdatedAt) ? $schema->getCapability(TcaSchemaCapability::UpdatedAt)->getFieldName() : '';
 
         if ($record === null
             || $deleteField === ''
@@ -5779,7 +5790,7 @@ class DataHandler implements LoggerAwareInterface
             || (bool)$record[$deleteField] === false
             || ($timestampField !== '' && !isset($record[$timestampField]))
             || (int)$this->BE_USER->workspace > 0
-            || (BackendUtility::isTableWorkspaceEnabled($table) && (int)($record['t3ver_wsid'] ?? 0) > 0)
+            || ($schema->isWorkspaceAware() && (int)($record['t3ver_wsid'] ?? 0) > 0)
         ) {
             // Return early and silently, if:
             // * Record not found
@@ -5846,7 +5857,7 @@ class DataHandler implements LoggerAwareInterface
         if ($timestampField !== '') {
             $updateFields[$timestampField] = $GLOBALS['EXEC_TIME'];
         }
-        GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable($table)
+        $this->connectionPool->getConnectionForTable($table)
             ->update(
                 $table,
                 $updateFields,
@@ -5891,13 +5902,15 @@ class DataHandler implements LoggerAwareInterface
      */
     protected function undeleteRecordRelations(string $table, int $uid, array $record): void
     {
+        $schema = $this->tcaSchemaFactory->get($table);
         foreach ($record as $fieldName => $value) {
-            $fieldConfig = $GLOBALS['TCA'][$table]['columns'][$fieldName]['config'] ?? [];
-            $fieldType = (string)($fieldConfig['type'] ?? '');
-            if (empty($fieldConfig) || !is_array($fieldConfig) || $fieldType === '') {
+            if (!$schema->hasField($fieldName)) {
                 continue;
             }
-            $foreignTable = (string)($fieldConfig['foreign_table'] ?? '');
+            $fieldInformation = $schema->getField($fieldName);
+            $fieldConfig = $fieldInformation->getConfiguration();
+            $fieldType = $fieldInformation->getType();
+            $foreignTable = (string)($fieldInformation->getConfiguration()['foreign_table'] ?? '');
             if ($fieldType === 'inline' || $fieldType === 'file') {
                 // @todo: Inline MM not handled here, and what about group / select?
                 if (!in_array($this->getRelationFieldType($fieldConfig), ['list', 'field'], true)) {
@@ -5960,6 +5973,7 @@ class DataHandler implements LoggerAwareInterface
         foreach ($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_tcemain.php']['processCmdmapClass'] ?? [] as $className) {
             $hookObj = GeneralUtility::makeInstance($className);
             if (method_exists($hookObj, 'processCmdmap_discardAction')) {
+                /** @var bool $recordWasDiscarded */
                 $hookObj->processCmdmap_discardAction($table, $uid, $record, $recordWasDiscarded);
             }
         }
@@ -5995,15 +6009,15 @@ class DataHandler implements LoggerAwareInterface
             $this->log($table, $versionRecord['uid'], SystemLogDatabaseAction::DISCARD, 0, SystemLogErrorClassification::USER_ERROR, 'Attempt to discard workspace record {table}:{uid} failed: User has no edit access', -1, ['table' => $table, 'uid' => (int)$versionRecord['uid']]);
             return;
         }
-        $fullLanguageAccessCheck = !($table === 'pages' && (int)$versionRecord[$GLOBALS['TCA']['pages']['ctrl']['transOrigPointerField']] !== 0);
+        $fullLanguageAccessCheck = !($table === 'pages' && (int)$versionRecord[$this->tcaSchemaFactory->get('pages')->getCapability(TcaSchemaCapability::Language)->getTranslationOriginPointerField()->getName()] !== 0);
         if (!$this->BE_USER->recordEditAccessInternals($table, $versionRecord, false, true, $fullLanguageAccessCheck)) {
             $this->log($table, $versionRecord['uid'], SystemLogDatabaseAction::DISCARD, 0, SystemLogErrorClassification::USER_ERROR, 'Attempt to discard workspace record {table}:{uid} failed: User has no delete access', -1, ['table' => $table, 'uid' => (int)$versionRecord['uid']]);
             return;
         }
 
         // Perform discard operations
-        $versionState = VersionState::cast($versionRecord['t3ver_state']);
-        if ($table === 'pages' && $versionState->equals(VersionState::NEW_PLACEHOLDER)) {
+        $versionState = VersionState::tryFrom($versionRecord['t3ver_state'] ?? 0);
+        if ($table === 'pages' && $versionState === VersionState::NEW_PLACEHOLDER) {
             // When discarding a new page, there can be new sub pages and new records.
             // Those need to be discarded, otherwise they'd end up as records without parent page.
             $this->discardSubPagesAndRecordsOnPage($versionRecord);
@@ -6038,16 +6052,18 @@ class DataHandler implements LoggerAwareInterface
     protected function discardSubPagesAndRecordsOnPage(array $page): void
     {
         $isLocalizedPage = false;
-        $sysLanguageId = (int)$page[$GLOBALS['TCA']['pages']['ctrl']['languageField']];
-        $versionState = VersionState::cast($page['t3ver_state']);
+        $pageSchema = $this->tcaSchemaFactory->get('pages');
+        $languageFieldName = $pageSchema->getCapability(TcaSchemaCapability::Language)->getLanguageField()->getName();
+        $sysLanguageId = (int)$page[$languageFieldName];
+        $versionState = VersionState::tryFrom($page['t3ver_state'] ?? 0);
         if ($sysLanguageId > 0) {
             // New or moved localized page.
             // Discard records on this page localization, but no sub pages.
             // Records of a translated page have the pid set to the default language page uid. Found in l10n_parent.
             // @todo: Discard other page translations that inherit from this?! (l10n_source field)
             $isLocalizedPage = true;
-            $pid = (int)$page[$GLOBALS['TCA']['pages']['ctrl']['transOrigPointerField']];
-        } elseif ($versionState->equals(VersionState::NEW_PLACEHOLDER)) {
+            $pid = (int)$page[$pageSchema->getCapability(TcaSchemaCapability::Language)->getTranslationOriginPointerField()->getName()];
+        } elseif ($versionState === VersionState::NEW_PLACEHOLDER) {
             // New default language page.
             // Discard any sub pages and all other records of this page, including any page localizations.
             // The t3ver_state=1 record is incoming here. Records on this page have their pid field set to the uid
@@ -6058,15 +6074,15 @@ class DataHandler implements LoggerAwareInterface
             // Discard any sub pages and all other records of this page, including any page localizations.
             $pid = (int)$page['t3ver_oid'];
         }
-        $tables = $this->compileAdminTables();
-        foreach ($tables as $table) {
+        foreach ($this->tcaSchemaFactory->all() as $schema) {
+            $table = $schema->getName();
             if (($isLocalizedPage && $table === 'pages')
-                || ($isLocalizedPage && !BackendUtility::isTableLocalizable($table))
-                || !BackendUtility::isTableWorkspaceEnabled($table)
+                || ($isLocalizedPage && !$schema->isLanguageAware())
+                || !$schema->isWorkspaceAware()
             ) {
                 continue;
             }
-            $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($table);
+            $queryBuilder = $this->connectionPool->getQueryBuilderForTable($table);
             $this->addDeleteRestriction($queryBuilder->getRestrictions()->removeAll());
             $queryBuilder->select('*')
                 ->from($table)
@@ -6080,11 +6096,13 @@ class DataHandler implements LoggerAwareInterface
                         $queryBuilder->createNamedParameter((int)$this->BE_USER->workspace, Connection::PARAM_INT)
                     )
                 );
-            if ($isLocalizedPage) {
+            if ($isLocalizedPage && $schema->isLanguageAware()) {
+                /** @var LanguageAwareSchemaCapability $languageCapability */
+                $languageCapability = $schema->getCapability(TcaSchemaCapability::Language);
                 // Add sys_language_uid = x restriction if discarding a localized page
                 $queryBuilder->andWhere(
                     $queryBuilder->expr()->eq(
-                        $GLOBALS['TCA'][$table]['ctrl']['languageField'],
+                        $languageCapability->getLanguageField()->getName(),
                         $queryBuilder->createNamedParameter($sysLanguageId, Connection::PARAM_INT)
                     )
                 );
@@ -6104,12 +6122,16 @@ class DataHandler implements LoggerAwareInterface
      */
     protected function discardRecordRelations(string $table, array $record): void
     {
+        $schema = $this->tcaSchemaFactory->get($table);
         foreach ($record as $field => $value) {
-            $fieldConfig = $GLOBALS['TCA'][$table]['columns'][$field]['config'] ?? null;
-            if (!isset($fieldConfig['type'])) {
+            if (!$schema->hasField($field)) {
                 continue;
             }
-            if ($fieldConfig['type'] === 'inline' || $fieldConfig['type'] === 'file') {
+            /** @var InlineFieldType|FileFieldType $fieldType */
+            $fieldType = $schema->getField($field);
+            $fieldConfig = $fieldType->getConfiguration();
+
+            if ($fieldType->isType(TableColumnType::INLINE, TableColumnType::FILE)) {
                 $foreignTable = (string)($fieldConfig['foreign_table'] ?? '');
                 if ($foreignTable === ''
                      || (isset($fieldConfig['behaviour']['enableCascadingDelete'])
@@ -6117,7 +6139,7 @@ class DataHandler implements LoggerAwareInterface
                 ) {
                     continue;
                 }
-                if (in_array($this->getRelationFieldType($fieldConfig), ['list', 'field'], true)) {
+                if ($fieldType->getRelationshipType()->isSingularRelationship()) {
                     $dbAnalysis = $this->createRelationHandlerInstance();
                     $dbAnalysis->start($value, $fieldConfig['foreign_table'], '', (int)$record['uid'], $table, $fieldConfig);
                     $dbAnalysis->undeleteRecord = true;
@@ -6155,7 +6177,7 @@ class DataHandler implements LoggerAwareInterface
     {
         // @see test workspaces Group Discard createContentAndCreateElementRelationAndDiscardElement
         // Records referencing the to-discard record.
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('sys_refindex');
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_refindex');
         $statement = $queryBuilder->select('tablename', 'recuid', 'field')
             ->from('sys_refindex')
             ->where(
@@ -6167,10 +6189,14 @@ class DataHandler implements LoggerAwareInterface
         while ($row = $statement->fetchAssociative()) {
             // For each record referencing the to-discard record, see if it is a CSV group field definition.
             // If so, update that record to drop both the possible "uid" and "table_name_uid" variants from the list.
-            $fieldTca = $GLOBALS['TCA'][$row['tablename']]['columns'][$row['field']]['config'] ?? [];
+            if (!$this->tcaSchemaFactory->has($row['tablename']) || !$this->tcaSchemaFactory->get($row['tablename'])->hasField($row['field'])) {
+                continue;
+            }
+            $fieldType = $this->tcaSchemaFactory->get($row['tablename'])->getField($row['field']);
+            $fieldTca = $fieldType->getConfiguration();
             $groupAllowed = GeneralUtility::trimExplode(',', $fieldTca['allowed'] ?? '', true);
             // @todo: "select" may be affected too, but it has no coverage to show this, yet?
-            if (($fieldTca['type'] ?? '') === 'group'
+            if ($fieldType->isType(TableColumnType::GROUP)
                 && empty($fieldTca['MM'])
                 && (in_array('*', $groupAllowed, true) || in_array($table, $groupAllowed, true))
             ) {
@@ -6191,7 +6217,7 @@ class DataHandler implements LoggerAwareInterface
                 $listOfRelatedRecordsWithoutDiscardedRecord = array_diff($listOfRelatedRecords, [$record['uid'], $table . '_' . $record['uid']]);
                 if ($listOfRelatedRecords !== $listOfRelatedRecordsWithoutDiscardedRecord) {
                     // Update record if list changed
-                    $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($row['tablename']);
+                    $queryBuilder = $this->connectionPool->getQueryBuilderForTable($row['tablename']);
                     $queryBuilder->update($row['tablename'])
                         ->set($row['field'], implode(',', $listOfRelatedRecordsWithoutDiscardedRecord))
                         ->where($queryBuilder->expr()->eq('uid', $queryBuilder->createNamedParameter($row['recuid'], Connection::PARAM_INT)))
@@ -6215,7 +6241,7 @@ class DataHandler implements LoggerAwareInterface
         $mmTableName = $fieldConfig['MM'];
         // left - non foreign - uid_local vs. right - foreign - uid_foreign decision
         $relationUidFieldName = isset($fieldConfig['MM_opposite_field']) ? 'uid_foreign' : 'uid_local';
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($mmTableName);
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable($mmTableName);
         $queryBuilder->delete($mmTableName)->where(
             // uid_local = given uid OR uid_foreign = given uid
             $queryBuilder->expr()->eq($relationUidFieldName, $queryBuilder->createNamedParameter($recordUid, Connection::PARAM_INT))
@@ -6250,17 +6276,20 @@ class DataHandler implements LoggerAwareInterface
      */
     protected function discardLocalizationOverlayRecords(string $table, array $record): void
     {
-        if (!BackendUtility::isTableLocalizable($table)) {
+        $schema = $this->tcaSchemaFactory->get($table);
+        if (!$schema->isLanguageAware()) {
             return;
         }
+        /** @var LanguageAwareSchemaCapability $languageCapability */
+        $languageCapability = $schema->getCapability(TcaSchemaCapability::Language);
         $uid = (int)$record['uid'];
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($table);
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable($table);
         $this->addDeleteRestriction($queryBuilder->getRestrictions()->removeAll());
         $statement = $queryBuilder->select('*')
             ->from($table)
             ->where(
                 $queryBuilder->expr()->eq(
-                    $GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField'],
+                    $languageCapability->getTranslationOriginPointerField()->getName(),
                     $queryBuilder->createNamedParameter($uid, Connection::PARAM_INT)
                 ),
                 $queryBuilder->expr()->eq(
@@ -6293,13 +6322,14 @@ class DataHandler implements LoggerAwareInterface
      */
     public function versionizeRecord($table, $id, $label, $delete = false)
     {
+        $schema = $this->tcaSchemaFactory->get($table);
         $id = (int)$id;
         // Stop any actions if the record is marked to be deleted:
         // (this can occur if IRRE elements are versionized and child elements are removed)
         if ($this->isElementToBeDeleted($table, $id)) {
             return null;
         }
-        if (!BackendUtility::isTableWorkspaceEnabled($table) || $id <= 0) {
+        if (!$schema->isWorkspaceAware() || $id <= 0) {
             $this->log($table, $id, SystemLogDatabaseAction::VERSIONIZE, 0, SystemLogErrorClassification::USER_ERROR, 'Versioning is not supported for this table {table}:{uid}', -1, ['table' => $table, 'uid' => (int)$id]);
             return null;
         }
@@ -6328,11 +6358,11 @@ class DataHandler implements LoggerAwareInterface
         $overrideArray = [
             't3ver_oid' => $id,
             't3ver_wsid' => $this->BE_USER->workspace,
-            't3ver_state' => (string)($delete ? new VersionState(VersionState::DELETE_PLACEHOLDER) : new VersionState(VersionState::DEFAULT_STATE)),
+            't3ver_state' => $delete ? VersionState::DELETE_PLACEHOLDER->value : VersionState::DEFAULT_STATE->value,
             't3ver_stage' => 0,
         ];
-        if ($GLOBALS['TCA'][$table]['ctrl']['editlock'] ?? false) {
-            $overrideArray[$GLOBALS['TCA'][$table]['ctrl']['editlock']] = 0;
+        if ($schema->hasCapability(TcaSchemaCapability::EditLock)) {
+            $overrideArray[$schema->getCapability(TcaSchemaCapability::EditLock)->getFieldName()] = 0;
         }
         // Checking if the record already has a version in the current workspace of the backend user
         $versionRecord = ['uid' => null];
@@ -6374,24 +6404,22 @@ class DataHandler implements LoggerAwareInterface
      */
     public function versionPublishManyToManyRelations(string $table, array $liveRecord, array $workspaceRecord, int $fromWorkspace): void
     {
-        if (!is_array($GLOBALS['TCA'][$table]['columns'])) {
+        if (!$this->tcaSchemaFactory->has($table)) {
             return;
         }
+        $schema = $this->tcaSchemaFactory->get($table);
         $toDeleteRegistry = [];
         $toUpdateRegistry = [];
-        foreach ($GLOBALS['TCA'][$table]['columns'] as $dbFieldName => $dbFieldConfig) {
-            if (empty($dbFieldConfig['config']['type'])) {
-                continue;
+        foreach ($schema->getFields() as $fieldType) {
+            $dbFieldConfig = $fieldType->getConfiguration();
+            if (!empty($dbFieldConfig['MM']) && $this->isReferenceField($dbFieldConfig)) {
+                $toDeleteRegistry[] = $dbFieldConfig;
+                $toUpdateRegistry[] = $dbFieldConfig;
             }
-            if (!empty($dbFieldConfig['config']['MM']) && $this->isReferenceField($dbFieldConfig['config'])) {
-                $toDeleteRegistry[] = $dbFieldConfig['config'];
-                $toUpdateRegistry[] = $dbFieldConfig['config'];
-            }
-            if ($dbFieldConfig['config']['type'] === 'flex') {
-                $flexFormTools = GeneralUtility::makeInstance(FlexFormTools::class);
+            if ($fieldType->isType(TableColumnType::FLEX)) {
                 // Find possible mm tables attached to live record flex from data structures, mark as to delete
-                $dataStructureIdentifier = $flexFormTools->getDataStructureIdentifier($dbFieldConfig, $table, $dbFieldName, $liveRecord);
-                $dataStructureArray = $flexFormTools->parseDataStructureByIdentifier($dataStructureIdentifier);
+                $dataStructureIdentifier = $this->flexFormTools->getDataStructureIdentifier(['config' => $dbFieldConfig], $table, $fieldType->getName(), $liveRecord);
+                $dataStructureArray = $this->flexFormTools->parseDataStructureByIdentifier($dataStructureIdentifier);
                 foreach (($dataStructureArray['sheets'] ?? []) as $flexSheetDefinition) {
                     foreach (($flexSheetDefinition['ROOT']['el'] ?? []) as $flexFieldDefinition) {
                         if (is_array($flexFieldDefinition) && $this->flexFieldDefinitionIsMmRelation($flexFieldDefinition)) {
@@ -6400,8 +6428,8 @@ class DataHandler implements LoggerAwareInterface
                     }
                 }
                 // Find possible mm tables attached to workspace record flex from data structures, mark as to update uid
-                $dataStructureIdentifier = $flexFormTools->getDataStructureIdentifier($dbFieldConfig, $table, $dbFieldName, $workspaceRecord);
-                $dataStructureArray = $flexFormTools->parseDataStructureByIdentifier($dataStructureIdentifier);
+                $dataStructureIdentifier = $this->flexFormTools->getDataStructureIdentifier(['config' => $dbFieldConfig], $table, $fieldType->getName(), $workspaceRecord);
+                $dataStructureArray = $this->flexFormTools->parseDataStructureByIdentifier($dataStructureIdentifier);
                 foreach (($dataStructureArray['sheets'] ?? []) as $flexSheetDefinition) {
                     foreach (($flexSheetDefinition['ROOT']['el'] ?? []) as $flexFieldDefinition) {
                         if (is_array($flexFieldDefinition) && $this->flexFieldDefinitionIsMmRelation($flexFieldDefinition)) {
@@ -6416,7 +6444,7 @@ class DataHandler implements LoggerAwareInterface
         foreach ($toDeleteRegistry as $config) {
             $uidFieldName = $this->mmRelationIsLocalSide($config) ? 'uid_local' : 'uid_foreign';
             $mmTableName = $config['MM'];
-            $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($mmTableName);
+            $queryBuilder = $this->connectionPool->getQueryBuilderForTable($mmTableName);
             $queryBuilder->delete($mmTableName);
             $queryBuilder->where($queryBuilder->expr()->eq(
                 $uidFieldName,
@@ -6436,7 +6464,7 @@ class DataHandler implements LoggerAwareInterface
             $mmRelationIsLocalSide = $this->mmRelationIsLocalSide($config);
             $uidFieldName = $mmRelationIsLocalSide ? 'uid_local' : 'uid_foreign';
             $mmTableName = $config['MM'];
-            $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($mmTableName);
+            $queryBuilder = $this->connectionPool->getQueryBuilderForTable($mmTableName);
             $queryBuilder->update($mmTableName);
             $queryBuilder->set($uidFieldName, (int)$liveRecord['uid'], true, Connection::PARAM_INT);
             $queryBuilder->where($queryBuilder->expr()->eq(
@@ -6487,6 +6515,7 @@ class DataHandler implements LoggerAwareInterface
         if ($this->mmRelationIsLocalSide($config)) {
             return false;
         }
+
         if ($config['type'] === 'group' && !empty($config['prepend_tname'])) {
             // prepend_tname in MM on foreign side forces 'tablenames' column
             // @todo: See if we can get rid of prepend_tname in MM altogether?
@@ -6502,7 +6531,11 @@ class DataHandler implements LoggerAwareInterface
         }
         $localSideTableName = $config['type'] === 'group' ? $config['allowed'] ?? '' : $config['foreign_table'] ?? '';
         $localSideFieldName = $config['MM_opposite_field'] ?? '';
-        $localSideAllowed = $GLOBALS['TCA'][$localSideTableName]['columns'][$localSideFieldName]['config']['allowed'] ?? '';
+        if (!$this->tcaSchemaFactory->has($localSideTableName) || !$this->tcaSchemaFactory->get($localSideTableName)->hasField($localSideFieldName)) {
+            return false;
+        }
+        $localSideField = $this->tcaSchemaFactory->get($localSideTableName)->getField($localSideFieldName);
+        $localSideAllowed = $localSideField->getConfiguration()['allowed'] ?? '';
         // Local side with 'allowed' = '*' or multiple tables forces 'tablenames' column
         return $localSideAllowed === '*' || str_contains($localSideAllowed, ',');
     }
@@ -6524,12 +6557,10 @@ class DataHandler implements LoggerAwareInterface
 
     /**
      * Returns an instance of DataHandler for handling local datamaps/cmdmaps
-     *
-     * @return DataHandler
      */
-    protected function getLocalTCE()
+    protected function getLocalTCE(): DataHandler
     {
-        $copyTCE = GeneralUtility::makeInstance(DataHandler::class, $this->referenceIndexUpdater);
+        $copyTCE = GeneralUtility::makeInstance(DataHandler::class);
         $copyTCE->copyTree = $this->copyTree;
         $copyTCE->enableLogging = $this->enableLogging;
         // Transformations should NOT be carried out during copy
@@ -6546,22 +6577,21 @@ class DataHandler implements LoggerAwareInterface
      * Processes the fields with references as registered during the copy process. This includes all FlexForm fields which had references.
      * @internal should only be used from within DataHandler
      */
-    public function remapListedDBRecords()
+    public function remapListedDBRecords(): void
     {
         if (!empty($this->registerDBList)) {
-            $flexFormTools = GeneralUtility::makeInstance(FlexFormTools::class);
             foreach ($this->registerDBList as $table => $records) {
                 foreach ($records as $uid => $fields) {
                     $newData = [];
                     $theUidToUpdate = $this->copyMappingArray_merged[$table][$uid] ?? null;
                     $theUidToUpdate_saveTo = BackendUtility::wsMapId($table, $theUidToUpdate);
                     foreach ($fields as $fieldName => $value) {
-                        $conf = $GLOBALS['TCA'][$table]['columns'][$fieldName]['config'];
-                        switch ($conf['type']) {
+                        $fieldType = $this->tcaSchemaFactory->get($table)->getField($fieldName);
+                        switch ($fieldType->getType()) {
                             case 'group':
                             case 'select':
                             case 'category':
-                                $vArray = $this->remapListedDBRecords_procDBRefs($conf, $value, $theUidToUpdate, $table);
+                                $vArray = $this->remapListedDBRecords_procDBRefs($fieldType->getConfiguration(), $value, $theUidToUpdate, $table);
                                 if (is_array($vArray)) {
                                     $newData[$fieldName] = implode(',', $vArray);
                                 }
@@ -6573,31 +6603,31 @@ class DataHandler implements LoggerAwareInterface
                                     if (is_array($origRecordRow)) {
                                         BackendUtility::workspaceOL($table, $origRecordRow);
                                         // Get current data structure and value array:
-                                        $dataStructureIdentifier = $flexFormTools->getDataStructureIdentifier(
-                                            ['config' => $conf],
+                                        $dataStructureIdentifier = $this->flexFormTools->getDataStructureIdentifier(
+                                            ['config' => $fieldType->getConfiguration()],
                                             $table,
                                             $fieldName,
                                             $origRecordRow
                                         );
-                                        $dataStructureArray = $flexFormTools->parseDataStructureByIdentifier($dataStructureIdentifier);
+                                        $dataStructureArray = $this->flexFormTools->parseDataStructureByIdentifier($dataStructureIdentifier);
                                         $currentValueArray = GeneralUtility::xml2array($origRecordRow[$fieldName]);
                                         // Do recursive processing of the XML data:
                                         $currentValueArray['data'] = $this->checkValue_flex_procInData($currentValueArray['data'], [], $dataStructureArray, [$table, $theUidToUpdate, $fieldName], 'remapListedDBRecords_flexFormCallBack');
                                         // The return value should be compiled back into XML, ready to insert directly in the field (as we call updateDB() directly later):
                                         if (is_array($currentValueArray['data'])) {
-                                            $newData[$fieldName] = $this->checkValue_flexArray2Xml($currentValueArray);
+                                            $newData[$fieldName] = $this->flexFormTools->flexArray2Xml($currentValueArray);
                                         }
                                     }
                                 }
                                 break;
                             case 'inline':
-                                $this->remapListedDBRecords_procInline($conf, $value, $uid, $table);
+                                $this->remapListedDBRecords_procInline($fieldType->getConfiguration(), $value, $uid, $table);
                                 break;
                             case 'file':
-                                $this->remapListedDBRecords_procFile($conf, $value, $uid, $table);
+                                $this->remapListedDBRecords_procFile($fieldType->getConfiguration(), $value, $uid, $table);
                                 break;
                             default:
-                                $this->logger->debug('Field type should not appear here: {type}', ['type' => $conf['type']]);
+                                $this->logger->debug('Field type should not appear here: {type}', ['type' => $fieldType->getType()]);
                         }
                     }
                     // If any fields were changed, those fields are updated!
@@ -6620,7 +6650,7 @@ class DataHandler implements LoggerAwareInterface
      * @see remapListedDBRecords()
      * @internal should only be used from within DataHandler
      */
-    public function remapListedDBRecords_flexFormCallBack($pParams, $dsConf, $dataValue)
+    public function remapListedDBRecords_flexFormCallBack($pParams, $dsConf, $dataValue): array
     {
         // Extract parameters:
         [$table, $uid, $field] = $pParams;
@@ -6713,7 +6743,7 @@ class DataHandler implements LoggerAwareInterface
      * @param string $table Table name
      * @internal should only be used from within DataHandler
      */
-    public function remapListedDBRecords_procInline($conf, $value, $uid, $table)
+    public function remapListedDBRecords_procInline($conf, $value, $uid, $table): void
     {
         $theUidToUpdate = $this->copyMappingArray_merged[$table][$uid] ?? null;
         if ($conf['foreign_table']) {
@@ -6763,8 +6793,7 @@ class DataHandler implements LoggerAwareInterface
                         if (empty($tableName)) {
                             continue;
                         }
-                        $conn = GeneralUtility::makeInstance(ConnectionPool::class)
-                            ->getConnectionForTable($tableName);
+                        $conn = $this->connectionPool->getConnectionForTable($tableName);
                         foreach ($uids as $updateUid) {
                             $conn->update($tableName, $updateValues, ['uid' => $updateUid]);
                         }
@@ -6779,7 +6808,7 @@ class DataHandler implements LoggerAwareInterface
      *
      * @internal should only be used from within DataHandler
      */
-    public function remapListedDBRecords_procFile($conf, $value, $uid, $table)
+    public function remapListedDBRecords_procFile($conf, $value, $uid, $table): void
     {
         $thePidToUpdate = null;
         $updatePidForRecords = [];
@@ -6818,7 +6847,7 @@ class DataHandler implements LoggerAwareInterface
                 if (empty($tableName)) {
                     continue;
                 }
-                $conn = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable($tableName);
+                $conn = $this->connectionPool->getConnectionForTable($tableName);
                 foreach ($uids as $updateUid) {
                     $conn->update($tableName, $updateValues, ['uid' => $updateUid]);
                 }
@@ -6831,143 +6860,140 @@ class DataHandler implements LoggerAwareInterface
      * The remapStack takes care about the correct mapping of new and old uids in case of relational data.
      * @internal should only be used from within DataHandler
      */
-    public function processRemapStack()
+    public function processRemapStack(): void
     {
         // Processes the remap stack:
-        if (is_array($this->remapStack)) {
-            $remapFlexForms = [];
-            $hookPayload = [];
+        $remapFlexForms = [];
+        $hookPayload = [];
 
-            $newValue = null;
-            foreach ($this->remapStack as $remapAction) {
-                // If no position index for the arguments was set, skip this remap action:
-                if (!is_array($remapAction['pos'])) {
-                    continue;
+        $newValue = null;
+        foreach ($this->remapStack as $remapAction) {
+            // If no position index for the arguments was set, skip this remap action:
+            if (!is_array($remapAction['pos'])) {
+                continue;
+            }
+            // Load values from the argument array in remapAction:
+            $isNew = false;
+            $field = $remapAction['field'];
+            $id = $remapAction['args'][$remapAction['pos']['id']];
+            $rawId = $id;
+            $table = $remapAction['args'][$remapAction['pos']['table']];
+            $valueArray = $remapAction['args'][$remapAction['pos']['valueArray']];
+            $tcaFieldConf = $remapAction['args'][$remapAction['pos']['tcaFieldConf']];
+            $additionalData = $remapAction['additionalData'] ?? [];
+            // The record is new and has one or more new ids (in case of versioning/workspaces):
+            if (str_contains($id, 'NEW')) {
+                $isNew = true;
+                // Replace NEW...-ID with real uid:
+                $id = $this->substNEWwithIDs[$id] ?? '';
+                // If the new parent record is on a non-live workspace or versionized, it has another new id:
+                if (isset($this->autoVersionIdMap[$table][$id])) {
+                    $id = $this->autoVersionIdMap[$table][$id];
                 }
-                // Load values from the argument array in remapAction:
-                $isNew = false;
-                $field = $remapAction['field'];
-                $id = $remapAction['args'][$remapAction['pos']['id']];
-                $rawId = $id;
-                $table = $remapAction['args'][$remapAction['pos']['table']];
-                $valueArray = $remapAction['args'][$remapAction['pos']['valueArray']];
-                $tcaFieldConf = $remapAction['args'][$remapAction['pos']['tcaFieldConf']];
-                $additionalData = $remapAction['additionalData'] ?? [];
-                // The record is new and has one or more new ids (in case of versioning/workspaces):
-                if (str_contains($id, 'NEW')) {
-                    $isNew = true;
-                    // Replace NEW...-ID with real uid:
-                    $id = $this->substNEWwithIDs[$id] ?? '';
-                    // If the new parent record is on a non-live workspace or versionized, it has another new id:
-                    if (isset($this->autoVersionIdMap[$table][$id])) {
-                        $id = $this->autoVersionIdMap[$table][$id];
-                    }
-                    $remapAction['args'][$remapAction['pos']['id']] = $id;
-                }
-                // Replace relations to NEW...-IDs in field value (uids of child records):
-                if (is_array($valueArray)) {
-                    foreach ($valueArray as $key => $value) {
-                        if (str_contains($value, 'NEW')) {
-                            if (!str_contains($value, '_')) {
-                                $affectedTable = $tcaFieldConf['foreign_table'] ?? '';
-                                $prependTable = false;
-                            } else {
-                                $parts = explode('_', $value);
-                                $value = array_pop($parts);
-                                $affectedTable = implode('_', $parts);
-                                $prependTable = true;
-                            }
-                            $value = $this->substNEWwithIDs[$value] ?? '';
-                            // The record is new, but was also auto-versionized and has another new id:
-                            if (isset($this->autoVersionIdMap[$affectedTable][$value])) {
-                                $value = $this->autoVersionIdMap[$affectedTable][$value];
-                            }
-                            if ($prependTable) {
-                                $value = $affectedTable . '_' . $value;
-                            }
-                            // Set a hint that this was a new child record:
-                            $this->newRelatedIDs[$affectedTable][] = $value;
-                            $valueArray[$key] = $value;
+                $remapAction['args'][$remapAction['pos']['id']] = $id;
+            }
+            // Replace relations to NEW...-IDs in field value (uids of child records):
+            if (is_array($valueArray)) {
+                foreach ($valueArray as $key => $value) {
+                    if (str_contains($value, 'NEW')) {
+                        if (!str_contains($value, '_')) {
+                            $affectedTable = $tcaFieldConf['foreign_table'] ?? '';
+                            $prependTable = false;
+                        } else {
+                            $parts = explode('_', $value);
+                            $value = array_pop($parts);
+                            $affectedTable = implode('_', $parts);
+                            $prependTable = true;
                         }
+                        $value = $this->substNEWwithIDs[$value] ?? '';
+                        // The record is new, but was also auto-versionized and has another new id:
+                        if (isset($this->autoVersionIdMap[$affectedTable][$value])) {
+                            $value = $this->autoVersionIdMap[$affectedTable][$value];
+                        }
+                        if ($prependTable) {
+                            $value = $affectedTable . '_' . $value;
+                        }
+                        // Set a hint that this was a new child record:
+                        $this->newRelatedIDs[$affectedTable][] = $value;
+                        $valueArray[$key] = $value;
                     }
-                    $remapAction['args'][$remapAction['pos']['valueArray']] = $valueArray;
                 }
-                // Process the arguments with the defined function:
-                if (!empty($remapAction['func'])) {
-                    $callable = [$this, $remapAction['func']];
-                    if (is_callable($callable)) {
-                        $newValue = $callable(...$remapAction['args']);
-                    }
-                }
-                // If array is returned, check for maxitems condition, if string is returned this was already done:
-                if (is_array($newValue)) {
-                    $newValue = implode(',', $this->checkValue_checkMax($tcaFieldConf, $newValue));
-                    // The reference casting is only required if
-                    // checkValue_group_select_processDBdata() returns an array
-                    $newValue = $this->castReferenceValue($newValue, $tcaFieldConf, $isNew);
-                }
-                // Update in database (list of children (csv) or number of relations (foreign_field)):
-                if (!empty($field)) {
-                    $fieldArray = [$field => $newValue];
-                    if ($GLOBALS['TCA'][$table]['ctrl']['tstamp'] ?? false) {
-                        $fieldArray[$GLOBALS['TCA'][$table]['ctrl']['tstamp']] = $GLOBALS['EXEC_TIME'];
-                    }
-                    $this->updateDB($table, $id, $fieldArray);
-                } elseif (!empty($additionalData['flexFormId']) && !empty($additionalData['flexFormPath'])) {
-                    // Collect data to update FlexForms
-                    $flexFormId = $additionalData['flexFormId'];
-                    $flexFormPath = $additionalData['flexFormPath'];
-
-                    if (!isset($remapFlexForms[$flexFormId])) {
-                        $remapFlexForms[$flexFormId] = [];
-                    }
-
-                    $remapFlexForms[$flexFormId][$flexFormPath] = $newValue;
-                }
-
-                // Collect elements that shall trigger processDatamap_afterDatabaseOperations
-                if (isset($this->remapStackRecords[$table][$rawId]['processDatamap_afterDatabaseOperations'])) {
-                    $hookArgs = $this->remapStackRecords[$table][$rawId]['processDatamap_afterDatabaseOperations'];
-                    if (!isset($hookPayload[$table][$rawId])) {
-                        $hookPayload[$table][$rawId] = [
-                            'status' => $hookArgs['status'],
-                            'fieldArray' => $hookArgs['fieldArray'],
-                            'hookObjects' => $hookArgs['hookObjectsArr'],
-                        ];
-                    }
-                    $hookPayload[$table][$rawId]['fieldArray'][$field] = $newValue;
+                $remapAction['args'][$remapAction['pos']['valueArray']] = $valueArray;
+            }
+            // Process the arguments with the defined function:
+            if (!empty($remapAction['func'])) {
+                $callable = [$this, $remapAction['func']];
+                if (is_callable($callable)) {
+                    $newValue = $callable(...$remapAction['args']);
                 }
             }
-
-            if ($remapFlexForms) {
-                foreach ($remapFlexForms as $flexFormId => $modifications) {
-                    $this->updateFlexFormData((string)$flexFormId, $modifications);
+            // If array is returned, check for maxitems condition, if string is returned this was already done:
+            if (is_array($newValue)) {
+                $newValue = implode(',', $this->checkValue_checkMax($tcaFieldConf, $newValue));
+                // The reference casting is only required if
+                // checkValue_group_select_processDBdata() returns an array
+                $newValue = $this->castReferenceValue($newValue, $tcaFieldConf, $isNew);
+            }
+            // Update in database (list of children (csv) or number of relations (foreign_field)):
+            if (!empty($field)) {
+                $fieldArray = [$field => $newValue];
+                $schema = $this->tcaSchemaFactory->get($table);
+                if ($schema->hasCapability(TcaSchemaCapability::UpdatedAt)) {
+                    $fieldArray[$schema->getCapability(TcaSchemaCapability::UpdatedAt)->getFieldName()] = $GLOBALS['EXEC_TIME'];
                 }
+                $this->updateDB($table, $id, $fieldArray);
+            } elseif (!empty($additionalData['flexFormId']) && !empty($additionalData['flexFormPath'])) {
+                // Collect data to update FlexForms
+                $flexFormId = $additionalData['flexFormId'];
+                $flexFormPath = $additionalData['flexFormPath'];
+
+                if (!isset($remapFlexForms[$flexFormId])) {
+                    $remapFlexForms[$flexFormId] = [];
+                }
+
+                $remapFlexForms[$flexFormId][$flexFormPath] = $newValue;
             }
 
-            foreach ($hookPayload as $tableName => $rawIdPayload) {
-                foreach ($rawIdPayload as $rawId => $payload) {
-                    foreach ($payload['hookObjects'] as $hookObject) {
-                        if (!method_exists($hookObject, 'processDatamap_afterDatabaseOperations')) {
-                            continue;
-                        }
-                        $hookObject->processDatamap_afterDatabaseOperations(
-                            $payload['status'],
-                            $tableName,
-                            $rawId,
-                            $payload['fieldArray'],
-                            $this
-                        );
+            // Collect elements that shall trigger processDatamap_afterDatabaseOperations
+            if (isset($this->remapStackRecords[$table][$rawId]['processDatamap_afterDatabaseOperations'])) {
+                $hookArgs = $this->remapStackRecords[$table][$rawId]['processDatamap_afterDatabaseOperations'];
+                if (!isset($hookPayload[$table][$rawId])) {
+                    $hookPayload[$table][$rawId] = [
+                        'status' => $hookArgs['status'],
+                        'fieldArray' => $hookArgs['fieldArray'],
+                        'hookObjects' => $hookArgs['hookObjectsArr'],
+                    ];
+                }
+                $hookPayload[$table][$rawId]['fieldArray'][$field] = $newValue;
+            }
+        }
+
+        if ($remapFlexForms) {
+            foreach ($remapFlexForms as $flexFormId => $modifications) {
+                $this->updateFlexFormData((string)$flexFormId, $modifications);
+            }
+        }
+
+        foreach ($hookPayload as $tableName => $rawIdPayload) {
+            foreach ($rawIdPayload as $rawId => $payload) {
+                foreach ($payload['hookObjects'] as $hookObject) {
+                    if (!method_exists($hookObject, 'processDatamap_afterDatabaseOperations')) {
+                        continue;
                     }
+                    $hookObject->processDatamap_afterDatabaseOperations(
+                        $payload['status'],
+                        $tableName,
+                        $rawId,
+                        $payload['fieldArray'],
+                        $this
+                    );
                 }
             }
         }
         // Processes the remap stack actions:
-        if ($this->remapStackActions) {
-            foreach ($this->remapStackActions as $action) {
-                if (isset($action['callback'], $action['arguments'])) {
-                    $action['callback'](...$action['arguments']);
-                }
+        foreach ($this->remapStackActions as $action) {
+            if (isset($action['callback'], $action['arguments'])) {
+                $action['callback'](...$action['arguments']);
             }
         }
         // Reset:
@@ -6982,25 +7008,19 @@ class DataHandler implements LoggerAwareInterface
      * @param string $flexFormId e.g. <table>:<uid>:<field>
      * @param array $modifications Modifications with paths and values (e.g. 'sDEF/lDEV/field/vDEF' => 'TYPO3')
      */
-    protected function updateFlexFormData($flexFormId, array $modifications)
+    protected function updateFlexFormData($flexFormId, array $modifications): void
     {
         [$table, $uid, $field] = explode(':', $flexFormId, 3);
-
         if (!MathUtility::canBeInterpretedAsInteger($uid) && !empty($this->substNEWwithIDs[$uid])) {
             $uid = $this->substNEWwithIDs[$uid];
         }
-
         $record = $this->recordInfo($table, $uid);
-
         if (!$table || !$uid || !$field || !is_array($record)) {
             return;
         }
-
         BackendUtility::workspaceOL($table, $record);
-
         // Get current data structure and value array:
         $valueStructure = GeneralUtility::xml2array($record[$field]);
-
         // Do recursive processing of the XML data:
         foreach ($modifications as $path => $value) {
             $valueStructure['data'] = ArrayUtility::setValueByPath(
@@ -7009,13 +7029,11 @@ class DataHandler implements LoggerAwareInterface
                 $value
             );
         }
-
         if (is_array($valueStructure['data'])) {
             // The return value should be compiled back into XML
             $values = [
-                $field => $this->checkValue_flexArray2Xml($valueStructure),
+                $field => $this->flexFormTools->flexArray2Xml($valueStructure),
             ];
-
             $this->updateDB($table, $uid, $values);
         }
     }
@@ -7029,7 +7047,7 @@ class DataHandler implements LoggerAwareInterface
      * @param array $arguments The arguments to be used with the callback
      * @internal should only be used from within DataHandler
      */
-    public function addRemapAction($table, $id, callable $callback, array $arguments)
+    public function addRemapAction($table, $id, callable $callback, array $arguments): void
     {
         $this->remapStackActions[] = [
             'affects' => [
@@ -7058,8 +7076,9 @@ class DataHandler implements LoggerAwareInterface
         if (!isset($registerDBList[$table][$id]) || !is_array($registerDBList[$table][$id])) {
             return;
         }
+        $schema = $this->tcaSchemaFactory->get($table);
         foreach ($incomingFieldArray as $field => $value) {
-            $foreignTable = $GLOBALS['TCA'][$table]['columns'][$field]['config']['foreign_table'] ?? '';
+            $foreignTable = $schema->hasField($field) ? $schema->getField($field)->getConfiguration()['foreign_table'] ?? '' : '';
             if (($registerDBList[$table][$id][$field] ?? false)
                 && !empty($foreignTable)
             ) {
@@ -7088,8 +7107,7 @@ class DataHandler implements LoggerAwareInterface
      */
     protected function hardDeleteSingleRecord(string $table, int $uid): void
     {
-        GeneralUtility::makeInstance(ConnectionPool::class)
-            ->getConnectionForTable($table)
+        $this->connectionPool->getConnectionForTable($table)
             ->delete($table, ['uid' => $uid], [Connection::PARAM_INT]);
     }
 
@@ -7107,7 +7125,8 @@ class DataHandler implements LoggerAwareInterface
      */
     public function checkModifyAccessList($table)
     {
-        $res = $this->admin || (!$this->tableAdminOnly($table) && isset($this->BE_USER->groupData['tables_modify']) && GeneralUtility::inList($this->BE_USER->groupData['tables_modify'], $table));
+        $adminOnly = $this->tcaSchemaFactory->has($table) ? $this->tcaSchemaFactory->get($table)->hasCapability(TcaSchemaCapability::AccessAdminOnly) : false;
+        $res = $this->admin || (!$adminOnly && isset($this->BE_USER->groupData['tables_modify']) && GeneralUtility::inList($this->BE_USER->groupData['tables_modify'], $table));
         // Hook 'checkModifyAccessList': Post-processing of the state of access
         foreach ($this->getCheckModifyAccessListHookObjects() as $hookObject) {
             /** @var DataHandlerCheckModifyAccessListHookInterface $hookObject */
@@ -7153,35 +7172,26 @@ class DataHandler implements LoggerAwareInterface
      *
      * @param string $table Record table
      * @param int $id Record UID
-     * @param array|bool $data Record data
-     * @param array $hookObjectsArr Hook objects
      * @return bool Returns TRUE if the user may update the record given by $table and $id
      * @internal should only be used from within DataHandler
      */
-    public function checkRecordUpdateAccess($table, $id, $data = false, $hookObjectsArr = null)
+    public function checkRecordUpdateAccess($table, $id)
     {
-        $res = null;
-        if (is_array($hookObjectsArr)) {
-            foreach ($hookObjectsArr as $hookObj) {
-                if (method_exists($hookObj, 'checkRecordUpdateAccess')) {
-                    $res = $hookObj->checkRecordUpdateAccess($table, $id, $data, $res, $this);
-                }
-            }
-            if (isset($res)) {
-                return (bool)$res;
-            }
-        }
         $res = false;
-
-        if ($GLOBALS['TCA'][$table] && (int)$id > 0) {
+        if ($this->tcaSchemaFactory->has($table) && (int)$id > 0) {
             $cacheId = 'checkRecordUpdateAccess_' . $table . '_' . $id;
-
             // If information is cached, return it
             $cachedValue = $this->runtimeCache->get($cacheId);
             if (!empty($cachedValue)) {
+                // @todo: This cache is at least broken with false results.
+                //        Caching 'false' as result below makes !empty() here never kick in, so
+                //        caching negative result does not work and always triggers code execution.
+                //        Also, CF tends to mix up false as cache-value with 'there is no cache entry',
+                //        depending on used cache backend, which also may be the reason int 1 is used
+                //        instead of bool true, so '@return bool' annotation is clearly invalid.
+                //        Note there is another cache in doesRecordExist_pageLookUp() code path, too.
                 return $cachedValue;
             }
-
             if ($table === 'pages' || ($table === 'sys_file_reference' && array_key_exists('pages', $this->datamap))) {
                 // @todo: find a more generic way to handle content relations of a page (without needing content editing access to that page)
                 $perms = Permission::PAGE_EDIT;
@@ -7248,30 +7258,31 @@ class DataHandler implements LoggerAwareInterface
     /**
      * Checks if a table is allowed on a certain page id according to allowed tables set for the page "doktype" and its [ctrl][rootLevel]-settings if any.
      *
-     * @param int $page_uid Page id for which to check, including 0 (zero) if checking for page tree root.
+     * @param int $pageUid Page id for which to check, including 0 (zero) if checking for page tree root.
      * @param string $checkTable Table name to check
      * @return bool TRUE if OK
      * @internal should only be used from within DataHandler
      */
-    public function isTableAllowedForThisPage($page_uid, $checkTable)
+    protected function isTableAllowedForThisPage(int $pageUid, $checkTable): bool
     {
-        $page_uid = (int)$page_uid;
-        $rootLevelSetting = (int)($GLOBALS['TCA'][$checkTable]['ctrl']['rootLevel'] ?? 0);
+        $schema = $this->tcaSchemaFactory->get($checkTable);
+        /** @var RootLevelCapability $rootLevelCapability */
+        $rootLevelCapability = $schema->getCapability(TcaSchemaCapability::RestrictionRootLevel);
         // Check if rootLevel flag is set and we're trying to insert on rootLevel - and reversed - and that the table is not "pages" which are allowed anywhere.
-        if ($checkTable !== 'pages' && $rootLevelSetting !== -1 && ($rootLevelSetting xor !$page_uid)) {
+        if ($checkTable !== 'pages' && $rootLevelCapability->getRootLevelType() !== RootLevelCapability::TYPE_BOTH && ($rootLevelCapability->getRootLevelType() xor !$pageUid)) {
             return false;
         }
         $allowed = false;
         // Check root-level
-        if (!$page_uid) {
-            if ($this->admin || BackendUtility::isRootLevelRestrictionIgnored($checkTable)) {
+        if (!$pageUid) {
+            if ($this->admin || $rootLevelCapability->shallIgnoreRootLevelRestriction()) {
                 $allowed = true;
             }
             return $allowed;
         }
         // Check non-root-level
-        $doktype = $this->pageInfo($page_uid, 'doktype');
-        return GeneralUtility::makeInstance(PageDoktypeRegistry::class)->isRecordTypeAllowedForDoktype($checkTable, (int)$doktype);
+        $doktype = $this->pageInfo($pageUid, 'doktype');
+        return $this->pageDoktypeRegistry->isRecordTypeAllowedForDoktype($checkTable, (int)$doktype);
     }
 
     /**
@@ -7285,7 +7296,7 @@ class DataHandler implements LoggerAwareInterface
      * @throws \RuntimeException
      * @internal should only be used from within DataHandler
      */
-    public function doesRecordExist($table, $id, int $perms)
+    public function doesRecordExist($table, $id, int $perms): bool
     {
         return $this->recordInfoWithPermissionCheck($table, $id, $perms, 'uid, pid') !== false;
     }
@@ -7296,25 +7307,13 @@ class DataHandler implements LoggerAwareInterface
      * @param int $id Page id
      * @param int $perms Permission integer
      * @param array $columns Columns to select
-     * @return bool|array
      * @internal
      * @see doesRecordExist()
      */
-    protected function doesRecordExist_pageLookUp($id, $perms, $columns = ['uid'])
+    protected function doesRecordExist_pageLookUp($id, $perms, $columns = ['uid']): array|false
     {
         $permission = new Permission($perms);
-        $cacheId = md5('doesRecordExist_pageLookUp_' . $id . '_' . $perms . '_' . implode(
-            '_',
-            $columns
-        ) . '_' . (string)$this->admin);
-
-        // If result is cached, return it
-        $cachedResult = $this->runtimeCache->get($cacheId);
-        if (!empty($cachedResult)) {
-            return $cachedResult;
-        }
-
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('pages');
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable('pages');
         $this->addDeleteRestriction($queryBuilder->getRestrictions()->removeAll());
         $queryBuilder
             ->select(...$columns)
@@ -7326,39 +7325,32 @@ class DataHandler implements LoggerAwareInterface
         if (!$permission->nothingIsGranted() && !$this->admin) {
             $queryBuilder->andWhere($this->BE_USER->getPagePermsClause($perms));
         }
-        if (!$this->admin && $GLOBALS['TCA']['pages']['ctrl']['editlock'] &&
+        $pagesSchema = $this->tcaSchemaFactory->get('pages');
+        if (!$this->admin && $pagesSchema->hasCapability(TcaSchemaCapability::EditLock) &&
             ($permission->editPagePermissionIsGranted() || $permission->deletePagePermissionIsGranted() || $permission->editContentPermissionIsGranted())
         ) {
             $queryBuilder->andWhere($queryBuilder->expr()->eq(
-                $GLOBALS['TCA']['pages']['ctrl']['editlock'],
+                $pagesSchema->getCapability(TcaSchemaCapability::EditLock)->getFieldName(),
                 $queryBuilder->createNamedParameter(0, Connection::PARAM_INT)
             ));
         }
-
-        $row = $queryBuilder->executeQuery()->fetchAssociative();
-        $this->runtimeCache->set($cacheId, $row);
-
-        return $row;
+        return $queryBuilder->executeQuery()->fetchAssociative();
     }
 
     /**
-     * Checks if a whole branch of pages exists
+     * Checks if a whole branch of pages exists.
      *
      * Tests the branch under $pid like doesRecordExist(), but it doesn't test the page with $pid as uid - use doesRecordExist() for this purpose.
-     * If $recurse is set, the function will follow subpages. This MUST be set, if we need the id-list for deleting pages or else we get an incomplete list
      *
-     * @param string $inList List of page uids, this is added to and returned in the end
      * @param int $pid Page ID to select subpages from.
-     * @param int $perms Perms integer to check each page record for.
-     * @param bool $recurse Recursion flag: If set, it will go out through the branch.
-     * @return string|int List of page IDs in branch, if there are subpages, empty string if there are none or -1 if no permission
+     * @param int $permissions Perms integer to check each page record for.
+     * @param array $pageIdsInBranch List of page uids, this is added to and returned in the end
+     * @return array<int>|null List of page IDs in branch, if there are subpages, empty array if there are none or null if no permission
      * @internal should only be used from within DataHandler
      */
-    public function doesBranchExist($inList, $pid, $perms, $recurse)
+    protected function doesBranchExist(int $pid, int $permissions, array $pageIdsInBranch = []): ?array
     {
-        $pid = (int)$pid;
-        $perms = (int)$perms;
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('pages');
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable('pages');
         $this->addDeleteRestriction($queryBuilder->getRestrictions()->removeAll());
         $result = $queryBuilder
             ->select('uid', 'perms_userid', 'perms_groupid', 'perms_user', 'perms_group', 'perms_everybody')
@@ -7368,47 +7360,19 @@ class DataHandler implements LoggerAwareInterface
             ->executeQuery();
         while ($row = $result->fetchAssociative()) {
             // IF admin, then it's OK
-            if ($this->admin || $this->BE_USER->doesUserHaveAccess($row, $perms)) {
-                $inList .= $row['uid'] . ',';
-                if ($recurse) {
-                    // Follow the subpages recursively...
-                    $inList = $this->doesBranchExist($inList, $row['uid'], $perms, $recurse);
-                    if ($inList === -1) {
-                        return -1;
-                    }
+            if ($this->admin || $this->BE_USER->doesUserHaveAccess($row, $permissions)) {
+                $pageIdsInBranch[] = (int)$row['uid'];
+                // Follow the subpages recursively
+                $pageIdsInBranch = $this->doesBranchExist((int)$row['uid'], $permissions, $pageIdsInBranch);
+                if ($pageIdsInBranch === null) {
+                    return null;
                 }
             } else {
                 // No permissions
-                return -1;
+                return null;
             }
         }
-        return $inList;
-    }
-
-    /**
-     * Checks if the $table is readOnly
-     *
-     * @param string $table Table name
-     * @return bool TRUE, if readonly
-     * @internal should only be used from within DataHandler
-     */
-    public function tableReadOnly($table)
-    {
-        // Returns TRUE if table is readonly
-        return (bool)($GLOBALS['TCA'][$table]['ctrl']['readOnly'] ?? false);
-    }
-
-    /**
-     * Checks if the $table is only editable by admin-users
-     *
-     * @param string $table Table name
-     * @return bool TRUE, if readonly
-     * @internal should only be used from within DataHandler
-     */
-    public function tableAdminOnly($table)
-    {
-        // Returns TRUE if table is admin-only
-        return !empty($GLOBALS['TCA'][$table]['ctrl']['adminOnly']);
+        return $pageIdsInBranch;
     }
 
     /**
@@ -7420,7 +7384,7 @@ class DataHandler implements LoggerAwareInterface
      * @return bool Returns FALSE if ID is inside destination (including equal to)
      * @internal should only be used from within DataHandler
      */
-    public function destNotInsideSelf($destinationId, $id)
+    public function destNotInsideSelf($destinationId, $id): bool
     {
         $loopCheck = 100;
         $destinationId = (int)$destinationId;
@@ -7430,7 +7394,7 @@ class DataHandler implements LoggerAwareInterface
         }
         while ($destinationId !== 0 && $loopCheck > 0) {
             $loopCheck--;
-            $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('pages');
+            $queryBuilder = $this->connectionPool->getQueryBuilderForTable('pages');
             $this->addDeleteRestriction($queryBuilder->getRestrictions()->removeAll());
             $result = $queryBuilder
                 ->select('pid', 'uid', 't3ver_oid', 't3ver_wsid')
@@ -7458,25 +7422,21 @@ class DataHandler implements LoggerAwareInterface
      * @return array Array of [table]-[field] pairs to exclude from editing.
      * @internal should only be used from within DataHandler
      */
-    public function getExcludeListArray()
+    public function getExcludeListArray(): array
     {
         $list = [];
         if (isset($this->BE_USER->groupData['non_exclude_fields'])) {
             $nonExcludeFieldsArray = array_flip(GeneralUtility::trimExplode(',', $this->BE_USER->groupData['non_exclude_fields']));
-            foreach ($GLOBALS['TCA'] as $table => $tableConfiguration) {
-                if (isset($tableConfiguration['columns'])) {
-                    foreach ($tableConfiguration['columns'] as $field => $config) {
-                        $isExcludeField = ($config['exclude'] ?? false);
-                        $isOnlyVisibleForAdmins = ($GLOBALS['TCA'][$table]['columns'][$field]['displayCond'] ?? '') === 'HIDE_FOR_NON_ADMINS';
-                        $editorHasPermissionForThisField = isset($nonExcludeFieldsArray[$table . ':' . $field]);
-                        if ($isOnlyVisibleForAdmins || ($isExcludeField && !$editorHasPermissionForThisField)) {
-                            $list[] = $table . '-' . $field;
-                        }
+            foreach ($this->tcaSchemaFactory->all() as $schema) {
+                foreach ($schema->getFields() as $field) {
+                    $isOnlyVisibleForAdmins = $field->getDisplayConditions() === 'HIDE_FOR_NON_ADMINS';
+                    $editorHasPermissionForThisField = isset($nonExcludeFieldsArray[$schema->getName() . ':' . $field->getName()]);
+                    if ($isOnlyVisibleForAdmins || ($field->supportsAccessControl() && !$editorHasPermissionForThisField)) {
+                        $list[] = $schema->getName() . '-' . $field->getName();
                     }
                 }
             }
         }
-
         return $list;
     }
 
@@ -7495,19 +7455,19 @@ class DataHandler implements LoggerAwareInterface
             // Not a number. Probably a new page
             return [];
         }
-        $allowedTables = GeneralUtility::makeInstance(PageDoktypeRegistry::class)->getAllowedTypesForDoktype($doktype);
+        $allowedTables = $this->pageDoktypeRegistry->getAllowedTypesForDoktype($doktype);
         // If all tables are allowed, return early
         if (in_array('*', $allowedTables, true)) {
             return [];
         }
         $tableList = [];
-        $allTableNames = $this->compileAdminTables();
-        foreach ($allTableNames as $table) {
+        foreach ($this->tcaSchemaFactory->all() as $schema) {
+            $table = $schema->getName();
             // If the table is not in the allowed list, check if there are records...
             if (in_array($table, $allowedTables, true)) {
                 continue;
             }
-            $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($table);
+            $queryBuilder = $this->connectionPool->getQueryBuilderForTable($table);
             $queryBuilder->getRestrictions()->removeAll();
             $count = $queryBuilder
                 ->count('uid')
@@ -7536,13 +7496,13 @@ class DataHandler implements LoggerAwareInterface
      *
      * @param int $id Page uid
      * @param string $field Field name for which to return value
-     * @return string Value of the field. Result is cached in $this->pageCache[$id][$field] and returned from there next time!
+     * @return string|int|null Value of the field. Result is cached in $this->pageCache[$id][$field] and returned from there next time!
      * @internal should only be used from within DataHandler
      */
-    public function pageInfo($id, $field)
+    protected function pageInfo(int $id, string $field): int|string|null
     {
         if (!isset($this->pageCache[$id])) {
-            $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('pages');
+            $queryBuilder = $this->connectionPool->getQueryBuilderForTable('pages');
             $queryBuilder->getRestrictions()->removeAll();
             $row = $queryBuilder
                 ->select('*')
@@ -7569,10 +7529,10 @@ class DataHandler implements LoggerAwareInterface
     public function recordInfo($table, $id)
     {
         // Skip, if searching for NEW records or there's no TCA table definition
-        if ((int)$id === 0 || !isset($GLOBALS['TCA'][$table])) {
+        if ((int)$id === 0 || !$this->tcaSchemaFactory->has($table)) {
             return null;
         }
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($table);
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable($table);
         $queryBuilder->getRestrictions()->removeAll();
         $result = $queryBuilder
             ->select('*')
@@ -7597,16 +7557,13 @@ class DataHandler implements LoggerAwareInterface
     {
         if ($this->bypassAccessCheckForRecords) {
             $columns = GeneralUtility::trimExplode(',', $fieldList, true);
-
-            $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($table);
+            $queryBuilder = $this->connectionPool->getQueryBuilderForTable($table);
             $queryBuilder->getRestrictions()->removeAll();
-
             $record = $queryBuilder->select(...$columns)
                 ->from($table)
                 ->where($queryBuilder->expr()->eq('uid', $queryBuilder->createNamedParameter($id, Connection::PARAM_INT)))
                 ->executeQuery()
                 ->fetchAssociative();
-
             return $record ?: false;
         }
         if (!$perms) {
@@ -7614,12 +7571,12 @@ class DataHandler implements LoggerAwareInterface
         }
         // For all tables: Check if record exists:
         $isWebMountRestrictionIgnored = BackendUtility::isWebMountRestrictionIgnored($table);
-        if (is_array($GLOBALS['TCA'][$table]) && $id > 0 && ($this->admin || $isWebMountRestrictionIgnored || $this->isRecordInWebMount($table, $id))) {
+        if ($this->tcaSchemaFactory->has($table) && $id > 0 && ($this->admin || $isWebMountRestrictionIgnored || $this->isRecordInWebMount($table, $id))) {
             $columns = GeneralUtility::trimExplode(',', $fieldList, true);
             if ($table !== 'pages') {
                 // Find record without checking page
                 // @todo: This should probably check for editlock
-                $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($table);
+                $queryBuilder = $this->connectionPool->getQueryBuilderForTable($table);
                 $this->addDeleteRestriction($queryBuilder->getRestrictions()->removeAll());
                 $output = $queryBuilder
                     ->select(...$columns)
@@ -7675,13 +7632,14 @@ class DataHandler implements LoggerAwareInterface
      */
     public function getRecordPropertiesFromRow($table, $row)
     {
-        if ($GLOBALS['TCA'][$table]) {
+        if ($this->tcaSchemaFactory->has($table)) {
             $liveUid = ($row['t3ver_oid'] ?? null) ?: ($row['uid'] ?? null);
+            $fullRow = $this->recordInfo($table, $liveUid);
             return [
-                'header' => BackendUtility::getRecordTitle($table, $row),
+                'header' => BackendUtility::getRecordTitle($table, $fullRow ?: $row),
                 'pid' => $row['pid'] ?? null,
                 'event_pid' => $this->eventPid($table, (int)$liveUid, $row['pid'] ?? null),
-                't3ver_state' => BackendUtility::isTableWorkspaceEnabled($table) ? ($row['t3ver_state'] ?? '') : '',
+                't3ver_state' => $this->tcaSchemaFactory->get($table)->isWorkspaceAware() ? ($row['t3ver_state'] ?? '') : '',
             ];
         }
         return null;
@@ -7713,14 +7671,14 @@ class DataHandler implements LoggerAwareInterface
      * @param array $fieldArray Array of field=>value pairs to insert. FIELDS MUST MATCH the database FIELDS. No check is done.
      * @internal should only be used from within DataHandler
      */
-    public function updateDB($table, $id, $fieldArray)
+    public function updateDB($table, $id, $fieldArray): void
     {
-        if (is_array($fieldArray) && is_array($GLOBALS['TCA'][$table]) && (int)$id) {
+        if (is_array($fieldArray) && $this->tcaSchemaFactory->has($table) && (int)$id) {
             // Do NOT update the UID field, ever!
             unset($fieldArray['uid']);
             if (!empty($fieldArray)) {
                 $fieldArray = $this->insertUpdateDB_preprocessBasedOnFieldType($table, $fieldArray);
-                $connection = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable($table);
+                $connection = $this->connectionPool->getConnectionForTable($table);
                 $updateErrorMessage = '';
                 try {
                     // Execute the UPDATE query:
@@ -7738,12 +7696,8 @@ class DataHandler implements LoggerAwareInterface
                         $historyEntryId = $this->getRecordHistoryStore()->modifyRecord($table, $id, $this->historyRecords[$table . ':' . $id], $this->correlationId);
                     }
                     if ($this->enableLogging) {
-                        if ($this->checkStoredRecords) {
-                            $newRow = $this->checkStoredRecord($table, $id, $fieldArray, SystemLogDatabaseAction::UPDATE) ?? [];
-                        } else {
-                            $newRow = $fieldArray;
-                            $newRow['uid'] = $id;
-                        }
+                        $newRow = $fieldArray;
+                        $newRow['uid'] = $id;
                         // Set log entry:
                         $propArr = $this->getRecordPropertiesFromRow($table, $newRow);
                         $isOfflineVersion = (bool)($newRow['t3ver_oid'] ?? 0);
@@ -7781,158 +7735,72 @@ class DataHandler implements LoggerAwareInterface
      */
     public function insertDB($table, $id, $fieldArray, $newVersion = false, $suggestedUid = 0, $dontSetNewIdIndex = false)
     {
-        if (is_array($fieldArray) && is_array($GLOBALS['TCA'][$table]) && isset($fieldArray['pid'])) {
+        if (is_array($fieldArray) && $this->tcaSchemaFactory->has($table) && isset($fieldArray['pid'])) {
             // Do NOT insert the UID field, ever!
             unset($fieldArray['uid']);
-            if (!empty($fieldArray)) {
-                // Check for "suggestedUid".
-                // This feature is used by the import functionality to force a new record to have a certain UID value.
-                // This is only recommended for use when the destination server is a passive mirror of another server.
-                // As a security measure this feature is available only for Admin Users (for now)
-                // The value of $this->suggestedInsertUids["table":"uid"] is either string 'DELETE' (ext:impexp) to trigger
-                // a blind delete of any possibly existing row before insert with forced uid, or boolean true (testing-framework)
-                // to only force the uid insert and skipping deletion of an existing row.
-                $suggestedUid = (int)$suggestedUid;
-                if ($this->BE_USER->isAdmin() && $suggestedUid && ($this->suggestedInsertUids[$table . ':' . $suggestedUid] ?? false)) {
-                    // When the value of ->suggestedInsertUids[...] is "DELETE" it will try to remove the previous record
-                    if ($this->suggestedInsertUids[$table . ':' . $suggestedUid] === 'DELETE') {
-                        $this->hardDeleteSingleRecord($table, (int)$suggestedUid);
-                    }
-                    $fieldArray['uid'] = $suggestedUid;
+            // Check for "suggestedUid".
+            // This feature is used by the import functionality to force a new record to have a certain UID value.
+            // This is only recommended for use when the destination server is a passive mirror of another server.
+            // As a security measure this feature is available only for Admin Users (for now)
+            // The value of $this->suggestedInsertUids["table":"uid"] is either string 'DELETE' (ext:impexp) to trigger
+            // a blind delete of any possibly existing row before insert with forced uid, or boolean true (testing-framework)
+            // to only force the uid insert and skipping deletion of an existing row.
+            $suggestedUid = (int)$suggestedUid;
+            if ($this->BE_USER->isAdmin() && $suggestedUid && ($this->suggestedInsertUids[$table . ':' . $suggestedUid] ?? false)) {
+                // When the value of ->suggestedInsertUids[...] is "DELETE" it will try to remove the previous record
+                if ($this->suggestedInsertUids[$table . ':' . $suggestedUid] === 'DELETE') {
+                    $this->hardDeleteSingleRecord($table, (int)$suggestedUid);
                 }
-                $fieldArray = $this->insertUpdateDB_preprocessBasedOnFieldType($table, $fieldArray);
-                $connection = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable($table);
-                $insertErrorMessage = '';
-                try {
-                    // Execute the INSERT query:
-                    $connection->insert($table, $fieldArray);
-                } catch (DBALException $e) {
-                    $insertErrorMessage = $e->getPrevious()->getMessage();
-                }
-                // If succees, do...:
-                if ($insertErrorMessage === '') {
-                    // Set mapping for NEW... -> real uid:
-                    // the NEW_id now holds the 'NEW....' -id
-                    $NEW_id = $id;
-                    $id = $this->postProcessDatabaseInsert($connection, $table, $suggestedUid);
+                $fieldArray['uid'] = $suggestedUid;
+            }
+            $fieldArray = $this->insertUpdateDB_preprocessBasedOnFieldType($table, $fieldArray);
+            $connection = $this->connectionPool->getConnectionForTable($table);
+            $insertErrorMessage = '';
+            try {
+                // Execute the INSERT query:
+                $connection->insert($table, $fieldArray);
+            } catch (DBALException $e) {
+                $insertErrorMessage = $e->getPrevious()->getMessage();
+            }
+            // If succees, do...:
+            if ($insertErrorMessage === '') {
+                // Set mapping for NEW... -> real uid:
+                // the NEW_id now holds the 'NEW....' -id
+                $NEW_id = $id;
+                $id = $this->postProcessDatabaseInsert($connection, $table, $suggestedUid);
 
-                    if (!$dontSetNewIdIndex) {
-                        $this->substNEWwithIDs[$NEW_id] = $id;
-                        $this->substNEWwithIDs_table[$NEW_id] = $table;
-                    }
-                    $newRow = [];
+                if (!$dontSetNewIdIndex) {
+                    $this->substNEWwithIDs[$NEW_id] = $id;
+                    $this->substNEWwithIDs_table[$NEW_id] = $table;
+                }
+                $newRow = [];
+                if ($this->enableLogging) {
+                    $newRow = $fieldArray;
+                    $newRow['uid'] = $id;
+                }
+                // Update reference index:
+                $this->updateRefIndex($table, $id);
+
+                // Store in history
+                $this->getRecordHistoryStore()->addRecord($table, $id, $newRow, $this->correlationId);
+
+                if ($newVersion) {
                     if ($this->enableLogging) {
-                        // Checking the record is properly saved if configured
-                        if ($this->checkStoredRecords) {
-                            $newRow = $this->checkStoredRecord($table, $id, $fieldArray, SystemLogDatabaseAction::INSERT) ?? [];
-                        } else {
-                            $newRow = $fieldArray;
-                            $newRow['uid'] = $id;
-                        }
+                        $propArr = $this->getRecordPropertiesFromRow($table, $newRow);
+                        $this->log($table, $id, SystemLogDatabaseAction::INSERT, 0, SystemLogErrorClassification::MESSAGE, 'New version created "{table}:{uid}". UID of new version is "{offlineUid}"', 10, ['table' => $table, 'uid' => $fieldArray['t3ver_oid'], 'offlineUid' => $id], $propArr['event_pid'], $NEW_id);
                     }
-                    // Update reference index:
-                    $this->updateRefIndex($table, $id);
-
-                    // Store in history
-                    $this->getRecordHistoryStore()->addRecord($table, $id, $newRow, $this->correlationId);
-
-                    if ($newVersion) {
-                        if ($this->enableLogging) {
-                            $propArr = $this->getRecordPropertiesFromRow($table, $newRow);
-                            $this->log($table, $id, SystemLogDatabaseAction::INSERT, 0, SystemLogErrorClassification::MESSAGE, 'New version created "{table}:{uid}". UID of new version is "{offlineUid}"', 10, ['table' => $table, 'uid' => $fieldArray['t3ver_oid'], 'offlineUid' => $id], $propArr['event_pid'], $NEW_id);
-                        }
-                    } else {
-                        if ($this->enableLogging) {
-                            $propArr = $this->getRecordPropertiesFromRow($table, $newRow);
-                            $page_propArr = $this->getRecordProperties('pages', $propArr['pid']);
-                            $this->log($table, $id, SystemLogDatabaseAction::INSERT, 0, SystemLogErrorClassification::MESSAGE, 'Record "{title}" ({table}:{uid}) was inserted on page "{pageTitle}" ({pid})', 10, ['title' => $propArr['header'], 'table' => $table, 'uid' => $id, 'pageTitle' => $page_propArr['header'], 'pid' => $newRow['pid']], $newRow['pid'], $NEW_id);
-                        }
-                        // Clear cache for relevant pages:
-                        $this->registerRecordIdForPageCacheClearing($table, $id);
+                } else {
+                    if ($this->enableLogging) {
+                        $propArr = $this->getRecordPropertiesFromRow($table, $newRow);
+                        $page_propArr = $this->getRecordProperties('pages', $propArr['pid']);
+                        $this->log($table, $id, SystemLogDatabaseAction::INSERT, 0, SystemLogErrorClassification::MESSAGE, 'Record "{title}" ({table}:{uid}) was inserted on page "{pageTitle}" ({pid})', 10, ['title' => $propArr['header'], 'table' => $table, 'uid' => $id, 'pageTitle' => $page_propArr['header'], 'pid' => $newRow['pid']], $newRow['pid'], $NEW_id);
                     }
-                    return $id;
+                    // Clear cache for relevant pages:
+                    $this->registerRecordIdForPageCacheClearing($table, $id);
                 }
-                $this->log($table, 0, SystemLogDatabaseAction::INSERT, 0, SystemLogErrorClassification::SYSTEM_ERROR, 'SQL error: "{reason}" ({table}:{uid})', 12, ['reason' => $insertErrorMessage, 'table' => $table, 'uid' => $id]);
+                return $id;
             }
-        }
-        return null;
-    }
-
-    /**
-     * Checking stored record to see if the written values are properly updated.
-     *
-     * @param string $table Record table name
-     * @param int $id Record uid
-     * @param array $fieldArray Array of field=>value pairs to insert/update
-     * @param int $action Action, for logging only.
-     * @return array|null Selected row
-     * @see insertDB()
-     * @see updateDB()
-     * @internal should only be used from within DataHandler
-     */
-    public function checkStoredRecord($table, $id, $fieldArray, $action)
-    {
-        $id = (int)$id;
-        if (is_array($GLOBALS['TCA'][$table]) && $id) {
-            $tcaTableColumns = $GLOBALS['TCA'][$table]['columns'] ?? [];
-            $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($table);
-            $queryBuilder->getRestrictions()->removeAll();
-
-            $row = $queryBuilder
-                ->select('*')
-                ->from($table)
-                ->where($queryBuilder->expr()->eq('uid', $queryBuilder->createNamedParameter($id, Connection::PARAM_INT)))
-                ->executeQuery()
-                ->fetchAssociative();
-
-            if (!empty($row)) {
-                $row = BackendUtility::convertDatabaseRowValuesToPhp($table, $row);
-                // Traverse array of values that was inserted into the database and compare with the actually stored value:
-                $errors = [];
-                foreach ($fieldArray as $key => $value) {
-                    if (!$this->checkStoredRecords_loose || $value || $row[$key]) {
-                        // @todo Check explicitly for one type is fishy. However needed to avoid array to string
-                        //       conversion errors. Find a better way do handle this.
-                        if (($tcaTableColumns[$key]['config']['type'] ?? '') === 'json') {
-                            // To ensure a proper comparison we need to sort the array structure based on array keys
-                            // in a recursive manner. Otherwise, we would emit an error just because the ordering was
-                            // different. This must be done for value and the value in the row to be safe.
-                            if (is_array($value)) {
-                                ArrayUtility::naturalKeySortRecursive($value);
-                            }
-                            if (is_array($row[$key])) {
-                                ArrayUtility::naturalKeySortRecursive($row[$key]);
-                            }
-                            if ($row[$key] !== $value) {
-                                $errors[] = $key;
-                            }
-                        } elseif (is_float($row[$key])) {
-                            // if the database returns the value as double, compare it as double
-                            if ((float)$value !== (float)$row[$key]) {
-                                $errors[] = $key;
-                            }
-                        } else {
-                            if ((string)$value !== (string)$row[$key]) {
-                                // The is_numeric check catches cases where we want to store a float/double value
-                                // and database returns the field as a string with the least required amount of
-                                // significant digits, i.e. "0.00" being saved and "0" being read back.
-                                if (is_numeric($value) && is_numeric($row[$key])) {
-                                    if ((float)$value === (float)$row[$key]) {
-                                        continue;
-                                    }
-                                }
-                                $errors[] = $key;
-                            }
-                        }
-                    }
-                }
-                // Set log message if there were fields with unmatching values:
-                if (!empty($errors)) {
-                    $this->log($table, $id, $action, 0, SystemLogErrorClassification::USER_ERROR, 'These fields of record {id} in table "{table}" have not been saved correctly: {fields}. The values might have changed due to type casting of the database', -1, ['id' => $id, 'table' => $table, 'fields' => implode(', ', $errors)]);
-                }
-                // Return selected rows:
-                return $row;
-            }
+            $this->log($table, 0, SystemLogDatabaseAction::INSERT, 0, SystemLogErrorClassification::SYSTEM_ERROR, 'SQL error: "{reason}" ({table}:{uid})', 12, ['reason' => $insertErrorMessage, 'table' => $table, 'uid' => $id]);
         }
         return null;
     }
@@ -7946,7 +7814,7 @@ class DataHandler implements LoggerAwareInterface
      * @param int $id Record ID
      * @internal should only be used from within DataHandler
      */
-    public function setHistory($table, $id)
+    public function setHistory($table, $id): void
     {
         if (isset($this->historyRecords[$table . ':' . $id])) {
             $this->getRecordHistoryStore()->modifyRecord(
@@ -8052,14 +7920,14 @@ class DataHandler implements LoggerAwareInterface
      */
     public function getSortNumber($table, $uid, $pid)
     {
-        $sortColumn = $GLOBALS['TCA'][$table]['ctrl']['sortby'] ?? '';
-        if (!$sortColumn) {
+        $schema = $this->tcaSchemaFactory->get($table);
+        if (!$schema->hasCapability(TcaSchemaCapability::SortByField)) {
             return null;
         }
+        $sortColumn = $schema->getCapability(TcaSchemaCapability::SortByField)->getFieldName();
 
-        $considerWorkspaces = BackendUtility::isTableWorkspaceEnabled($table);
-        $connectionPool = GeneralUtility::makeInstance(ConnectionPool::class);
-        $queryBuilder = $connectionPool->getQueryBuilderForTable($table);
+        $considerWorkspaces = $schema->isWorkspaceAware();
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable($table);
         $this->addDeleteRestriction($queryBuilder->getRestrictions()->removeAll());
 
         $queryBuilder
@@ -8079,7 +7947,7 @@ class DataHandler implements LoggerAwareInterface
                 $queryBuilder->andWhere(
                     $queryBuilder->expr()->or(
                         $queryBuilder->expr()->eq('t3ver_oid', 0),
-                        $queryBuilder->expr()->eq('t3ver_state', VersionState::MOVE_POINTER)
+                        $queryBuilder->expr()->eq('t3ver_state', VersionState::MOVE_POINTER->value)
                     )
                 );
             }
@@ -8102,7 +7970,7 @@ class DataHandler implements LoggerAwareInterface
                     return $this->sortIntervals;
                 }
                 // Sorting number between current top element and zero
-                return floor($row[$sortColumn] / 2);
+                return (int)floor($row[$sortColumn] / 2);
             }
             // No records, so we choose the default value as sorting-number
             return $this->sortIntervals;
@@ -8126,12 +7994,12 @@ class DataHandler implements LoggerAwareInterface
             ];
             // Look if the record UID happens to be a versioned record. If so, find its live version.
             // If this is already a moved record in workspace, this is not needed
-            if ((int)$row['t3ver_state'] !== VersionState::MOVE_POINTER && $lookForLiveVersion = BackendUtility::getLiveVersionOfRecord($table, $row['uid'], $sortColumn . ',pid,uid')) {
+            if (VersionState::tryFrom($row['t3ver_state'] ?? 0) !== VersionState::MOVE_POINTER && $lookForLiveVersion = BackendUtility::getLiveVersionOfRecord($table, $row['uid'], $sortColumn . ',pid,uid')) {
                 $row = $lookForLiveVersion;
             } elseif ($considerWorkspaces && $this->BE_USER->workspace > 0) {
                 // In case the previous record is moved in the workspace, we need to fetch the information from this specific record
                 $versionedRecord = BackendUtility::getWorkspaceVersionOfRecord($this->BE_USER->workspace, $table, $row['uid'], $sortColumn . ',pid,uid,t3ver_state');
-                if (is_array($versionedRecord) && (int)$versionedRecord['t3ver_state'] === VersionState::MOVE_POINTER) {
+                if (is_array($versionedRecord) && VersionState::tryFrom($versionedRecord['t3ver_state'] ?? 0) === VersionState::MOVE_POINTER) {
                     $row = $versionedRecord;
                 }
             }
@@ -8139,7 +8007,7 @@ class DataHandler implements LoggerAwareInterface
             if ((int)$row['uid'] === (int)$uid) {
                 $sortNumber = $row[$sortColumn];
             } else {
-                $queryBuilder = $connectionPool->getQueryBuilderForTable($table);
+                $queryBuilder = $this->connectionPool->getQueryBuilderForTable($table);
                 $this->addDeleteRestriction($queryBuilder->getRestrictions()->removeAll());
 
                 $queryBuilder
@@ -8163,18 +8031,15 @@ class DataHandler implements LoggerAwareInterface
                     $queryBuilder->andWhere(
                         $queryBuilder->expr()->or(
                             $queryBuilder->expr()->eq('t3ver_oid', 0),
-                            $queryBuilder->expr()->eq('t3ver_state', VersionState::MOVE_POINTER)
+                            $queryBuilder->expr()->eq('t3ver_state', VersionState::MOVE_POINTER->value)
                         )
                     );
                 }
 
-                $subResults = $queryBuilder
-                    ->executeQuery()
-                    ->fetchAllAssociative();
+                $subResults = $queryBuilder->executeQuery()->fetchAllAssociative();
                 // Fetches the next record in order to calculate the in-between sortNumber
-                // There was a record afterwards
                 if (count($subResults) === 2) {
-                    // There was a record afterwards, fetch that
+                    // There was a record afterward, fetch that
                     $subrow = array_pop($subResults);
                     // The sortNumber is found in between these values
                     $sortNumber = $row[$sortColumn] + floor(($subrow[$sortColumn] - $row[$sortColumn]) / 2);
@@ -8211,10 +8076,10 @@ class DataHandler implements LoggerAwareInterface
      */
     protected function increaseSortingOfFollowingRecords(string $table, int $pid, ?int $sortingValue = null): void
     {
-        $sortBy = $GLOBALS['TCA'][$table]['ctrl']['sortby'] ?? '';
-        if ($sortBy) {
-            $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($table);
-
+        $schema = $this->tcaSchemaFactory->get($table);
+        if ($schema->hasCapability(TcaSchemaCapability::SortByField)) {
+            $sortBy = $schema->getCapability(TcaSchemaCapability::SortByField)->getFieldName();
+            $queryBuilder = $this->connectionPool->getQueryBuilderForTable($table);
             $queryBuilder
                 ->update($table)
                 ->where($queryBuilder->expr()->eq('pid', $queryBuilder->createNamedParameter($pid, Connection::PARAM_INT)))
@@ -8222,16 +8087,15 @@ class DataHandler implements LoggerAwareInterface
             if ($sortingValue !== null) {
                 $queryBuilder->andWhere($queryBuilder->expr()->gt($sortBy, $sortingValue));
             }
-            if (BackendUtility::isTableWorkspaceEnabled($table)) {
+            if ($schema->isWorkspaceAware()) {
                 $queryBuilder
                     ->andWhere(
                         $queryBuilder->expr()->eq('t3ver_oid', 0)
                     );
             }
 
-            $deleteColumn = $GLOBALS['TCA'][$table]['ctrl']['delete'] ?? '';
-            if ($deleteColumn) {
-                $queryBuilder->andWhere($queryBuilder->expr()->eq($deleteColumn, 0));
+            if ($schema->hasCapability(TcaSchemaCapability::SoftDelete)) {
+                $queryBuilder->andWhere($queryBuilder->expr()->eq($schema->getCapability(TcaSchemaCapability::SoftDelete)->getFieldName(), 0));
             }
 
             $queryBuilder->executeStatement();
@@ -8273,15 +8137,19 @@ class DataHandler implements LoggerAwareInterface
     protected function getPreviousLocalizedRecordUid($table, $uid, $pid, $targetLanguage)
     {
         $previousLocalizedRecordUid = $uid;
-        $sortColumn = $GLOBALS['TCA'][$table]['ctrl']['sortby'] ?? '';
-        if (!$sortColumn) {
+        $schema = $this->tcaSchemaFactory->get($table);
+        if (!$schema->hasCapability(TcaSchemaCapability::SortByField)) {
             return $previousLocalizedRecordUid;
         }
+        $sortColumn = $schema->getCapability(TcaSchemaCapability::SortByField)->getFieldName();
+
+        /** @var LanguageAwareSchemaCapability $languageCapability */
+        $languageCapability = $schema->getCapability(TcaSchemaCapability::Language);
 
         // Typically l10n_parent
-        $transOrigPointerField = $GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField'];
+        $transOrigPointerField = $languageCapability->getTranslationOriginPointerField()->getName();
         // Typically sys_language_uid
-        $languageField = $GLOBALS['TCA'][$table]['ctrl']['languageField'];
+        $languageField = $languageCapability->getLanguageField()->getName();
 
         $select = [$sortColumn, $languageField, $transOrigPointerField, 'pid', 'uid'];
         // For content elements, we also need the colPos
@@ -8297,7 +8165,7 @@ class DataHandler implements LoggerAwareInterface
         }
 
         // Try to find a "before" record in source language
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($table);
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable($table);
         $this->addDeleteRestriction($queryBuilder->getRestrictions()->removeAll());
         $queryBuilder
             ->select(...$select)
@@ -8347,15 +8215,15 @@ class DataHandler implements LoggerAwareInterface
      * @return array Array with default values.
      * @internal should only be used from within DataHandler
      */
-    public function newFieldArray($table)
+    public function newFieldArray($table): array
     {
         $fieldArray = [];
-        if (is_array($GLOBALS['TCA'][$table]['columns'])) {
-            foreach ($GLOBALS['TCA'][$table]['columns'] as $field => $content) {
-                if (isset($this->defaultValues[$table][$field])) {
-                    $fieldArray[$field] = $this->defaultValues[$table][$field];
-                } elseif (isset($content['config']['default'])) {
-                    $fieldArray[$field] = $content['config']['default'];
+        if ($this->tcaSchemaFactory->has($table)) {
+            foreach ($this->tcaSchemaFactory->get($table)->getFields() as $field) {
+                if (isset($this->defaultValues[$table][$field->getName()])) {
+                    $fieldArray[$field->getName()] = $this->defaultValues[$table][$field->getName()];
+                } elseif ($field->getDefaultValue() !== null) {
+                    $fieldArray[$field->getName()] = $field->getDefaultValue();
                 }
             }
         }
@@ -8363,33 +8231,33 @@ class DataHandler implements LoggerAwareInterface
     }
 
     /**
-     * If a "languageField" is specified for $table this function will add a possible value to the incoming array if none is found in there already.
+     * If a "languageField" is specified for $table this function will add a
+     * possible value to the incoming array if none is found in there already.
      *
-     * @param string $table Table name
-     * @param array $incomingFieldArray Incoming array (passed by reference)
-     * @param int $pageId the PID of the table (where the record should be inserted)
      * @internal should only be used from within DataHandler
      */
-    protected function addDefaultPermittedLanguageIfNotSet(string $table, &$incomingFieldArray, int $pageId): void
+    protected function addDefaultPermittedLanguageIfNotSet(string $table, array $incomingFieldArray, int $pageId): array
     {
-        $languageFieldName = $GLOBALS['TCA'][$table]['ctrl']['languageField'] ?? '';
-        if (empty($languageFieldName)) {
-            return;
+        $schema = $this->tcaSchemaFactory->get($table);
+        if (!$schema->isLanguageAware()) {
+            return $incomingFieldArray;
         }
+        /** @var LanguageAwareSchemaCapability $languageCapability */
+        $languageCapability = $schema->getCapability(TcaSchemaCapability::Language);
+        $languageFieldName = $languageCapability->getLanguageField()->getName();
         if (isset($incomingFieldArray[$languageFieldName])) {
-            return;
+            return $incomingFieldArray;
         }
         try {
             $site = GeneralUtility::makeInstance(SiteFinder::class)->getSiteByPageId($pageId);
-            // Checking languages
             foreach ($site->getAvailableLanguages($this->BE_USER, false, $pageId) as $languageId => $language) {
                 $incomingFieldArray[$languageFieldName] = $languageId;
                 break;
             }
-        } catch (SiteNotFoundException $e) {
+        } catch (SiteNotFoundException) {
             // No site found, do not set a default language if nothing was set explicitly
-            return;
         }
+        return $incomingFieldArray;
     }
 
     /**
@@ -8427,22 +8295,6 @@ class DataHandler implements LoggerAwareInterface
     }
 
     /**
-     * Returns the $data array from $table overridden in the fields defined in ->overrideValues.
-     *
-     * @param string $table Table name
-     * @param array $data Data array with fields from table. These will be overlaid with values in $this->overrideValues[$table]
-     * @return array Data array, processed.
-     * @internal should only be used from within DataHandler
-     */
-    public function overrideFieldArray($table, $data)
-    {
-        if (isset($this->overrideValues[$table]) && is_array($this->overrideValues[$table])) {
-            $data = array_merge($data, $this->overrideValues[$table]);
-        }
-        return $data;
-    }
-
-    /**
      * Compares the incoming field array with the current record and unsets all fields which are the same.
      * Used for existing records being updated
      *
@@ -8454,7 +8306,7 @@ class DataHandler implements LoggerAwareInterface
      */
     public function compareFieldArrayWithCurrentAndUnset($table, $id, $fieldArray)
     {
-        $connection = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable($table);
+        $connection = $this->connectionPool->getConnectionForTable($table);
         $queryBuilder = $connection->createQueryBuilder();
         $queryBuilder->getRestrictions()->removeAll();
         $currentRecord = $queryBuilder->select('*')
@@ -8478,8 +8330,14 @@ class DataHandler implements LoggerAwareInterface
             }
             // Unset the fields which are similar:
             foreach ($fieldArray as $col => $val) {
-                $fieldConfiguration = $GLOBALS['TCA'][$table]['columns'][$col]['config'] ?? [];
-                $isNullField = $fieldConfiguration['nullable'] ?? false;
+                $fieldConfiguration = [];
+                $isNullField = false;
+
+                if ($this->tcaSchemaFactory->get($table)->hasField($col)) {
+                    $fieldType = $this->tcaSchemaFactory->get($table)->getField($col);
+                    $fieldConfiguration = $fieldType->getConfiguration();
+                    $isNullField = $fieldType->isNullable();
+                }
 
                 // Unset fields if stored and submitted values are equal - except the current field holds MM relations.
                 // In general this avoids to store superfluous data which also will be visualized in the editing history.
@@ -8553,7 +8411,7 @@ class DataHandler implements LoggerAwareInterface
      * In general only undeleted records will be used. If the delete
      * clause is disabled, also deleted records are taken into account.
      */
-    public function disableDeleteClause()
+    public function disableDeleteClause(): void
     {
         $this->disableDeleteClause = true;
     }
@@ -8565,11 +8423,12 @@ class DataHandler implements LoggerAwareInterface
      * @return string Delete clause
      * @internal should only be used from within DataHandler
      */
-    public function deleteClause($table)
+    public function deleteClause($table): string
     {
         // Returns the proper delete-clause if any for a table from TCA
-        if (!$this->disableDeleteClause && $GLOBALS['TCA'][$table]['ctrl']['delete']) {
-            return ' AND ' . $table . '.' . $GLOBALS['TCA'][$table]['ctrl']['delete'] . '=0';
+        $schema = $this->tcaSchemaFactory->get($table);
+        if (!$this->disableDeleteClause && $schema->hasCapability(TcaSchemaCapability::SoftDelete)) {
+            return ' AND ' . $table . '.' . $schema->getCapability(TcaSchemaCapability::SoftDelete)->getFieldName() . '=0';
         }
         return '';
     }
@@ -8577,7 +8436,7 @@ class DataHandler implements LoggerAwareInterface
     /**
      * Add delete restriction if not disabled
      */
-    protected function addDeleteRestriction(QueryRestrictionContainerInterface $restrictions)
+    protected function addDeleteRestriction(QueryRestrictionContainerInterface $restrictions): void
     {
         if (!$this->disableDeleteClause) {
             $restrictions->add(GeneralUtility::makeInstance(DeletedRestriction::class));
@@ -8609,7 +8468,7 @@ class DataHandler implements LoggerAwareInterface
      * @return array TSconfig merged
      * @internal should only be used from within DataHandler
      */
-    public function getTableEntries($table, $TSconfig)
+    public function getTableEntries($table, $TSconfig): array
     {
         $tA = is_array($TSconfig['table.'][$table . '.'] ?? false) ? $TSconfig['table.'][$table . '.'] : [];
         $dA = is_array($TSconfig['default.'] ?? false) ? $TSconfig['default.'] : [];
@@ -8627,9 +8486,8 @@ class DataHandler implements LoggerAwareInterface
      */
     public function getPID($table, $uid)
     {
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($table);
-        $queryBuilder->getRestrictions()
-            ->removeAll();
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable($table);
+        $queryBuilder->getRestrictions()->removeAll();
         $queryBuilder->select('pid')
             ->from($table)
             ->where($queryBuilder->expr()->eq('uid', $queryBuilder->createNamedParameter($uid, Connection::PARAM_INT)));
@@ -8644,7 +8502,7 @@ class DataHandler implements LoggerAwareInterface
      * This will save MM relations for new records but is executed after records are created because we need to know the ID of them
      * @internal should only be used from within DataHandler
      */
-    public function dbAnalysisStoreExec()
+    public function dbAnalysisStoreExec(): void
     {
         foreach ($this->dbAnalysisStore as $action) {
             $idIsInteger = MathUtility::canBeInterpretedAsInteger($action[2]);
@@ -8673,13 +8531,16 @@ class DataHandler implements LoggerAwareInterface
     public function int_pageTreeInfo($CPtable, $pid, $counter, $rootID)
     {
         if ($counter) {
-            $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('pages');
+            $queryBuilder = $this->connectionPool->getQueryBuilderForTable('pages');
             $restrictions = $queryBuilder->getRestrictions()->removeAll();
             $this->addDeleteRestriction($restrictions);
             $queryBuilder
                 ->select('uid')
                 ->from('pages')
-                ->where($queryBuilder->expr()->eq('pid', $queryBuilder->createNamedParameter($pid, Connection::PARAM_INT)))
+                ->where(
+                    $queryBuilder->expr()->eq('pid', $queryBuilder->createNamedParameter($pid, Connection::PARAM_INT)),
+                    $queryBuilder->expr()->eq('sys_language_uid', $queryBuilder->createNamedParameter(0, Connection::PARAM_INT)),
+                )
                 ->orderBy('sorting', 'DESC');
             if (!$this->admin) {
                 $queryBuilder->andWhere($this->BE_USER->getPagePermsClause(Permission::PAGE_SHOW));
@@ -8728,35 +8589,26 @@ class DataHandler implements LoggerAwareInterface
     }
 
     /**
-     * List of all tables (those administrators has access to = array_keys of $GLOBALS['TCA'])
-     */
-    protected function compileAdminTables(): array
-    {
-        return array_keys($GLOBALS['TCA']);
-    }
-
-    /**
      * Checks if any uniqueInPid eval input fields are in the record and if so, they are re-written to be correct.
      *
      * @param string $table Table name
      * @param int $uid Record UID
      * @internal should only be used from within DataHandler
      */
-    public function fixUniqueInPid($table, $uid)
+    public function fixUniqueInPid($table, $uid): void
     {
-        if (empty($GLOBALS['TCA'][$table])) {
+        if (!$this->tcaSchemaFactory->has($table)) {
             return;
         }
-
         $curData = $this->recordInfo($table, $uid);
         $newData = [];
-        foreach ($GLOBALS['TCA'][$table]['columns'] as $field => $conf) {
-            if (($conf['config']['type'] === 'input' || $conf['config']['type'] === 'email') && (string)$curData[$field] !== '') {
-                $evalCodesArray = GeneralUtility::trimExplode(',', $conf['config']['eval'] ?? '', true);
+        foreach ($this->tcaSchemaFactory->get($table)->getFields() as $field) {
+            if ($field->isType(TableColumnType::INPUT, TableColumnType::EMAIL) && (string)$curData[$field->getName()] !== '') {
+                $evalCodesArray = GeneralUtility::trimExplode(',', $field->getConfiguration()['eval'] ?? '', true);
                 if (in_array('uniqueInPid', $evalCodesArray, true)) {
-                    $newV = $this->getUnique($table, $field, $curData[$field], $uid, $curData['pid']);
-                    if ((string)$newV !== (string)$curData[$field]) {
-                        $newData[$field] = $newV;
+                    $newV = $this->getUnique($table, $field->getName(), $curData[$field->getName()], $uid, $curData['pid']);
+                    if ((string)$newV !== (string)$curData[$field->getName()]) {
+                        $newData[$field->getName()] = $newV;
                     }
                 }
             }
@@ -8779,15 +8631,16 @@ class DataHandler implements LoggerAwareInterface
         $curData = $this->recordInfo($table, $uid);
         $workspaceId = $this->BE_USER->workspace;
         $newData = [];
-        foreach ($GLOBALS['TCA'][$table]['columns'] as $field => $conf) {
-            if ($conf['config']['type'] === 'slug' && (string)$curData[$field] !== '') {
-                $evalCodesArray = GeneralUtility::trimExplode(',', $conf['config']['eval'] ?? '', true);
+        foreach ($this->tcaSchemaFactory->get($table)->getFields() as $field) {
+            if ($field->isType(TableColumnType::SLUG) && (string)$curData[$field->getName()] !== '') {
+                $conf = $field->getConfiguration();
+                $evalCodesArray = GeneralUtility::trimExplode(',', $conf['eval'] ?? '', true);
                 if (in_array('uniqueInSite', $evalCodesArray, true)) {
-                    $helper = GeneralUtility::makeInstance(SlugHelper::class, $table, $field, $conf['config'], $workspaceId);
+                    $helper = GeneralUtility::makeInstance(SlugHelper::class, $table, $field->getName(), $conf, $workspaceId);
                     $state = RecordStateFactory::forName($table)->fromArray($curData);
-                    $newValue = $helper->buildSlugForUniqueInSite($curData[$field], $state);
-                    if ((string)$newValue !== (string)$curData[$field]) {
-                        $newData[$field] = $newValue;
+                    $newValue = $helper->buildSlugForUniqueInSite($curData[$field->getName()], $state);
+                    if ((string)$newValue !== (string)$curData[$field->getName()]) {
+                        $newData[$field->getName()] = $newValue;
                     }
                 }
             }
@@ -8803,7 +8656,7 @@ class DataHandler implements LoggerAwareInterface
     /**
      * Check if there are subpages that need an adoption as well
      */
-    protected function fixUniqueInSiteForSubpages(int $pageId)
+    protected function fixUniqueInSiteForSubpages(int $pageId): void
     {
         // Get ALL subpages to update - read-permissions are respected
         $subPages = $this->int_pageTreeInfo([], $pageId, 99, $pageId);
@@ -8827,16 +8680,23 @@ class DataHandler implements LoggerAwareInterface
      */
     protected function fixCopyAfterDuplFields(string $table, int $prevUid): array
     {
-        if (!($GLOBALS['TCA'][$table]['ctrl']['copyAfterDuplFields'] ?? false)
-            || ($prevData = $this->recordInfo($table, $prevUid)) === null
-        ) {
+        $schema = $this->tcaSchemaFactory->get($table);
+        if (!isset($schema->getRawConfiguration()['copyAfterDuplFields'])) {
+            return [];
+        }
+        if (($prevData = $this->recordInfo($table, $prevUid)) === null) {
             return [];
         }
 
+        $fieldNames = GeneralUtility::trimExplode(',', $schema->getRawConfiguration()['copyAfterDuplFields'], true);
         $newData = [];
-        foreach (GeneralUtility::trimExplode(',', $GLOBALS['TCA'][$table]['ctrl']['copyAfterDuplFields'], true) as $field) {
-            if (($GLOBALS['TCA'][$table]['columns'][$field] ?? false) && !isset($newData[$field])) {
-                $newData[$field] = $prevData[$field];
+        foreach ($fieldNames as $fieldName) {
+            if ($schema->hasField($fieldName)) {
+                $fieldType = $schema->getField($fieldName);
+                $fieldName = $fieldType->getName();
+                if (!isset($newData[$fieldName])) {
+                    $newData[$fieldName] = $prevData[$fieldName];
+                }
             }
         }
         return $newData;
@@ -8883,12 +8743,11 @@ class DataHandler implements LoggerAwareInterface
      * @return bool TRUE if DB reference field (group/db or select with foreign-table)
      * @internal should only be used from within DataHandler
      */
-    public function isReferenceField($conf)
+    public function isReferenceField($conf): bool
     {
         if (!isset($conf['type'])) {
             return false;
         }
-
         return ($conf['type'] === 'group') || (($conf['type'] === 'select' || $conf['type'] === 'category') && !empty($conf['foreign_table']));
     }
 
@@ -8942,7 +8801,7 @@ class DataHandler implements LoggerAwareInterface
         }
         // Do check:
         if ($prevTitle != $checkTitle || $count < 100) {
-            $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($table);
+            $queryBuilder = $this->connectionPool->getQueryBuilderForTable($table);
             $this->addDeleteRestriction($queryBuilder->getRestrictions()->removeAll());
             $rowCount = $queryBuilder
                 ->count('uid')
@@ -8968,9 +8827,12 @@ class DataHandler implements LoggerAwareInterface
      * @return string Label to append, containing "%s" for the number
      * @see getCopyHeader()
      */
-    protected function prependLabel($table)
+    protected function prependLabel($table): string
     {
-        return $this->getLanguageService()->sL($GLOBALS['TCA'][$table]['ctrl']['prependAtCopy']);
+        if ($this->tcaSchemaFactory->has($table)) {
+            return $this->getLanguageService()->sL($this->tcaSchemaFactory->get($table)->getCapability(TcaSchemaCapability::PrependLabelTextAtCopy)->getValue());
+        }
+        return '';
     }
 
     /**
@@ -8981,17 +8843,16 @@ class DataHandler implements LoggerAwareInterface
      * @return int
      * @internal should only be used from within DataHandler
      */
-    public function resolvePid($table, $pid)
+    public function resolvePid($table, $pid): int
     {
         $pid = (int)$pid;
         if ($pid < 0) {
-            $query = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($table);
-            $query->getRestrictions()
-                ->removeAll();
-            $row = $query
+            $queryBuilder = $this->connectionPool->getQueryBuilderForTable($table);
+            $queryBuilder->getRestrictions()->removeAll();
+            $row = $queryBuilder
                 ->select('pid')
                 ->from($table)
-                ->where($query->expr()->eq('uid', $query->createNamedParameter(abs($pid), Connection::PARAM_INT)))
+                ->where($queryBuilder->expr()->eq('uid', $queryBuilder->createNamedParameter(abs($pid), Connection::PARAM_INT)))
                 ->executeQuery()
                 ->fetchAssociative();
             $pid = (int)$row['pid'];
@@ -9025,24 +8886,22 @@ class DataHandler implements LoggerAwareInterface
         if ($this->admin) {
             return null;
         }
-
         $disallowedTables = [];
         if (!empty($pageIds)) {
-            $tableNames = $this->compileAdminTables();
-            foreach ($tableNames as $table) {
-                $query = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($table);
-                $query->getRestrictions()
-                    ->removeAll()
+            foreach ($this->tcaSchemaFactory->all() as $schema) {
+                $table = $schema->getName();
+                $queryBuilder = $this->connectionPool->getQueryBuilderForTable($table);
+                $queryBuilder->getRestrictions()->removeAll()
                     ->add(GeneralUtility::makeInstance(DeletedRestriction::class));
-                $count = $query->count('uid')
+                $count = $queryBuilder->count('uid')
                     ->from($table)
-                    ->where($query->expr()->in(
+                    ->where($queryBuilder->expr()->in(
                         'pid',
-                        $query->createNamedParameter($pageIds, Connection::PARAM_INT_ARRAY)
+                        $queryBuilder->createNamedParameter($pageIds, Connection::PARAM_INT_ARRAY)
                     ))
                     ->executeQuery()
                     ->fetchOne();
-                if ($count && ($this->tableReadOnly($table) || !$this->checkModifyAccessList($table))) {
+                if ($count && ($schema->hasCapability(TcaSchemaCapability::AccessReadOnly) || !$this->checkModifyAccessList($table))) {
                     $disallowedTables[] = $table;
                 }
             }
@@ -9058,7 +8917,7 @@ class DataHandler implements LoggerAwareInterface
      * @return bool Returns TRUE if the record is copied or is the result of a copy action
      * @internal should only be used from within DataHandler
      */
-    public function isRecordCopied($table, $uid)
+    public function isRecordCopied($table, $uid): bool
     {
         // If the record was copied:
         if (isset($this->copyMappingArray[$table][$uid])) {
@@ -9086,7 +8945,7 @@ class DataHandler implements LoggerAwareInterface
      * @param int $pid REAL PID of page of a deleted/moved record to get TSconfig in ClearCache.
      * @internal This method is not meant to be called directly but only from the core itself or from hooks
      */
-    public function registerRecordIdForPageCacheClearing($table, $uid, $pid = null)
+    public function registerRecordIdForPageCacheClearing($table, $uid, $pid = null): void
     {
         if (!is_array(static::$recordsToClearCacheFor[$table] ?? false)) {
             static::$recordsToClearCacheFor[$table] = [];
@@ -9103,14 +8962,14 @@ class DataHandler implements LoggerAwareInterface
     /**
      * Do the actual clear cache
      */
-    protected function processClearCacheQueue()
+    protected function processClearCacheQueue(): void
     {
         $tagsToClear = [];
         $clearCacheCommands = [];
 
         foreach (static::$recordsToClearCacheFor as $table => $uids) {
             foreach (array_unique($uids) as $uid) {
-                if (!isset($GLOBALS['TCA'][$table]) || $uid <= 0) {
+                if ($uid <= 0 || !$this->tcaSchemaFactory->has($table)) {
                     return;
                 }
                 // For move commands we may get more then 1 parent.
@@ -9124,8 +8983,7 @@ class DataHandler implements LoggerAwareInterface
             }
         }
 
-        $cacheManager = $this->getCacheManager();
-        $cacheManager->flushCachesInGroupByTags('pages', array_keys($tagsToClear));
+        $this->cacheManager->flushCachesInGroupByTags('pages', array_keys($tagsToClear));
 
         // Filter duplicate cache commands from cacheQueue
         $clearCacheCommands = array_unique($clearCacheCommands);
@@ -9150,7 +9008,7 @@ class DataHandler implements LoggerAwareInterface
      * @return array Array with tagsToClear and clearCacheCommands
      * @internal This function is internal only it may be changed/removed also in minor version numbers.
      */
-    protected function prepareCacheFlush($table, $uid, $pid)
+    protected function prepareCacheFlush($table, $uid, $pid): array
     {
         $tagsToClear = [];
         $clearCacheCommands = [];
@@ -9164,8 +9022,7 @@ class DataHandler implements LoggerAwareInterface
         }
 
         if ($clearCacheEnabled && $this->BE_USER->workspace !== 0 && BackendUtility::isTableWorkspaceEnabled($table)) {
-            $connectionPool = GeneralUtility::makeInstance(ConnectionPool::class);
-            $queryBuilder = $connectionPool->getQueryBuilderForTable($table);
+            $queryBuilder = $this->connectionPool->getQueryBuilderForTable($table);
             $queryBuilder->getRestrictions()
                 ->removeAll()
                 ->add(GeneralUtility::makeInstance(DeletedRestriction::class));
@@ -9184,15 +9041,13 @@ class DataHandler implements LoggerAwareInterface
         }
 
         if ($clearCacheEnabled) {
-            $connectionPool = GeneralUtility::makeInstance(ConnectionPool::class);
-            // If table is "pages":
             $pageIdsThatNeedCacheFlush = [];
             if ($table === 'pages') {
-                // Find out if the record is a get the original page
+                // If table is "pages", Find out if the record is a localized one and get the default page
                 $pageUid = $this->getDefaultLanguagePageId($uid);
 
                 // Builds list of pages on the SAME level as this page (siblings)
-                $queryBuilder = $connectionPool->getQueryBuilderForTable('pages');
+                $queryBuilder = $this->connectionPool->getQueryBuilderForTable('pages');
                 $queryBuilder->getRestrictions()
                     ->removeAll()
                     ->add(GeneralUtility::makeInstance(DeletedRestriction::class));
@@ -9213,7 +9068,7 @@ class DataHandler implements LoggerAwareInterface
                     $parentPageId = (int)$row_tmp['pid'];
                     // Add children as well:
                     if ($TSConfig['clearCache_pageSiblingChildren'] ?? false) {
-                        $siblingChildrenQuery = $connectionPool->getQueryBuilderForTable('pages');
+                        $siblingChildrenQuery = $this->connectionPool->getQueryBuilderForTable('pages');
                         $siblingChildrenQuery->getRestrictions()
                             ->removeAll()
                             ->add(GeneralUtility::makeInstance(DeletedRestriction::class));
@@ -9234,9 +9089,9 @@ class DataHandler implements LoggerAwareInterface
                 if ($parentPageId > 0) {
                     $pageIdsThatNeedCacheFlush[] = $parentPageId;
                 }
-                // Add grand-parent as well if configured
+                // Add grandparent as well if configured
                 if ($TSConfig['clearCache_pageGrandParent'] ?? false) {
-                    $parentQuery = $connectionPool->getQueryBuilderForTable('pages');
+                    $parentQuery = $this->connectionPool->getQueryBuilderForTable('pages');
                     $parentQuery->getRestrictions()
                         ->removeAll()
                         ->add(GeneralUtility::makeInstance(DeletedRestriction::class));
@@ -9258,7 +9113,7 @@ class DataHandler implements LoggerAwareInterface
                 $pageIdsThatNeedCacheFlush[] = $pageUid = (int)$this->getPID($table, $uid);
                 // Add the parent page as well
                 if ($TSConfig['clearCache_pageGrandParent'] ?? false) {
-                    $parentQuery = $connectionPool->getQueryBuilderForTable('pages');
+                    $parentQuery = $this->connectionPool->getQueryBuilderForTable('pages');
                     $parentQuery->getRestrictions()
                         ->removeAll()
                         ->add(GeneralUtility::makeInstance(DeletedRestriction::class));
@@ -9295,7 +9150,7 @@ class DataHandler implements LoggerAwareInterface
             $commands = GeneralUtility::trimExplode(',', $TSConfig['clearCacheCmd'], true);
             $clearCacheCommands = array_unique($commands);
         }
-        // Call post processing function for clear-cache:
+        // Call post-processing function for clear-cache:
         $_params = ['table' => $table, 'uid' => $uid, 'uid_page' => $pageUid, 'TSConfig' => $TSConfig, 'tags' => $tagsToClear, 'clearCacheEnabled' => $clearCacheEnabled];
         foreach ($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_tcemain.php']['clearCachePostProc'] ?? [] as $_funcRef) {
             GeneralUtility::callUserFunction($_funcRef, $_params, $this);
@@ -9319,9 +9174,6 @@ class DataHandler implements LoggerAwareInterface
      *
      * The following cache_* are intentionally not cleared by 'all'
      *
-     * - imagesizes:	Clearing this table would cause a lot of unneeded
-     * Imagemagick calls because the size information has
-     * to be fetched again after clearing.
      * - all caches inside the cache manager that are inside the group "system"
      * - they are only needed to build up the core system and templates.
      *   If the group of system caches needs to be deleted explicitly, use
@@ -9344,7 +9196,7 @@ class DataHandler implements LoggerAwareInterface
      *
      * @param int|string $cacheCmd The cache command, see above description
      */
-    public function clear_cacheCmd($cacheCmd)
+    public function clear_cacheCmd($cacheCmd): void
     {
         if (is_object($this->BE_USER)) {
             $this->BE_USER->writeLog(SystemLogType::CACHE, SystemLogCacheAction::CLEAR, SystemLogErrorClassification::MESSAGE, 0, 'User {username} has cleared the cache (cacheCmd={command})', ['username' => $this->BE_USER->user['username'], 'command' => $cacheCmd]);
@@ -9353,7 +9205,7 @@ class DataHandler implements LoggerAwareInterface
         switch (strtolower($cacheCmd)) {
             case 'pages':
                 if ($this->admin || ($userTsConfig['options.']['clearCache.']['pages'] ?? false)) {
-                    $this->getCacheManager()->flushCachesInGroup('pages');
+                    $this->cacheManager->flushCachesInGroup('pages');
                 }
                 break;
             case 'all':
@@ -9363,13 +9215,10 @@ class DataHandler implements LoggerAwareInterface
                 if (($userTsConfig['options.']['clearCache.']['all'] ?? false)
                     || ($this->admin && (bool)($userTsConfig['options.']['clearCache.']['all'] ?? true))
                 ) {
-                    $this->getCacheManager()->flushCaches();
-                    GeneralUtility::makeInstance(ConnectionPool::class)
-                        ->getConnectionForTable('cache_treelist')
-                        ->truncate('cache_treelist');
+                    $this->cacheManager->flushCaches();
 
                     // Delete Opcode Cache
-                    GeneralUtility::makeInstance(OpcodeCacheService::class)->clearAllActive();
+                    $this->opcodeCacheService->clearAllActive();
 
                     // Delete DI Cache only on development context
                     if (Environment::getContext()->isDevelopment()) {
@@ -9404,10 +9253,10 @@ class DataHandler implements LoggerAwareInterface
         }
         // process caching framework operations
         if (!empty($tagsToFlush)) {
-            $this->getCacheManager()->flushCachesInGroupByTags('pages', $tagsToFlush);
+            $this->cacheManager->flushCachesInGroupByTags('pages', $tagsToFlush);
         }
 
-        // Call post processing function for clear-cache:
+        // Call post-processing function for clear-cache:
         $_params = ['cacheCmd' => strtolower($cacheCmd), 'tags' => $tagsToFlush];
         foreach ($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_tcemain.php']['clearCachePostProc'] ?? [] as $_funcRef) {
             GeneralUtility::callUserFunction($_funcRef, $_params, $this);
@@ -9465,7 +9314,7 @@ class DataHandler implements LoggerAwareInterface
      */
     public function printLogErrorMessages(): array
     {
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('sys_log');
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_log');
         $queryBuilder->getRestrictions()->removeAll();
         $result = $queryBuilder
             ->select('*')
@@ -9491,8 +9340,7 @@ class DataHandler implements LoggerAwareInterface
             $msg = $this->formatLogDetails($row['details'], $row['log_data'] ?? '');
             $msg = $row['error'] . ': ' . $msg;
             $flashMessage = GeneralUtility::makeInstance(FlashMessage::class, $msg, '', $row['error'] === SystemLogErrorClassification::WARNING ? ContextualFeedbackSeverity::WARNING : ContextualFeedbackSeverity::ERROR, true);
-            $flashMessageService = GeneralUtility::makeInstance(FlashMessageService::class);
-            $defaultFlashMessageQueue = $flashMessageService->getMessageQueueByIdentifier();
+            $defaultFlashMessageQueue = $this->flashMessageService->getMessageQueueByIdentifier();
             $defaultFlashMessageQueue->enqueue($flashMessage);
         }
 
@@ -9514,7 +9362,8 @@ class DataHandler implements LoggerAwareInterface
      */
     protected function getDefaultLanguagePageId(int $pageId): int
     {
-        $localizationParentFieldName = $GLOBALS['TCA']['pages']['ctrl']['transOrigPointerField'];
+        $languageCapability = $this->tcaSchemaFactory->get('pages')->getCapability(TcaSchemaCapability::Language);
+        $localizationParentFieldName = $languageCapability->getTranslationOriginPointerField()->getName();
         $row = $this->recordInfo('pages', $pageId);
         $localizationParent = (int)($row[$localizationParentFieldName] ?? 0);
         if ($localizationParent > 0) {
@@ -9536,11 +9385,14 @@ class DataHandler implements LoggerAwareInterface
     public function insertUpdateDB_preprocessBasedOnFieldType($table, $fieldArray)
     {
         $result = $fieldArray;
+        $schema = $this->tcaSchemaFactory->get($table);
         foreach ($fieldArray as $field => $value) {
-            if (!MathUtility::canBeInterpretedAsInteger($value)
-                && isset($GLOBALS['TCA'][$table]['columns'][$field]['config']['type'])
-                && in_array($GLOBALS['TCA'][$table]['columns'][$field]['config']['type'], ['inline', 'file'], true)
-                && ($GLOBALS['TCA'][$table]['columns'][$field]['config']['foreign_field'] ?? false)
+            if (MathUtility::canBeInterpretedAsInteger($value) || !$schema->hasField($field)) {
+                continue;
+            }
+            $fieldType = $schema->getField($field);
+            if ($fieldType->isType(TableColumnType::INLINE, TableColumnType::FILE)
+                && ($fieldType->getConfiguration()['foreign_field'] ?? false)
             ) {
                 $result[$field] = count(GeneralUtility::trimExplode(',', $value, true));
             }
@@ -9598,20 +9450,6 @@ class DataHandler implements LoggerAwareInterface
     }
 
     /**
-     * Adds new values to the remapStackChildIds array.
-     *
-     * @param array $idValues uid values
-     */
-    protected function addNewValuesToRemapStackChildIds(array $idValues)
-    {
-        foreach ($idValues as $idValue) {
-            if (str_starts_with($idValue, 'NEW')) {
-                $this->remapStackChildIds[$idValue] = true;
-            }
-        }
-    }
-
-    /**
      * Resolves versioned records for the current workspace scope.
      * Delete placeholders are substituted and removed.
      *
@@ -9623,8 +9461,7 @@ class DataHandler implements LoggerAwareInterface
      */
     protected function resolveVersionedRecords($tableName, $fieldNames, $sortingField, array $liveIds)
     {
-        $connection = GeneralUtility::makeInstance(ConnectionPool::class)
-            ->getConnectionForTable($tableName);
+        $connection = $this->connectionPool->getConnectionForTable($tableName);
         $sortingStatement = !empty($sortingField)
             ? [$connection->quoteIdentifier($sortingField)]
             : null;
@@ -9668,7 +9505,7 @@ class DataHandler implements LoggerAwareInterface
             return false;
         }
         // No versioning support for this table, so no version can be created
-        if (!BackendUtility::isTableWorkspaceEnabled($table)) {
+        if (!$this->tcaSchemaFactory->get($table)->isWorkspaceAware()) {
             return false;
         }
         if ($recpid < 0) {
@@ -9692,8 +9529,8 @@ class DataHandler implements LoggerAwareInterface
      */
     public function workspaceCannotEditOfflineVersion(string $table, array $record)
     {
-        $versionState = new VersionState($record['t3ver_state']);
-        if ($versionState->equals(VersionState::NEW_PLACEHOLDER) || (int)$record['t3ver_oid'] > 0) {
+        $versionState = VersionState::tryFrom($record['t3ver_state'] ?? 0);
+        if ($versionState === VersionState::NEW_PLACEHOLDER || (int)$record['t3ver_oid'] > 0) {
             return $this->workspaceCannotEditRecord($table, $record);
         }
         return 'Not an offline version';
@@ -9708,16 +9545,16 @@ class DataHandler implements LoggerAwareInterface
      *
      * @param string $table Table of record
      * @param array|int $recData Integer (record uid) or array where fields are at least: pid, t3ver_wsid, t3ver_oid, t3ver_stage (if versioningWS is set)
-     * @return string String error code, telling the failure state. FALSE=All ok
+     * @return string|false String error code, telling the failure state. FALSE=All ok
      * @internal should only be used from within TYPO3 Core
      */
-    public function workspaceCannotEditRecord($table, $recData)
+    public function workspaceCannotEditRecord($table, $recData): string|false
     {
         // Only test if the user is in a workspace
         if ($this->BE_USER->workspace === 0) {
             return false;
         }
-        $tableSupportsVersioning = BackendUtility::isTableWorkspaceEnabled($table);
+        $tableSupportsVersioning = $this->tcaSchemaFactory->get($table)->isWorkspaceAware();
         if (!is_array($recData)) {
             $recData = BackendUtility::getRecord(
                 $table,
@@ -9728,10 +9565,10 @@ class DataHandler implements LoggerAwareInterface
         if (is_array($recData)) {
             // We are testing a "version" (identified by having a t3ver_oid): it can be edited provided
             // that workspace matches and versioning is enabled for the table.
-            $versionState = new VersionState($recData['t3ver_state'] ?? 0);
+            $versionState = VersionState::tryFrom($recData['t3ver_state'] ?? 0);
             if ($tableSupportsVersioning
                 && (
-                    $versionState->equals(VersionState::NEW_PLACEHOLDER) || (int)(($recData['t3ver_oid'] ?? 0) > 0)
+                    $versionState === VersionState::NEW_PLACEHOLDER || (int)(($recData['t3ver_oid'] ?? 0) > 0)
                 )
             ) {
                 if ((int)$recData['t3ver_wsid'] !== $this->BE_USER->workspace) {
@@ -9776,25 +9613,13 @@ class DataHandler implements LoggerAwareInterface
     }
 
     /**
-     * Determines whether the this object is the outer most instance of itself
+     * Determines whether this object is the outermost instance of itself
      * Since DataHandler can create nested objects of itself,
-     * this method helps to determine the first (= outer most) one.
-     *
-     * @return bool
+     * this method helps to determine the first (= outermost) one.
      */
-    public function isOuterMostInstance()
+    public function isOuterMostInstance(): bool
     {
         return $this->getOuterMostInstance() === $this;
-    }
-
-    /**
-     * Gets an instance of the runtime cache.
-     *
-     * @return FrontendInterface
-     */
-    protected function getRuntimeCache()
-    {
-        return $this->getCacheManager()->getCache('runtime');
     }
 
     /**
@@ -9805,10 +9630,10 @@ class DataHandler implements LoggerAwareInterface
      * @param string $identifier Name of the action to be checked
      * @return bool
      */
-    protected function isNestedElementCallRegistered($table, $id, $identifier)
+    protected function isNestedElementCallRegistered($table, $id, $identifier): bool
     {
         // @todo: Stop abusing runtime cache as singleton DTO, needs explicit modeling.
-        $nestedElementCalls = (array)$this->runtimeCache->get($this->cachePrefixNestedElementCalls);
+        $nestedElementCalls = (array)$this->runtimeCache->get(self::CACHE_IDENTIFIER_NESTED_ELEMENT_CALLS_PREFIX);
         return isset($nestedElementCalls[$identifier][$table][$id]);
     }
 
@@ -9820,19 +9645,19 @@ class DataHandler implements LoggerAwareInterface
      * @param int $id Uid of the record
      * @param string $identifier Name of the action to be tracked
      */
-    protected function registerNestedElementCall($table, $id, $identifier)
+    protected function registerNestedElementCall($table, $id, $identifier): void
     {
-        $nestedElementCalls = (array)$this->runtimeCache->get($this->cachePrefixNestedElementCalls);
+        $nestedElementCalls = (array)$this->runtimeCache->get(self::CACHE_IDENTIFIER_NESTED_ELEMENT_CALLS_PREFIX);
         $nestedElementCalls[$identifier][$table][$id] = true;
-        $this->runtimeCache->set($this->cachePrefixNestedElementCalls, $nestedElementCalls);
+        $this->runtimeCache->set(self::CACHE_IDENTIFIER_NESTED_ELEMENT_CALLS_PREFIX, $nestedElementCalls);
     }
 
     /**
      * Resets the nested element calls.
      */
-    protected function resetNestedElementCalls()
+    protected function resetNestedElementCalls(): void
     {
-        $this->runtimeCache->remove($this->cachePrefixNestedElementCalls);
+        $this->runtimeCache->remove(self::CACHE_IDENTIFIER_NESTED_ELEMENT_CALLS_PREFIX);
     }
 
     /**
@@ -9849,7 +9674,7 @@ class DataHandler implements LoggerAwareInterface
     protected function isElementToBeDeleted($table, $id)
     {
         // @todo: Stop abusing runtime cache as singleton DTO, needs explicit modeling.
-        $elementsToBeDeleted = (array)$this->runtimeCache->get('core-datahandler-elementsToBeDeleted');
+        $elementsToBeDeleted = (array)$this->runtimeCache->get(self::CACHE_IDENTIFIER_ELEMENTS_TO_BE_DELETED);
         return isset($elementsToBeDeleted[$table][$id]);
     }
 
@@ -9858,10 +9683,10 @@ class DataHandler implements LoggerAwareInterface
      *
      * @see process_datamap
      */
-    protected function registerElementsToBeDeleted()
+    protected function registerElementsToBeDeleted(): void
     {
-        $elementsToBeDeleted = (array)$this->runtimeCache->get('core-datahandler-elementsToBeDeleted');
-        $this->runtimeCache->set('core-datahandler-elementsToBeDeleted', array_merge($elementsToBeDeleted, $this->getCommandMapElements('delete')));
+        $elementsToBeDeleted = (array)$this->runtimeCache->get(self::CACHE_IDENTIFIER_ELEMENTS_TO_BE_DELETED);
+        $this->runtimeCache->set(self::CACHE_IDENTIFIER_ELEMENTS_TO_BE_DELETED, array_merge($elementsToBeDeleted, $this->getCommandMapElements('delete')));
     }
 
     /**
@@ -9869,9 +9694,9 @@ class DataHandler implements LoggerAwareInterface
      *
      * @see process_datamap
      */
-    protected function resetElementsToBeDeleted()
+    protected function resetElementsToBeDeleted(): void
     {
-        $this->runtimeCache->remove('core-datahandler-elementsToBeDeleted');
+        $this->runtimeCache->remove(self::CACHE_IDENTIFIER_ELEMENTS_TO_BE_DELETED);
     }
 
     /**
@@ -9879,9 +9704,8 @@ class DataHandler implements LoggerAwareInterface
      * This avoids to modify records that will be deleted later on.
      *
      * @param array $elements Elements to be modified
-     * @return array
      */
-    protected function unsetElementsToBeDeleted(array $elements)
+    protected function unsetElementsToBeDeleted(array $elements): array
     {
         $elements = ArrayUtility::arrayDiffKeyRecursive($elements, $this->getCommandMapElements('delete'));
         foreach ($elements as $key => $value) {
@@ -9896,9 +9720,8 @@ class DataHandler implements LoggerAwareInterface
      * Gets elements of the command map that match a particular command.
      *
      * @param string $needle The command to be matched
-     * @return array
      */
-    protected function getCommandMapElements($needle)
+    protected function getCommandMapElements(string $needle): array
     {
         $elements = [];
         foreach ($this->cmdmap as $tableName => $idArray) {
@@ -9917,7 +9740,7 @@ class DataHandler implements LoggerAwareInterface
      * Controls active elements and sets NULL values if not active.
      * Datamap is modified accordant to submitted control values.
      */
-    protected function controlActiveElements()
+    protected function controlActiveElements(): void
     {
         if (!empty($this->control['active'])) {
             $this->setNullValues(
@@ -9935,7 +9758,7 @@ class DataHandler implements LoggerAwareInterface
      * @param array $active hierarchical array with active elements
      * @param array $haystack hierarchical array with haystack to be modified
      */
-    protected function setNullValues(array $active, array &$haystack)
+    protected function setNullValues(array $active, array &$haystack): void
     {
         foreach ($active as $key => $value) {
             // Nested data is processes recursively
@@ -9976,7 +9799,7 @@ class DataHandler implements LoggerAwareInterface
             // Return the actual ID we forced on insert as a surrogate.
             return $suggestedUid;
         }
-        $id = $connection->lastInsertId($tableName);
+        $id = $connection->lastInsertId();
         return (int)$id;
     }
 
@@ -9985,7 +9808,7 @@ class DataHandler implements LoggerAwareInterface
      * written to such a column. To avoid clashes when the sequence returns an existing ID this helper will
      * update the sequence to the current max value of the column.
      */
-    protected function postProcessPostgresqlInsert(Connection $connection, string $tableName)
+    protected function postProcessPostgresqlInsert(Connection $connection, string $tableName): void
     {
         $queryBuilder = $connection->createQueryBuilder();
         $queryBuilder->getRestrictions()->removeAll();
@@ -10007,7 +9830,6 @@ class DataHandler implements LoggerAwareInterface
             ->setMaxResults(1)
             ->executeQuery()
             ->fetchAssociative();
-
         if ($row !== false) {
             $connection->executeStatement(
                 sprintf(
@@ -10020,10 +9842,7 @@ class DataHandler implements LoggerAwareInterface
         }
     }
 
-    /**
-     * @return RelationHandler
-     */
-    protected function createRelationHandlerInstance()
+    protected function createRelationHandlerInstance(): RelationHandler
     {
         $isWorkspacesLoaded = ExtensionManagementUtility::isLoaded('workspaces');
         $relationHandler = GeneralUtility::makeInstance(RelationHandler::class);
@@ -10032,26 +9851,6 @@ class DataHandler implements LoggerAwareInterface
         $relationHandler->setUseLiveParentIds($isWorkspacesLoaded);
         $relationHandler->setReferenceIndexUpdater($this->referenceIndexUpdater);
         return $relationHandler;
-    }
-
-    /**
-     * Create and returns an instance of the CacheManager
-     *
-     * @return CacheManager
-     */
-    protected function getCacheManager()
-    {
-        return GeneralUtility::makeInstance(CacheManager::class);
-    }
-
-    /**
-     * Gets the resourceFactory
-     *
-     * @return ResourceFactory
-     */
-    protected function getResourceFactory()
-    {
-        return GeneralUtility::makeInstance(ResourceFactory::class);
     }
 
     protected function getLanguageService(): LanguageService

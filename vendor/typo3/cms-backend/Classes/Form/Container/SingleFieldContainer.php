@@ -15,12 +15,12 @@
 
 namespace TYPO3\CMS\Backend\Form\Container;
 
+use TYPO3\CMS\Backend\Form\Behavior\ReloadOnFieldChange;
 use TYPO3\CMS\Backend\Form\Behavior\UpdateValueOnFieldChange;
 use TYPO3\CMS\Backend\Form\InlineStackProcessor;
 use TYPO3\CMS\Backend\Form\Utility\FormEngineUtility;
-use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
+use TYPO3\CMS\Core\Authentication\JsConfirmation;
 use TYPO3\CMS\Core\Localization\LanguageService;
-use TYPO3\CMS\Core\Type\Bitmask\JsConfirmation;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\MathUtility;
 
@@ -40,12 +40,10 @@ class SingleFieldContainer extends AbstractContainer
      * @throws \InvalidArgumentException
      * @return array As defined in initializeResultArray() of AbstractNode
      */
-    public function render()
+    public function render(): array
     {
         $backendUser = $this->getBackendUserAuthentication();
         $resultArray = $this->initializeResultArray();
-        // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-        $resultArray['labelHasBeenHandled'] = true;
 
         $table = $this->data['tableName'];
         $row = $this->data['databaseRow'];
@@ -95,7 +93,6 @@ class SingleFieldContainer extends AbstractContainer
         // Override fieldConf by fieldTSconfig:
         $parameterArray['fieldConf']['config'] = FormEngineUtility::overrideFieldConf($parameterArray['fieldConf']['config'], $parameterArray['fieldTSConfig']);
         $parameterArray['itemFormElName'] = 'data[' . $table . '][' . $row['uid'] . '][' . $fieldName . ']';
-        $parameterArray['itemFormElID'] = 'data_' . $table . '_' . $row['uid'] . '_' . $fieldName;
         $newElementBaseName = isset($this->data['elementBaseName']) ? $this->data['elementBaseName'] . '[' . $table . '][' . $row['uid'] . '][' . $fieldName . ']' : '';
 
         // The value to show in the form field.
@@ -123,6 +120,14 @@ class SingleFieldContainer extends AbstractContainer
             $parameterArray['itemFormElName']
         );
 
+        $requestFormEngineUpdate =
+            (!empty($this->data['processedTca']['ctrl']['type']) && $fieldName === $typeField)
+            || (isset($parameterArray['fieldConf']['onChange']) && $parameterArray['fieldConf']['onChange'] === 'reload');
+        if ($requestFormEngineUpdate) {
+            $askForUpdate = $backendUser->jsConfirmation(JsConfirmation::TYPE_CHANGE);
+            $parameterArray['fieldChangeFunc']['record_type_changed'] = new ReloadOnFieldChange($askForUpdate);
+        }
+
         // Based on the type of the item, call a render function on a child element
         $options = $this->data;
         $options['parameterArray'] = $parameterArray;
@@ -133,43 +138,8 @@ class SingleFieldContainer extends AbstractContainer
             // Fallback to type if no renderType is given
             $options['renderType'] = $parameterArray['fieldConf']['config']['type'];
         }
-        $resultArray = $this->nodeFactory->create($options)->render();
 
-        // Render a custom HTML element which will ask the user to save/update the form due to changing the element.
-        // This is used for eg. "type" fields and others configured with "onChange"
-        // (https://docs.typo3.org/m/typo3/reference-tca/main/en-us/Columns/Properties/OnChange.html)
-        $requestFormEngineUpdate =
-            (!empty($this->data['processedTca']['ctrl']['type']) && $fieldName === $typeField)
-            || (isset($parameterArray['fieldConf']['onChange']) && $parameterArray['fieldConf']['onChange'] === 'reload');
-        if ($requestFormEngineUpdate) {
-            $askForUpdate = $backendUser->jsConfirmation(JsConfirmation::TYPE_CHANGE);
-            $requestMode = $askForUpdate ? 'ask' : 'enforce';
-            $fieldSelector = sprintf('[name="%s"]', $parameterArray['itemFormElName']);
-            $resultArray['html'] .= '<typo3-formengine-updater mode="' . htmlspecialchars($requestMode) . '" field="' . htmlspecialchars($fieldSelector) . '"></typo3-formengine-updater>';
-        }
-        return $resultArray;
-    }
-
-    /**
-     * Checks if the $table is the child of an inline type AND the $field is the label field of this table.
-     * This function is used to dynamically update the label while editing. This has no effect on labels,
-     * that were processed by a FormEngine-hook on saving.
-     *
-     * @param string $table The table to check
-     * @param string $field The field on this table to check
-     * @return bool Is inline child and field is responsible for the label
-     */
-    protected function isInlineChildAndLabelField($table, $field)
-    {
-        $inlineStackProcessor = GeneralUtility::makeInstance(InlineStackProcessor::class);
-        $inlineStackProcessor->initializeByGivenStructure($this->data['inlineStructure']);
-        $level = $inlineStackProcessor->getStructureLevel(-1);
-        if ($level['config']['foreign_label']) {
-            $label = $level['config']['foreign_label'];
-        } else {
-            $label = $this->data['processedTca']['ctrl']['label'];
-        }
-        return $level['config']['foreign_table'] === $table && $label === $field;
+        return $this->nodeFactory->create($options)->render();
     }
 
     /**
@@ -327,11 +297,6 @@ class SingleFieldContainer extends AbstractContainer
     protected function isAssociativeArray($object)
     {
         return is_array($object) && !empty($object) && array_keys($object) !== range(0, count($object) - 1);
-    }
-
-    protected function getBackendUserAuthentication(): BackendUserAuthentication
-    {
-        return $GLOBALS['BE_USER'];
     }
 
     protected function getLanguageService(): LanguageService

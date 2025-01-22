@@ -19,6 +19,7 @@ namespace TYPO3\CMS\Reports\Controller;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\ModuleTemplate;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
@@ -33,6 +34,7 @@ use TYPO3\CMS\Reports\RequestAwareReportInterface;
  *
  * @internal This class is a specific Backend controller implementation and is not considered part of the Public TYPO3 API.
  */
+#[AsController]
 class ReportController
 {
     public function __construct(
@@ -112,6 +114,7 @@ class ReportController
         $view->assignMultiple([
             'content' => $content,
             'report' => $reportInstance,
+            'title' => $languageService->sL($reportInstance->getTitle()),
         ]);
         $view->setTitle(
             $languageService->sL('LLL:EXT:reports/Resources/Private/Language/locallang.xlf:mlang_tabs_tab'),

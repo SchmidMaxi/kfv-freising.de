@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -242,7 +244,7 @@ class FileIndexRepository implements SingletonInterface
             );
 
         if (isset($fileName)) {
-            $nameParts = str_getcsv($fileName, ' ');
+            $nameParts = str_getcsv($fileName, ' ', '"', '\\');
             foreach ($nameParts as $part) {
                 $part = trim($part);
                 if ($part !== '') {
@@ -300,11 +302,8 @@ class FileIndexRepository implements SingletonInterface
 
     /**
      * Helper to reduce code duplication
-     *
-     *
-     * @return int
      */
-    protected function insertRecord(array $data)
+    protected function insertRecord(array $data): int
     {
         $data = array_intersect_key($data, array_flip($this->fields));
         $data['tstamp'] = time();
@@ -313,7 +312,7 @@ class FileIndexRepository implements SingletonInterface
             $this->table,
             $data
         );
-        $data['uid'] = (int)$connection->lastInsertId($this->table);
+        $data['uid'] = (int)$connection->lastInsertId();
         $this->updateRefIndex($data['uid']);
         $this->eventDispatcher->dispatch(new AfterFileAddedToIndexEvent($data['uid'], $data));
         return $data['uid'];
@@ -441,7 +440,7 @@ class FileIndexRepository implements SingletonInterface
             $queryBuilder->andWhere(
                 $queryBuilder->expr()->notIn(
                     'uid',
-                    array_map('intval', $uidList)
+                    array_map(intval(...), $uidList)
                 )
             );
         }
@@ -504,16 +503,14 @@ class FileIndexRepository implements SingletonInterface
                 'uid' => (int)$fileUid,
             ]
         );
-        $this->updateRefIndex($fileUid);
+        $this->updateRefIndex((int)$fileUid);
         $this->eventDispatcher->dispatch(new AfterFileRemovedFromIndexEvent((int)$fileUid));
     }
 
     /**
      * Update Reference Index (sys_refindex) for a file
-     *
-     * @param int $id Record UID
      */
-    public function updateRefIndex($id)
+    public function updateRefIndex(int $id): void
     {
         $refIndexObj = GeneralUtility::makeInstance(ReferenceIndex::class);
         $refIndexObj->updateRefIndexTable($this->table, $id);

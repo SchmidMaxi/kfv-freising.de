@@ -19,6 +19,7 @@ namespace TYPO3\CMS\Core\TypoScript\IncludeTree\Visitor;
 
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use Symfony\Component\ExpressionLanguage\SyntaxError;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Context\Context;
@@ -26,9 +27,9 @@ use TYPO3\CMS\Core\Context\UserAspect;
 use TYPO3\CMS\Core\Context\WorkspaceAspect;
 use TYPO3\CMS\Core\ExpressionLanguage\RequestWrapper;
 use TYPO3\CMS\Core\ExpressionLanguage\Resolver;
+use TYPO3\CMS\Core\Page\PageLayoutResolver;
 use TYPO3\CMS\Core\TypoScript\IncludeTree\IncludeNode\IncludeConditionInterface;
 use TYPO3\CMS\Core\TypoScript\IncludeTree\IncludeNode\IncludeInterface;
-use TYPO3\CMS\Frontend\Page\PageLayoutResolver;
 
 /**
  * A visitor that looks at IncludeConditionInterface nodes and
@@ -40,6 +41,9 @@ use TYPO3\CMS\Frontend\Page\PageLayoutResolver;
  *
  * @internal: Internal tree structure.
  */
+
+// This visitor creates state and should not be re-used
+#[Autoconfigure(public: true, shared: false)]
 final class IncludeTreeConditionMatcherVisitor implements IncludeTreeVisitorInterface, LoggerAwareInterface
 {
     use LoggerAwareTrait;
@@ -122,7 +126,7 @@ final class IncludeTreeConditionMatcherVisitor implements IncludeTreeVisitorInte
             // the 'nearest' parent. However, here it is always passed sorted, so it is a top-down rootLine. Hence, this needs to be once
             // again reversed at this point.
             $bottomUpFullRootLine = array_reverse($fullRootLine);
-            $tree->pagelayout = $this->pageLayoutResolver->getLayoutForPage($variables['page'], $bottomUpFullRootLine);
+            $tree->pagelayout = $this->pageLayoutResolver->getLayoutIdentifierForPage($variables['page'], $bottomUpFullRootLine);
             $enrichedVariables['tree'] = $tree;
         }
 

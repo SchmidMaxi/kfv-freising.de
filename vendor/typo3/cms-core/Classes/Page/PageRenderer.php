@@ -19,32 +19,28 @@ use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use TYPO3\CMS\Backend\Routing\Router;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
+use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Http\ApplicationType;
 use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
 use TYPO3\CMS\Core\Localization\Locale;
 use TYPO3\CMS\Core\MetaTag\MetaTagManagerRegistry;
-use TYPO3\CMS\Core\Package\Cache\PackageDependentCacheIdentifier;
-use TYPO3\CMS\Core\Package\PackageInterface;
-use TYPO3\CMS\Core\Package\PackageManager;
 use TYPO3\CMS\Core\Resource\RelativeCssPathFixer;
 use TYPO3\CMS\Core\Resource\ResourceCompressor;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\ConsumableNonce;
 use TYPO3\CMS\Core\Service\MarkerBasedTemplateService;
 use TYPO3\CMS\Core\SingletonInterface;
 use TYPO3\CMS\Core\Type\DocType;
-use TYPO3\CMS\Core\Utility\ArrayUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\PathUtility;
 
 /**
  * TYPO3 pageRender class
  * This class render the HTML of a webpage, usable for BE and FE
- *
- * @todo mark this class final in TYPO3 v13.0
  */
 class PageRenderer implements SingletonInterface
 {
@@ -53,47 +49,11 @@ class PageRenderer implements SingletonInterface
     protected const PART_HEADER = 1;
     protected const PART_FOOTER = 2;
 
-    public const REQUIREJS_SCOPE_CONFIG = 'config';
-    public const REQUIREJS_SCOPE_RESOLVE = 'resolve';
-
-    /**
-     * @var bool
-     */
-    protected $compressJavascript = false;
-
-    /**
-     * @var bool
-     */
-    protected $compressCss = false;
-
-    /**
-     * @var bool
-     * @deprecated since TYPO3 v12.2. will be removed in TYPO3 v13.0 along with enable, disable and getter method.
-     */
-    protected $removeLineBreaksFromTemplate = false;
-
-    /**
-     * @var bool
-     */
-    protected $concatenateJavascript = false;
-
-    /**
-     * @var bool
-     */
-    protected $concatenateCss = false;
-
-    /**
-     * @var bool
-     */
-    protected $moveJsFromHeaderToFooter = false;
-
-    /**
-     * The language key
-     * Two character string or 'default'
-     *
-     * @var string
-     */
-    protected $lang;
+    protected bool $compressJavascript = false;
+    protected bool $compressCss = false;
+    protected bool $concatenateJavascript = false;
+    protected bool $concatenateCss = false;
+    protected bool $moveJsFromHeaderToFooter = false;
 
     /**
      * The locale, used for the <html> tag (depending on the DocType) and possible translation files.
@@ -104,232 +64,59 @@ class PageRenderer implements SingletonInterface
     /**
      * @var array<string, array>
      */
-    protected $jsFiles = [];
-
-    /**
-     * @var array
-     */
-    protected $jsFooterFiles = [];
-
-    /**
-     * @var array
-     */
-    protected $jsLibs = [];
-
-    /**
-     * @var array
-     */
-    protected $jsFooterLibs = [];
+    protected array $jsFiles = [];
+    protected array $jsFooterFiles = [];
+    protected array $jsLibs = [];
+    protected array $jsFooterLibs = [];
 
     /**
      * @var array<string, array>
      */
-    protected $cssFiles = [];
+    protected array $cssFiles = [];
 
     /**
      * @var array<string, array>
      */
-    protected $cssLibs = [];
+    protected array $cssLibs = [];
 
     /**
      * The title of the page
-     *
-     * @var string
      */
-    protected $title;
-
-    /**
-     * Charset for the rendering
-     *
-     * @var string
-     */
-    protected $charSet = 'utf-8';
-
-    /**
-     * @var string
-     */
-    protected $favIcon;
-
-    /**
-     * @var string
-     * @deprecated will be removed in TYPO3 v13.0.
-     */
-    protected $baseUrl;
-
-    /**
-     * @var bool
-     * @deprecated will be removed in TYPO3 v13.0. Use DocType instead.
-     */
-    protected $renderXhtml = true;
+    protected string $title = '';
+    protected string $favIcon = '';
 
     // Static header blocks
-    /**
-     * @var string
-     */
-    protected $xmlPrologAndDocType = '';
-
-    /**
-     * @var array
-     */
-    protected $metaTags = [];
-
-    /**
-     * @var array
-     */
-    protected $inlineComments = [];
-
-    /**
-     * @var array
-     */
-    protected $headerData = [];
-
-    /**
-     * @var array
-     */
-    protected $footerData = [];
-
-    /**
-     * @var string
-     */
-    protected $titleTag = '<title>|</title>';
-
-    /**
-     * @var string
-     * @deprecated will be removed in TYPO3 v13.0
-     */
-    protected $metaCharsetTag = '<meta http-equiv="Content-Type" content="text/html; charset=|" />';
-
-    /**
-     * @var string
-     */
-    protected $htmlTag = '<html>';
-
-    /**
-     * @var string
-     */
-    protected $headTag = '<head>';
-
-    /**
-     * @var string
-     * @deprecated will be removed in TYPO3 v13.0.
-     */
-    protected $baseUrlTag = '<base href="|" />';
-
-    /**
-     * @var string
-     */
-    protected $iconMimeType = '';
-
-    /**
-     * @var string
-     */
-    protected $shortcutTag = '<link rel="icon" href="%1$s"%2$s />';
+    protected string $xmlPrologAndDocType = '';
+    protected array $inlineComments = [];
+    protected array $headerData = [];
+    protected array $footerData = [];
+    protected string $titleTag = '<title>|</title>';
+    protected string $htmlTag = '<html>';
+    protected string $headTag = '<head>';
+    protected string $iconMimeType = '';
+    protected string $shortcutTag = '<link rel="icon" href="%1$s"%2$s />';
 
     // Static inline code blocks
     /**
      * @var array<string, array>
      */
-    protected $jsInline = [];
-
-    /**
-     * @var array
-     */
-    protected $jsFooterInline = [];
+    protected array $jsInline = [];
+    protected array $jsFooterInline = [];
 
     /**
      * @var array<string, array>
      */
-    protected $cssInline = [];
-
-    /**
-     * @var string
-     */
-    protected $bodyContent;
-
-    /**
-     * @var string
-     */
-    protected $templateFile;
-
-    // Paths to contributed libraries
-
-    /**
-     * default path to the requireJS library, relative to the typo3/ directory
-     * @var string
-     */
-    protected $requireJsPath = 'EXT:core/Resources/Public/JavaScript/Contrib/';
-
-    // Internal flags for JS-libraries
-    /**
-     * if set, the requireJS library is included
-     * @var bool
-     */
-    protected $addRequireJs = false;
-
-    /**
-     * Inline configuration for requireJS (internal)
-     * @var array
-     */
-    protected $requireJsConfig = [];
-
-    /**
-     * Inline configuration for requireJS from extensions
-     *
-     * @var array
-     */
-    protected $additionalRequireJsConfig = [];
-
-    /**
-     * Module names of internal requireJS 'paths'
-     * @var array
-     */
-    protected $internalRequireJsPathModuleNames = [];
-
-    /**
-     * Inline configuration for requireJS (public)
-     * @var array
-     */
-    protected $publicRequireJsConfig = [];
-
-    /**
-     * @var array
-     */
-    protected $inlineLanguageLabels = [];
-
-    /**
-     * @var array
-     */
-    protected $inlineLanguageLabelFiles = [];
-
-    /**
-     * @var array
-     */
-    protected $inlineSettings = [];
-
-    /**
-     * @var array{0: string, 1: string}
-     * @deprecated since TYPO3 v12.4, will be removed in TYPO3 v13.0 - use method `wrapInlineScript` instead
-     */
-    protected $inlineJavascriptWrap = [
-        '<script>' . LF . '/*<![CDATA[*/' . LF,
-        '/*]]>*/' . LF . '</script>' . LF,
-    ];
-
-    /**
-     * @var array
-     * @deprecated since TYPO3 v12.4, will be removed in TYPO3 v13.0 - use method `wrapInlineStyle` instead
-     */
-    protected $inlineCssWrap = [
-        '<style>' . LF . '/*<![CDATA[*/' . LF . '<!-- ' . LF,
-        '-->' . LF . '/*]]>*/' . LF . '</style>' . LF,
-    ];
+    protected array $cssInline = [];
+    protected string $bodyContent = '';
+    protected string $templateFile = '';
+    protected array $inlineLanguageLabels = [];
+    protected array $inlineLanguageLabelFiles = [];
+    protected array $inlineSettings = [];
 
     /**
      * Is empty string for HTML and ' /' for XHTML rendering
-     *
-     * @var string
      */
-    protected $endingSlash = '';
+    protected string $endingSlash = '';
 
     protected JavaScriptRenderer $javaScriptRenderer;
     protected ?ConsumableNonce $nonce = null;
@@ -337,10 +124,10 @@ class PageRenderer implements SingletonInterface
     protected bool $applyNonceHint = false;
 
     public function __construct(
+        #[Autowire(service: 'cache.assets')]
         protected readonly FrontendInterface $assetsCache,
         protected readonly MarkerBasedTemplateService $templateService,
         protected readonly MetaTagManagerRegistry $metaTagRegistry,
-        protected readonly PackageManager $packageManager,
         protected readonly AssetRenderer $assetRenderer,
         protected readonly ResourceCompressor $resourceCompressor,
         protected readonly RelativeCssPathFixer $relativeCssPathFixer,
@@ -349,7 +136,6 @@ class PageRenderer implements SingletonInterface
         protected readonly StreamFactoryInterface $streamFactory,
     ) {
         $this->reset();
-
         $this->setMetaTag('name', 'generator', 'TYPO3 CMS');
     }
 
@@ -361,7 +147,6 @@ class PageRenderer implements SingletonInterface
         foreach ($state as $var => $value) {
             switch ($var) {
                 case 'assetsCache':
-                case 'packageManager':
                 case 'assetRenderer':
                 case 'templateService':
                 case 'resourceCompressor':
@@ -395,7 +180,6 @@ class PageRenderer implements SingletonInterface
         foreach (get_object_vars($this) as $var => $value) {
             switch ($var) {
                 case 'assetsCache':
-                case 'packageManager':
                 case 'assetRenderer':
                 case 'templateService':
                 case 'resourceCompressor':
@@ -436,6 +220,7 @@ class PageRenderer implements SingletonInterface
         $this->locale = new Locale();
         $this->setDocType(DocType::html5);
         $this->templateFile = 'EXT:core/Resources/Private/Templates/PageRenderer.html';
+        $this->bodyContent = '';
         $this->jsFiles = [];
         $this->jsFooterFiles = [];
         $this->jsInline = [];
@@ -443,7 +228,6 @@ class PageRenderer implements SingletonInterface
         $this->jsLibs = [];
         $this->cssFiles = [];
         $this->cssInline = [];
-        $this->metaTags = [];
         $this->inlineComments = [];
         $this->headerData = [];
         $this->footerData = [];
@@ -469,18 +253,6 @@ class PageRenderer implements SingletonInterface
     }
 
     /**
-     * Enables/disables rendering of XHTML code
-     *
-     * @param bool $enable Enable XHTML
-     * @deprecated will be removed in TYPO3 v13.0. Use DocType instead.
-     */
-    public function setRenderXhtml($enable)
-    {
-        trigger_error('PageRenderer->setRenderXhtml() will be removed in TYPO3 v13.0. Use PageRenderer->setDocType() instead.', E_USER_DEPRECATED);
-        $this->renderXhtml = $enable;
-    }
-
-    /**
      * Sets xml prolog and docType
      *
      * @param string $xmlPrologAndDocType Complete tags for xml prolog and docType
@@ -491,31 +263,11 @@ class PageRenderer implements SingletonInterface
     }
 
     /**
-     * Sets meta charset
-     *
-     * @param string $charSet Used charset
-     * @deprecated will be removed in TYPO3 v13.0
-     */
-    public function setCharSet($charSet)
-    {
-        trigger_error('PageRenderer->setCharSet() will be removed in TYPO3 v13.0.', E_USER_DEPRECATED);
-        $this->charSet = $charSet;
-    }
-
-    /**
      * Sets language
-     *
-     * @param string|Locale $lang Used language
      */
-    public function setLanguage($lang)
+    public function setLanguage(Locale $locale): void
     {
-        if ($lang instanceof Locale) {
-            $this->locale = $lang;
-            $this->lang = (string)$lang;
-        } else {
-            $this->lang = $lang;
-            $this->locale = new Locale($lang);
-        }
+        $this->locale = $locale;
         $this->setDefaultHtmlTag();
     }
 
@@ -532,20 +284,35 @@ class PageRenderer implements SingletonInterface
             if ($this->locale->isRightToLeftLanguageDirection()) {
                 $attributes['dir'] = 'rtl';
             }
+            // TODO: build an API to add HTML attributes cleanly
+            if ($this->getApplicationType() === 'BE') {
+                $context = GeneralUtility::makeInstance(Context::class);
+                $backendUser = $context->getAspect('backend.user');
+
+                if ($backendUser->isLoggedIn()) {
+                    $userTS = $GLOBALS['BE_USER']->getTSConfig();
+
+                    $themeDisabled = $userTS['setup.']['fields.']['theme.']['disabled'] ?? '0';
+                    $theme = $GLOBALS['BE_USER']->uc['theme'] ?? $userTS['setup.']['fields.']['theme'] ?? 'auto';
+                    if ($themeDisabled === '1') {
+                        $theme = $userTS['setup.']['fields.']['theme'] ?? 'modern';
+                    }
+                    if ($theme !== 'modern') {
+                        $attributes['data-theme'] = $theme;
+                    }
+
+                    $colorSchemeDisabled = $userTS['setup.']['fields.']['colorScheme.']['disabled'] ?? '0';
+                    $colorScheme = $GLOBALS['BE_USER']->uc['colorScheme'] ?? $userTS['setup.']['fields.']['colorScheme'] ?? 'auto';
+                    if ($colorSchemeDisabled === '1') {
+                        $colorScheme = $userTS['setup.']['fields.']['colorScheme'] ?? 'light';
+                    }
+                    if ($colorScheme !== 'auto') {
+                        $attributes['data-color-scheme'] = $colorScheme;
+                    }
+                }
+            }
             $this->setHtmlTag('<html ' . GeneralUtility::implodeAttributes($attributes, true) . '>');
         }
-    }
-
-    /**
-     * Set the meta charset tag
-     *
-     * @param string $metaCharsetTag
-     * @deprecated will be removed in TYPO3 v13.0. Use DocType instead.
-     */
-    public function setMetaCharsetTag($metaCharsetTag)
-    {
-        trigger_error('PageRenderer->setMetaCharsetTag() will be removed in TYPO3 v13.0. Use PageRenderer->setDocType() instead.', E_USER_DEPRECATED);
-        $this->metaCharsetTag = $metaCharsetTag;
     }
 
     /**
@@ -589,21 +356,6 @@ class PageRenderer implements SingletonInterface
     }
 
     /**
-     * Sets HTML base URL
-     *
-     * @param string $baseUrl HTML base URL
-     * @param bool $isInternalCall only to be used by TYPO3 Core to avoid multiple deprecations.
-     * @deprecated will be removed in TYPO3 v13.0 - <base> tags are not supported anymore in TYPO3.
-     */
-    public function setBaseUrl($baseUrl, bool $isInternalCall = false)
-    {
-        if (!$isInternalCall) {
-            trigger_error('PageRenderer->setBaseUrl() will be removed in TYPO3 v13.0, as <base> tags are not supported by default anymore in TYPO3', E_USER_DEPRECATED);
-        }
-        $this->baseUrl = $baseUrl;
-    }
-
-    /**
      * Sets template file
      *
      * @param string $file
@@ -621,40 +373,6 @@ class PageRenderer implements SingletonInterface
     public function setBodyContent($content)
     {
         $this->bodyContent = $content;
-    }
-
-    /**
-     * Sets path to requireJS library (relative to typo3 directory)
-     *
-     * @param string $path Path to requireJS library
-     */
-    public function setRequireJsPath($path)
-    {
-        $this->requireJsPath = $path;
-    }
-
-    public function getRequireJsConfig(?string $scope = null): array
-    {
-        // return basic RequireJS configuration without shim, paths and packages
-        if ($scope === static::REQUIREJS_SCOPE_CONFIG) {
-            return array_replace_recursive(
-                $this->publicRequireJsConfig,
-                $this->filterArrayKeys(
-                    $this->requireJsConfig,
-                    ['shim', 'paths', 'packages'],
-                    false
-                )
-            );
-        }
-        // return RequireJS configuration for resolving only shim, paths and packages
-        if ($scope === static::REQUIREJS_SCOPE_RESOLVE) {
-            return $this->filterArrayKeys(
-                $this->requireJsConfig,
-                ['shim', 'paths', 'packages'],
-                true
-            );
-        }
-        return [];
     }
 
     public function setApplyNonceHint(bool $applyNonceHint): void
@@ -748,53 +466,6 @@ class PageRenderer implements SingletonInterface
         $this->concatenateCss = false;
     }
 
-    /**
-     * Sets removal of all line breaks in template
-     * @deprecated since TYPO3 v12.2. will be removed in TYPO3 v13.0.
-     */
-    public function enableRemoveLineBreaksFromTemplate()
-    {
-        trigger_error(
-            'PageRenderer::enableRemoveLineBreaksFromTemplate() will be removed in TYPO3 v13.0.' .
-            'Use a proper output optimization tool instead.',
-            E_USER_DEPRECATED
-        );
-        $this->removeLineBreaksFromTemplate = true;
-    }
-
-    /**
-     * Unsets removal of all line breaks in template
-     * @deprecated since TYPO3 v12.2. will be removed in TYPO3 v13.0.
-     */
-    public function disableRemoveLineBreaksFromTemplate()
-    {
-        trigger_error(
-            'PageRenderer::disableRemoveLineBreaksFromTemplate() will be removed in TYPO3 v13.0.' .
-            'Use a proper output optimization tool instead.',
-            E_USER_DEPRECATED
-        );
-        $this->removeLineBreaksFromTemplate = false;
-    }
-
-    /**
-     * Enables Debug Mode
-     * This is a shortcut to switch off all compress/concatenate features to enable easier debug
-     * @deprecated since TYPO3 v12.3. Will be removed in TYPO3 v13.0
-     */
-    public function enableDebugMode()
-    {
-        trigger_error(
-            'PageRenderer::enableDebugMode() will be removed in TYPO3 v13.0.',
-            E_USER_DEPRECATED
-        );
-        $this->compressJavascript = false;
-        $this->compressCss = false;
-        $this->concatenateCss = false;
-        $this->concatenateJavascript = false;
-        // @deprecated since TYPO3 v12.2. will be removed in TYPO3 v13.0 along with enable, disable and getter method, and property.
-        $this->removeLineBreaksFromTemplate = false;
-    }
-
     /*****************************************************/
     /*                                                   */
     /*  Public Getters                                   */
@@ -812,37 +483,11 @@ class PageRenderer implements SingletonInterface
     }
 
     /**
-     * Gets the charSet
-     *
-     * @return string $charSet
-     * @deprecated will be removed in TYPO3 v13.0. Use DocType instead.
-     */
-    public function getCharSet()
-    {
-        trigger_error('PageRenderer->getCharSet() will be removed in TYPO3 v13.0. Use PageRenderer->getDocType() instead.', E_USER_DEPRECATED);
-        return $this->charSet;
-    }
-
-    /**
      * Gets the language
-     *
-     * @return string $lang
      */
-    public function getLanguage()
+    public function getLanguage(): string
     {
-        return $this->lang;
-    }
-
-    /**
-     * Returns rendering mode XHTML or HTML
-     *
-     * @return bool TRUE if XHTML, FALSE if HTML
-     * @deprecated will be removed in TYPO3 v13.0. Use DocType instead.
-     */
-    public function getRenderXhtml()
-    {
-        trigger_error('PageRenderer->getRenderXhtml() will be removed in TYPO3 v13.0. Use PageRenderer->getDocType() instead.', E_USER_DEPRECATED);
-        return $this->renderXhtml;
+        return (string)$this->locale;
     }
 
     public function setNonce(?ConsumableNonce $nonce): void
@@ -853,9 +498,7 @@ class PageRenderer implements SingletonInterface
     public function setDocType(DocType $docType): void
     {
         $this->docType = $docType;
-        $this->renderXhtml = $docType->isXmlCompliant();
         $this->xmlPrologAndDocType = $docType->getDoctypeDeclaration();
-        $this->metaCharsetTag = str_replace('utf-8', '|', $docType->getMetaCharsetTag());
         $this->setDefaultHtmlTag();
     }
 
@@ -872,18 +515,6 @@ class PageRenderer implements SingletonInterface
     public function getHtmlTag()
     {
         return $this->htmlTag;
-    }
-
-    /**
-     * Get meta charset
-     *
-     * @return string
-     * @deprecated will be removed in TYPO3 v13.0. Use DocType instead.
-     */
-    public function getMetaCharsetTag()
-    {
-        trigger_error('PageRenderer->getMetaCharsetTag() will be removed in TYPO3 v13.0. Use PageRenderer->getDocType() instead.', E_USER_DEPRECATED);
-        return $this->metaCharsetTag;
     }
 
     /**
@@ -914,18 +545,6 @@ class PageRenderer implements SingletonInterface
     public function getIconMimeType()
     {
         return $this->iconMimeType;
-    }
-
-    /**
-     * Gets HTML base URL
-     *
-     * @return string $url
-     * @deprecated will be removed in TYPO3 v13.0.
-     */
-    public function getBaseUrl()
-    {
-        trigger_error('PageRenderer->getBaseUrl() will be removed in TYPO3 v13.0, as <base> tags are not supported by default anymore in TYPO3', E_USER_DEPRECATED);
-        return $this->baseUrl;
     }
 
     /**
@@ -986,22 +605,6 @@ class PageRenderer implements SingletonInterface
     public function getConcatenateCss()
     {
         return $this->concatenateCss;
-    }
-
-    /**
-     * Gets remove of empty lines from template
-     *
-     * @return bool
-     * @deprecated since TYPO3 v12.2. will be removed in TYPO3 v13.0.
-     */
-    public function getRemoveLineBreaksFromTemplate()
-    {
-        trigger_error(
-            'PageRenderer::getRemoveLineBreaksFromTemplate() will be removed in TYPO3 v13.0.' .
-            'Use a proper output optimization tool instead.',
-            E_USER_DEPRECATED
-        );
-        return $this->removeLineBreaksFromTemplate;
     }
 
     /**
@@ -1439,231 +1042,6 @@ class PageRenderer implements SingletonInterface
     }
 
     /**
-     * Call function if you need the requireJS library
-     * this automatically adds the JavaScript path of all loaded extensions in the requireJS path option
-     * so it resolves names like TYPO3/CMS/MyExtension/MyJsFile to EXT:MyExtension/Resources/Public/JavaScript/MyJsFile.js
-     * when using requireJS
-     */
-    public function loadRequireJs()
-    {
-        $this->addRequireJs = true;
-        $backendUserLoggedIn = !empty($GLOBALS['BE_USER']->user['uid']);
-        if ($this->getApplicationType() === 'BE' && $backendUserLoggedIn) {
-            // Include all imports in order to be available for prior
-            // RequireJS modules migrated to ES6
-            $this->javaScriptRenderer->includeAllImports();
-        }
-        if (!empty($this->requireJsConfig) && !empty($this->publicRequireJsConfig)) {
-            return;
-        }
-
-        $packages = $this->packageManager->getActivePackages();
-        $isDevelopment = Environment::getContext()->isDevelopment();
-        $cacheIdentifier = (new PackageDependentCacheIdentifier($this->packageManager))
-              ->withPrefix('RequireJS')
-              ->withAdditionalHashedIdentifier(($isDevelopment ? ':dev' : '') . GeneralUtility::getIndpEnv('TYPO3_REQUEST_SCRIPT'))
-              ->toString();
-        $requireJsConfig = $this->assetsCache->get($cacheIdentifier);
-
-        // if we did not get a configuration from the cache, compute and store it in the cache
-        if (!isset($requireJsConfig['internal']) || !isset($requireJsConfig['public'])) {
-            $requireJsConfig = $this->computeRequireJsConfig($isDevelopment, $packages);
-            $this->assetsCache->set($cacheIdentifier, $requireJsConfig);
-        }
-
-        $this->requireJsConfig = array_merge_recursive($this->additionalRequireJsConfig, $requireJsConfig['internal']);
-        $this->additionalRequireJsConfig = [];
-        $this->publicRequireJsConfig = $requireJsConfig['public'];
-        $this->internalRequireJsPathModuleNames = $requireJsConfig['internalNames'];
-    }
-
-    /**
-     * Computes the RequireJS configuration, mainly consisting of the paths to the core and all extension JavaScript
-     * resource folders plus some additional generic configuration.
-     *
-     * @param bool $isDevelopment
-     * @param array<string, PackageInterface> $packages
-     * @return array The RequireJS configuration
-     */
-    protected function computeRequireJsConfig($isDevelopment, array $packages)
-    {
-        // load all paths to map to package names / namespaces
-        $requireJsConfig = [
-            'public' => [],
-            'internal' => [],
-            'internalNames' => [],
-        ];
-
-        $corePath = $packages['core']->getPackagePath() . 'Resources/Public/JavaScript/Contrib/';
-        $corePath = PathUtility::getAbsoluteWebPath($corePath);
-        // first, load all paths for the namespaces, and configure contrib libs.
-        $requireJsConfig['public']['paths'] = [];
-        $requireJsConfig['public']['shim'] = [];
-
-        $requireJsConfig['public']['waitSeconds'] = 30;
-        $requireJsConfig['public']['typo3BaseUrl'] = false;
-        $publicPackageNames = ['core', 'frontend', 'backend'];
-        $requireJsExtensionVersions = [];
-        foreach ($packages as $packageName => $package) {
-            $absoluteJsPath = $package->getPackagePath() . 'Resources/Public/JavaScript/';
-            $fullJsPath = PathUtility::getAbsoluteWebPath($absoluteJsPath);
-            $fullJsPath = rtrim($fullJsPath, '/');
-            if (!empty($fullJsPath) && file_exists($absoluteJsPath)) {
-                $type = in_array($packageName, $publicPackageNames, true) ? 'public' : 'internal';
-                $requireJsConfig[$type]['paths']['TYPO3/CMS/' . GeneralUtility::underscoredToUpperCamelCase($packageName)] = $fullJsPath;
-                $requireJsExtensionVersions[] = $package->getPackageKey() . ':' . $package->getPackageMetadata()->getVersion();
-            }
-        }
-        // sanitize module names in internal 'paths'
-        $internalPathModuleNames = array_keys($requireJsConfig['internal']['paths'] ?? []);
-        $sanitizedInternalPathModuleNames = array_map(
-            static function ($moduleName) {
-                // trim spaces and slashes & add ending slash
-                return trim($moduleName, ' /') . '/';
-            },
-            $internalPathModuleNames
-        );
-        $requireJsConfig['internalNames'] = array_combine(
-            $sanitizedInternalPathModuleNames,
-            $internalPathModuleNames
-        );
-
-        // Add a GET parameter to the files loaded via requireJS in order to avoid browser caching of JS files
-        if ($isDevelopment) {
-            $requireJsConfig['public']['urlArgs'] = 'bust=' . $GLOBALS['EXEC_TIME'];
-        } else {
-            $requireJsConfig['public']['urlArgs'] = 'bust=' . GeneralUtility::hmac(
-                Environment::getProjectPath() . implode('|', $requireJsExtensionVersions)
-            );
-        }
-
-        // check if additional AMD modules need to be loaded if a single AMD module is initialized
-        if (is_array($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['RequireJS']['postInitializationModules'] ?? false)) {
-            $this->addInlineSettingArray(
-                'RequireJS.PostInitializationModules',
-                $GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['RequireJS']['postInitializationModules']
-            );
-        }
-
-        return $requireJsConfig;
-    }
-
-    /**
-     * Add additional configuration to require js.
-     *
-     * Configuration will be merged recursive with overrule.
-     *
-     * To add another path mapping deliver the following configuration:
-     * 		'paths' => array(
-     *			'EXTERN/mybootstrapjs' => 'sysext/.../twbs/bootstrap.min',
-     *      ),
-     *
-     * @param array $configuration The configuration that will be merged with existing one.
-     */
-    public function addRequireJsConfiguration(array $configuration)
-    {
-        if ($this->addRequireJs === true) {
-            $this->requireJsConfig = array_merge_recursive($this->requireJsConfig, $configuration);
-        } else {
-            // Delay merge until RequireJS base configuration is loaded
-            $this->additionalRequireJsConfig = array_merge_recursive($this->additionalRequireJsConfig, $configuration);
-        }
-    }
-
-    /**
-     * Generates RequireJS loader HTML markup.
-     *
-     * @throws \TYPO3\CMS\Backend\Routing\Exception\RouteNotFoundException
-     */
-    protected function getRequireJsLoader(): string
-    {
-        $html = '';
-        $backendUserLoggedIn = !empty($GLOBALS['BE_USER']->user['uid']);
-
-        if (!($GLOBALS['TYPO3_REQUEST']) instanceof ServerRequestInterface
-            || !ApplicationType::fromRequest($GLOBALS['TYPO3_REQUEST'])->isBackend()
-        ) {
-            // no backend request - basically frontend
-            $requireJsConfig = $this->getRequireJsConfig(static::REQUIREJS_SCOPE_CONFIG);
-            $requireJsConfig['typo3BaseUrl'] = GeneralUtility::getIndpEnv('TYPO3_SITE_PATH') . '?eID=requirejs';
-        } elseif (!$backendUserLoggedIn) {
-            // backend request, but no backend user logged in
-            $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
-            $requireJsConfig = $this->getRequireJsConfig(static::REQUIREJS_SCOPE_CONFIG);
-            $requireJsConfig['typo3BaseUrl'] = (string)$uriBuilder->buildUriFromRoute('ajax_core_requirejs');
-        } else {
-            // Backend request, having backend user logged in.
-            // Merge public and private require js configuration.
-            // Use array_merge for 'packages' definitions (scalar array indexes) and
-            // merge+replace for other, string array based configuration (like 'path' and 'shim').
-            $requireJsConfig = ArrayUtility::replaceAndAppendScalarValuesRecursive(
-                $this->publicRequireJsConfig,
-                $this->requireJsConfig
-            );
-        }
-        $requireJsUri = $this->processJsFile($this->requireJsPath . 'require.js');
-        // add (probably filtered) RequireJS configuration
-        $commonAttributes = $this->nonce !== null ? ['nonce' => $this->nonce->consume()] : [];
-        if ($this->getApplicationType() === 'BE') {
-            $html .= sprintf(
-                '<script %s></script>' . "\n",
-                GeneralUtility::implodeAttributes([
-                    ...$commonAttributes,
-                    'src' => $requireJsUri,
-                ], true)
-            );
-            $html .= sprintf(
-                '<script %s>/* %s */</script>' . "\n",
-                GeneralUtility::implodeAttributes([
-                    ...$commonAttributes,
-                    'src' => $this->getStreamlinedFileName('EXT:core/Resources/Public/JavaScript/require-jsconfig-handler.js'),
-                ], true),
-                (string)json_encode($requireJsConfig, JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG)
-            );
-        } else {
-            $html .= GeneralUtility::wrapJS('var require = ' . json_encode($requireJsConfig)) . LF;
-            // directly after that, include the require.js file
-            $html .= sprintf(
-                '<script %s></script>' . "\n",
-                GeneralUtility::implodeAttributes([
-                    ...$commonAttributes,
-                    'src' => $requireJsUri,
-                ], true)
-            );
-        }
-        // use (anonymous require.js loader). Used to shim ES6 modules and when not
-        // having a valid TYP3 backend user session.
-        if (
-            ($this->getApplicationType() === 'BE' && $this->javaScriptRenderer->hasImportMap()) ||
-            !empty($requireJsConfig['typo3BaseUrl'])
-        ) {
-            $html .= sprintf(
-                '<script %s></script>' . "\n",
-                GeneralUtility::implodeAttributes([
-                    ...$commonAttributes,
-                    'src' => $this->getStreamlinedFileName('EXT:core/Resources/Public/JavaScript/requirejs-loader.js'),
-                ], true)
-            );
-        }
-
-        return $html;
-    }
-
-    /**
-     * @param string[] $keys
-     */
-    protected function filterArrayKeys(array $array, array $keys, bool $keep = true): array
-    {
-        return array_filter(
-            $array,
-            static function (string $key) use ($keys, $keep) {
-                return in_array($key, $keys, true) === $keep;
-            },
-            ARRAY_FILTER_USE_KEY
-        );
-    }
-
-    /**
      * Includes an ES6/ES11 compatible JavaScript module by
      * resolving the specifier to an import-mapped filename.
      *
@@ -1674,75 +1052,6 @@ class PageRenderer implements SingletonInterface
         $this->javaScriptRenderer->addJavaScriptModuleInstruction(
             JavaScriptModuleInstruction::create($specifier)
         );
-    }
-
-    /**
-     * includes an AMD-compatible JS file by resolving the ModuleName, and then requires the file via a requireJS request,
-     * additionally allowing to execute JavaScript code afterwards
-     *
-     * this function only works for AMD-ready JS modules, used like "define('TYPO3/CMS/Backend/FormEngine..."
-     * in the JS file
-     *
-     *	TYPO3/CMS/Backend/FormEngine =>
-     * 		"TYPO3": Vendor Name
-     * 		"CMS": Product Name
-     *		"Backend": Extension Name
-     *		"FormEngine": FileName in the Resources/Public/JavaScript folder
-     *
-     * @param string $mainModuleName Must be in the form of "TYPO3/CMS/PackageName/ModuleName" e.g. "TYPO3/CMS/Backend/FormEngine"
-     * @param string $callBackFunction loaded right after the requireJS loading, must be wrapped in function() {}
-     * @deprecated will be removed in TYPO3 v13.0. Use loadJavaScriptModule() instead, available since TYPO3 v12.0.
-     */
-    public function loadRequireJsModule($mainModuleName, $callBackFunction = null, bool $internal = false)
-    {
-        if (!$internal) {
-            trigger_error('PageRenderer->loadRequireJsModule is deprecated in favor of native ES6 modules, use loadJavaScriptModule() instead. Support for RequireJS module loading will be removed in TYPO3 v13.0.', E_USER_DEPRECATED);
-        }
-        $inlineCodeKey = $mainModuleName;
-        // make sure requireJS is initialized
-        $this->loadRequireJs();
-        // move internal module path definition to public module definition
-        // (since loading a module ends up disclosing the existence anyway)
-        $baseModuleName = $this->findRequireJsBaseModuleName($mainModuleName);
-        if ($baseModuleName !== null && isset($this->requireJsConfig['paths'][$baseModuleName])) {
-            $this->publicRequireJsConfig['paths'][$baseModuleName] = $this->requireJsConfig['paths'][$baseModuleName];
-            unset($this->requireJsConfig['paths'][$baseModuleName]);
-        }
-        if ($callBackFunction === null && $this->getApplicationType() === 'BE') {
-            $this->javaScriptRenderer->addJavaScriptModuleInstruction(
-                JavaScriptModuleInstruction::forRequireJS($mainModuleName, null, true)
-            );
-            return;
-        }
-        // processing frontend application or having callback function
-        // @todo deprecate callback function for backend application in TYPO3 v12.0
-        if ($callBackFunction === null) {
-            // just load the main module
-            $inlineCodeKey = $mainModuleName;
-            $javaScriptCode = sprintf('require([%s]);', GeneralUtility::quoteJSvalue($mainModuleName));
-        } else {
-            // load main module and execute possible callback function
-            $inlineCodeKey = $mainModuleName . sha1($callBackFunction);
-            $javaScriptCode = sprintf('require([%s], %s);', GeneralUtility::quoteJSvalue($mainModuleName), $callBackFunction);
-        }
-        $this->addJsInlineCode('RequireJS-Module-' . $inlineCodeKey, $javaScriptCode);
-    }
-
-    /**
-     * Determines requireJS base module name (if defined).
-     *
-     * @return string|null
-     */
-    protected function findRequireJsBaseModuleName(string $moduleName)
-    {
-        // trim spaces and slashes & add ending slash
-        $sanitizedModuleName = trim($moduleName, ' /') . '/';
-        foreach ($this->internalRequireJsPathModuleNames as $sanitizedBaseModuleName => $baseModuleName) {
-            if (str_starts_with($sanitizedModuleName, $sanitizedBaseModuleName)) {
-                return $baseModuleName;
-            }
-        }
-        return null;
     }
 
     /**
@@ -1861,7 +1170,7 @@ class PageRenderer implements SingletonInterface
     {
         $this->prepareRendering();
         [$jsLibs, $jsFiles, $jsFooterFiles, $cssLibs, $cssFiles, $jsInline, $cssInline, $jsFooterInline, $jsFooterLibs] = $this->renderJavaScriptAndCss();
-        $metaTags = implode(LF, array_merge($this->metaTags, $this->renderMetaTagsFromAPI()));
+        $metaTags = implode(LF, $this->renderMetaTagsFromAPI());
         $markerArray = $this->getPreparedMarkerArray($jsLibs, $jsFiles, $jsFooterFiles, $cssLibs, $cssFiles, $jsInline, $cssInline, $jsFooterInline, $jsFooterLibs, $metaTags);
         $template = $this->getTemplate();
 
@@ -1875,12 +1184,8 @@ class PageRenderer implements SingletonInterface
         string $reasonPhrase = '',
     ): ResponseInterface {
         $stream = $this->streamFactory->createStream($this->render());
-        $contentType = 'text/html';
-        if ($this->charSet) {
-            $contentType .= '; charset=' . $this->charSet;
-        }
         return $this->responseFactory->createResponse($code, $reasonPhrase)
-            ->withHeader('Content-Type', $contentType)
+            ->withHeader('Content-Type', 'text/html; charset=utf-8')
             ->withBody($stream);
     }
 
@@ -1894,7 +1199,7 @@ class PageRenderer implements SingletonInterface
         $metaTags = [];
         $metaTagManagers = $this->metaTagRegistry->getAllManagers();
 
-        foreach ($metaTagManagers as $manager => $managerObject) {
+        foreach ($metaTagManagers as $managerObject) {
             $properties = $managerObject->renderAllProperties();
             if (!empty($properties)) {
                 $metaTags[] = $properties;
@@ -1940,7 +1245,7 @@ class PageRenderer implements SingletonInterface
             '<!-- ###JS_INLINE' . $substituteHash . '### -->' => $jsInline,
             '<!-- ###JS_INCLUDE' . $substituteHash . '### -->' => $jsFiles,
             '<!-- ###JS_LIBS' . $substituteHash . '### -->' => $jsLibs,
-            '<!-- ###META' . $substituteHash . '### -->' => implode(LF, array_merge($this->metaTags, $this->renderMetaTagsFromAPI())),
+            '<!-- ###META' . $substituteHash . '### -->' => implode(LF, $this->renderMetaTagsFromAPI()),
             '<!-- ###HEADERDATA' . $substituteHash . '### -->' => implode(LF, $this->headerData),
             '<!-- ###FOOTERDATA' . $substituteHash . '### -->' => implode(LF, $this->footerData),
             '<!-- ###JS_LIBS_FOOTER' . $substituteHash . '### -->' => $jsFooterLibs,
@@ -1964,8 +1269,6 @@ class PageRenderer implements SingletonInterface
         if ($this->docType->isXmlCompliant()) {
             $this->endingSlash = ' /';
         } else {
-            $this->metaCharsetTag = str_replace(' />', '>', $this->metaCharsetTag);
-            $this->baseUrlTag = str_replace(' />', '>', $this->baseUrlTag);
             $this->shortcutTag = str_replace(' />', '>', $this->shortcutTag);
             $this->endingSlash = '';
         }
@@ -2040,9 +1343,7 @@ class PageRenderer implements SingletonInterface
             'XMLPROLOG_DOCTYPE' => $this->xmlPrologAndDocType,
             'HTMLTAG' => $this->htmlTag,
             'HEADTAG' => $this->headTag,
-            'METACHARSET' => $this->charSet ? str_replace('|', htmlspecialchars($this->charSet), $this->metaCharsetTag) : '',
             'INLINECOMMENT' => $this->inlineComments ? LF . LF . '<!-- ' . LF . implode(LF, $this->inlineComments) . '-->' . LF . LF : '',
-            'BASEURL' => $this->baseUrl ? str_replace('|', $this->baseUrl, $this->baseUrlTag) : '',
             'SHORTCUT' => $this->favIcon ? sprintf($this->shortcutTag, htmlspecialchars($this->favIcon), $this->iconMimeType) : '',
             'CSS_LIBS' => $cssLibs,
             'CSS_INCLUDE' => $cssFiles,
@@ -2058,9 +1359,11 @@ class PageRenderer implements SingletonInterface
             'JS_INCLUDE_FOOTER' => $jsFooterFiles,
             'JS_INLINE_FOOTER' => $jsFooterInline,
             'BODY' => $this->bodyContent,
+            // @internal
+            'TRAILING_SLASH_FOR_SELF_CLOSING_TAG' => $this->endingSlash ? ' ' . $this->endingSlash : '',
         ];
-        $markerArray = array_map(static fn($item) => (trim((string)$item)), $markerArray);
-        return $markerArray;
+
+        return array_map(trim(...), $markerArray);
     }
 
     /**
@@ -2075,9 +1378,7 @@ class PageRenderer implements SingletonInterface
             'XMLPROLOG_DOCTYPE' => $this->xmlPrologAndDocType,
             'HTMLTAG' => $this->htmlTag,
             'HEADTAG' => $this->headTag,
-            'METACHARSET' => $this->charSet ? str_replace('|', htmlspecialchars($this->charSet), $this->metaCharsetTag) : '',
             'INLINECOMMENT' => $this->inlineComments ? LF . LF . '<!-- ' . LF . implode(LF, $this->inlineComments) . '-->' . LF . LF : '',
-            'BASEURL' => $this->baseUrl ? str_replace('|', $this->baseUrl, $this->baseUrlTag) : '',
             'SHORTCUT' => $this->favIcon ? sprintf($this->shortcutTag, htmlspecialchars($this->favIcon), $this->iconMimeType) : '',
             'META' => '<!-- ###META' . $substituteHash . '### -->',
             'BODY' => $this->bodyContent,
@@ -2093,8 +1394,10 @@ class PageRenderer implements SingletonInterface
             'JS_LIBS_FOOTER' => '<!-- ###JS_LIBS_FOOTER' . $substituteHash . '### -->',
             'JS_INCLUDE_FOOTER' => '<!-- ###JS_INCLUDE_FOOTER' . $substituteHash . '### -->',
             'JS_INLINE_FOOTER' => '<!-- ###JS_INLINE_FOOTER' . $substituteHash . '### -->',
+            // @internal
+            'TRAILING_SLASH_FOR_SELF_CLOSING_TAG' => $this->endingSlash ? ' ' . $this->endingSlash : '',
         ];
-        $markerArray = array_map(static fn($item) => (trim((string)$item)), $markerArray);
+        $markerArray = array_map(trim(...), $markerArray);
         return $markerArray;
     }
 
@@ -2106,11 +1409,6 @@ class PageRenderer implements SingletonInterface
         $templateFile = GeneralUtility::getFileAbsFileName($this->templateFile);
         if (is_file($templateFile)) {
             $template = (string)file_get_contents($templateFile);
-            // @todo remove the condition and the body with TYPO3 v13.
-            // @todo Belongs to Deprecation-99685-RemoveLineBreaksFromTemplate.rst
-            if ($this->removeLineBreaksFromTemplate) {
-                $template = strtr($template, [LF => '', CR => '']);
-            }
         } else {
             $template = '';
         }
@@ -2118,8 +1416,7 @@ class PageRenderer implements SingletonInterface
     }
 
     /**
-     * Helper function for render the main JavaScript libraries,
-     * currently: RequireJS
+     * Helper function for render the main JavaScript libraries
      *
      * @return string Content with JavaScript libraries
      */
@@ -2136,20 +1433,11 @@ class PageRenderer implements SingletonInterface
             );
         }
 
-        if (!$this->addRequireJs && $this->javaScriptRenderer->hasRequireJs()) {
-            $this->loadRequireJs();
-        }
-
         $out .= $this->javaScriptRenderer->renderImportMap(
             // @todo hookup with PSR-7 request/response and
             GeneralUtility::getIndpEnv('TYPO3_SITE_PATH'),
             $this->nonce
         );
-
-        // Include RequireJS
-        if ($this->addRequireJs) {
-            $out .= $this->getRequireJsLoader();
-        }
 
         $this->loadJavaScriptLanguageStrings();
         if ($this->getApplicationType() === 'BE') {
@@ -2214,27 +1502,6 @@ class PageRenderer implements SingletonInterface
             $this->includeLanguageFileForInline($languageLabelFile['fileRef'], $languageLabelFile['selectionPrefix'], $languageLabelFile['stripFromSelectionName']);
         }
         $this->inlineLanguageLabelFiles = [];
-        // Convert settings back to UTF-8 since json_encode() only works with UTF-8:
-        if ($this->charSet !== 'utf-8' && is_array($this->inlineSettings)) {
-            $this->convertCharsetRecursivelyToUtf8($this->inlineSettings, $this->charSet);
-        }
-    }
-
-    /**
-     * Small helper function to convert charsets for arrays into utf-8
-     *
-     * @param mixed $data given by reference (string/array usually)
-     * @param string $fromCharset convert FROM this charset
-     */
-    protected function convertCharsetRecursivelyToUtf8(&$data, string $fromCharset)
-    {
-        foreach ($data as $key => $value) {
-            if (is_array($data[$key])) {
-                $this->convertCharsetRecursivelyToUtf8($data[$key], $fromCharset);
-            } elseif (is_string($data[$key])) {
-                $data[$key] = mb_convert_encoding($data[$key], 'utf-8', $fromCharset);
-            }
-        }
     }
 
     /**
@@ -2711,7 +1978,7 @@ class PageRenderer implements SingletonInterface
             GeneralUtility::callUserFunction($GLOBALS['TYPO3_CONF_VARS']['FE']['jsCompressHandler'], $params, $this);
         } else {
             // Traverse the arrays, compress files
-            foreach ($this->jsInline ?? [] as $name => $properties) {
+            foreach ($this->jsInline as $name => $properties) {
                 if ($properties['compress'] ?? false) {
                     $this->jsInline[$name]['code'] = $this->resourceCompressor->compressJavaScriptSource($properties['code'] ?? '');
                 }
@@ -2878,17 +2145,12 @@ class PageRenderer implements SingletonInterface
             'xmlPrologAndDocType' => &$this->xmlPrologAndDocType,
             'htmlTag' => &$this->htmlTag,
             'headTag' => &$this->headTag,
-            'charSet' => &$this->charSet,
-            'metaCharsetTag' => &$this->metaCharsetTag,
             'shortcutTag' => &$this->shortcutTag,
             'inlineComments' => &$this->inlineComments,
-            'baseUrl' => &$this->baseUrl,
-            'baseUrlTag' => &$this->baseUrlTag,
             'favIcon' => &$this->favIcon,
             'iconMimeType' => &$this->iconMimeType,
             'titleTag' => &$this->titleTag,
             'title' => &$this->title,
-            'metaTags' => &$this->metaTags,
             'jsFooterInline' => &$jsFooterInline,
             'jsFooterLibs' => &$jsFooterLibs,
             'bodyContent' => &$this->bodyContent,
@@ -2944,7 +2206,7 @@ class PageRenderer implements SingletonInterface
         //   since this is not needed and may lead to validation errors in the future.
         // * Whenever XHTML gets disabled, remove the "text/javascript" type from the wrap
         //   since this is not needed and may lead to validation errors in the future.
-        if ($this->docType !== DocType::html5 || $this->renderXhtml) {
+        if ($this->docType !== DocType::html5 || $this->docType->isXmlCompliant()) {
             $attributes['type'] = 'text/javascript';
         }
 

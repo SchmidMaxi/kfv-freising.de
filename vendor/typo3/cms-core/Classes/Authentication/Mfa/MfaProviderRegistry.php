@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Core\Authentication\Mfa;
 
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Core\Authentication\AbstractUserAuthentication;
 
 /**
@@ -24,6 +25,7 @@ use TYPO3\CMS\Core\Authentication\AbstractUserAuthentication;
  *
  * @internal should only be used by the TYPO3 Core
  */
+#[Autoconfigure(public: true)]
 class MfaProviderRegistry
 {
     /**
@@ -74,7 +76,7 @@ class MfaProviderRegistry
      */
     public function getActiveProviders(AbstractUserAuthentication $user): array
     {
-        return array_filter($this->providers, static function ($provider) use ($user) {
+        return array_filter($this->providers, static function (MfaProviderManifestInterface $provider) use ($user): bool {
             return $provider->isActive(MfaProviderPropertyManager::create($provider, $user));
         });
     }
@@ -117,7 +119,7 @@ class MfaProviderRegistry
      */
     public function getLockedProviders(AbstractUserAuthentication $user): array
     {
-        return array_filter($this->providers, static function ($provider) use ($user) {
+        return array_filter($this->providers, static function (MfaProviderManifestInterface $provider) use ($user): bool {
             return $provider->isLocked(MfaProviderPropertyManager::create($provider, $user));
         });
     }

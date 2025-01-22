@@ -19,7 +19,9 @@ namespace TYPO3\CMS\Backend\Controller;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Http\JsonResponse;
 use TYPO3\CMS\Core\LinkHandling\Exception\UnknownLinkHandlerException;
 use TYPO3\CMS\Core\LinkHandling\LinkService;
@@ -28,17 +30,18 @@ use TYPO3\CMS\Core\Messaging\FlashMessage;
 use TYPO3\CMS\Core\Messaging\FlashMessageService;
 use TYPO3\CMS\Core\Page\JavaScriptModuleInstruction;
 use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
  * Extended controller for link browser
  */
+#[AsController]
 class LinkBrowserController extends AbstractLinkBrowserController
 {
     public function __construct(
         protected readonly LinkService $linkService,
         protected readonly TypoLinkCodecService $typoLinkCodecService,
         protected readonly FlashMessageService $flashMessageService,
+        private readonly HashService $hashService,
     ) {}
 
     public function getConfiguration(): array
@@ -143,7 +146,7 @@ class LinkBrowserController extends AbstractLinkBrowserController
                     $fieldChangeFunctions
                 );
             }
-            $result = hash_equals(GeneralUtility::hmac(serialize($fieldChangeFunctions), 'backend-link-browser'), $this->parameters['fieldChangeFuncHash']);
+            $result = hash_equals($this->hashService->hmac(serialize($fieldChangeFunctions), 'backend-link-browser'), $this->parameters['fieldChangeFuncHash']);
         }
         return $result;
     }

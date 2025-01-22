@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Impexp\Command;
 
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -30,13 +31,11 @@ use TYPO3\CMS\Impexp\Import;
 /**
  * Command for importing T3D/XML data files
  */
+#[AsCommand('impexp:import', 'Imports a T3D / XML file with content into a page tree')]
 class ImportCommand extends Command
 {
-    protected Import $import;
-
-    public function __construct(Import $import)
+    public function __construct(protected readonly Import $import)
     {
-        $this->import = $import;
         parent::__construct();
     }
 
@@ -118,7 +117,7 @@ class ImportCommand extends Command
             $this->import->setForceAllUids($input->getOption('force-uid'));
             $this->import->setEnableLogging($input->getOption('enable-log'));
             $this->import->setImportMode($this->parseAssociativeArray($input, 'import-mode', '='));
-            $this->import->loadFile((string)$input->getArgument('file'), true);
+            $this->import->loadFile((string)$input->getArgument('file'));
             $this->import->checkImportPrerequisites();
             $this->import->importData();
             $io->success('Importing ' . $input->getArgument('file') . ' to page ' . $input->getArgument('pid') . ' succeeded.');

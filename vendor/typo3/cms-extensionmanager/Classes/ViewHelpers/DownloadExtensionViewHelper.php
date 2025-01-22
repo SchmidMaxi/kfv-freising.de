@@ -17,16 +17,16 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Extensionmanager\ViewHelpers;
 
+use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Mvc\RequestInterface;
 use TYPO3\CMS\Extbase\Mvc\Web\Routing\UriBuilder;
 use TYPO3\CMS\Extbase\Service\ExtensionService;
 use TYPO3\CMS\Extensionmanager\Domain\Model\Extension;
-use TYPO3\CMS\Fluid\Core\Rendering\RenderingContext;
 use TYPO3\CMS\Fluid\ViewHelpers\Form\AbstractFormViewHelper;
 
 /**
@@ -58,28 +58,15 @@ final class DownloadExtensionViewHelper extends AbstractFormViewHelper
     {
         parent::initializeArguments();
         $this->registerArgument('extension', Extension::class, '', true);
-        $this->registerUniversalTagAttributes();
     }
 
     public function render(): string
     {
         /** @var Extension $extension */
         $extension = $this->arguments['extension'];
-        $installPaths = Extension::returnInstallPaths();
-        $pathSelector = '<ul class="extensionmanager-is-hidden">';
-        foreach ($installPaths as $installPathType => $installPath) {
-            /** @var string $installPathType */
-            $pathSelector .= '<li>
-                <input type="radio" id="' . htmlspecialchars($extension->getExtensionKey()) . '-downloadPath-' . htmlspecialchars($installPathType) . '" name="downloadPath" class="downloadPath" value="' . htmlspecialchars($installPathType) . '" ' . ($installPathType === 'Local' ? 'checked="checked"' : '') . ' />
-                <label for="' . htmlspecialchars($extension->getExtensionKey()) . '-downloadPath-' . htmlspecialchars($installPathType) . '">' . htmlspecialchars($installPathType) . '</label>
-            </li>';
-        }
-        $pathSelector .= '</ul>';
         $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
-        /** @var RenderingContext $renderingContext */
-        $renderingContext = $this->renderingContext;
         /** @var RequestInterface $request */
-        $request = $renderingContext->getRequest();
+        $request = $this->renderingContext->getAttribute(ServerRequestInterface::class);
         $uriBuilder->setRequest($request);
         $action = 'checkDependencies';
         $uriBuilder->reset();
@@ -102,12 +89,11 @@ final class DownloadExtensionViewHelper extends AbstractFormViewHelper
                     class="btn btn-default"
                     value="' . htmlspecialchars($titleAndValue) . '"
                 >
-                    ' . $this->iconFactory->getIcon('actions-download', Icon::SIZE_SMALL)->render() . '
+                    ' . $this->iconFactory->getIcon('actions-download', IconSize::SMALL)->render() . '
                 </button>
             </div>';
 
-        $this->tag->setContent($label . $pathSelector);
-        $this->tag->addAttribute('class', $this->arguments['class']);
+        $this->tag->setContent($label);
         return '<div id="' . htmlspecialchars($extension->getExtensionKey()) . '-downloadFromTer" class="downloadFromTer">' . $this->tag->render() . '</div>';
     }
 

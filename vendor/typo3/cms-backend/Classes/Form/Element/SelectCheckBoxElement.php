@@ -16,8 +16,8 @@
 namespace TYPO3\CMS\Backend\Form\Element;
 
 use TYPO3\CMS\Backend\Form\Utility\FormEngineUtility;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Page\JavaScriptModuleInstruction;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\StringUtility;
@@ -63,16 +63,18 @@ class SelectCheckBoxElement extends AbstractFormElement
         ],
     ];
 
+    public function __construct(
+        private readonly IconFactory $iconFactory,
+    ) {}
+
     /**
      * Render check boxes
      *
      * @return array As defined in initializeResultArray() of AbstractNode
      */
-    public function render()
+    public function render(): array
     {
         $resultArray = $this->initializeResultArray();
-        // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-        $resultArray['labelHasBeenHandled'] = true;
 
         // Field configuration from TCA:
         $parameterArray = $this->data['parameterArray'];
@@ -92,6 +94,7 @@ class SelectCheckBoxElement extends AbstractFormElement
         $groups = [];
         $currentGroup = 0;
         $counter = 0;
+        $elementId = StringUtility::getUniqueId('formengine-select-checkbox-');
         foreach ($selectItems as $item) {
             // Non-selectable element:
             if ($item['value'] === '--div--') {
@@ -129,7 +132,7 @@ class SelectCheckBoxElement extends AbstractFormElement
 
                 // Build item array
                 $groups[$currentGroup]['items'][] = [
-                    'id' => StringUtility::getUniqueId('select_checkbox_row_'),
+                    'id' => $elementId . '-item-' . $counter,
                     'name' => $parameterArray['itemFormElName'] . '[' . $counter . ']',
                     'value' => $item['value'],
                     'checked' => $checked,
@@ -152,7 +155,7 @@ class SelectCheckBoxElement extends AbstractFormElement
         $html[] = '<div class="formengine-field-item t3js-formengine-field-item" data-formengine-validation-rules="' . htmlspecialchars($this->getValidationDataAsJsonString($config)) . '">';
         $html[] = $fieldInformationHtml;
         $html[] =   '<div class="form-wizards-wrap">';
-        $html[] =       '<div class="form-wizards-element">';
+        $html[] =       '<div class="form-wizards-item-element">';
 
         if (!$readOnly) {
             // Add an empty hidden field which will send a blank value if all items are unselected.
@@ -161,27 +164,28 @@ class SelectCheckBoxElement extends AbstractFormElement
 
         // Building the checkboxes
         foreach ($groups as $groupKey => $group) {
-            $groupId = htmlspecialchars($parameterArray['itemFormElID']) . '-group-' . $groupKey;
-            $groupIdCollapsible = $groupId . '-collapse';
+            $groupId = htmlspecialchars($elementId . '-group-' . $groupKey);
+            $groupCollapsibleId = $groupId . '-collapse';
+
             $hasGroupHeader = is_array($group['header'] ?? false);
 
-            $html[] = '<div id="' . $groupId . '" class="panel panel-default">';
+            $html[] = '<div id="' . $groupId . '" class="panel panel-default" data-multi-record-selection-identifier="' . $groupId . '">';
             if ($hasGroupHeader) {
-                $expanded = ($config['appearance']['expandAll'] ?? false) ? 'true' : 'false';
-                $icon = '<span class="collapseIcon">' . $this->iconFactory->getIcon((($config['appearance']['expandAll'] ?? false) ? 'actions-view-list-collapse' : 'actions-view-list-expand'), Icon::SIZE_SMALL)->render() . '</span>';
-
-                $html[] = '<button type="button" class="t3js-toggle-selectcheckbox-group panel-heading panel-heading-button" aria-expanded="' . $expanded . '"';
-                $html[] = ' aria-controls="' . $groupIdCollapsible . '" data-bs-target="#' . $groupIdCollapsible . '" data-bs-toggle="collapse">';
-                $html[] = '<span class="flex-grow-1 align-self-center">';
-                $html[] =   $group['header']['icon'];
-                $html[] =   htmlspecialchars($group['header']['title']);
-                $html[] = '</span>';
-                $html[] = '<div class="panel-actions ml-auto">';
-                $html[] = '<span class="btn btn-sm btn-default">';
-                $html[] =  $icon;
-                $html[] = '</span>';
+                $expanded = ($config['appearance']['expandAll'] ?? false);
+                $html[] = '<div class="panel-heading" role="tab">';
+                $html[] =   '<div class="panel-heading-row">';
+                $html[] =     '<button type="button" class="panel-button' . (!$expanded ? ' collapsed' : '') . '" aria-expanded="' . ($expanded ? 'true' : 'false') . '"';
+                $html[] =       ' aria-controls="' . $groupCollapsibleId . '" data-bs-target="#' . $groupCollapsibleId . '" data-bs-toggle="collapse">';
+                $html[] =       '<div class="panel-icon">';
+                $html[] =         $group['header']['icon'];
+                $html[] =       '</div>';
+                $html[] =       '<div class="panel-title">';
+                $html[] =         htmlspecialchars($group['header']['title']);
+                $html[] =       '</div>';
+                $html[] =       '<span class="caret"></span>';
+                $html[] =     '</button>';
+                $html[] =   '</div>';
                 $html[] = '</div>';
-                $html[] = '</button>';
             }
             if (!empty($group['items']) && is_array($group['items'])) {
                 $tableRows = [];
@@ -190,7 +194,7 @@ class SelectCheckBoxElement extends AbstractFormElement
                 foreach ($group['items'] as $item) {
                     $inputElementAttrs = [
                         'type' => 'checkbox',
-                        'class' => 't3js-checkbox',
+                        'class' => 'form-check-input t3js-multi-record-selection-check',
                         'id' => $item['id'],
                         'name' => $item['name'],
                         'value' => $item['value'],
@@ -211,9 +215,11 @@ class SelectCheckBoxElement extends AbstractFormElement
                         );
                     }
 
-                    $tableRows[] = '<tr>';
+                    $tableRows[] = '<tr data-multi-record-selection-element="true">';
                     $tableRows[] =    '<td class="col-checkbox">';
-                    $tableRows[] =        '<input ' . GeneralUtility::implodeAttributes($inputElementAttrs, true, true) . '>';
+                    $tableRows[] =        '<span class="form-check form-check-type-toggle">';
+                    $tableRows[] =            '<input ' . GeneralUtility::implodeAttributes($inputElementAttrs, true, true) . '>';
+                    $tableRows[] =        '</span>';
                     $tableRows[] =    '</td>';
                     $tableRows[] =    '<td class="col-title">';
                     $tableRows[] =        '<label class="label-block nowrap-disabled" for="' . $item['id'] . '">';
@@ -227,36 +233,23 @@ class SelectCheckBoxElement extends AbstractFormElement
 
                 if ($hasGroupHeader) {
                     $expandAll = ($config['appearance']['expandAll'] ?? false) ? 'show' : '';
-                    $html[] = '<div id="' . $groupIdCollapsible . '" class="panel-collapse collapse ' . $expandAll . '" role="tabpanel">';
+                    $html[] = '<div id="' . $groupCollapsibleId . '" class="panel-collapse collapse ' . $expandAll . '" role="tabpanel">';
                 }
 
                 $html[] =    '<div class="table-fit">';
-                $html[] =        '<table class="table table-transparent table-hover">';
+                $html[] =        '<table class="table table-hover">';
                 if (!$readOnly) {
-                    $checkboxId = StringUtility::getUniqueId($groupId);
-                    $title = htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.toggleall'));
-
                     // Add table header with actions, in case the element is not readOnly
                     $html[] =            '<thead>';
                     $html[] =                '<tr>';
-                    $html[] =                    '<th class="col-checkbox">';
-                    $html[] =                       '<input type="checkbox" id="' . $checkboxId . '" class="t3js-toggle-checkboxes" title="' . $title . '" />';
-                    $html[] =                    '</th>';
-                    $html[] =                    '<th class="col-title"><label for="' . $checkboxId . '">' . $title . '</label></th>';
-                    $html[] =                    '<th class="text-end">';
-                    $html[] =                       '<button type="button" class="btn btn-default btn-sm t3js-revert-selection" disabled>';
-                    $html[] =                           $this->iconFactory->getIcon('actions-edit-undo', Icon::SIZE_SMALL)->render() . ' ';
-                    $html[] =                           htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.revertSelection'));
-                    $html[] =                       '</button>';
-                    $html[] =                    '</th>';
+                    $html[] =                    '<th class="col-checkbox">' . $this->getRecordSelectionCheckActions() . '</th>';
+                    $html[] =                    '<th class="col-title" colspan="2">' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.th.name')) . '</th>';
                     $html[] =                '</tr>';
                     $html[] =            '</thead>';
 
                     // Add JavaScript module. This is only needed, in case the element
                     // is not readOnly, since otherwise no checkbox changes take place.
-                    $resultArray['javaScriptModules'][] = JavaScriptModuleInstruction::create(
-                        '@typo3/backend/form-engine/element/select-check-box-element.js'
-                    )->instance($checkboxId);
+                    $resultArray['javaScriptModules'][] = JavaScriptModuleInstruction::create('@typo3/backend/multi-record-selection.js');
                 }
                 $html[] =            '<tbody>' . implode(LF, $tableRows) . '</tbody>';
                 $html[] =        '</table>';
@@ -270,7 +263,7 @@ class SelectCheckBoxElement extends AbstractFormElement
 
         $html[] =       '</div>';
         if (!$readOnly && !empty($fieldWizardHtml)) {
-            $html[] =   '<div class="form-wizards-items-bottom">';
+            $html[] =   '<div class="form-wizards-item-bottom">';
             $html[] =       $fieldWizardHtml;
             $html[] =   '</div>';
         }
@@ -294,8 +287,7 @@ class SelectCheckBoxElement extends AbstractFormElement
         if (empty($overloadHelpText)) {
             return '';
         }
-        $iconFactory = GeneralUtility::makeInstance(IconFactory::class);
-        $text = $iconFactory->getIcon('actions-system-help-open', Icon::SIZE_SMALL)->render();
+        $text = $this->iconFactory->getIcon('actions-system-help-open', IconSize::SMALL)->render();
         $abbrClassAdd = ' help-teaser-icon';
         $text = '<abbr class="help-teaser' . $abbrClassAdd . '">' . $text . '</abbr>';
         $wrappedText = '<span class="help-link" data-bs-content="<p></p>"';
@@ -309,5 +301,54 @@ class SelectCheckBoxElement extends AbstractFormElement
         }
         $wrappedText .= '>' . $text . '</span>';
         return $wrappedText;
+    }
+
+    protected function getRecordSelectionCheckActions(): string
+    {
+        $lang = $this->getLanguageService();
+        return '
+            <div class="btn-group dropdown">
+                <button type="button" class="dropdown-toggle dropdown-toggle-link t3js-multi-record-selection-check-actions-toggle" data-bs-toggle="dropdown" data-bs-boundary="window" aria-expanded="false" aria-label="' . htmlspecialchars($lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.openSelectionOptions')) . '">
+                    ' . $this->iconFactory->getIcon('actions-selection', IconSize::SMALL)->render() . '
+                </button>
+                <ul class="dropdown-menu t3js-multi-record-selection-check-actions">
+                    <li>
+                        <button type="button" class="dropdown-item" disabled data-multi-record-selection-check-action="check-all" title="' . htmlspecialchars($lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.checkAll')) . '">
+                            <span class="dropdown-item-columns">
+                                <span class="dropdown-item-column dropdown-item-column-icon" aria-hidden="true">
+                                    ' . $this->iconFactory->getIcon('actions-selection-elements-all', IconSize::SMALL)->render() . '
+                                </span>
+                                <span class="dropdown-item-column dropdown-item-column-title">
+                                    ' . htmlspecialchars($lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.checkAll')) . '
+                                </span>
+                            </span>
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button" class="dropdown-item" disabled data-multi-record-selection-check-action="check-none" title="' . htmlspecialchars($lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.uncheckAll')) . '">
+                            <span class="dropdown-item-columns">
+                                <span class="dropdown-item-column dropdown-item-column-icon" aria-hidden="true">
+                                    ' . $this->iconFactory->getIcon('actions-selection-elements-none', IconSize::SMALL)->render() . '
+                                </span>
+                                <span class="dropdown-item-column dropdown-item-column-title">
+                                    ' . htmlspecialchars($lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.uncheckAll')) . '
+                                </span>
+                            </span>
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button" class="dropdown-item" data-multi-record-selection-check-action="toggle" title="' . htmlspecialchars($lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.toggleSelection')) . '">
+                            <span class="dropdown-item-columns">
+                                <span class="dropdown-item-column dropdown-item-column-icon" aria-hidden="true">
+                                    ' . $this->iconFactory->getIcon('actions-selection-elements-invert', IconSize::SMALL)->render() . '
+                                </span>
+                                <span class="dropdown-item-column dropdown-item-column-title">
+                                    ' . htmlspecialchars($lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.toggleSelection')) . '
+                                </span>
+                            </span>
+                        </button>
+                    </li>
+                </ul>
+            </div>';
     }
 }

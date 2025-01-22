@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -15,15 +17,15 @@
 
 namespace TYPO3\CMS\Extbase\Persistence\Generic;
 
-use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Context\LanguageAspect;
-use TYPO3\CMS\Core\Http\ApplicationType;
 use TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface;
 
 /**
  * Query settings, reflects the settings unique to TYPO3 CMS.
  */
+#[Autoconfigure(public: true, shared: false)]
 class Typo3QuerySettings implements QuerySettingsInterface
 {
     protected ConfigurationManagerInterface $configurationManager;
@@ -72,18 +74,6 @@ class Typo3QuerySettings implements QuerySettingsInterface
         // Currently this is only used for reading, but might be improved in the future
         $this->context = clone $context;
         $this->configurationManager = $configurationManager;
-        if (($GLOBALS['TYPO3_REQUEST'] ?? null) instanceof ServerRequestInterface
-            && ApplicationType::fromRequest($GLOBALS['TYPO3_REQUEST'])->isBackend()
-            && $this->configurationManager->isFeatureEnabled('ignoreAllEnableFieldsInBe')
-        ) {
-            // @deprecated since TYPO3 v12, will be removed in TYPO3 v13. Remove together with other extbase feature toggle related code.
-            trigger_error(
-                'Extbase feature toggle ignoreAllEnableFieldsInBe=1 is deprecated. Use explicit call to setIgnoreEnableFields(true) in' .
-                ' repositories or backend controllers instead.',
-                E_USER_DEPRECATED
-            );
-            $this->setIgnoreEnableFields(true);
-        }
         $this->languageAspect = $this->context->getAspect('language');
     }
 
@@ -91,9 +81,8 @@ class Typo3QuerySettings implements QuerySettingsInterface
      * Sets the flag if the storage page should be respected for the query.
      *
      * @param bool $respectStoragePage If TRUE the storage page ID will be determined and the statement will be extended accordingly.
-     * @return QuerySettingsInterface
      */
-    public function setRespectStoragePage($respectStoragePage)
+    public function setRespectStoragePage(bool $respectStoragePage): QuerySettingsInterface
     {
         $this->respectStoragePage = $respectStoragePage;
         return $this;
@@ -104,7 +93,7 @@ class Typo3QuerySettings implements QuerySettingsInterface
      *
      * @return bool TRUE, if the storage page should be respected; otherwise FALSE.
      */
-    public function getRespectStoragePage()
+    public function getRespectStoragePage(): bool
     {
         return $this->respectStoragePage;
     }
@@ -113,9 +102,8 @@ class Typo3QuerySettings implements QuerySettingsInterface
      * Sets the pid(s) of the storage page(s) that should be respected for the query.
      *
      * @param array $storagePageIds If given the storage page IDs will be determined and the statement will be extended accordingly.
-     * @return QuerySettingsInterface
      */
-    public function setStoragePageIds(array $storagePageIds)
+    public function setStoragePageIds(array $storagePageIds): self
     {
         $this->storagePageIds = $storagePageIds;
         return $this;
@@ -126,16 +114,15 @@ class Typo3QuerySettings implements QuerySettingsInterface
      *
      * @return array list of integers that each represent a storage page id
      */
-    public function getStoragePageIds()
+    public function getStoragePageIds(): array
     {
         return $this->storagePageIds;
     }
 
     /**
      * @param bool $respectSysLanguage TRUE if TYPO3 language settings are to be applied
-     * @return QuerySettingsInterface
      */
-    public function setRespectSysLanguage($respectSysLanguage)
+    public function setRespectSysLanguage(bool $respectSysLanguage): self
     {
         $this->respectSysLanguage = $respectSysLanguage;
         return $this;
@@ -144,73 +131,9 @@ class Typo3QuerySettings implements QuerySettingsInterface
     /**
      * @return bool TRUE if TYPO3 language settings are to be applied
      */
-    public function getRespectSysLanguage()
+    public function getRespectSysLanguage(): bool
     {
         return $this->respectSysLanguage;
-    }
-
-    /**
-     * @param mixed $languageOverlayMode TRUE, FALSE or "hideNonTranslated"
-     * @return QuerySettingsInterface instance of $this to allow method chaining
-     * @see setLanguageAspect()
-     * @deprecated will be removed in TYPO3 13.0. Use ->setLanguageAspect()
-     */
-    public function setLanguageOverlayMode($languageOverlayMode = false)
-    {
-        switch ($languageOverlayMode) {
-            case 'hideNonTranslated':
-                $overlayType = LanguageAspect::OVERLAYS_ON;
-                break;
-            case '1':
-            case true:
-                $overlayType = LanguageAspect::OVERLAYS_MIXED;
-                break;
-            default:
-                $overlayType = LanguageAspect::OVERLAYS_OFF;
-                break;
-        }
-        $this->languageAspect = new LanguageAspect($this->languageAspect->getId(), $this->languageAspect->getContentId(), $overlayType);
-        return $this;
-    }
-
-    /**
-     * @return mixed TRUE, FALSE or "hideNonTranslated"
-     * @see getLanguageAspect()
-     * @deprecated will be removed in TYPO3 13.0. Use ->getLanguageAspect()
-     */
-    public function getLanguageOverlayMode()
-    {
-        switch ($this->getLanguageAspect()->getOverlayType()) {
-            case LanguageAspect::OVERLAYS_ON_WITH_FLOATING:
-            case LanguageAspect::OVERLAYS_ON:
-                return 'hideNonTranslated';
-            case LanguageAspect::OVERLAYS_MIXED:
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    /**
-     * @param int $languageUid
-     * @return QuerySettingsInterface instance of $this to allow method chaining
-     * @see setLanguageAspect()
-     * @deprecated will be removed in TYPO3 13.0. Use ->setLanguageAspect()
-     */
-    public function setLanguageUid($languageUid)
-    {
-        $this->languageAspect = new LanguageAspect($languageUid, $languageUid, $this->languageAspect->getOverlayType());
-        return $this;
-    }
-
-    /**
-     * @return int
-     * @see getLanguageAspect()
-     * @deprecated will be removed in TYPO3 13.0. Use ->getLanguageAspect()
-     */
-    public function getLanguageUid()
-    {
-        return $this->languageAspect->getContentId();
     }
 
     public function getLanguageAspect(): LanguageAspect
@@ -218,10 +141,7 @@ class Typo3QuerySettings implements QuerySettingsInterface
         return $this->languageAspect;
     }
 
-    /**
-     * @return $this to allow method chaining
-     */
-    public function setLanguageAspect(LanguageAspect $languageAspect)
+    public function setLanguageAspect(LanguageAspect $languageAspect): self
     {
         $this->languageAspect = $languageAspect;
         return $this;
@@ -232,11 +152,9 @@ class Typo3QuerySettings implements QuerySettingsInterface
      * If--in addition to this--enableFieldsToBeIgnored is set, only fields specified there are ignored. If FALSE, all
      * enable fields are taken into account, regardless of the enableFieldsToBeIgnored setting.
      *
-     * @param bool $ignoreEnableFields
-     * @return QuerySettingsInterface
      * @see setEnableFieldsToBeIgnored()
      */
-    public function setIgnoreEnableFields($ignoreEnableFields)
+    public function setIgnoreEnableFields(bool $ignoreEnableFields): self
     {
         $this->ignoreEnableFields = $ignoreEnableFields;
         return $this;
@@ -248,10 +166,9 @@ class Typo3QuerySettings implements QuerySettingsInterface
      * If TRUE, all enable fields are ignored. If--in addition to this--enableFieldsToBeIgnored is set, only fields specified there are ignored.
      * If FALSE, all enable fields are taken into account, regardless of the enableFieldsToBeIgnored setting.
      *
-     * @return bool
      * @see getEnableFieldsToBeIgnored()
      */
-    public function getIgnoreEnableFields()
+    public function getIgnoreEnableFields(): bool
     {
         return $this->ignoreEnableFields;
     }
@@ -261,11 +178,9 @@ class Typo3QuerySettings implements QuerySettingsInterface
      * to be ignored while building the query statement. Adding a column name here effectively switches off filtering
      * by this column. This setting is only taken into account if $this->ignoreEnableFields = TRUE.
      *
-     * @param array $enableFieldsToBeIgnored
-     * @return QuerySettingsInterface
      * @see setIgnoreEnableFields()
      */
-    public function setEnableFieldsToBeIgnored($enableFieldsToBeIgnored)
+    public function setEnableFieldsToBeIgnored(array $enableFieldsToBeIgnored): self
     {
         $this->enableFieldsToBeIgnored = $enableFieldsToBeIgnored;
         return $this;
@@ -275,21 +190,17 @@ class Typo3QuerySettings implements QuerySettingsInterface
      * An array of column names in the enable columns array (array keys in $GLOBALS['TCA'][$table]['ctrl']['enablecolumns']),
      * to be ignored while building the query statement.
      *
-     * @return array
      * @see getIgnoreEnableFields()
      */
-    public function getEnableFieldsToBeIgnored()
+    public function getEnableFieldsToBeIgnored(): array
     {
         return $this->enableFieldsToBeIgnored;
     }
 
     /**
      * Sets the flag if the query should return objects that are deleted.
-     *
-     * @param bool $includeDeleted
-     * @return QuerySettingsInterface
      */
-    public function setIncludeDeleted($includeDeleted)
+    public function setIncludeDeleted(bool $includeDeleted): self
     {
         $this->includeDeleted = $includeDeleted;
         return $this;
@@ -297,10 +208,8 @@ class Typo3QuerySettings implements QuerySettingsInterface
 
     /**
      * Returns if the query should return objects that are deleted.
-     *
-     * @return bool
      */
-    public function getIncludeDeleted()
+    public function getIncludeDeleted(): bool
     {
         return $this->includeDeleted;
     }

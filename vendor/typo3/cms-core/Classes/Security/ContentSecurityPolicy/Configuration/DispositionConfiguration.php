@@ -22,14 +22,14 @@ namespace TYPO3\CMS\Core\Security\ContentSecurityPolicy\Configuration;
  *
  * @internal
  */
-final class DispositionConfiguration
+readonly class DispositionConfiguration
 {
     public function __construct(
-        public readonly bool $inheritDefault,
-        public readonly bool $includeResolutions,
-        public readonly array $mutations = [],
+        public bool $inheritDefault,
+        public bool $includeResolutions,
+        public array $mutations = [],
         /** @var array<string, bool> $packages */
-        public readonly array $packages = [],
+        public array $packages = [],
     ) {}
 
     public function resolveEffectivePackages(string ...$packageNames): array

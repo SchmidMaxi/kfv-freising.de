@@ -18,6 +18,7 @@ namespace TYPO3\CMS\Backend\Template\Components\Buttons;
 use TYPO3\CMS\Backend\Template\Components\Buttons\DropDown\DropDownItemInterface;
 use TYPO3\CMS\Backend\Template\Components\Buttons\DropDown\DropDownRadio;
 use TYPO3\CMS\Core\Imaging\Icon;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
@@ -58,7 +59,7 @@ class DropDownButton implements ButtonInterface
 
     public function setIcon(?Icon $icon): self
     {
-        $icon?->setSize(Icon::SIZE_SMALL);
+        $icon?->setSize(IconSize::SMALL);
         $this->icon = $icon;
         return $this;
     }
@@ -148,7 +149,7 @@ class DropDownButton implements ButtonInterface
         /**
          * @var DropDownRadio[] $activeItems
          */
-        $activeItems = array_filter($items, function (DropDownItemInterface $item) {
+        $activeItems = array_filter($items, function (DropDownItemInterface $item): bool {
             return $item instanceof DropDownRadio && $item->isActive();
         });
         if (!empty($activeItems)) {

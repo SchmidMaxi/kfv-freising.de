@@ -1,0 +1,37 @@
+TCEFORM {
+    pages {
+
+    }
+    tt_content {
+        frame_class {
+            removeItems = ruler-before, ruler-after, indent-left, indent-right
+            types {
+                section {
+                    addItems {
+                        icon-before = Icon oben-rechts
+                        icon-after = Icon unten-links
+                        badge = Badge
+                    }
+                }
+            }
+        }
+        layout {
+            types {
+                blockquote {
+                    removeItems = 2,3
+                    altLabels {
+                        0 = Mit Icon
+                        1 = Ohne Icon
+                    }
+                }
+                timeline {
+                    removeItems = 2,3
+                    altLabels {
+                        0 = Timeline
+                        1 = Slider
+                    }
+                }
+            }
+        }
+    }
+}

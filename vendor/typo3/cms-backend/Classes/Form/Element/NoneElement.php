@@ -47,8 +47,6 @@ class NoneElement extends AbstractFormElement
     public function render(): array
     {
         $resultArray = $this->initializeResultArray();
-        // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-        $resultArray['labelHasBeenHandled'] = true;
 
         $parameterArray = $this->data['parameterArray'];
         $config = $parameterArray['fieldConf']['config'];
@@ -73,7 +71,7 @@ class NoneElement extends AbstractFormElement
         $html[] = '<div class="formengine-field-item t3js-formengine-field-item">';
         $html[] =   $fieldInformationHtml;
         $html[] =   '<div class="form-wizards-wrap">';
-        $html[] =       '<div class="form-wizards-element">';
+        $html[] =       '<div class="form-wizards-item-element">';
         $html[] =           '<div class="form-control-wrap" style="max-width: ' . $width . 'px">';
         $html[] =               '<input class="form-control" id="' . htmlspecialchars($fieldId) . '" value="' . htmlspecialchars($itemValue) . '" type="text" disabled>';
         $html[] =           '</div>';

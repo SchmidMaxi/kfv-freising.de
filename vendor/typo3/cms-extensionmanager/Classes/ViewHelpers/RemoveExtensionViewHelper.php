@@ -17,15 +17,15 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Extensionmanager\ViewHelpers;
 
-use TYPO3\CMS\Core\Imaging\Icon;
+use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Mvc\RequestInterface;
 use TYPO3\CMS\Extbase\Mvc\Web\Routing\UriBuilder;
-use TYPO3\CMS\Extensionmanager\Domain\Model\Extension;
-use TYPO3\CMS\Fluid\Core\Rendering\RenderingContext;
+use TYPO3\CMS\Extensionmanager\Enum\ExtensionType;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractTagBasedViewHelper;
 
 /**
@@ -43,42 +43,38 @@ final class RemoveExtensionViewHelper extends AbstractTagBasedViewHelper
     public function initializeArguments(): void
     {
         parent::initializeArguments();
-        $this->registerUniversalTagAttributes();
         $this->registerArgument('extension', 'array', '', true);
     }
 
     public function render(): string
     {
         $extension = $this->arguments['extension'];
+        $extensionKey = $extension['key'];
+        $extensionType = ExtensionType::tryFrom($extension['type']);
         $iconFactory = GeneralUtility::makeInstance(IconFactory::class);
-        if (ExtensionManagementUtility::isLoaded($extension['key'])) {
-            return '<span class="btn btn-default disabled">' . $iconFactory->getIcon('empty-empty', Icon::SIZE_SMALL)->render() . '</span>';
-        }
         if (
-            !in_array($extension['type'], Extension::returnAllowedInstallTypes()) ||
-            $extension['type'] === 'System'
+            ExtensionManagementUtility::isLoaded($extensionKey)
+            || $extensionType === null
+            || $extensionType === ExtensionType::System
         ) {
-            return '<span class="btn btn-default disabled">' . $iconFactory->getIcon('empty-empty', Icon::SIZE_SMALL)->render() . '</span>';
+            return '<span class="btn btn-default disabled">' . $iconFactory->getIcon('empty-empty', IconSize::SMALL)->render() . '</span>';
         }
         $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
-        /** @var RenderingContext $renderingContext */
-        $renderingContext = $this->renderingContext;
         /** @var RequestInterface $request */
-        $request = $renderingContext->getRequest();
+        $request = $this->renderingContext->getAttribute(ServerRequestInterface::class);
         $uriBuilder->setRequest($request);
         $uriBuilder->reset();
         $uriBuilder->setFormat('json');
         $uri = $uriBuilder->uriFor(
             'removeExtension',
-            ['extension' => $extension['key']],
+            ['extension' => $extensionKey],
             'Action'
         );
         $this->tag->addAttribute('href', $uri);
-        $this->tag->addAttribute('class', $this->arguments['class']);
         $this->tag->addAttribute('title', htmlspecialchars($this->getLanguageService()->sL(
             'LLL:EXT:extensionmanager/Resources/Private/Language/locallang.xlf:extensionList.remove'
         )));
-        $this->tag->setContent($iconFactory->getIcon('actions-edit-delete', Icon::SIZE_SMALL)->render());
+        $this->tag->setContent($iconFactory->getIcon('actions-edit-delete', IconSize::SMALL)->render());
         return $this->tag->render();
     }
 

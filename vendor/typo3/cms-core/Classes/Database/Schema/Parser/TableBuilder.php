@@ -61,7 +61,6 @@ use TYPO3\CMS\Core\Database\Schema\Parser\AST\DataType\VarCharDataType;
 use TYPO3\CMS\Core\Database\Schema\Parser\AST\DataType\YearDataType;
 use TYPO3\CMS\Core\Database\Schema\Parser\AST\IndexColumnName;
 use TYPO3\CMS\Core\Database\Schema\Parser\AST\ReferenceDefinition;
-use TYPO3\CMS\Core\Database\Schema\Types\EnumType;
 use TYPO3\CMS\Core\Database\Schema\Types\SetType;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -149,9 +148,9 @@ class TableBuilder
             $this->getDoctrineColumnTypeName($item->dataType)
         );
 
-        $column->setNotnull(!$item->allowNull);
-        $column->setAutoincrement((bool)$item->autoIncrement);
-        $column->setComment($item->comment);
+        $column->setNotnull($item->allowNull === false);
+        $column->setAutoincrement($item->autoIncrement);
+        $column->setComment((string)$item->comment);
 
         // Set default value (unless it's an auto increment column)
         if ($item->hasDefaultValue && !$column->getAutoincrement()) {
@@ -179,10 +178,11 @@ class TableBuilder
             $column->setFixed(true);
         }
 
-        if ($item->dataType instanceof EnumDataType
-            || $item->dataType instanceof SetDataType
-        ) {
-            $column->setPlatformOption('unquotedValues', $item->dataType->getValues());
+        if ($item->dataType instanceof SetDataType) {
+            $column->setPlatformOption('values', $item->dataType->getValues());
+        }
+        if ($item->dataType instanceof EnumDataType) {
+            $column->setPlatformOption('values', $item->dataType->getValues());
         }
 
         if ($item->index) {
@@ -216,7 +216,7 @@ class TableBuilder
         $indexName = $item->indexName->getQuotedName();
 
         $columnNames = array_map(
-            static function (IndexColumnName $columnName) {
+            static function (IndexColumnName $columnName): string {
                 if ($columnName->length) {
                     return $columnName->columnName->getQuotedName() . '(' . $columnName->length . ')';
                 }
@@ -263,7 +263,7 @@ class TableBuilder
     {
         $indexName = $item->indexName->getQuotedName() ?: null;
         $localColumnNames = array_map(
-            static function (IndexColumnName $columnName) {
+            static function (IndexColumnName $columnName): string {
                 return $columnName->columnName->getQuotedName();
             },
             $item->columnNames
@@ -283,7 +283,7 @@ class TableBuilder
     ) {
         $foreignTableName = $referenceDefinition->tableName->getQuotedName();
         $foreignColumnNames = array_map(
-            static function (IndexColumnName $columnName) {
+            static function (IndexColumnName $columnName): string {
                 return $columnName->columnName->getQuotedName();
             },
             $referenceDefinition->columnNames
@@ -365,7 +365,7 @@ class TableBuilder
                 $doctrineType = Types::STRING;
                 break;
             case EnumDataType::class:
-                $doctrineType = EnumType::TYPE;
+                $doctrineType = Types::ENUM;
                 break;
             case SetDataType::class:
                 $doctrineType = SetType::TYPE;

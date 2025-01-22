@@ -1,4 +1,5 @@
 <?php
+
 /*
 ### Description
 This is a recipe that uses the [Supervisord server monitoring project](https://github.com/mlazarov/supervisord-monitor).
@@ -86,6 +87,7 @@ task('supervisord', ['supervisord-monitor:restart'])
     ->select('stage=production');
 ```
 */
+
 namespace Deployer;
 
 use Deployer\Utility\Httpie;
@@ -109,7 +111,7 @@ function supervisordCheckConfig()
 
 function supervisordGetBasicAuthToken()
 {
-    return 'Basic ' . base64_encode(get('supervisord_basic_auth_user'). ':'. get('supervisord_basic_auth_password'));
+    return 'Basic ' . base64_encode(get('supervisord_basic_auth_user') . ':' . get('supervisord_basic_auth_password'));
 }
 
 function supervisordIsAuthenticated()
@@ -125,7 +127,7 @@ function supervisordIsAuthenticated()
 function supervisordControlAction($name, $action = 'stop')
 {
     $stopResponseInfo = [];
-    Httpie::post(get('supervisord_uri') . '/control/'.$action.'/localhost/'.$name)->header('Authorization', supervisordGetBasicAuthToken())->send($stopResponseInfo);
+    Httpie::post(get('supervisord_uri') . '/control/' . $action . '/localhost/' . $name)->header('Authorization', supervisordGetBasicAuthToken())->send($stopResponseInfo);
 
     return $stopResponseInfo['http_code'] === 200;
 }
@@ -136,9 +138,9 @@ task('supervisord-monitor:restart', function () {
         foreach ($names as $name) {
             $name = trim($name);
             if (supervisordControlAction($name, 'stop')) {
-                writeln('Daemon ['.$name.'] stopped');
+                writeln('Daemon [' . $name . '] stopped');
                 if (supervisordControlAction($name, 'start')) {
-                    writeln('Daemon ['.$name.'] started');
+                    writeln('Daemon [' . $name . '] started');
                 }
             }
         }
@@ -153,7 +155,7 @@ task('supervisord-monitor:stop', function () {
         foreach ($names as $name) {
             $name = trim($name);
             if (supervisordControlAction($name, 'stop')) {
-                writeln('Daemon ['.$name.'] stopped');
+                writeln('Daemon [' . $name . '] stopped');
             }
         }
     } else {
@@ -167,7 +169,7 @@ task('supervisord-monitor:start', function () {
         foreach ($names as $name) {
             $name = trim($name);
             if (supervisordControlAction($name, 'start')) {
-                writeln('Daemon ['.$name.'] started');
+                writeln('Daemon [' . $name . '] started');
             }
         }
     } else {

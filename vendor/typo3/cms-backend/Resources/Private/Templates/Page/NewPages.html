@@ -25,7 +25,7 @@
             <f:be.infobox
                 title="{f:translate(key:'LLL:EXT:backend/Resources/Private/Language/locallang_pages_new.xlf:canNotCreateNew.title')}"
                 message="{f:translate(key:'LLL:EXT:backend/Resources/Private/Language/locallang_pages_new.xlf:canNotCreateNew.message')}"
-                state="-1"
+                state="{f:constant(name: 'TYPO3\CMS\Fluid\ViewHelpers\Be\InfoboxViewHelper::STATE_INFO')}"
             />
         </f:then>
         <f:else>
@@ -36,14 +36,14 @@
                             <f:be.infobox
                                 title="{f:translate(key:'LLL:EXT:backend/Resources/Private/Language/locallang_pages_new.xlf:pagesCreated.title')}"
                                 message="{f:translate(key:'LLL:EXT:backend/Resources/Private/Language/locallang_pages_new.xlf:pagesCreated.message')}"
-                                state="-1"
+                                state="{f:constant(name: 'TYPO3\CMS\Fluid\ViewHelpers\Be\InfoboxViewHelper::STATE_INFO')}"
                             />
                         </f:then>
                         <f:else>
                             <f:be.infobox
                                 title="{f:translate(key:'LLL:EXT:backend/Resources/Private/Language/locallang_pages_new.xlf:noPagesCreated.title')}"
                                 message="{f:translate(key:'LLL:EXT:backend/Resources/Private/Language/locallang_pages_new.xlf:noPagesCreated.message')}"
-                                state="1"
+                                state="{f:constant(name: 'TYPO3\CMS\Fluid\ViewHelpers\Be\InfoboxViewHelper::STATE_WARNING')}"
                             />
                         </f:else>
                     </f:if>
@@ -67,7 +67,7 @@
                                                 <span class="treeline-icon treeline-icon-join{f:if(condition: '{pageIterator.isLast}', then: 'bottom')}"></span>
                                                 <span title="id={page.uid}"><f:spaceless>
                                                     <button type="button"
-                                                        class="btn btn-link p-0"
+                                                        class="btn btn-link"
                                                         data-contextmenu-trigger="click"
                                                         data-contextmenu-table="pages"
                                                         data-contextmenu-uid="{page.uid}"
@@ -122,7 +122,7 @@
                         <div class="form-group">
                             <div class="formengine-field-item">
                                 <div class="form-wizards-wrap">
-                                    <div class="form-wizards-element">
+                                    <div class="form-wizards-item-element">
                                         <div class="form-check form-check-type-icon-toggle">
                                             <input type="checkbox" class="form-check-input" name="createInListEnd" id="createInListEnd" value="1" />
                                             <label for="createInListEnd" class="form-check-label">
@@ -218,14 +218,14 @@
                 <div class="formengine-field-item t3js-formengine-field-item">
                     <div class="form-control-wrap">
                         <div class="form-wizards-wrap">
-                            <div class="form-wizards-element">
+                            <div class="form-wizards-item-element">
                                 <div class="input-group">
-                                    <span class="input-group-addon input-group-icon" id="page_new_icon_{line.index}">
+                                    <span class="input-group-text input-group-icon" id="page_new_icon_{line.index}">
                                         <core:iconForRecord table="pages" row="{id: '0'}" />
                                     </span>
                                     <select id="page_new_select_{line.index}" class="form-select t3js-newmultiplepages-select-doktype" name="pages[NEW{line.index}][doktype]" data-target="#page_new_icon_{line.index}">
                                         <f:for each="{line.pageTypes}" as="typegroup" key="group">
-                                            <optgroup label="{f:translate(key: '{group}')}">
+                                            <optgroup label="{group}">
                                                 <f:for each="{typegroup}" as="type">
                                                     <option data-icon='{core:icon(identifier: type.icon)}' value="{type.value}">{f:translate(key: type.label, default: type.label)}</option>
                                                 </f:for>

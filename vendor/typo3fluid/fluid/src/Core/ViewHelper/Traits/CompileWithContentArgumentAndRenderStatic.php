@@ -72,6 +72,7 @@ trait CompileWithContentArgumentAndRenderStatic
      */
     public function render()
     {
+        trigger_error('CompileWithContentArgumentAndRenderStatic has been deprecated and will be removed in Fluid v5.', E_USER_DEPRECATED);
         return static::renderStatic(
             $this->arguments,
             $this->buildRenderChildrenClosure(),
@@ -84,6 +85,7 @@ trait CompileWithContentArgumentAndRenderStatic
      */
     public function resolveContentArgumentName()
     {
+        trigger_error('CompileWithContentArgumentAndRenderStatic has been deprecated and will be removed in Fluid v5.', E_USER_DEPRECATED);
         if (empty($this->contentArgumentName)) {
             $registeredArguments = $this->prepareArguments();
             foreach ($registeredArguments as $registeredArgument) {

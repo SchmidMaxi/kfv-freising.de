@@ -19,6 +19,7 @@ namespace TYPO3\CMS\Backend\Controller;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Form\Behavior\UpdateValueOnFieldChange;
 use TYPO3\CMS\Backend\Form\FormDataCompiler;
 use TYPO3\CMS\Backend\Form\FormDataGroup\TcaDatabaseRecord;
@@ -33,8 +34,15 @@ use TYPO3\CMS\Core\Utility\StringUtility;
 /**
  * Handle FormEngine flex field ajax calls
  */
+#[AsController]
 class FormFlexAjaxController extends AbstractFormEngineAjaxController
 {
+    public function __construct(
+        private readonly FormDataCompiler $formDataCompiler,
+        private readonly FlexFormTools $flexFormTools,
+        private readonly NodeFactory $nodeFactory,
+    ) {}
+
     /**
      * Render a single flex form section container to add it to the DOM
      */
@@ -55,8 +63,7 @@ class FormFlexAjaxController extends AbstractFormEngineAjaxController
 
         // Prepare TCA and data values for a new section container using data providers
         $processedTca = $GLOBALS['TCA'][$tableName];
-        $flexFormTools = GeneralUtility::makeInstance(FlexFormTools::class);
-        $dataStructure = $flexFormTools->parseDataStructureByIdentifier($dataStructureIdentifier);
+        $dataStructure = $this->flexFormTools->parseDataStructureByIdentifier($dataStructureIdentifier);
         $processedTca['columns'][$fieldName]['config']['ds'] = $dataStructure;
         $processedTca['columns'][$fieldName]['config']['dataStructureIdentifier'] = $dataStructureIdentifier;
         // Get a new unique id for this container.
@@ -68,7 +75,6 @@ class FormFlexAjaxController extends AbstractFormEngineAjaxController
             'flexFormContainerIdentifier' => $flexFormContainerIdentifier,
         ];
 
-        $formDataCompiler = GeneralUtility::makeInstance(FormDataCompiler::class);
         $formDataCompilerInput = [
             'request' => $request,
             'tableName' => $tableName,
@@ -92,6 +98,7 @@ class FormFlexAjaxController extends AbstractFormEngineAjaxController
             // *should* be avoided. But sub types should vanish from TCA at some point anyway (this usage shows
             // the complexity they introduce quite well), so we live with the solution for now instead of handing
             // the selected sub type through the system differently.
+            // @deprecated Remove in v14, when "sub types" are removed altogether
             $subtypeValueField = $processedTca['types'][$recordTypeValue]['subtype_value_field'] ?? null;
             $subtypeValue = explode(',', $queryParameters['dataStructureIdentifier']['dataStructureKey'] ?? '')[0];
             if ($subtypeValueField
@@ -103,7 +110,7 @@ class FormFlexAjaxController extends AbstractFormEngineAjaxController
                 $formDataCompilerInput['databaseRow'][$subtypeValueField] = $subtypeValue;
             }
         }
-        $formData = $formDataCompiler->compile($formDataCompilerInput, GeneralUtility::makeInstance(TcaDatabaseRecord::class));
+        $formData = $this->formDataCompiler->compile($formDataCompilerInput, GeneralUtility::makeInstance(TcaDatabaseRecord::class));
 
         $dataStructure = $formData['processedTca']['columns'][$fieldName]['config']['ds'];
         $formData['fieldName'] = $fieldName;
@@ -113,7 +120,6 @@ class FormFlexAjaxController extends AbstractFormEngineAjaxController
         $formData['flexFormSheetName'] = $flexFormSheetName;
         $formData['flexFormContainerName'] = $flexFormContainerName;
         $formData['flexFormContainerIdentifier'] = $flexFormContainerIdentifier;
-        $formData['flexFormContainerElementCollapsed'] = false;
 
         $formData['flexFormFormPrefix'] = '[data][' . $flexFormSheetName . '][lDEF][' . $flexFormFieldName . '][el]';
 
@@ -152,22 +158,16 @@ class FormFlexAjaxController extends AbstractFormEngineAjaxController
         // @todo: check GroupElement for usage of elementBaseName ... maybe kick that thing?
 
         // Feed resulting form data to container structure to render HTML and other result data
-        $nodeFactory = GeneralUtility::makeInstance(NodeFactory::class);
         $formData['renderType'] = 'flexFormContainerContainer';
-        $newContainerResult = $nodeFactory->create($formData)->render();
-        $scriptItems = GeneralUtility::makeInstance(JavaScriptItems::class);
+        $newContainerResult = $this->nodeFactory->create($formData)->render();
+        $scriptItems = new JavaScriptItems();
 
         $jsonResult = [
             'html' => $newContainerResult['html'],
             'stylesheetFiles' => [],
             'scriptItems' => $scriptItems,
-            'scriptCall' => [],
         ];
 
-        // @todo deprecate with TYPO3 v12.0
-        foreach ($newContainerResult['additionalJavaScriptPost'] as $singleAdditionalJavaScriptPost) {
-            $jsonResult['scriptCall'][] = $singleAdditionalJavaScriptPost;
-        }
         foreach ($newContainerResult['stylesheetFiles'] as $stylesheetFile) {
             $jsonResult['stylesheetFiles'][] = $this->getRelativePathToStylesheetFile($stylesheetFile);
         }
@@ -182,8 +182,6 @@ class FormFlexAjaxController extends AbstractFormEngineAjaxController
             $scriptItems->addGlobalAssignment(['TYPO3' => ['lang' => $labels]]);
         }
         $this->addJavaScriptModulesToJavaScriptItems($newContainerResult['javaScriptModules'] ?? [], $scriptItems);
-        /** @deprecated will be removed in TYPO3 v13.0 */
-        $this->addJavaScriptModulesToJavaScriptItems($newContainerResult['requireJsModules'] ?? [], $scriptItems, true);
 
         return new JsonResponse($jsonResult);
     }

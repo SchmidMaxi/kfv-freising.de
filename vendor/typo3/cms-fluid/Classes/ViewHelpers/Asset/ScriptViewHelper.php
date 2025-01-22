@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Fluid\ViewHelpers\Asset;
 
 use TYPO3\CMS\Core\Page\AssetCollector;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractTagBasedViewHelper;
 use TYPO3Fluid\Fluid\Core\ViewHelper\TagBuilder;
 
@@ -42,6 +43,8 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\TagBuilder;
  *
  * Some available attributes are defaults but do not make sense for this ViewHelper. Relevant attributes specific
  * for this ViewHelper are: async, crossorigin, defer, integrity, nomodule, nonce, referrerpolicy, src, type.
+ *
+ * Using the "inline" argument, the file content of the referenced file is added as inline script.
  */
 final class ScriptViewHelper extends AbstractTagBasedViewHelper
 {
@@ -84,30 +87,13 @@ final class ScriptViewHelper extends AbstractTagBasedViewHelper
     public function initializeArguments(): void
     {
         parent::initializeArguments();
-        $this->registerUniversalTagAttributes();
-        $this->registerTagAttribute('async', 'bool', 'Define that the script will be fetched in parallel to parsing and evaluation.', false);
-        $this->registerTagAttribute('crossorigin', 'string', 'Define how to handle crossorigin requests.', false);
-        $this->registerTagAttribute('defer', 'bool', 'Define that the script is meant to be executed after the document has been parsed.', false);
-        $this->registerTagAttribute('integrity', 'string', 'Define base64-encoded cryptographic hash of the resource that allows browsers to verify what they fetch.', false);
-        $this->registerTagAttribute('nomodule', 'bool', 'Define that the script should not be executed in browsers that support ES2015 modules.', false);
-        $this->registerTagAttribute('nonce', 'string', 'Define a cryptographic nonce (number used once) used to whitelist inline styles in a style-src Content-Security-Policy.', false);
-        $this->registerTagAttribute('referrerpolicy', 'string', 'Define which referrer is sent when fetching the resource.', false);
-        $this->registerTagAttribute('src', 'string', 'Define the URI of the external resource.', false);
-        $this->registerTagAttribute('type', 'string', 'Define the MIME type (usually \'text/javascript\').', false);
+        $this->registerArgument('async', 'bool', 'Define that the script will be fetched in parallel to parsing and evaluation.');
+        $this->registerArgument('defer', 'bool', 'Define that the script is meant to be executed after the document has been parsed.');
+        $this->registerArgument('nomodule', 'bool', 'Define that the script should not be executed in browsers that support ES2015 modules.');
         $this->registerArgument('useNonce', 'bool', 'Whether to use the global nonce value', false, false);
-        $this->registerArgument(
-            'identifier',
-            'string',
-            'Use this identifier within templates to only inject your JS once, even though it is added multiple times.',
-            true
-        );
-        $this->registerArgument(
-            'priority',
-            'boolean',
-            'Define whether the JavaScript should be put in the <head> tag above-the-fold or somewhere in the body part.',
-            false,
-            false
-        );
+        $this->registerArgument('identifier', 'string', 'Use this identifier within templates to only inject your JS once, even though it is added multiple times.', true);
+        $this->registerArgument('priority', 'boolean', 'Define whether the JavaScript should be put in the <head> tag above-the-fold or somewhere in the body part.', false, false);
+        $this->registerArgument('inline', 'bool', 'Define whether or not the referenced file should be loaded as inline script (Only to be used if \'src\' is set).', false, false);
     }
 
     public function render(): string
@@ -116,9 +102,9 @@ final class ScriptViewHelper extends AbstractTagBasedViewHelper
         $attributes = $this->tag->getAttributes();
 
         // boolean attributes shall output attr="attr" if set
-        foreach (['async', 'defer', 'nomodule'] as $_attr) {
-            if ($attributes[$_attr] ?? false) {
-                $attributes[$_attr] = $_attr;
+        foreach (['async', 'defer', 'nomodule'] as $attribute) {
+            if ($this->arguments[$attribute] ?? false) {
+                $attributes[$attribute] = $attribute;
             }
         }
 
@@ -129,7 +115,14 @@ final class ScriptViewHelper extends AbstractTagBasedViewHelper
             'useNonce' => $this->arguments['useNonce'],
         ];
         if ($src !== null) {
-            $this->assetCollector->addJavaScript($identifier, $src, $attributes, $options);
+            if ($this->arguments['inline'] ?? false) {
+                $content = @file_get_contents(GeneralUtility::getFileAbsFileName(trim($src)));
+                if ($content !== false) {
+                    $this->assetCollector->addInlineJavaScript($identifier, $content, $attributes, $options);
+                }
+            } else {
+                $this->assetCollector->addJavaScript($identifier, $src, $attributes, $options);
+            }
         } else {
             $content = (string)$this->renderChildren();
             if ($content !== '') {

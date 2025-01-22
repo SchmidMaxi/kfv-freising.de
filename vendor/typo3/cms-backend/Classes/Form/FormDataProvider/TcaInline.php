@@ -37,6 +37,10 @@ use TYPO3\CMS\Core\Versioning\VersionState;
  */
 class TcaInline extends AbstractDatabaseRecordProvider implements FormDataProviderInterface
 {
+    public function __construct(
+        private readonly FlashMessageService $flashMessageService,
+    ) {}
+
     /**
      * Resolve inline fields
      *
@@ -141,7 +145,7 @@ class TcaInline extends AbstractDatabaseRecordProvider implements FormDataProvid
             $connectedUidsOfLocalizedOverlay = $this->resolveConnectedRecordUids(
                 $result['processedTca']['columns'][$fieldName]['config'],
                 $result['tableName'],
-                $result['databaseRow']['uid'],
+                $result['databaseRow'],
                 $result['databaseRow'][$fieldName]
             );
         }
@@ -152,7 +156,7 @@ class TcaInline extends AbstractDatabaseRecordProvider implements FormDataProvid
             $connectedUidsOfDefaultLanguageRecord = $this->resolveConnectedRecordUids(
                 $result['processedTca']['columns'][$fieldName]['config'],
                 $tableNameWithDefaultRecords,
-                $result['defaultLanguageRow']['uid'],
+                $result['defaultLanguageRow'],
                 $result['defaultLanguageRow'][$fieldName]
             );
             $connectedUidsOfDefaultLanguageRecord = $this->getSubstitutedWorkspacedUids($connectedUidsOfDefaultLanguageRecord, $childTableName);
@@ -243,7 +247,7 @@ class TcaInline extends AbstractDatabaseRecordProvider implements FormDataProvid
         $connectedUidsOfDefaultLanguageRecord = $this->resolveConnectedRecordUids(
             $result['processedTca']['columns'][$fieldName]['config'],
             $result['tableName'],
-            $result['databaseRow']['uid'],
+            $result['databaseRow'],
             $result['databaseRow'][$fieldName]
         );
         $result['databaseRow'][$fieldName] = implode(',', $connectedUidsOfDefaultLanguageRecord);
@@ -382,7 +386,7 @@ class TcaInline extends AbstractDatabaseRecordProvider implements FormDataProvid
                     '',
                     ContextualFeedbackSeverity::ERROR
                 );
-                GeneralUtility::makeInstance(FlashMessageService::class)->getMessageQueueByIdentifier()->enqueue($flashMessage);
+                $this->flashMessageService->getMessageQueueByIdentifier()->enqueue($flashMessage);
             }
         }
         return $mainChild;
@@ -437,8 +441,8 @@ class TcaInline extends AbstractDatabaseRecordProvider implements FormDataProvid
             if ($backendUser->workspace !== 0 && BackendUtility::isTableWorkspaceEnabled($childTableName)) {
                 $workspaceVersion = BackendUtility::getWorkspaceVersionOfRecord($backendUser->workspace, $childTableName, $uid, 'uid,t3ver_state');
                 if (!empty($workspaceVersion)) {
-                    $versionState = VersionState::cast($workspaceVersion['t3ver_state']);
-                    if ($versionState->equals(VersionState::DELETE_PLACEHOLDER)) {
+                    $versionState = VersionState::tryFrom($workspaceVersion['t3ver_state'] ?? 0);
+                    if ($versionState === VersionState::DELETE_PLACEHOLDER) {
                         continue;
                     }
                     $uid = $workspaceVersion['uid'];
@@ -454,16 +458,19 @@ class TcaInline extends AbstractDatabaseRecordProvider implements FormDataProvid
      *
      * @param array $parentConfig TCA config section of parent
      * @param string $parentTableName Name of parent table
-     * @param int $parentUid Uid of parent record
+     * @param array $parentRecord Full parent record
      * @param string $parentFieldValue Database value of parent record of this inline field
      * @return array Array with connected uids
      * @todo: Cover with unit tests
      */
-    protected function resolveConnectedRecordUids(array $parentConfig, $parentTableName, $parentUid, $parentFieldValue)
+    protected function resolveConnectedRecordUids(array $parentConfig, string $parentTableName, array $parentRecord, string $parentFieldValue): array
     {
         $directlyConnectedIds = GeneralUtility::trimExplode(',', $parentFieldValue);
-        if (empty($parentConfig['MM'])) {
-            $parentUid = $this->getLiveDefaultId($parentTableName, $parentUid);
+        $parentUid = (int)$parentRecord['uid'];
+        // Relations to non-MM tables point to the LIVE version, so we need to ensure
+        // we use the live version that is sent to RelationHandler
+        if (empty($parentConfig['MM']) && (int)($parentRecord['t3ver_oid'] ?? 0) > 0) {
+            $parentUid = (int)$parentRecord['t3ver_oid'];
         }
         $relationHandler = GeneralUtility::makeInstance(RelationHandler::class);
         $relationHandler->start($parentFieldValue, $parentConfig['foreign_table'] ?? '', $parentConfig['MM'] ?? '', $parentUid, $parentTableName, $parentConfig);
@@ -481,24 +488,6 @@ class TcaInline extends AbstractDatabaseRecordProvider implements FormDataProvid
             }
         }
         return $resolvedForeignRecordUids;
-    }
-
-    /**
-     * Gets the record uid of the live default record. If already
-     * pointing to the live record, the submitted record uid is returned.
-     *
-     * @param string $tableName
-     * @param int $uid
-     * @return int
-     * @todo: the workspace mess still must be resolved somehow
-     */
-    protected function getLiveDefaultId($tableName, $uid)
-    {
-        $liveDefaultId = BackendUtility::getLiveVersionIdOfRecord($tableName, $uid);
-        if ($liveDefaultId === null) {
-            $liveDefaultId = $uid;
-        }
-        return $liveDefaultId;
     }
 
     /**

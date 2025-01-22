@@ -1,4 +1,5 @@
 <?php
+
 namespace Deployer;
 
 require_once __DIR__ . '/common.php';
@@ -25,6 +26,7 @@ set('laravel_version', function () {
     preg_match_all('/(\d+\.?)+/', $result, $matches);
     return $matches[0][0] ?? 5.5;
 });
+set('public_path', 'public');
 
 /**
  * Run an artisan command.
@@ -239,6 +241,16 @@ task('artisan:octane:status', artisan('octane:status'));
 
 desc('Publish all of the Laravel Nova resources');
 task('artisan:nova:publish', artisan('nova:publish'));
+
+/*
+ * Reverb.
+ */
+
+desc('Starts the Reverb server');
+task('artisan:reverb:start', artisan('pulse:start'));
+
+desc('Restarts the Reverb server');
+task('artisan:reverb:restart', artisan('pulse:restart'));
 
 /*
  * Pulse.

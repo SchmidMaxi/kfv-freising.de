@@ -22,19 +22,21 @@ use TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController;
 
 /**
  * Event to allow listeners to disable the loading of cached page data when a page is requested.
- * Does not have any effect if "no_cache" is activated, or if there is no cached version of a page.
+ * Does not have any effect if caching is disabled, or if there is no cached version of a page.
  */
 final class ShouldUseCachedPageDataIfAvailableEvent
 {
     public function __construct(
         private readonly ServerRequestInterface $request,
-        private readonly TypoScriptFrontendController $controller,
         private bool $shouldUseCachedPageData
     ) {}
 
+    /**
+     * @todo: deprecate
+     */
     public function getController(): TypoScriptFrontendController
     {
-        return $this->controller;
+        return $this->request->getAttribute('frontend.controller');
     }
 
     public function getRequest(): ServerRequestInterface

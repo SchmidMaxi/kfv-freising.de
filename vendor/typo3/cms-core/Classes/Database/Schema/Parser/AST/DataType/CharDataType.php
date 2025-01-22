@@ -19,14 +19,18 @@ namespace TYPO3\CMS\Core\Database\Schema\Parser\AST\DataType;
 
 /**
  * Node representing the CHAR SQL column type
+ *
+ * @internal
  */
-class CharDataType extends AbstractDataType
+final class CharDataType extends AbstractDataType
 {
-    /**
-     * CharDataType constructor.
-     */
     public function __construct(int $length, array $options)
     {
+        /**
+          * CHAR is "fixed type". Setting it here instructs Doctrine DBAL to use this type instead of
+          * the "variable type" when being transformed within the {@see TableBuilder::addColumn()} method.
+          */
+        $this->fixed = true;
         $this->length = $length;
         $this->options = $options;
     }

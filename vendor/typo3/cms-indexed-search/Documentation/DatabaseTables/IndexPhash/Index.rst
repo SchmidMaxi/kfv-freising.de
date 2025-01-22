@@ -13,13 +13,17 @@ The fields are like this:
 phash
 =====
 
+..  versionchanged:: 13.0
+    The field has been transformed to a varchar field, full md5 hashes are
+    stored.
+
 .. container:: table-row
 
    Field
          phash
 
    Description
-         7md5/int hash. It's an integer based on a 7-char md5-hash.
+         Stores an md5 hash.
 
          This is a unique representation of the 'page' indexed.
 
@@ -41,13 +45,17 @@ phash
 phash\_grouping
 ===============
 
+..  versionchanged:: 13.0
+    The field has been transformed to a varchar field, full md5 hashes are
+    stored.
+
 .. container:: table-row
 
    Field
          phash\_grouping
 
    Description
-         7md5/int hash.
+         Stores an md5 hash.
 
          This is a non-unique hash exactly like phash, but WITHOUT the gr\_list
          and (in addition) for external media without subpage indication. Thus
@@ -226,6 +234,10 @@ data\_filename
 contentHash
 ===========
 
+..  versionchanged:: 13.0
+    The field has been transformed to a varchar field, full md5 hashes are
+    stored.
+
 .. container:: table-row
 
    Field
@@ -280,8 +292,7 @@ sys\_language\_uid
          sys\_language\_uid
 
    Description
-         Will contain the value of GLOBALS["TSFE"]->sys\_language\_uid, which
-         tells us the language of the page indexed.
+         Will contain the value of the language of the page being indexed.
 
 
 

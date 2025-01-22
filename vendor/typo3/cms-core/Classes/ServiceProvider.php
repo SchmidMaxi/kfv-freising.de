@@ -20,15 +20,22 @@ namespace TYPO3\CMS\Core;
 use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Console\Command\HelpCommand;
+use Symfony\Component\Yaml\Command\LintCommand as SymfonyLintCommand;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface as SymfonyEventDispatcherInterface;
 use TYPO3\CMS\Core\Adapter\EventDispatcherAdapter as SymfonyEventDispatcher;
 use TYPO3\CMS\Core\Cache\CacheManager;
-use TYPO3\CMS\Core\Configuration\Loader\PageTsConfigLoader;
+use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
+use TYPO3\CMS\Core\Configuration\Loader\YamlFileLoader;
+use TYPO3\CMS\Core\Core\Bootstrap;
 use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Crypto\HashService;
+use TYPO3\CMS\Core\Database\Schema\DefaultTcaSchema;
+use TYPO3\CMS\Core\Database\Schema\Parser\Lexer;
 use TYPO3\CMS\Core\DependencyInjection\ContainerBuilder;
 use TYPO3\CMS\Core\Imaging\IconRegistry;
 use TYPO3\CMS\Core\Package\AbstractServiceProvider;
 use TYPO3\CMS\Core\Package\PackageManager;
+use TYPO3\CMS\Core\Resource\ResourceFactory;
 use TYPO3\CMS\Core\Type\Map;
 use TYPO3\CMS\Core\TypoScript\Tokenizer\LossyTokenizer;
 
@@ -51,10 +58,13 @@ class ServiceProvider extends AbstractServiceProvider
     {
         return [
             SymfonyEventDispatcher::class => self::getSymfonyEventDispatcher(...),
+            SymfonyLintCommand::class => self::getSymfonyLintCommand(...),
             Cache\CacheManager::class => self::getCacheManager(...),
             Database\ConnectionPool::class => self::getConnectionPool(...),
+            Database\DriverMiddlewareService::class => self::getDriverMiddlewaresService(...),
             Charset\CharsetConverter::class => self::getCharsetConverter(...),
-            Configuration\SiteConfiguration::class => self::getSiteConfiguration(...),
+            Configuration\Loader\YamlFileLoader::class => self::getYamlFileLoader(...),
+            Configuration\SiteWriter::class => self::getSiteWriter(...),
             Command\ListCommand::class => self::getListCommand(...),
             HelpCommand::class => self::getHelpCommand(...),
             Command\CacheFlushCommand::class => self::getCacheFlushCommand(...),
@@ -64,10 +74,15 @@ class ServiceProvider extends AbstractServiceProvider
             Console\CommandRegistry::class => self::getConsoleCommandRegistry(...),
             Context\Context::class => self::getContext(...),
             Core\BootService::class => self::getBootService(...),
+            Crypto\HashService::class => self::getHashService(...),
             Crypto\PasswordHashing\PasswordHashFactory::class => self::getPasswordHashFactory(...),
+            Database\Schema\SchemaMigrator::class => self::getSchemaMigrator(...),
+            Database\Schema\Parser\Parser::class => self::getSchemaParser(...),
             EventDispatcher\EventDispatcher::class => self::getEventDispatcher(...),
             EventDispatcher\ListenerProvider::class => self::getEventListenerProvider(...),
             FormProtection\FormProtectionFactory::class => self::getFormProtectionFactory(...),
+            Http\Application::class => self::getHttpApplication(...),
+            Http\RequestHandler::class => self::getHttpRequestHandler(...),
             Http\Client\GuzzleClientFactory::class => self::getGuzzleClientFactory(...),
             Http\MiddlewareStackResolver::class => self::getMiddlewareStackResolver(...),
             Http\RequestFactory::class => self::getRequestFactory(...),
@@ -77,6 +92,7 @@ class ServiceProvider extends AbstractServiceProvider
             Localization\LanguageStore::class => self::getLanguageStore(...),
             Localization\Locales::class => self::getLocales(...),
             Localization\LocalizationFactory::class => self::getLocalizationFactory(...),
+            Mail\Mailer::class => self::getMailer(...),
             Mail\TransportFactory::class => self::getMailTransportFactory(...),
             Messaging\FlashMessageService::class => self::getFlashMessageService(...),
             Middleware\ResponsePropagation::class => self::getResponsePropagationMiddleware(...),
@@ -95,16 +111,16 @@ class ServiceProvider extends AbstractServiceProvider
             Service\DependencyOrderingService::class => self::getDependencyOrderingService(...),
             Service\FlexFormService::class => self::getFlexFormService(...),
             Service\OpcodeCacheService::class => self::getOpcodeCacheService(...),
-            TimeTracker\TimeTracker::class => self::getTimeTracker(...),
             TypoScript\TypoScriptStringFactory::class => self::getTypoScriptStringFactory(...),
             TypoScript\TypoScriptService::class => self::getTypoScriptService(...),
             TypoScript\AST\Traverser\AstTraverser::class => self::getAstTraverser(...),
             TypoScript\AST\CommentAwareAstBuilder::class => self::getCommentAwareAstBuilder(...),
-            TypoScript\Tokenizer\LosslessTokenizer::class => [ static::class, 'getLosslessTokenizer'],
-            // @deprecated since v12, will be removed with v13 together with class PageTsConfigLoader.
-            'globalPageTsConfig' => self::getGlobalPageTsConfig(...),
+            TypoScript\Tokenizer\LosslessTokenizer::class => [ self::class, 'getLosslessTokenizer'],
             'icons' => self::getIcons(...),
             'middlewares' => self::getMiddlewares(...),
+            'cache.assets' => self::getAssetsCache(...),
+            'cache.runtime' => self::getRuntimeCache(...),
+            'core.middlewares' => self::getCoreMiddlewares(...),
             'content.security.policies' => self::getContentSecurityPolicies(...),
         ];
     }
@@ -114,8 +130,6 @@ class ServiceProvider extends AbstractServiceProvider
         return [
             Console\CommandRegistry::class => self::configureCommands(...),
             Imaging\IconRegistry::class => self::configureIconRegistry(...),
-            // @deprecated since v12, will be removed with v13 together with class PageTsConfigLoader.
-            Configuration\Loader\PageTsConfigLoader::class => self::configurePageTsConfigLoader(...),
             EventDispatcherInterface::class => self::provideFallbackEventDispatcher(...),
             EventDispatcher\ListenerProvider::class => self::extendEventListenerProvider(...),
         ] + parent::getExtensions();
@@ -139,6 +153,7 @@ class ServiceProvider extends AbstractServiceProvider
         $defaultCaches = [
             $container->get('cache.core'),
             $container->get('cache.assets'),
+            $container->get('cache.runtime'),
             $container->get('cache.di'),
         ];
 
@@ -161,17 +176,31 @@ class ServiceProvider extends AbstractServiceProvider
         return self::new($container, Database\ConnectionPool::class);
     }
 
+    public static function getDriverMiddlewaresService(ContainerInterface $container): Database\DriverMiddlewareService
+    {
+        return self::new($container, Database\DriverMiddlewareService::class, [
+            $container->get(Service\DependencyOrderingService::class),
+        ]);
+    }
+
     public static function getCharsetConverter(ContainerInterface $container): Charset\CharsetConverter
     {
         return self::new($container, Charset\CharsetConverter::class);
     }
 
-    public static function getSiteConfiguration(ContainerInterface $container): Configuration\SiteConfiguration
+    public static function getYamlFileLoader(ContainerInterface $container): Configuration\Loader\YamlFileLoader
     {
-        return self::new($container, Configuration\SiteConfiguration::class, [
+        return self::new($container, Configuration\Loader\YamlFileLoader::class, [
+            $container->get(Log\LogManager::class)->getLogger(Configuration\Loader\YamlFileLoader::class),
+        ]);
+    }
+
+    public static function getSiteWriter(ContainerInterface $container): Configuration\SiteWriter
+    {
+        return self::new($container, Configuration\SiteWriter::class, [
             Environment::getConfigPath() . '/sites',
             $container->get(EventDispatcherInterface::class),
-            $container->get('cache.core'),
+            $container->get(YamlFileLoader::class),
         ]);
     }
 
@@ -186,6 +215,11 @@ class ServiceProvider extends AbstractServiceProvider
     public static function getHelpCommand(ContainerInterface $container): HelpCommand
     {
         return new HelpCommand();
+    }
+
+    public static function getSymfonyLintCommand(ContainerInterface $container): SymfonyLintCommand
+    {
+        return new SymfonyLintCommand();
     }
 
     public static function getCacheFlushCommand(ContainerInterface $container): Command\CacheFlushCommand
@@ -251,7 +285,6 @@ class ServiceProvider extends AbstractServiceProvider
         );
 
         $cacheWarmers = [
-            Configuration\SiteConfiguration::class,
             Http\MiddlewareStackResolver::class,
             Imaging\IconRegistry::class,
             Package\PackageManager::class,
@@ -286,12 +319,29 @@ class ServiceProvider extends AbstractServiceProvider
         return new Crypto\PasswordHashing\PasswordHashFactory();
     }
 
+    public static function getSchemaMigrator(ContainerInterface $container): Database\Schema\SchemaMigrator
+    {
+        return self::new($container, Database\Schema\SchemaMigrator::class, [
+            $container->get(Database\ConnectionPool::class),
+            $container->get(Database\Schema\Parser\Parser::class),
+            new DefaultTcaSchema(),
+        ]);
+    }
+
+    public static function getSchemaParser(ContainerInterface $container): Database\Schema\Parser\Parser
+    {
+        return self::new($container, Database\Schema\Parser\Parser::class, [
+            new Lexer(),
+        ]);
+    }
+
     public static function getIconFactory(ContainerInterface $container): Imaging\IconFactory
     {
         return self::new($container, Imaging\IconFactory::class, [
             $container->get(EventDispatcherInterface::class),
             $container->get(Imaging\IconRegistry::class),
             $container,
+            $container->get('cache.runtime'),
         ]);
     }
 
@@ -328,35 +378,14 @@ class ServiceProvider extends AbstractServiceProvider
 
     public static function getIconRegistry(ContainerInterface $container): Imaging\IconRegistry
     {
-        return self::new($container, Imaging\IconRegistry::class, [$container->get('cache.assets'), $container->get(Package\Cache\PackageDependentCacheIdentifier::class)->withPrefix('BackendIcons')->toString()]);
-    }
-
-    /**
-     * @deprecated since v12, will be removed with v13 together with class PageTsConfigLoader.
-     */
-    public static function getGlobalPageTsConfig(ContainerInterface $container): \ArrayObject
-    {
-        return new \ArrayObject();
-    }
-
-    /**
-     * @deprecated since v12, will be removed with v13 together with class PageTsConfigLoader.
-     */
-    public static function configurePageTsConfigLoader(ContainerInterface $container, PageTsConfigLoader $configLoader): PageTsConfigLoader
-    {
-        $cache = $container->get('cache.core');
-
-        $cacheIdentifier = $container->get(Package\Cache\PackageDependentCacheIdentifier::class)->withPrefix('globalPageTsConfig')->toString();
-        if (!$cache->has($cacheIdentifier)) {
-            $pageTsConfigFiles = $container->get('globalPageTsConfig')->getArrayCopy();
-            $pageTsConfigFiles = implode("\n", $pageTsConfigFiles);
-            $cache->set($cacheIdentifier, 'return ' . var_export($pageTsConfigFiles, true) . ';');
-        } else {
-            $pageTsConfigFiles = $cache->require($cacheIdentifier);
+        if ($container->get('boot.state')->complete === false) {
+            trigger_error(
+                'Instantiating \TYPO3\CMS\Core\Imaging\IconRegistry in ext_localconf.php should be replaced by'
+                . ' either Configuration/Icons.php or by listening to \TYPO3\CMS\Core\Core\Event\BootCompletedEvent',
+                E_USER_DEPRECATED
+            );
         }
-
-        $configLoader->setGlobalTsConfig($pageTsConfigFiles);
-        return $configLoader;
+        return self::new($container, Imaging\IconRegistry::class, [$container->get('cache.assets'), $container->get(Package\Cache\PackageDependentCacheIdentifier::class)->withPrefix('BackendIcons')->toString()]);
     }
 
     public static function getLanguageServiceFactory(ContainerInterface $container): Localization\LanguageServiceFactory
@@ -383,6 +412,14 @@ class ServiceProvider extends AbstractServiceProvider
         return self::new($container, Localization\LocalizationFactory::class, [
             $container->get(Localization\LanguageStore::class),
             $container->get(Cache\CacheManager::class),
+        ]);
+    }
+
+    public static function getMailer(ContainerInterface $container): Mail\Mailer
+    {
+        return self::new($container, Mail\Mailer::class, [
+            null,
+            $container->get(EventDispatcherInterface::class),
         ]);
     }
 
@@ -451,13 +488,17 @@ class ServiceProvider extends AbstractServiceProvider
 
     public static function getProcessedFileRepository(ContainerInterface $container): Resource\ProcessedFileRepository
     {
-        return self::new($container, Resource\ProcessedFileRepository::class);
+        return self::new($container, Resource\ProcessedFileRepository::class, [
+            $container->get(ResourceFactory::class),
+            $container->get(Resource\Processing\TaskTypeRegistry::class),
+        ]);
     }
 
     public static function getResourceFactory(ContainerInterface $container): Resource\ResourceFactory
     {
         return self::new($container, Resource\ResourceFactory::class, [
             $container->get(Resource\StorageRepository::class),
+            $container->get('cache.runtime'),
         ]);
     }
 
@@ -482,11 +523,6 @@ class ServiceProvider extends AbstractServiceProvider
     public static function getOpcodeCacheService(ContainerInterface $container): Service\OpcodeCacheService
     {
         return self::new($container, Service\OpcodeCacheService::class);
-    }
-
-    public static function getTimeTracker(ContainerInterface $container): TimeTracker\TimeTracker
-    {
-        return self::new($container, TimeTracker\TimeTracker::class);
     }
 
     public static function getTypoScriptStringFactory(ContainerInterface $container): TypoScript\TypoScriptStringFactory
@@ -519,6 +555,27 @@ class ServiceProvider extends AbstractServiceProvider
     public static function getBackendEntryPointResolver(ContainerInterface $container): Routing\BackendEntryPointResolver
     {
         return self::new($container, Routing\BackendEntryPointResolver::class);
+    }
+
+    public static function getHttpApplication(ContainerInterface $container): Http\Application
+    {
+        $requestHandler = new Http\MiddlewareDispatcher(
+            $container->get(Http\RequestHandler::class),
+            $container->get('core.middlewares'),
+        );
+
+        return self::new($container, Http\Application::class, [
+            $requestHandler,
+            $container->get(Configuration\ConfigurationManager::class),
+        ]);
+    }
+
+    public static function getHttpRequestHandler(ContainerInterface $container): Http\RequestHandler
+    {
+        return new Http\RequestHandler(
+            $container,
+            $container->get(Routing\BackendEntryPointResolver::class),
+        );
     }
 
     public static function getRequestContextFactory(ContainerInterface $container): Routing\RequestContextFactory
@@ -574,6 +631,31 @@ class ServiceProvider extends AbstractServiceProvider
         return new Map();
     }
 
+    public static function getAssetsCache(ContainerInterface $container): FrontendInterface
+    {
+        return Bootstrap::createCache('assets');
+    }
+
+    public static function getRuntimeCache(ContainerInterface $container): FrontendInterface
+    {
+        $defaultBackend = Cache\Backend\TransientMemoryBackend::class;
+        $cacheBackend = $GLOBALS['TYPO3_CONF_VARS']['SYS']['caching']['cacheConfigurations']['runtime']['backend'] ?? $defaultBackend;
+        if (!array_key_exists(Cache\Backend\TransientBackendInterface::class, class_implements($cacheBackend))) {
+            $cacheBackend = $defaultBackend;
+        }
+        return Bootstrap::createCache('runtime', false, $cacheBackend);
+    }
+
+    public static function getCoreMiddlewares(ContainerInterface $container): \ArrayObject
+    {
+        return new \ArrayObject($container->get(Http\MiddlewareStackResolver::class)->resolve('core'));
+    }
+
+    public static function getHashService(): HashService
+    {
+        return new HashService();
+    }
+
     public static function provideFallbackEventDispatcher(
         ContainerInterface $container,
         ?EventDispatcherInterface $eventDispatcher = null
@@ -597,6 +679,8 @@ class ServiceProvider extends AbstractServiceProvider
         $commandRegistry->addLazyCommand('dumpautoload', Command\DumpAutoloadCommand::class, 'Updates class loading information in non-composer mode.', Environment::isComposerMode());
         $commandRegistry->addLazyCommand('extensionmanager:extension:dumpclassloadinginformation', Command\DumpAutoloadCommand::class, null, Environment::isComposerMode(), false, 'dumpautoload');
         $commandRegistry->addLazyCommand('extension:dumpclassloadinginformation', Command\DumpAutoloadCommand::class, null, Environment::isComposerMode(), false, 'dumpautoload');
+
+        $commandRegistry->addLazyCommand('lint:yaml', SymfonyLintCommand::class, 'Lint yaml files.');
 
         return $commandRegistry;
     }

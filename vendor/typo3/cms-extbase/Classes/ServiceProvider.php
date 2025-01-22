@@ -41,27 +41,29 @@ class ServiceProvider extends AbstractServiceProvider
     public function getFactories(): array
     {
         return [
-            Configuration\ConfigurationManager::class => self::getConfigurationManager(...),
             Reflection\ReflectionService::class => self::getReflectionService(...),
             Service\ExtensionService::class => self::getExtensionService(...),
             Service\ImageService::class => self::getImageService(...),
-            Security\Cryptography\HashService::class => self::getHashService(...),
         ];
-    }
-
-    public static function getConfigurationManager(ContainerInterface $container): Configuration\ConfigurationManager
-    {
-        return self::new($container, Configuration\ConfigurationManager::class, [$container]);
     }
 
     public static function getReflectionService(ContainerInterface $container): Reflection\ReflectionService
     {
-        return self::new($container, Reflection\ReflectionService::class, [$container->get(CacheManager::class)->getCache('extbase'), $container->get(PackageDependentCacheIdentifier::class)->withPrefix('ClassSchemata')->toString()]);
+        return self::new(
+            $container,
+            Reflection\ReflectionService::class,
+            [
+                $container->get(CacheManager::class)->getCache('extbase'),
+                $container->get(PackageDependentCacheIdentifier::class)->withPrefix('ClassSchemata')->toString(),
+            ]
+        );
     }
 
     public static function getExtensionService(ContainerInterface $container): Service\ExtensionService
     {
         $extensionService = self::new($container, Service\ExtensionService::class);
+        // This ensures ExtensionService always gets the current (!) ConfigurationManager
+        // injected a-new, each time it is injected itself.
         $extensionService->injectConfigurationManager($container->get(Configuration\ConfigurationManager::class));
         return $extensionService;
     }
@@ -71,10 +73,5 @@ class ServiceProvider extends AbstractServiceProvider
         return self::new($container, Service\ImageService::class, [
             $container->get(ResourceFactory::class),
         ]);
-    }
-
-    public static function getHashService(ContainerInterface $container): Security\Cryptography\HashService
-    {
-        return self::new($container, Security\Cryptography\HashService::class);
     }
 }

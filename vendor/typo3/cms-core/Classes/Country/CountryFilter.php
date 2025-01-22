@@ -33,7 +33,7 @@ final class CountryFilter
      */
     public function getExcludeCountries(): array
     {
-        return array_map('strtoupper', $this->excludeCountries);
+        return array_map(strtoupper(...), $this->excludeCountries);
     }
 
     /**
@@ -51,7 +51,7 @@ final class CountryFilter
      */
     public function getOnlyCountries(): array
     {
-        return array_map('strtoupper', $this->onlyCountries);
+        return array_map(strtoupper(...), $this->onlyCountries);
     }
 
     /**

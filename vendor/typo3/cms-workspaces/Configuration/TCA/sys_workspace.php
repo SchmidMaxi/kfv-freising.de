@@ -26,14 +26,6 @@ return [
                 'eval' => 'trim,unique',
             ],
         ],
-        'description' => [
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.description',
-            'config' => [
-                'type' => 'text',
-                'rows' => 5,
-                'cols' => 30,
-            ],
-        ],
         'adminusers' => [
             'label' => 'LLL:EXT:workspaces/Resources/Private/Language/locallang_db.xlf:sys_workspace.adminusers',
             'config' => [
@@ -141,7 +133,6 @@ return [
                     'expandSingle' => true,
                 ],
                 'foreign_field' => 'parentid',
-                'foreign_table_field' => 'parenttable',
             ],
             'default' => 0,
         ],

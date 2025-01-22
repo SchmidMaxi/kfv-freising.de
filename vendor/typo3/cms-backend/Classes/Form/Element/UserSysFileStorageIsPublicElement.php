@@ -23,6 +23,7 @@ use TYPO3\CMS\Core\Resource\Exception\InvalidPathException;
 use TYPO3\CMS\Core\Resource\StorageRepository;
 use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Core\Utility\StringUtility;
 
 /**
  * Special type="user" element used in sys_file_storage is_public field
@@ -42,6 +43,11 @@ class UserSysFileStorageIsPublicElement extends AbstractFormElement
         ],
     ];
 
+    public function __construct(
+        private readonly FlashMessageService $flashMessageService,
+        private readonly StorageRepository $storageRepository,
+    ) {}
+
     /**
      * There are some edge cases where "is_public" can never be marked as true in the BE,
      * for instance for storage located outside the document root or
@@ -58,10 +64,9 @@ class UserSysFileStorageIsPublicElement extends AbstractFormElement
         if ($this->data['command'] === 'edit') {
             // Make sure the storage object can be retrieved which is not the case when new storage.
             $lang = $this->getLanguageService();
-            $flashMessageService = GeneralUtility::makeInstance(FlashMessageService::class);
-            $defaultFlashMessageQueue = $flashMessageService->getMessageQueueByIdentifier();
+            $defaultFlashMessageQueue = $this->flashMessageService->getMessageQueueByIdentifier();
             try {
-                $storage = GeneralUtility::makeInstance(StorageRepository::class)->findByUid((int)$row['uid']);
+                $storage = $this->storageRepository->findByUid((int)$row['uid']);
                 $storageRecord = $storage->getStorageRecord();
                 $isPublic = $storage->isPublic() && $storageRecord['is_public'];
 
@@ -90,8 +95,6 @@ class UserSysFileStorageIsPublicElement extends AbstractFormElement
         $fieldInformationResult = $this->renderFieldInformation();
         $fieldInformationHtml = $fieldInformationResult['html'];
         $resultArray = $this->initializeResultArray();
-        // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-        $resultArray['labelHasBeenHandled'] = true;
         $resultArray = $this->mergeChildReturnIntoExistingResult($resultArray, $fieldInformationResult, false);
 
         $checkboxParameters = $this->checkBoxParams(
@@ -101,26 +104,26 @@ class UserSysFileStorageIsPublicElement extends AbstractFormElement
             1,
             $parameterArray['fieldChangeFunc'] ?? []
         );
-        $checkboxId = $parameterArray['itemFormElID'] . '_1';
+        $checkboxId = htmlspecialchars(StringUtility::getUniqueId('formengine-fal-is-public-'));
         $html = [];
         $html[] = '<div class="formengine-field-item t3js-formengine-field-item">';
         $html[] = $fieldInformationHtml;
         $html[] =   '<div class="form-wizards-wrap">';
-        $html[] =       '<div class="form-wizards-element">';
+        $html[] =       '<div class="form-wizards-item-element">';
         $html[] =           '<div class="form-check form-switch">';
         $html[] =               '<input type="checkbox"';
         $html[] =                   ' class="form-check-input"';
         $html[] =                   ' value="1"';
-        $html[] =                   ' data-formengine-input-name="' . htmlspecialchars($parameterArray['itemFormElName'], ENT_QUOTES) . '"';
-        $html[] =                   ' id="' . htmlspecialchars($checkboxId, ENT_QUOTES) . '"';
+        $html[] =                   ' data-formengine-input-name="' . htmlspecialchars($parameterArray['itemFormElName']) . '"';
+        $html[] =                   ' id="' . $checkboxId . '"';
         $html[] =                   $checkboxParameters;
         $html[] =                   $isPublic ? ' checked="checked"' : '';
         $html[] =               '/>';
-        $html[] =               '<label class="form-check-label" for="' . htmlspecialchars($checkboxId, ENT_QUOTES) . '">';
+        $html[] =               '<label class="form-check-label" for="' . $checkboxId . '">';
         $html[] =                   $this->appendValueToLabelInDebugMode('', $isPublicAsString);
         $html[] =               '</label>';
         $html[] =               '<input type="hidden"';
-        $html[] =                   ' name="' . htmlspecialchars($parameterArray['itemFormElName'], ENT_QUOTES) . '"';
+        $html[] =                   ' name="' . htmlspecialchars($parameterArray['itemFormElName']) . '"';
         $html[] =                   ' value="' . $isPublicAsString . '"';
         $html[] =               ' />';
         $html[] =           '</div>';

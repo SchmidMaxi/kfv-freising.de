@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Core\Command;
 
 use Psr\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Completion\CompletionInput;
 use Symfony\Component\Console\Completion\CompletionSuggestions;
@@ -38,6 +39,7 @@ use TYPO3\CMS\Core\Messenger\EventListener\StopWorkerOnTimeLimitListener;
 /**
  * Heavily stripped-down version of the symfony command with the same name.
  */
+#[AsCommand('messenger:consume', 'Consume messages')]
 class ConsumeMessagesCommand extends Command
 {
     public function __construct(
@@ -66,7 +68,7 @@ class ConsumeMessagesCommand extends Command
                     ),
                     new InputOption('sleep', null, InputOption::VALUE_REQUIRED, 'Seconds to sleep before asking for new messages after no messages were found', 1),
                     new InputOption('queues', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Limit receivers to only consume from the specified queues'),
-                    new InputOption('exit-code-on-limit', null, InputOption::VALUE_REQUIRED, 'Exit code when limits are reached', 0),
+                    new InputOption('exit-code-on-limit', null, InputOption::VALUE_REQUIRED, 'Exit code when limits are reached', Command::SUCCESS),
                 ]
             )
             ->setHelp(
@@ -148,7 +150,7 @@ EOF
         }
         $worker->run($options);
 
-        return $this->stopWorkerOnTimeLimitListener->hasStopped() ? $exitCodeOnLimit : 0;
+        return $this->stopWorkerOnTimeLimitListener->hasStopped() ? $exitCodeOnLimit : Command::SUCCESS;
     }
 
     public function complete(CompletionInput $input, CompletionSuggestions $suggestions): void

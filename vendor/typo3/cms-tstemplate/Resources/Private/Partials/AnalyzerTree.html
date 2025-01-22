@@ -38,6 +38,15 @@
                                         <f:else if="{child.type} == 'DefaultTypoScriptMagicKey'">
                                             <f:translate key="LLL:EXT:tstemplate/Resources/Private/Language/locallang_analyzer.xlf:tree.child.type.DefaultTypoScriptMagicKey_formlabel" />
                                         </f:else>
+                                        <f:else if="{child.type} == 'Condition'">
+                                            {child.lineStream}
+                                        </f:else>
+                                        <f:else if="{child.type} == 'ConditionElse'">
+                                            {child.lineStream}
+                                        </f:else>
+                                        <f:else if="{child.type} == 'ConditionStop'">
+                                            {child.lineStream}
+                                        </f:else>
                                         <f:else>{child.name}</f:else>
                                     </f:if>
                                 </span>
@@ -66,22 +75,6 @@
                                 <span class="badge badge-info">
                                     <f:translate key="LLL:EXT:tstemplate/Resources/Private/Language/locallang_analyzer.xlf:tree.child.setting.clear" />
                                 </span>
-                            </f:if>
-                            <f:if condition="{child.conditionToken}">
-                                <f:then>
-                                    <f:if condition="{child.conditionVerdict}">
-                                        <f:then>
-                                            <span title="[{child.conditionToken.value}]" class="badge badge-success">
-                                                <f:translate key="LLL:EXT:tstemplate/Resources/Private/Language/locallang_analyzer.xlf:tree.child.conditionVerdict.matched" />
-                                            </span>
-                                        </f:then>
-                                        <f:else>
-                                            <span title="[{child.conditionToken.value}]" class="badge badge-danger">
-                                                <f:translate key="LLL:EXT:tstemplate/Resources/Private/Language/locallang_analyzer.xlf:tree.child.conditionVerdict.notMatched" />
-                                            </span>
-                                        </f:else>
-                                    </f:if>
-                                </f:then>
                             </f:if>
                         </div>
                     </div>

@@ -17,16 +17,15 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\IndexedSearch\ViewHelpers\Format;
 
-use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
+use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
-use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
 
 /**
  * @internal
  */
 final class FlagValueViewHelper extends AbstractViewHelper
 {
-    use CompileWithRenderStatic;
+    protected $escapeOutput = false;
 
     public function initializeArguments(): void
     {
@@ -36,16 +35,31 @@ final class FlagValueViewHelper extends AbstractViewHelper
     /**
      * Render additional flag information
      */
-    public static function renderStatic(array $arguments, \Closure $renderChildrenClosure, RenderingContextInterface $renderingContext): string
+    public function render(): string
     {
-        $flags = (int)$arguments['flags'];
-
-        if ($flags > 0) {
-            $content = ($flags & 128 ? '<title>' : '')
-                . ($flags & 64 ? '<meta/keywords>' : '')
-                . ($flags & 32 ? '<meta/description>' : '');
-            return $content;
+        $flags = (int)($this->arguments['flags'] ?? 0);
+        $languageService = self::getLanguageService();
+        $content = [];
+        if ($flags & 128) {
+            $content[] = '<span class="badge badge-secondary">'
+                . htmlspecialchars($languageService->sL('LLL:EXT:indexed_search/Resources/Private/Language/locallang.xlf:administration.flag.128'))
+                . '</span>';
         }
-        return '';
+        if ($flags & 64) {
+            $content[] = '<span class="badge badge-secondary">'
+                . htmlspecialchars($languageService->sL('LLL:EXT:indexed_search/Resources/Private/Language/locallang.xlf:administration.flag.64'))
+                . '</span>';
+        }
+        if ($flags & 32) {
+            $content[] = '<span class="badge badge-secondary">'
+                . htmlspecialchars($languageService->sL('LLL:EXT:indexed_search/Resources/Private/Language/locallang.xlf:administration.flag.32'))
+                . '</span>';
+        }
+        return implode(' ', $content);
+    }
+
+    protected static function getLanguageService(): LanguageService
+    {
+        return $GLOBALS['LANG'];
     }
 }

@@ -42,10 +42,9 @@ class LocalizationUtility
      * @param string|null $extensionName The name of the extension
      * @param array|null $arguments The arguments of the extension, being passed over to sprintf
      * @param Locale|string|null $languageKey The language key or null for using the current language from the system
-     * @param string[]|null $alternativeLanguageKeys The alternative language keys if no translation was found. @deprecated will be removed in TYPO3 v13.0
      * @return string|null The value from LOCAL_LANG or null if no translation was found.
      */
-    public static function translate(string $key, ?string $extensionName = null, ?array $arguments = null, Locale|string|null $languageKey = null, ?array $alternativeLanguageKeys = null): ?string
+    public static function translate(string $key, ?string $extensionName = null, ?array $arguments = null, Locale|string|null $languageKey = null): ?string
     {
         if ($key === '') {
             // Early return guard: returns null if the key was empty, because the key may be a dynamic value
@@ -66,10 +65,7 @@ class LocalizationUtility
             }
             $languageFilePath = static::getLanguageFilePath($extensionName);
         }
-        if ($alternativeLanguageKeys !== null && $alternativeLanguageKeys !== []) {
-            trigger_error('Calling LocalizationUtility::translate() with the argument $alternativeLanguageKeys will be removed in TYPO3 v13.0. Use Locales instead.', E_USER_DEPRECATED);
-        }
-        $locale = self::getLocale($languageKey, $alternativeLanguageKeys);
+        $locale = self::getLocale($languageKey);
         $languageService = static::initializeLocalization($languageFilePath, $locale, $extensionName);
         $resolvedLabel = $languageService->sL('LLL:' . $languageFilePath . ':' . $key);
         $value = $resolvedLabel !== '' ? $resolvedLabel : null;
@@ -79,7 +75,7 @@ class LocalizationUtility
             $overrideLabels = static::loadTypoScriptLabels($extensionName);
             $languageKey = $locale->getName();
             // @todo: probably cannot handle "de-DE" and "de" fallbacks
-            if ($value === null && isset($overrideLabels[$languageKey])) {
+            if ($value === null && isset($overrideLabels[$languageKey][$key])) {
                 $value = '';
             }
         }
@@ -133,20 +129,16 @@ class LocalizationUtility
      * Resolves the currently active locale.
      * Using the Locales factory, as it handles dependencies (e.g. "de-AT" falls back to "de").
      */
-    protected static function getLocale(Locale|string|null $localeOrLanguageKey, ?array $alternativeLanguageKeys): Locale
+    protected static function getLocale(Locale|string|null $localeOrLanguageKey): Locale
     {
-        $localeFactory = GeneralUtility::makeInstance(Locales::class);
         if ($localeOrLanguageKey instanceof Locale) {
-            $locale = $localeOrLanguageKey;
-        } elseif (is_string($localeOrLanguageKey) && $localeOrLanguageKey !== '') {
-            $locale = $localeFactory->createLocale($localeOrLanguageKey);
-        } else {
-            $locale = $localeFactory->createLocaleFromRequest($GLOBALS['TYPO3_REQUEST'] ?? null);
+            return $localeOrLanguageKey;
         }
-        if (!empty($alternativeLanguageKeys)) {
-            $locale->setDependencies($alternativeLanguageKeys);
+        $localeFactory = GeneralUtility::makeInstance(Locales::class);
+        if (is_string($localeOrLanguageKey)) {
+            return $localeFactory->createLocale($localeOrLanguageKey);
         }
-        return $locale;
+        return $localeFactory->createLocaleFromRequest($GLOBALS['TYPO3_REQUEST'] ?? null);
     }
 
     /**

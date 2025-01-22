@@ -23,38 +23,33 @@ use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\WorkspaceRestriction;
 use TYPO3\CMS\Core\DataHandling\PlainDataResolver;
 use TYPO3\CMS\Core\DataHandling\ReferenceIndexUpdater;
+use TYPO3\CMS\Core\Schema\Field\FieldTypeInterface;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\MathUtility;
 use TYPO3\CMS\Core\Versioning\VersionState;
 
 /**
  * Load database groups (relations)
- * Used to process the relations created by the TCA element types "group" and "select" for database records.
- * Manages MM-relations as well.
+ * Used to process the relations created by the TCA element types
+ * - "group"
+ * - "select"
+ * - "inline"
+ * - "file"
+ * - "category"
+ * for database records. Manages MM-relations as well.
  */
 class RelationHandler
 {
     /**
-     * $fetchAllFields if false getFromDB() fetches only uid, pid, thumbnail and label fields (as defined in TCA)
-     *
-     * @var bool
-     */
-    protected $fetchAllFields = true;
-
-    /**
      * If set, values that are not ids in tables are normally discarded. By this options they will be preserved.
-     *
-     * @var bool
      */
-    public $registerNonTableValues = false;
+    public bool $registerNonTableValues = false;
 
     /**
      * Contains the table names as keys. The values are the id-values for each table.
      * Should ONLY contain proper table names.
-     *
-     * @var array
      */
-    public $tableArray = [];
+    public array $tableArray = [];
 
     /**
      * Contains items in a numeric array (table/id for each). Tablenames here might be "_NO_TABLE". Keeps
@@ -62,63 +57,47 @@ class RelationHandler
      *
      * @var array<int, array<string, mixed>>
      */
-    public $itemArray = [];
+    public array $itemArray = [];
 
     /**
      * Array for NON-table elements
-     *
-     * @var array
      */
-    public $nonTableArray = [];
+    public array $nonTableArray = [];
 
-    /**
-     * @var array
-     */
-    public $additionalWhere = [];
+    public array $additionalWhere = [];
 
     /**
      * Deleted-column is added to additionalWhere... if this is set...
-     *
-     * @var bool
      */
-    public $checkIfDeleted = true;
+    public bool $checkIfDeleted = true;
 
     /**
      * Will contain the first table name in the $tablelist (for positive ids)
-     *
-     * @var string
      */
-    protected $firstTable = '';
+    protected string $firstTable = '';
 
     /**
      * If TRUE, uid_local and uid_foreign are switched, and the current table
      * is inserted as tablename - this means you display a foreign relation "from the opposite side"
-     *
-     * @var bool
      */
-    protected $MM_is_foreign = false;
+    protected bool $MM_is_foreign = false;
 
     /**
      * Is empty by default; if MM_is_foreign is set and there is more than one table
      * allowed (on the "local" side), then it contains the first table (as a fallback)
-     * @var string
      */
-    protected $MM_isMultiTableRelationship = '';
+    protected string $MM_isMultiTableRelationship = '';
 
     /**
      * Current table => Only needed for reverse relations
-     *
-     * @var string
      */
-    protected $currentTable;
+    protected string $currentTable = '';
 
     /**
      * If a record should be undeleted
      * (so do not use the $useDeleteClause on \TYPO3\CMS\Backend\Utility\BackendUtility)
-     *
-     * @var bool
      */
-    public $undeleteRecord;
+    public bool $undeleteRecord = false;
 
     /**
      * Array of fields value pairs that should match while SELECT.
@@ -126,72 +105,46 @@ class RelationHandler
     protected array $MM_match_fields = [];
 
     /**
-     * This is set to TRUE if the MM table has a UID field.
-     *
-     * @var bool
+     * When "multiple" is true, the MM table has the "uid" column as primary key. With
+     * "multiple", items can be selected more than once, combination "uid_local" and "uid_foreign"
+     * (plus "tablenames" and "fieldname" for "multi-foreign" setups) are not unique and can not
+     * be primary-keyed.
+     * Query results and insert/update operations are influenced by this a bit.
      */
-    protected $MM_hasUidField;
-
-    /**
-     * Array of fields and value pairs used for insert in MM table
-     *
-     * @deprecated since v12. Remove in v13 with other MM_insert_fields places.
-     */
-    protected array $MM_insert_fields = [];
+    protected bool $multiple = false;
 
     /**
      * Extra MM table where
-     *
-     * @var string
      */
-    protected $MM_table_where = '';
+    protected string $MM_table_where = '';
 
     /**
      * Usage of an MM field on the opposite relation.
-     *
-     * @var array
      */
-    protected $MM_oppositeUsage;
+    protected array $MM_oppositeUsage;
 
-    /**
-     * @var ReferenceIndexUpdater|null
-     */
-    protected $referenceIndexUpdater;
+    protected ?ReferenceIndexUpdater $referenceIndexUpdater = null;
 
-    /**
-     * @var bool
-     */
-    protected $useLiveParentIds = true;
+    protected bool $useLiveParentIds = true;
 
-    /**
-     * @var bool
-     */
-    protected $useLiveReferenceIds = true;
+    protected bool $useLiveReferenceIds = true;
 
-    /**
-     * @var int|null
-     */
-    protected $workspaceId;
+    protected ?int $workspaceId = null;
 
-    /**
-     * @var bool
-     */
-    protected $purged = false;
+    protected bool $purged = false;
 
     /**
      * This array will be filled by getFromDB().
-     *
-     * @var array
      */
-    public $results = [];
+    public array $results = [];
 
     /**
      * Gets the current workspace id.
      */
     protected function getWorkspaceId(): int
     {
-        $backendUser = $GLOBALS['BE_USER'] ?? null;
-        if (!isset($this->workspaceId)) {
+        if ($this->workspaceId === null) {
+            $backendUser = $GLOBALS['BE_USER'] ?? null;
             $this->workspaceId = $backendUser instanceof BackendUserAuthentication ? (int)($backendUser->workspace) : 0;
         }
         return $this->workspaceId;
@@ -219,12 +172,50 @@ class RelationHandler
 
     /**
      * Whether item array has been purged in this instance.
-     *
-     * @return bool
      */
-    public function isPurged()
+    public function isPurged(): bool
     {
         return $this->purged;
+    }
+
+    /**
+     * Use this method to find relations for a specific field / table of a record.
+     * Once the initializeForField() method was called, the resolved IDs can be used via
+     * ->getValueArray() et al.
+     */
+    public function initializeForField(
+        string $tableName,
+        array|FieldTypeInterface $fieldConfiguration,
+        array|string|int|null $baseRecordOrUid,
+        string|int|float|array|null $currentValue = null
+    ): void {
+        if ($fieldConfiguration instanceof FieldTypeInterface) {
+            $fieldConfiguration = $fieldConfiguration->getConfiguration();
+        }
+
+        $manyToManyConfiguration = $fieldConfiguration['MM'] ?? '';
+        $recordUid = $baseRecordOrUid;
+        if (is_array($baseRecordOrUid)) {
+            $recordUid = (int)($baseRecordOrUid['uid'] ?? 0);
+            // If not dealing with MM relations, use default live uid, not versioned uid for record relations
+            // MM relations point to their versioned ID
+            if (!$manyToManyConfiguration
+                && BackendUtility::isTableWorkspaceEnabled($tableName)
+                && ($baseRecordOrUid['t3ver_oid'] ?? 0) > 0
+            ) {
+                $recordUid = (int)$baseRecordOrUid['t3ver_oid'];
+            }
+        }
+
+        $this->registerNonTableValues = (bool)($fieldConfiguration['allowNonIdValues'] ?? false);
+        $this->start(
+            is_array($currentValue) ? implode(',', $currentValue) : (string)$currentValue,
+            $fieldConfiguration['allowed'] ?? $fieldConfiguration['foreign_table'] ?? '',
+            $manyToManyConfiguration,
+            $recordUid,
+            $tableName,
+            $fieldConfiguration
+        );
     }
 
     /**
@@ -242,11 +233,9 @@ class RelationHandler
         $conf = (array)$conf;
         // SECTION: MM reverse relations
         $this->MM_is_foreign = (bool)($conf['MM_opposite_field'] ?? false);
-        $this->MM_table_where = $conf['MM_table_where'] ?? null;
-        $this->MM_hasUidField = $conf['MM_hasUidField'] ?? null;
+        $this->MM_table_where = (string)($conf['MM_table_where'] ?? '');
+        $this->multiple = (bool)($conf['multiple'] ?? false);
         $this->MM_match_fields = (isset($conf['MM_match_fields']) && is_array($conf['MM_match_fields'])) ? $conf['MM_match_fields'] : [];
-        // @deprecated since v12. Remove in v13 with other MM_insert_fields places.
-        $this->MM_insert_fields = (isset($conf['MM_insert_fields']) && is_array($conf['MM_insert_fields'])) ? $conf['MM_insert_fields'] : [];
         $this->currentTable = $currentTable;
         if (!empty($conf['MM_oppositeUsage']) && is_array($conf['MM_oppositeUsage'])) {
             $this->MM_oppositeUsage = $conf['MM_oppositeUsage'];
@@ -275,21 +264,19 @@ class RelationHandler
             $tablelist = implode(',', array_keys($GLOBALS['TCA']));
         }
         // The tables are traversed and internal arrays are initialized:
-        $tempTableArray = GeneralUtility::trimExplode(',', $tablelist, true);
-        foreach ($tempTableArray as $val) {
+        foreach (GeneralUtility::trimExplode(',', $tablelist, true) as $tableName) {
             // @todo: Loop could be restricted in MM local when MM_oppositeUsage is used.
-            $tName = trim($val);
-            $this->tableArray[$tName] = [];
-            $deleteField = $GLOBALS['TCA'][$tName]['ctrl']['delete'] ?? false;
+            $this->tableArray[$tableName] = [];
+            $deleteField = $GLOBALS['TCA'][$tableName]['ctrl']['delete'] ?? false;
             if ($this->checkIfDeleted && $deleteField) {
-                $fieldN = $tName . '.' . $deleteField;
-                if (!isset($this->additionalWhere[$tName])) {
-                    $this->additionalWhere[$tName] = '';
+                if (!isset($this->additionalWhere[$tableName])) {
+                    $this->additionalWhere[$tableName] = '';
                 }
-                $this->additionalWhere[$tName] .= ' AND ' . $fieldN . '=0';
+                // @todo: Omit ' AND ' and QueryHelper::stripLogicalOperatorPrefix() in consumers
+                $this->additionalWhere[$tableName] .= ' AND ' . $tableName . '.' . $deleteField . '=0';
             }
         }
-        if (is_array($this->tableArray)) {
+        if ($this->tableArray !== []) {
             reset($this->tableArray);
         } else {
             // No tables
@@ -312,7 +299,7 @@ class RelationHandler
             }
         } elseif ($MMuid && ($conf['foreign_field'] ?? false)) {
             // If not MM but foreign_field, the read the records by the foreign_field
-            $this->readForeignField($MMuid, $conf);
+            $this->readForeignField((int)$MMuid, $conf);
         } else {
             // If not MM, then explode the itemlist by "," and traverse the list:
             $this->readList($itemlist, $conf);
@@ -321,16 +308,6 @@ class RelationHandler
                 $this->sortList($conf['foreign_default_sortby']);
             }
         }
-    }
-
-    /**
-     * Sets $fetchAllFields
-     *
-     * @param bool $allFields enables fetching of all fields in getFromDB()
-     */
-    public function setFetchAllFields($allFields)
-    {
-        $this->fetchAllFields = (bool)$allFields;
     }
 
     /**
@@ -495,17 +472,21 @@ class RelationHandler
      */
     protected function readMM($tableName, $uid, $mmOppositeTable)
     {
-        $key = 0;
         $theTable = null;
-        $queryBuilder = $this->getConnectionForTableName($tableName)
-            ->createQueryBuilder();
+        $queryBuilder = $this->getConnectionForTableName($tableName)->createQueryBuilder();
         $queryBuilder->getRestrictions()->removeAll();
         $queryBuilder->select('*')->from($tableName);
-        // In case of a reverse relation
+        // Default
+        $uidLocal_field = 'uid_local';
+        $uidForeign_field = 'uid_foreign';
+        $sorting_field = 'sorting';
+        $sortingForeign_field = 'sorting_foreign';
         if ($this->MM_is_foreign) {
+            // In case of a reverse relation
             $uidLocal_field = 'uid_foreign';
             $uidForeign_field = 'uid_local';
             $sorting_field = 'sorting_foreign';
+            $sortingForeign_field = 'sorting';
             if ($this->MM_isMultiTableRelationship) {
                 // Be backwards compatible! When allowing more than one table after
                 // having previously allowed only one table, this case applies.
@@ -529,11 +510,6 @@ class RelationHandler
                 $queryBuilder->andWhere($expression);
             }
             $theTable = $mmOppositeTable;
-        } else {
-            // Default
-            $uidLocal_field = 'uid_local';
-            $uidForeign_field = 'uid_foreign';
-            $sorting_field = 'sorting';
         }
         if ($this->MM_table_where) {
             $queryBuilder->andWhere(
@@ -553,24 +529,35 @@ class RelationHandler
         );
         $queryBuilder->orderBy($sorting_field);
         $queryBuilder->addOrderBy($uidForeign_field);
+        // @todo: It would be more safe adding an order-by fieldname if field exists (MM_oppositeUsage set) to avoid
+        //        arbitrary sorting if 2 mm rows to 2 different fields have same sorting and sorting_foreign values.
         $statement = $queryBuilder->executeQuery();
+        $itemArray = [];
         while ($row = $statement->fetchAssociative()) {
             // Default
             if (!$this->MM_is_foreign) {
-                // If tablesnames columns exists and contain a name, then this value is the table, else it's the firstTable...
+                // If tablenames columns exists and contain a name, then this value is the table, else it's the firstTable...
                 $theTable = !empty($row['tablenames']) ? $row['tablenames'] : $this->firstTable;
             }
             if (($row[$uidForeign_field] || $theTable === 'pages') && $theTable && isset($this->tableArray[$theTable])) {
-                $this->itemArray[$key]['id'] = $row[$uidForeign_field];
-                $this->itemArray[$key]['table'] = $theTable;
+                $item = [
+                    'id' => $row[$uidForeign_field],
+                    'table' => $theTable,
+                ];
+                if (!empty($row['fieldname'])) {
+                    $item['fieldname'] = $row['fieldname'];
+                }
+                if (isset($row[$sorting_field])) {
+                    $item[$sorting_field] = $row[$sorting_field];
+                }
+                if (isset($row[$sortingForeign_field])) {
+                    $item[$sortingForeign_field] = $row[$sortingForeign_field];
+                }
+                $itemArray[] = $item;
                 $this->tableArray[$theTable][] = $row[$uidForeign_field];
-            } elseif ($this->registerNonTableValues) {
-                $this->itemArray[$key]['id'] = $row[$uidForeign_field];
-                $this->itemArray[$key]['table'] = '_NO_TABLE';
-                $this->nonTableArray[] = $row[$uidForeign_field];
             }
-            $key++;
         }
+        $this->itemArray = $itemArray;
     }
 
     /**
@@ -620,7 +607,7 @@ class RelationHandler
             }
             // Select, update or delete only those relations that match the configured fields
             foreach ($this->MM_match_fields as $field => $value) {
-                $additionalWhere = $additionalWhere->with($expressionBuilder->eq($field, $expressionBuilder->literal($value)));
+                $additionalWhere = $additionalWhere->with($expressionBuilder->eq($field, $expressionBuilder->literal((string)$value)));
             }
 
             $queryBuilder = $connection->createQueryBuilder();
@@ -636,7 +623,7 @@ class RelationHandler
             if ($prep) {
                 $queryBuilder->addSelect('tablenames');
             }
-            if ($this->MM_hasUidField) {
+            if ($this->multiple) {
                 $queryBuilder->addSelect('uid');
             }
             if ($additionalWhere_tablenames) {
@@ -648,10 +635,9 @@ class RelationHandler
 
             $result = $queryBuilder->executeQuery();
             $oldMMs = [];
-            // This array is similar to $oldMMs but also holds the uid of the MM-records, if any (configured by MM_hasUidField).
+            // This array is similar to $oldMMs but also holds the uid of the MM-records if 'multiple' is true.
             // If the UID is present it will be used to update sorting and delete MM-records.
-            // This is necessary if the "multiple" feature is used for the MM relations.
-            // $oldMMs is still needed for the in_array() search used to look if an item from $this->itemArray is in $oldMMs
+            // $oldMMs is still needed for the in_array() search used to look if an item from $this->itemArray is in $oldMMs.
             $oldMMs_inclUid = [];
             while ($row = $result->fetchAssociative()) {
                 if (!$this->MM_is_foreign && $prep) {
@@ -701,7 +687,7 @@ class RelationHandler
                     if ($additionalWhere->count()) {
                         $queryBuilder->andWhere($additionalWhere);
                     }
-                    if ($this->MM_hasUidField) {
+                    if ($this->multiple) {
                         $queryBuilder->andWhere(
                             $expressionBuilder->eq(
                                 'uid',
@@ -726,10 +712,7 @@ class RelationHandler
                     // foreach loop only the ones that need to be deleted are in there.
                     unset($oldMMs_inclUid[$oldMMs_index]);
                 } else {
-                    // @deprecated since v12. Remove in v13 with other MM_insert_fields places.
-                    //             Simplify to $insertFields = $this->MM_match_fields;
-                    $insertFields = $this->MM_insert_fields;
-                    $insertFields = array_merge($insertFields, $this->MM_match_fields);
+                    $insertFields = $this->MM_match_fields;
                     $insertFields[$uidLocal_field] = $uid;
                     $insertFields[$uidForeign_field] = $val['id'];
                     $insertFields[$sorting_field] = $c;
@@ -739,7 +722,7 @@ class RelationHandler
                     }
                     $connection->insert($MM_tableName, $insertFields);
                     if ($this->MM_is_foreign) {
-                        $this->updateRefIndex($val['table'], $val['id']);
+                        $this->referenceIndexUpdater?->registerForUpdate($val['table'], (int)$val['id'], $this->getWorkspaceId());
                     }
                 }
             }
@@ -747,10 +730,9 @@ class RelationHandler
             if (is_array($oldMMs) && !empty($oldMMs)) {
                 $queryBuilder = $connection->createQueryBuilder();
                 $removeClauses = $queryBuilder->expr()->or();
-                $updateRefIndex_records = [];
                 foreach ($oldMMs as $oldMM_key => $mmItem) {
                     // If UID field is present, of course we need only use that for deleting.
-                    if ($this->MM_hasUidField) {
+                    if ($this->multiple) {
                         $removeClauses = $removeClauses->with($queryBuilder->expr()->eq(
                             'uid',
                             $queryBuilder->createNamedParameter($oldMMs_inclUid[$oldMM_key], Connection::PARAM_INT)
@@ -780,9 +762,9 @@ class RelationHandler
                     }
                     if ($this->MM_is_foreign) {
                         if (is_array($mmItem)) {
-                            $updateRefIndex_records[] = [$mmItem[0], $mmItem[1]];
+                            $this->referenceIndexUpdater?->registerForUpdate((string)$mmItem[0], (int)$mmItem[1], $this->getWorkspaceId());
                         } else {
-                            $updateRefIndex_records[] = [$this->firstTable, $mmItem];
+                            $this->referenceIndexUpdater?->registerForUpdate($this->firstTable, (int)$mmItem, $this->getWorkspaceId());
                         }
                     }
                 }
@@ -804,16 +786,11 @@ class RelationHandler
                 }
 
                 $queryBuilder->executeStatement();
-
-                // Update ref index:
-                foreach ($updateRefIndex_records as $pair) {
-                    $this->updateRefIndex($pair[0], $pair[1]);
-                }
             }
             // Update ref index; In DataHandler it is not certain that this will happen because
             // if only the MM field is changed the record itself is not updated and so the ref-index is not either.
             // This could also have been fixed in updateDB in DataHandler, however I decided to do it here ...
-            $this->updateRefIndex($this->currentTable, $uid);
+            $this->referenceIndexUpdater?->registerForUpdate($this->currentTable, (int)$uid, $this->getWorkspaceId());
         }
     }
 
@@ -821,20 +798,17 @@ class RelationHandler
      * Reads items from a foreign_table, that has a foreign_field (uid of the parent record) and
      * stores the parts in the internal array itemArray and tableArray.
      *
-     * @param int|string $uid The uid of the parent record (this value is also on the foreign_table in the foreign_field)
+     * @param int $uid The uid of the parent record (this value is also on the foreign_table in the foreign_field)
      * @param array $conf TCA configuration for current field
      */
-    protected function readForeignField($uid, $conf)
+    protected function readForeignField(int $uid, array $conf): void
     {
         if ($this->useLiveParentIds) {
             $uid = $this->getLiveDefaultId($this->currentTable, $uid);
         }
 
-        $key = 0;
-        $uid = (int)$uid;
-        // skip further processing if $uid does not
-        // point to a valid parent record
         if ($uid === 0) {
+            // Skip further processing if uid does not point to a valid parent record
             return;
         }
 
@@ -842,17 +816,13 @@ class RelationHandler
         $foreign_table_field = $conf['foreign_table_field'] ?? '';
         $useDeleteClause = !$this->undeleteRecord;
         $foreign_match_fields = is_array($conf['foreign_match_fields'] ?? false) ? $conf['foreign_match_fields'] : [];
-        $queryBuilder = $this->getConnectionForTableName($foreign_table)
-            ->createQueryBuilder();
-        $queryBuilder->getRestrictions()
-            ->removeAll();
+        $queryBuilder = $this->getConnectionForTableName($foreign_table)->createQueryBuilder();
+        $queryBuilder->getRestrictions()->removeAll();
+        $queryBuilder->select('uid')->from($foreign_table);
         // Use the deleteClause (e.g. "deleted=0") on this table
         if ($useDeleteClause) {
             $queryBuilder->getRestrictions()->add(GeneralUtility::makeInstance(DeletedRestriction::class));
         }
-
-        $queryBuilder->select('uid')
-            ->from($foreign_table);
 
         // Search for $uid in foreign_field, and if we have symmetric relations, do this also on symmetric_field
         if (!empty($conf['symmetric_field'])) {
@@ -874,8 +844,7 @@ class RelationHandler
                 $queryBuilder->createNamedParameter($uid, Connection::PARAM_INT)
             ));
         }
-        // If it's requested to look for the parent uid AND the parent table,
-        // add an additional SQL-WHERE clause
+        // If it's requested to look for the parent uid AND the parent table, add a where clause
         if ($foreign_table_field && $this->currentTable) {
             $queryBuilder->andWhere(
                 $queryBuilder->expr()->eq(
@@ -893,19 +862,19 @@ class RelationHandler
         // Select children from the live(!) workspace only
         if (BackendUtility::isTableWorkspaceEnabled($foreign_table)) {
             $queryBuilder->getRestrictions()->add(
-                GeneralUtility::makeInstance(WorkspaceRestriction::class, (int)$this->getWorkspaceId())
+                GeneralUtility::makeInstance(WorkspaceRestriction::class, $this->getWorkspaceId())
             );
         }
-        // Get the correct sorting field
-        // Specific manual sortby for data handled by this field
+
+        // Set sorting criteria
         $sortby = '';
         if (!empty($conf['foreign_sortby'])) {
+            // Specific manual sortby for data handled by this field
             if (!empty($conf['symmetric_sortby']) && !empty($conf['symmetric_field'])) {
                 // Sorting depends on, from which side of the relation we're looking at it
                 // This requires bypassing automatic quoting and setting of the default sort direction
-                // @TODO: Doctrine: generalize to standard SQL to guarantee database independency
-                $queryBuilder->add(
-                    'orderBy',
+                // @todo Doctrine - generalize to standard SQL to guarantee database independence
+                $queryBuilder->getConcreteQueryBuilder()->orderBy(
                     'CASE
 						WHEN ' . $queryBuilder->expr()->eq($conf['foreign_field'], $uid) . '
 						THEN ' . $queryBuilder->quoteIdentifier($conf['foreign_sortby']) . '
@@ -926,7 +895,6 @@ class RelationHandler
             // Default sortby for all table records
             $sortby = $GLOBALS['TCA'][$foreign_table]['ctrl']['default_sortby'];
         }
-
         if (!empty($sortby)) {
             foreach (QueryHelper::parseOrderBy($sortby) as $orderPair) {
                 [$fieldName, $sorting] = $orderPair;
@@ -934,22 +902,24 @@ class RelationHandler
             }
         }
 
-        // Get the rows from storage
         $rows = [];
         $result = $queryBuilder->executeQuery();
         while ($row = $result->fetchAssociative()) {
             $rows[(int)$row['uid']] = $row;
         }
         if (!empty($rows)) {
-            // Retrieve the parsed and prepared ORDER BY configuration for the resolver
-            $sortby = $queryBuilder->getQueryPart('orderBy');
+            $sortby = $queryBuilder->getOrderBy();
             $ids = $this->getResolver($foreign_table, array_keys($rows), $sortby)->get();
+            $itemArray = [];
             foreach ($ids as $id) {
-                $this->itemArray[$key]['id'] = $id;
-                $this->itemArray[$key]['table'] = $foreign_table;
+                $item = [
+                    'id' => $id,
+                    'table' => $foreign_table,
+                ];
+                $itemArray[] = $item;
                 $this->tableArray[$foreign_table][] = $id;
-                $key++;
             }
+            $this->itemArray = $itemArray;
         }
     }
 
@@ -960,7 +930,7 @@ class RelationHandler
      * @param int $parentUid The uid of the parent record
      * @param int $updateToUid If this is larger than zero it will be used as foreign UID instead of the given $parentUid (on Copy)
      */
-    public function writeForeignField($conf, $parentUid, $updateToUid = 0)
+    public function writeForeignField(array $conf, $parentUid, $updateToUid = 0): void
     {
         if ($this->useLiveParentIds) {
             $parentUid = $this->getLiveDefaultId($this->currentTable, $parentUid);
@@ -1014,7 +984,7 @@ class RelationHandler
                 }
                 $isOnSymmetricSide = false;
                 if ($symmetric_field) {
-                    $isOnSymmetricSide = self::isOnSymmetricSide((string)$parentUid, $conf, $row);
+                    $isOnSymmetricSide = $this->isOnSymmetricSide((string)$parentUid, $conf, $row);
                 }
                 $updateValues = $foreign_match_fields;
                 // No update to the uid is requested, so this is the normal behaviour
@@ -1077,21 +1047,20 @@ class RelationHandler
                             $updateValues,
                             ['uid' => (int)$uid]
                         );
-                    $this->updateRefIndex($table, $uid);
+                    $this->referenceIndexUpdater?->registerForUpdate($table, (int)$uid, $this->getWorkspaceId());
                 }
             }
         }
     }
 
     /**
-     * After initialization you can extract an array of the elements from the object. Use this function for that.
+     * After initialization, you can extract an array of the elements from the object. Use this function for that.
      *
      * @param bool $prependTableName If set, then table names will ALWAYS be prepended (unless its a _NO_TABLE value)
      * @return array A numeric array.
      */
-    public function getValueArray($prependTableName = false)
+    public function getValueArray(bool $prependTableName = false): array
     {
-        // INIT:
         $valueArray = [];
         $tableC = count($this->tableArray);
         // If there are tables in the table array:
@@ -1110,12 +1079,10 @@ class RelationHandler
     /**
      * Reads all records from internal tableArray into the internal ->results array
      * where keys are table names and for each table, records are stored with uids as their keys.
-     * If $this->fetchAllFields is false you can save a little memory
-     * since only uid,pid and a few other fields are selected.
      *
      * @return array
      */
-    public function getFromDB()
+    public function getFromDB(): array
     {
         // Traverses the tables listed:
         foreach ($this->tableArray as $table => $ids) {
@@ -1154,7 +1121,7 @@ class RelationHandler
      * The difference is that "itemArray" may hold a single table/uid combination multiple times,
      * for instance in a type=group relation having multiple=true, while "results" hold each
      * resolved relation only once.
-     * The methods creates a sanitized "itemArray" from resolved "results" list, normalized
+     * The method creates a sanitized "itemArray" from resolved "results" list, normalized
      * the return array to always contain both table name and uid, and keep incoming
      * "itemArray" sort order and keeps "multiple" selections.
      *
@@ -1182,31 +1149,13 @@ class RelationHandler
      * @param bool $returnAsArray Whether to put the count value in an array
      * @return mixed The plain count as integer or the same inside an array
      */
-    public function countItems($returnAsArray = true)
+    public function countItems(bool $returnAsArray = true)
     {
         $count = count($this->itemArray);
         if ($returnAsArray) {
             $count = [$count];
         }
         return $count;
-    }
-
-    /**
-     * Update Reference Index (sys_refindex) for a record.
-     * Should be called any almost any update to a record which could affect references inside the record.
-     * If used from within DataHandler, only registers a row for update for later processing.
-     *
-     * @param string $table Table name
-     * @param int $uid Record uid
-     * @return array Empty array
-     */
-    protected function updateRefIndex($table, $uid): array
-    {
-        if ($this->referenceIndexUpdater) {
-            // Add to update registry if given
-            $this->referenceIndexUpdater->registerForUpdate((string)$table, (int)$uid, $this->getWorkspaceId());
-        }
-        return [];
     }
 
     /**
@@ -1218,7 +1167,7 @@ class RelationHandler
      *
      * @return bool Whether items have been converted
      */
-    public function convertItemArray()
+    public function convertItemArray(): bool
     {
         // conversion is only required in a workspace context
         // (the case that version ids are submitted in a live context are rare)
@@ -1268,16 +1217,13 @@ class RelationHandler
      *        callback logic and would reduce some queries. The (workspace) mm tests
      *        should be complete enough now to verify if a change like that would do.
      *
-     * @param int|null $workspaceId
      * @return bool Whether items have been purged
      * @internal
      */
-    public function purgeItemArray($workspaceId = null)
+    public function purgeItemArray(?int $workspaceId = null): bool
     {
         if ($workspaceId === null) {
             $workspaceId = $this->getWorkspaceId();
-        } else {
-            $workspaceId = (int)$workspaceId;
         }
 
         // Ensure, only live relations are in the items Array
@@ -1298,7 +1244,7 @@ class RelationHandler
      *
      * @return bool Whether items have been purged
      */
-    public function processDeletePlaceholder()
+    public function processDeletePlaceholder(): bool
     {
         if (!$this->useLiveReferenceIds || $this->getWorkspaceId() === 0) {
             return false;
@@ -1310,10 +1256,9 @@ class RelationHandler
     /**
      * Handles a purge callback on $this->itemArray
      *
-     * @param string $purgeCallback
      * @return bool Whether items have been purged
      */
-    protected function purgeItemArrayHandler($purgeCallback, int $workspaceId)
+    protected function purgeItemArrayHandler(string $purgeCallback, int $workspaceId): bool
     {
         $itemArrayHasBeenPurged = false;
 
@@ -1343,14 +1288,11 @@ class RelationHandler
 
     /**
      * Purges ids that are versioned.
-     *
-     * @param string $tableName
-     * @return array
      */
-    protected function purgeVersionedIds($tableName, array $ids)
+    protected function purgeVersionedIds(string $tableName, array $ids): array
     {
         $ids = $this->sanitizeIds($ids);
-        $ids = (array)array_combine($ids, $ids);
+        $ids = array_combine($ids, $ids);
         $connection = $this->getConnectionForTableName($tableName);
         $maxBindParameters = PlatformInformation::getMaxBindParameters($connection->getDatabasePlatform());
 
@@ -1447,11 +1389,8 @@ class RelationHandler
 
     /**
      * Purges ids that have a delete placeholder
-     *
-     * @param string $tableName
-     * @return array
      */
-    protected function purgeDeletePlaceholder($tableName, array $ids)
+    protected function purgeDeletePlaceholder(string $tableName, array $ids): array
     {
         $ids = $this->sanitizeIds($ids);
         $ids = array_combine($ids, $ids) ?: [];
@@ -1478,7 +1417,7 @@ class RelationHandler
                     $queryBuilder->expr()->eq(
                         't3ver_state',
                         $queryBuilder->createNamedParameter(
-                            (string)VersionState::cast(VersionState::DELETE_PLACEHOLDER),
+                            VersionState::DELETE_PLACEHOLDER->value,
                             Connection::PARAM_INT
                         )
                     )
@@ -1496,7 +1435,7 @@ class RelationHandler
         return array_values($ids);
     }
 
-    protected function removeFromItemArray($tableName, $id)
+    protected function removeFromItemArray(string $tableName, $id): bool
     {
         foreach ($this->itemArray as $index => $item) {
             if ($item['table'] === $tableName && (string)$item['id'] === (string)$id) {
@@ -1515,7 +1454,7 @@ class RelationHandler
      * @param array $childRec The record row of the child record
      * @return bool Returns TRUE if looking from the symmetric ("other") side to the relation.
      */
-    protected static function isOnSymmetricSide($parentUid, $parentConf, $childRec)
+    protected function isOnSymmetricSide(string $parentUid, array $parentConf, array $childRec): bool
     {
         return MathUtility::canBeInterpretedAsInteger($childRec['uid'])
             && $parentConf['symmetric_field']
@@ -1530,7 +1469,7 @@ class RelationHandler
      * @param array $referenceValues Values to be written
      * @return array Values to be written, possibly modified
      */
-    protected function completeOppositeUsageValues($tableName, array $referenceValues)
+    protected function completeOppositeUsageValues(string $tableName, array $referenceValues): array
     {
         if (empty($this->MM_oppositeUsage[$tableName]) || count($this->MM_oppositeUsage[$tableName]) > 1) {
             // @todo: count($this->MM_oppositeUsage[$tableName]) > 1 is buggy.
@@ -1555,11 +1494,7 @@ class RelationHandler
         }
 
         $configuration = $GLOBALS['TCA'][$tableName]['columns'][$fieldName]['config'];
-        if (!empty($configuration['MM_insert_fields'])) {
-            // @deprecated since v12. Remove in v13 with other MM_insert_fields places.
-            //             Remove if() and change elseif() to if().
-            $referenceValues = array_merge($configuration['MM_insert_fields'], $referenceValues);
-        } elseif (!empty($configuration['MM_match_fields'])) {
+        if (!empty($configuration['MM_match_fields'])) {
             // @todo: In the end, MM_match_fields does not make sense. The 'tablename' and 'fieldname' restriction
             //        in addition to uid_local and uid_foreign used when multiple 'foreign' tables and/or multiple fields
             //        of one table refer to a single 'local' table having an mm table with these four fields, is already
@@ -1577,11 +1512,9 @@ class RelationHandler
      * Gets the record uid of the live default record. If already
      * pointing to the live record, the submitted record uid is returned.
      *
-     * @param string $tableName
      * @param int|string $id
-     * @return int
      */
-    protected function getLiveDefaultId($tableName, $id)
+    protected function getLiveDefaultId(string $tableName, $id): int
     {
         $liveDefaultId = BackendUtility::getLiveVersionIdOfRecord($tableName, $id);
         if ($liveDefaultId === null) {
@@ -1601,11 +1534,9 @@ class RelationHandler
     }
 
     /**
-     * @param string $tableName
      * @param int[] $ids
-     * @return PlainDataResolver
      */
-    protected function getResolver($tableName, array $ids, ?array $sortingStatement = null)
+    protected function getResolver(string $tableName, array $ids, ?array $sortingStatement = null): PlainDataResolver
     {
         $resolver = GeneralUtility::makeInstance(
             PlainDataResolver::class,
@@ -1619,12 +1550,8 @@ class RelationHandler
         return $resolver;
     }
 
-    /**
-     * @return Connection
-     */
-    protected function getConnectionForTableName(string $tableName)
+    protected function getConnectionForTableName(string $tableName): Connection
     {
-        return GeneralUtility::makeInstance(ConnectionPool::class)
-            ->getConnectionForTable($tableName);
+        return GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable($tableName);
     }
 }

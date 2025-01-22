@@ -80,12 +80,10 @@ class TextTableElement extends AbstractFormElement
      *
      * @return array As defined in initializeResultArray() of AbstractNode
      */
-    public function render()
+    public function render(): array
     {
         $parameterArray = $this->data['parameterArray'];
         $resultArray = $this->initializeResultArray();
-        // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-        $resultArray['labelHasBeenHandled'] = true;
 
         $itemValue = $parameterArray['itemFormElValue'];
         $config = $parameterArray['fieldConf']['config'];
@@ -119,11 +117,9 @@ class TextTableElement extends AbstractFormElement
             $html[] = '<div class="formengine-field-item t3js-formengine-field-item">';
             $html[] =   $fieldInformationHtml;
             $html[] =   '<div class="form-wizards-wrap">';
-            $html[] =       '<div class="form-wizards-element">';
+            $html[] =       '<div class="form-wizards-item-element">';
             $html[] =           '<div class="form-control-wrap" style="overflow: auto;">';
-            $html[] =               '<textarea class="form-control" id="' . htmlspecialchars($fieldId) . '" name="' . htmlspecialchars($itemName) . '" rows="' . $rows . '" disabled>';
-            $html[] =                   htmlspecialchars($itemValue);
-            $html[] =               '</textarea>';
+            $html[] =               GeneralUtility::renderTextarea($itemValue, [ 'class' => 'form-control', 'id' => $fieldId, 'name' => $itemName, 'rows' => $rows, 'disabled' => 'disabled']);
             $html[] =           '</div>';
             $html[] =       '</div>';
             $html[] =   '</div>';
@@ -196,18 +192,18 @@ class TextTableElement extends AbstractFormElement
         $html[] =   '<div class="form-control-wrap" style="overflow: auto">';
         $html[] =       '<div class="form-wizards-wrap">';
         $html[] =           '<div hidden>';
-        $html[] =               '<textarea ' . GeneralUtility::implodeAttributes($attributes, true) . '>' . htmlspecialchars($itemValue) . '</textarea>';
+        $html[] =               GeneralUtility::renderTextarea($itemValue, $attributes);
         $html[] =           '</div>';
         $html[] =           $this->getTableWizard($attributes['id']);
         if (!empty($fieldControlHtml)) {
-            $html[] =           '<div class="form-wizards-items-aside form-wizards-items-aside--field-control">';
+            $html[] =           '<div class="form-wizards-item-aside form-wizards-item-aside--field-control">';
             $html[] =               '<div class="btn-group">';
             $html[] =                   $fieldControlHtml;
             $html[] =               '</div>';
             $html[] =           '</div>';
         }
         if (!empty($fieldWizardHtml)) {
-            $html[] = '<div class="form-wizards-items-bottom">';
+            $html[] = '<div class="form-wizards-item-bottom">';
             $html[] = $fieldWizardHtml;
             $html[] = '</div>';
         }

@@ -42,7 +42,7 @@ class AuthenticationService extends AbstractAuthenticationService implements Mim
     {
         $isProcessed = false;
         if ($passwordTransmissionStrategy === 'normal') {
-            $loginData = array_map('trim', $loginData);
+            $loginData = array_map(trim(...), $loginData);
             $loginData['uident_text'] = $loginData['uident'];
             $isProcessed = true;
         }
@@ -56,7 +56,7 @@ class AuthenticationService extends AbstractAuthenticationService implements Mim
      */
     public function getUser()
     {
-        if ($this->login['status'] !== LoginType::LOGIN) {
+        if (LoginType::tryFrom($this->login['status'] ?? '') !== LoginType::LOGIN) {
             return false;
         }
         if ((string)$this->login['uident_text'] === '') {

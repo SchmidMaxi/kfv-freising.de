@@ -11,10 +11,10 @@
  * The TYPO3 project - inspiring people to share!
  */
 var __decorate=function(e,a,t,i){var n,s=arguments.length,l=s<3?a:null===i?i=Object.getOwnPropertyDescriptor(a,t):i;if("object"==typeof Reflect&&"function"==typeof Reflect.decorate)l=Reflect.decorate(e,a,t,i);else for(var o=e.length-1;o>=0;o--)(n=e[o])&&(l=(s<3?n(l):s>3?n(a,t,l):n(a,t))||l);return s>3&&l&&Object.defineProperty(a,t,l),l};import{customElement,property}from"lit/decorators.js";import{html,LitElement,nothing}from"lit";import"@typo3/backend/element/icon-element.js";let ResultPagination=class extends LitElement{constructor(){super(...arguments),this.pagination=null}createRenderRoot(){return this}render(){return null===this.pagination||this.pagination.allPageNumbers.length<=1?nothing:html`<nav>
-      <ul class="pagination pagination-sm">
+      <ul class="pagination">
         <li class="page-item">
           <typo3-backend-live-search-result-page class="page-link ${!this.pagination.previousPageNumber||this.pagination.previousPageNumber<this.pagination.firstPage?"disabled":""}" page="${this.pagination.previousPageNumber}" perPage="${this.pagination.itemsPerPage}">
-            <typo3-backend-icon identifier="actions-arrow-left-alt" size="small"></typo3-backend-icon>
+            <typo3-backend-icon identifier="actions-view-paging-previous" size="small"></typo3-backend-icon>
           </typo3-backend-live-search-result-page>
         </li>
         ${this.pagination.allPageNumbers.includes(this.pagination.firstPage)?nothing:html`
@@ -38,7 +38,7 @@ var __decorate=function(e,a,t,i){var n,s=arguments.length,l=s<3?a:null===i?i=Obj
           </li>`}
         <li class="page-item">
           <typo3-backend-live-search-result-page class="page-link ${!this.pagination.nextPageNumber||this.pagination.nextPageNumber>this.pagination.lastPage?"disabled":""}" page="${this.pagination.nextPageNumber}" perPage="${this.pagination.itemsPerPage}">
-            <typo3-backend-icon identifier="actions-arrow-right-alt" size="small"></typo3-backend-icon>
+            <typo3-backend-icon identifier="actions-view-paging-next" size="small"></typo3-backend-icon>
           </typo3-backend-live-search-result-page>
         </li>
       </ul>

@@ -15,6 +15,8 @@
 
 namespace TYPO3\CMS\Core\Resource;
 
+use Psr\Http\Message\UploadedFileInterface;
+use TYPO3\CMS\Core\Resource\Enum\DuplicationBehavior;
 use TYPO3\CMS\Core\Resource\Exception\InsufficientFolderReadPermissionsException;
 
 /**
@@ -126,8 +128,9 @@ class InaccessibleFolder extends Folder
      *
      * @param string $localFilePath
      * @param string $fileName
-     * @param string $conflictMode a value of the DuplicationBehavior enumeration
+     * @param string|DuplicationBehavior $conflictMode
      * @throws Exception\InsufficientFolderReadPermissionsException
+     * @todo change $conflictMode parameter type to DuplicationBehavior in TYPO3 v14.0
      */
     public function addFile($localFilePath, $fileName = null, $conflictMode = DuplicationBehavior::CANCEL): never
     {
@@ -137,11 +140,12 @@ class InaccessibleFolder extends Folder
     /**
      * Adds an uploaded file into the Storage.
      *
-     * @param array $uploadedFileData contains information about the uploaded file given by $_FILES['file1']
-     * @param string $conflictMode a value of the DuplicationBehavior enumeration
+     * @param array|UploadedFileInterface $uploadedFileData contains information about the uploaded file given by $_FILES['file1']
+     * @param string|DuplicationBehavior $conflictMode
      * @throws Exception\InsufficientFolderReadPermissionsException
+     * @todo change $conflictMode parameter type to DuplicationBehavior in TYPO3 v14.0
      */
-    public function addUploadedFile(array $uploadedFileData, $conflictMode = DuplicationBehavior::CANCEL): never
+    public function addUploadedFile(array|UploadedFileInterface $uploadedFileData, $conflictMode = DuplicationBehavior::CANCEL): never
     {
         $this->throwInaccessibleException();
     }
@@ -195,8 +199,9 @@ class InaccessibleFolder extends Folder
      *
      * @param Folder $targetFolder Target folder to copy to.
      * @param string $targetFolderName an optional destination fileName
-     * @param string $conflictMode a value of the DuplicationBehavior enumeration
+     * @param string|DuplicationBehavior $conflictMode
      * @throws Exception\InsufficientFolderReadPermissionsException
+     * @todo change $conflictMode parameter type to DuplicationBehavior in TYPO3 v14.0
      */
     public function copyTo(Folder $targetFolder, $targetFolderName = null, $conflictMode = DuplicationBehavior::RENAME): never
     {
@@ -208,7 +213,7 @@ class InaccessibleFolder extends Folder
      *
      * @param Folder $targetFolder Target folder to move to.
      * @param string $targetFolderName an optional destination fileName
-     * @param string $conflictMode a value of the DuplicationBehavior enumeration
+     * @param string|DuplicationBehavior $conflictMode
      * @throws Exception\InsufficientFolderReadPermissionsException
      */
     public function moveTo(Folder $targetFolder, $targetFolderName = null, $conflictMode = DuplicationBehavior::RENAME): never
@@ -260,18 +265,12 @@ class InaccessibleFolder extends Folder
         $this->throwInaccessibleException();
     }
 
-    /**
-     * @return int
-     */
-    public function getModificationTime()
+    public function getModificationTime(): int
     {
         return 0;
     }
 
-    /**
-     * @return int
-     */
-    public function getCreationTime()
+    public function getCreationTime(): int
     {
         return 0;
     }

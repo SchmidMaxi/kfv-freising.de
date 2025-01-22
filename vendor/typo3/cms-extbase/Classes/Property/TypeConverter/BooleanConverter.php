@@ -25,30 +25,17 @@ use TYPO3\CMS\Extbase\Property\PropertyMappingConfigurationInterface;
 class BooleanConverter extends AbstractTypeConverter
 {
     /**
-     * @var string[]
-     * @deprecated will be removed in TYPO3 v13.0, as this is defined in Services.yaml.
-     */
-    protected $sourceTypes = ['boolean', 'string'];
-
-    /**
-     * @var string
-     * @deprecated will be removed in TYPO3 v13.0, as this is defined in Services.yaml.
-     */
-    protected $targetType = 'boolean';
-
-    /**
-     * @var int
-     * @deprecated will be removed in TYPO3 v13.0, as this is defined in Services.yaml.
-     */
-    protected $priority = 10;
-
-    /**
      * Actually convert from $source to $targetType
      *
      * @param mixed $source
+     * @internal only to be used within Extbase, not part of TYPO3 Core API.
      */
-    public function convertFrom($source, string $targetType, array $convertedChildProperties = [], ?PropertyMappingConfigurationInterface $configuration = null): bool
-    {
+    public function convertFrom(
+        $source,
+        string $targetType,
+        array $convertedChildProperties = [],
+        ?PropertyMappingConfigurationInterface $configuration = null
+    ): bool {
         return (bool)$source;
     }
 }

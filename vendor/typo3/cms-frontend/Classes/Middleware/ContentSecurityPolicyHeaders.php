@@ -22,6 +22,7 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 use TYPO3\CMS\Core\Core\RequestId;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Configuration\DispositionMapFactory;
@@ -35,21 +36,22 @@ use TYPO3\CMS\Core\Site\Entity\Site;
  *
  * @internal
  */
-final class ContentSecurityPolicyHeaders implements MiddlewareInterface
+final readonly class ContentSecurityPolicyHeaders implements MiddlewareInterface
 {
     public function __construct(
-        private readonly RequestId $requestId,
-        private readonly LoggerInterface $logger,
-        private readonly FrontendInterface $cache,
-        private readonly PolicyProvider $policyProvider,
-        private readonly DispositionMapFactory $dispositionMapFactory,
+        private RequestId $requestId,
+        private LoggerInterface $logger,
+        #[Autowire(service: 'cache.assets')]
+        private FrontendInterface $cache,
+        private PolicyProvider $policyProvider,
+        private DispositionMapFactory $dispositionMapFactory,
     ) {}
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         $site = $request->getAttribute('site');
         $dispositionMap = $this->dispositionMapFactory->buildDispositionMap(
-            $site instanceof Site ? $site->getConfiguration()['contentSecurityPolicies'] : []
+            $site instanceof Site ? ($site->getConfiguration()['contentSecurityPolicies'] ?? []) : []
         );
         // return early in case CSP shall not be used
         if ($dispositionMap->keys() === []) {

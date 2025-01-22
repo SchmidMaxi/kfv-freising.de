@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Fluid\ViewHelpers\Uri;
 
+use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Core\Resource\Exception\InvalidFileException;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\PathUtility;
@@ -24,7 +25,6 @@ use TYPO3\CMS\Extbase\Mvc\RequestInterface;
 use TYPO3\CMS\Fluid\Core\Rendering\RenderingContext;
 use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
-use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
 
 /**
  * A ViewHelper for creating URIs to resources.
@@ -78,13 +78,12 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
  */
 final class ResourceViewHelper extends AbstractViewHelper
 {
-    use CompileWithRenderStatic;
-
     public function initializeArguments(): void
     {
         $this->registerArgument('path', 'string', 'The path and filename of the resource (relative to Public resource directory of the extension).', true);
         $this->registerArgument('extensionName', 'string', 'Target extension name. If not set, the current extension name will be used');
         $this->registerArgument('absolute', 'bool', 'If set, an absolute URI is rendered', false, false);
+        $this->registerArgument('useCacheBusting', 'bool', 'If set, the URI is rendered with a cache buster', false, true);
     }
 
     /**
@@ -94,10 +93,13 @@ final class ResourceViewHelper extends AbstractViewHelper
      * @throws InvalidFileException
      * @throws \RuntimeException
      */
-    public static function renderStatic(array $arguments, \Closure $renderChildrenClosure, RenderingContextInterface $renderingContext): string
+    public function render(): string
     {
-        $uri = PathUtility::getPublicResourceWebPath(self::resolveExtensionPath($arguments, $renderingContext));
-        if ($arguments['absolute']) {
+        $uri = PathUtility::getPublicResourceWebPath(self::resolveExtensionPath($this->arguments, $this->renderingContext));
+        if ($this->arguments['useCacheBusting']) {
+            $uri = GeneralUtility::createVersionNumberedFilename($uri);
+        }
+        if ($this->arguments['absolute']) {
             $uri = GeneralUtility::locationHeaderUrl($uri);
         }
         return $uri;
@@ -146,7 +148,10 @@ final class ResourceViewHelper extends AbstractViewHelper
                 1640095993
             );
         }
-        $request = $renderingContext->getRequest();
+        $request = null;
+        if ($renderingContext->hasAttribute(ServerRequestInterface::class)) {
+            $request = $renderingContext->getAttribute(ServerRequestInterface::class);
+        }
         if (!$request instanceof RequestInterface) {
             throw new \RuntimeException(
                 sprintf(

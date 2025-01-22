@@ -79,6 +79,7 @@ class LanguageAspect implements AspectInterface
     public const OVERLAYS_MIXED = 'mixed';  // config.sys_language_overlay = 1 (keep the ones that are only available in default language)
     public const OVERLAYS_ON = 'on';    // "hideNonTranslated"
     public const OVERLAYS_ON_WITH_FLOATING = 'includeFloating';    // "hideNonTranslated" + records that are only available in polish
+
     /**
      * Create the default language
      *

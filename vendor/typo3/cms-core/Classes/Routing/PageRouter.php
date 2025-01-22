@@ -264,7 +264,7 @@ class PageRouter implements RouterInterface
             // Check 3rd party input $route for basic requirements
             && isset($route['uid'], $route['sys_language_uid'], $route['l10n_parent'], $route['slug'])
             && (int)$route['sys_language_uid'] === $language->getLanguageId()
-            && ((int)$route['l10n_parent'] === 0 || ($route['_PAGES_OVERLAY'] ?? false))
+            && ((int)$route['l10n_parent'] === 0 || isset($route['_LOCALIZED_UID']))
         ) {
             $page = $route;
         } else {
@@ -568,6 +568,7 @@ class PageRouter implements RouterInterface
      * brute-force scenarios and the risk of cache-flooding.
      *
      * @throws \OverflowException
+     * @todo with having `static` route variables, this restriction should be configurable & optional
      */
     protected function assertMaximumStaticMappableAmount(Route $route, array $variableNames = [])
     {

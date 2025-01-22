@@ -16,6 +16,7 @@
 namespace TYPO3\CMS\Install\Service;
 
 use TYPO3\CMS\Core\Configuration\ConfigurationManager;
+use TYPO3\CMS\Core\Configuration\Exception\SettingsWriteException;
 use TYPO3\CMS\Core\Crypto\PasswordHashing\Argon2idPasswordHash;
 use TYPO3\CMS\Core\Crypto\PasswordHashing\Argon2iPasswordHash;
 use TYPO3\CMS\Core\Crypto\PasswordHashing\BcryptPasswordHash;
@@ -176,6 +177,31 @@ class SilentConfigurationUpgradeService
         'GFX/processor_path_lzw',
         // #98503
         'SYS/caching/cacheConfigurations/pagesection',
+        // #99075
+        'FE/defaultUserTSconfig',
+        // #101037
+        'BE/languageDebug',
+        'BE/lang/debug',
+        // #101793
+        'BE/checkStoredRecords',
+        'BE/checkStoredRecordsLoose',
+        // #101941
+        'GFX/thumbnails_png',
+        'GFX/gif_compress',
+        // #101950
+        'GFX/processor_allowTemporaryMasksAsPng',
+        // #102020
+        'GFX/gdlib_png',
+        // #102023
+        'SYS/features/security.usePasswordPolicyForFrontendUsers',
+        // #102113
+        'GFX/gdlib',
+        // #102146
+        'BE/flexformForceCDATA',
+        // #103752
+        'FE/addRootLineFields',
+        // #104104
+        'EXTENSIONS/indexed_search/debugMode',
     ];
 
     public function __construct(private readonly ConfigurationManager $configurationManager) {}
@@ -185,6 +211,7 @@ class SilentConfigurationUpgradeService
      * ConfigurationChangedException if something was written to LocalConfiguration.
      *
      * @throws ConfigurationChangedException
+     * @throws SettingsWriteException
      */
     public function execute(): void
     {
@@ -193,12 +220,11 @@ class SilentConfigurationUpgradeService
         $this->transferHttpSettings();
         $this->disableImageMagickDetailSettingsIfImageMagickIsDisabled();
         $this->setImageMagickDetailSettings();
-        $this->migrateThumbnailsPngSetting();
+        $this->removeDefaultColorspaceSettings();
         $this->migrateLockSslSetting();
         $this->migrateDatabaseConnectionSettings();
         $this->migrateDatabaseConnectionCharset();
         $this->migrateDatabaseDriverOptions();
-        $this->migrateLangDebug();
         $this->migrateCacheHashOptions();
         $this->migrateExceptionErrors();
         $this->migrateDisplayErrorsSetting();
@@ -536,12 +562,6 @@ class SilentConfigurationUpgradeService
         }
 
         try {
-            $currentProcessorMaskValue = $this->configurationManager->getLocalConfigurationValueByPath('GFX/processor_allowTemporaryMasksAsPng');
-        } catch (MissingArrayPathException) {
-            $currentProcessorMaskValue = $this->configurationManager->getDefaultConfigurationValueByPath('GFX/processor_allowTemporaryMasksAsPng');
-        }
-
-        try {
             $currentProcessorEffectsValue = $this->configurationManager->getLocalConfigurationValueByPath('GFX/processor_effects');
         } catch (MissingArrayPathException) {
             $currentProcessorEffectsValue = $this->configurationManager->getDefaultConfigurationValueByPath('GFX/processor_effects');
@@ -550,10 +570,6 @@ class SilentConfigurationUpgradeService
         if ((string)$currentProcessorValue !== '') {
             if (!is_bool($currentProcessorEffectsValue)) {
                 $changedValues['GFX/processor_effects'] = (int)$currentProcessorEffectsValue > 0;
-            }
-
-            if ($currentProcessorMaskValue != 0) {
-                $changedValues['GFX/processor_allowTemporaryMasksAsPng'] = 0;
             }
         }
         if (!empty($changedValues)) {
@@ -631,29 +647,6 @@ class SilentConfigurationUpgradeService
 
         if (!empty(array_filter($changedSettings))) {
             $this->configurationManager->removeLocalConfigurationKeysByPath(array_keys($changedSettings));
-            $this->throwConfigurationChangedException();
-        }
-    }
-
-    /**
-     * Migrate the configuration value thumbnails_png to a boolean value.
-     *
-     * @throws ConfigurationChangedException
-     */
-    protected function migrateThumbnailsPngSetting(): void
-    {
-        $changedValues = [];
-        try {
-            $currentThumbnailsPngValue = $this->configurationManager->getLocalConfigurationValueByPath('GFX/thumbnails_png');
-        } catch (MissingArrayPathException) {
-            $currentThumbnailsPngValue = $this->configurationManager->getDefaultConfigurationValueByPath('GFX/thumbnails_png');
-        }
-
-        if (is_int($currentThumbnailsPngValue) && $currentThumbnailsPngValue > 0) {
-            $changedValues['GFX/thumbnails_png'] = true;
-        }
-        if (!empty($changedValues)) {
-            $this->configurationManager->setLocalConfigurationValuesByPathValuePairs($changedValues);
             $this->throwConfigurationChangedException();
         }
     }
@@ -838,27 +831,6 @@ class SilentConfigurationUpgradeService
             }
         } catch (MissingArrayPathException) {
             // no driver options found, nothing needs to be modified
-        }
-    }
-
-    /**
-     * Migrate the configuration setting BE/lang/debug if set in the system/settings.php file
-     *
-     * @throws ConfigurationChangedException
-     */
-    protected function migrateLangDebug(): void
-    {
-        $confManager = $this->configurationManager;
-        try {
-            $currentOption = $confManager->getLocalConfigurationValueByPath('BE/lang/debug');
-            // check if the current option is set and boolean
-            if (isset($currentOption) && is_bool($currentOption)) {
-                $confManager->setLocalConfigurationValueByPath('BE/languageDebug', $currentOption);
-                $confManager->removeLocalConfigurationKeysByPath(['BE/lang/debug']);
-                $this->throwConfigurationChangedException();
-            }
-        } catch (MissingArrayPathException) {
-            // no change inside the system/settings.php found, so nothing needs to be modified
         }
     }
 
@@ -1130,6 +1102,28 @@ class SilentConfigurationUpgradeService
             $this->throwConfigurationChangedException();
         } catch (MissingArrayPathException) {
             // no flag set, so nothing to be configured
+        }
+    }
+
+    /**
+     * Remove the colorspace setting if it's already the recommended default for a given processor
+     *
+     * @throws ConfigurationChangedException
+     */
+    protected function removeDefaultColorspaceSettings(): void
+    {
+        try {
+            $confManager = $this->configurationManager;
+            $currentProcessor = $confManager->getLocalConfigurationValueByPath('GFX/processor');
+            $currentColorspace = $confManager->getLocalConfigurationValueByPath('GFX/processor_colorspace');
+
+            if ($currentProcessor === 'ImageMagick' && $currentColorspace === 'sRGB' ||
+                $currentProcessor === 'GraphicsMagick' && $currentColorspace === 'RGB') {
+                $confManager->removeLocalConfigurationKeysByPath(['GFX/processor_colorspace']);
+                $this->throwConfigurationChangedException();
+            }
+        } catch (MissingArrayPathException) {
+            // no change inside the system/settings.php found, so nothing needs to be modified
         }
     }
 }

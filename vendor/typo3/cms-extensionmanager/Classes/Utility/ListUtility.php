@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -21,11 +23,11 @@ use TYPO3\CMS\Core\Package\Event\PackagesMayHaveChangedEvent;
 use TYPO3\CMS\Core\Package\PackageInterface;
 use TYPO3\CMS\Core\Package\PackageManager;
 use TYPO3\CMS\Core\SingletonInterface;
-use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
 use TYPO3\CMS\Core\Utility\PathUtility;
 use TYPO3\CMS\Core\Utility\VersionNumberUtility;
 use TYPO3\CMS\Extensionmanager\Domain\Model\Extension;
 use TYPO3\CMS\Extensionmanager\Domain\Repository\ExtensionRepository;
+use TYPO3\CMS\Extensionmanager\Enum\ExtensionType;
 
 /**
  * Utility for dealing with extension list related functions
@@ -110,7 +112,7 @@ class ListUtility implements SingletonInterface
                 $installationType = $this->getInstallTypeForPackage($package);
                 if ($filter === '' || $filter === $installationType) {
                     $version = $package->getPackageMetaData()->getVersion();
-                    $icon = ExtensionManagementUtility::getExtensionIcon($package->getPackagePath());
+                    $icon = $package->getPackageIcon();
                     $extensionData = [
                         'packagePath' => $package->getPackagePath(),
                         'type' => $installationType,
@@ -131,47 +133,41 @@ class ListUtility implements SingletonInterface
     /**
      * Reset and reload the available extensions
      */
-    public function reloadAvailableExtensions()
+    public function reloadAvailableExtensions(): void
     {
         $this->availableExtensions = null;
         $this->packageManager->scanAvailablePackages();
         $this->getAvailableExtensions();
     }
 
-    /**
-     * @param string $extensionKey
-     * @return \TYPO3\CMS\Core\Package\PackageInterface
-     * @throws \TYPO3\CMS\Core\Package\Exception\UnknownPackageException if the specified package is unknown
-     */
-    public function getExtension($extensionKey)
+    public function getExtension(string $extensionKey): PackageInterface
     {
         return $this->packageManager->getPackage($extensionKey);
     }
 
     /**
-     * Returns "System", "Global" or "Local" based on extension position in filesystem.
-     *
-     * @return string
+     * Returns "System" or "Local" based on extension position in filesystem.
      */
-    protected function getInstallTypeForPackage(PackageInterface $package)
+    protected function getInstallTypeForPackage(PackageInterface $package): string
     {
         if (Environment::isComposerMode()) {
-            return $package->getPackageMetaData()->isFrameworkType() ? 'System' : 'Local';
+            return $package->getPackageMetaData()->isFrameworkType()
+                ? ExtensionType::System->value
+                : ExtensionType::Local->value;
         }
-        foreach (Extension::returnInstallPaths() as $installType => $installPath) {
-            if (str_starts_with($package->getPackagePath(), $installPath)) {
-                return $installType;
-            }
+        if (str_starts_with($package->getPackagePath(), Environment::getFrameworkBasePath())) {
+            return ExtensionType::System->value;
+        }
+        if (str_starts_with($package->getPackagePath(), Environment::getExtensionsPath())) {
+            return ExtensionType::Local->value;
         }
         return '';
     }
 
     /**
      * Enrich the output of getAvailableExtensions() with an array key installed = 1 if an extension is loaded.
-     *
-     * @return array
      */
-    public function getAvailableAndInstalledExtensions(array $availableExtensions)
+    public function getAvailableAndInstalledExtensions(array $availableExtensions): array
     {
         foreach ($this->packageManager->getActivePackages() as $extKey => $_) {
             if (isset($availableExtensions[$extKey])) {
@@ -183,10 +179,8 @@ class ListUtility implements SingletonInterface
 
     /**
      * Adds the information from the emconf array to the extension information
-     *
-     * @return array
      */
-    public function enrichExtensionsWithEmConfInformation(array $extensions)
+    public function enrichExtensionsWithEmConfInformation(array $extensions): array
     {
         foreach ($extensions as $extensionKey => $properties) {
             $emConf = $this->emConfUtility->includeEmConf($extensionKey, $properties['packagePath'] ?? '');
@@ -201,14 +195,12 @@ class ListUtility implements SingletonInterface
 
     /**
      * Adds the information from the emconf array and TER to the extension information
-     *
-     * @return array
      */
-    public function enrichExtensionsWithEmConfAndTerInformation(array $extensions)
+    public function enrichExtensionsWithEmConfAndTerInformation(array $extensions): array
     {
         $extensions = $this->enrichExtensionsWithEmConfInformation($extensions);
         foreach ($extensions as $extensionKey => $properties) {
-            $terObject = $this->getExtensionTerData($extensionKey, $extensions[$extensionKey]['version'] ?? '');
+            $terObject = $this->getExtensionTerData($extensionKey, $properties['version'] ?? '');
             if ($terObject === null) {
                 continue;
             }
@@ -236,7 +228,7 @@ class ListUtility implements SingletonInterface
      * @param string $version String representation of version number
      * @return Extension|null Extension TER object or NULL if nothing found
      */
-    protected function getExtensionTerData($extensionKey, $version): ?Extension
+    protected function getExtensionTerData(string $extensionKey, string $version): ?Extension
     {
         $terObject = $this->extensionRepository->findOneByExtensionKeyAndVersion($extensionKey, $version);
         if (!$terObject instanceof Extension) {

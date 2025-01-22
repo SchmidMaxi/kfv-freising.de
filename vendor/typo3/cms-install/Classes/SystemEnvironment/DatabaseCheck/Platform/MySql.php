@@ -17,7 +17,8 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Install\SystemEnvironment\DatabaseCheck\Platform;
 
-use Doctrine\DBAL\Platforms\MariaDBPlatform;
+use Doctrine\DBAL\Platforms\MariaDBPlatform as DoctrineMariaDBPlatform;
+use Doctrine\DBAL\Platforms\MySQLPlatform as DoctrineMySQLPlatform;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Messaging\FlashMessage;
@@ -47,8 +48,8 @@ class MySql extends AbstractPlatform
      * @var array<string, string>
      */
     protected array $minimumVersion = [
-        self::PLATFORM_MYSQL => '8.0.0',
-        self::PLATFORM_MARIADB => '10.3.0',
+        self::PLATFORM_MYSQL => '8.0.17',
+        self::PLATFORM_MARIADB => '10.4.3',
     ];
 
     /**
@@ -98,7 +99,8 @@ class MySql extends AbstractPlatform
     {
         $defaultConnection = GeneralUtility::makeInstance(ConnectionPool::class)
             ->getConnectionByName(ConnectionPool::DEFAULT_CONNECTION_NAME);
-        if (!str_starts_with($defaultConnection->getServerVersion(), 'MySQL')) {
+        $platform = $defaultConnection->getDatabasePlatform();
+        if (!($platform instanceof DoctrineMariaDBPlatform || $platform instanceof DoctrineMySQLPlatform)) {
             return $this->messageQueue;
         }
         $this->checkMySQLOrMariaDBVersion($defaultConnection);
@@ -144,7 +146,7 @@ class MySql extends AbstractPlatform
     {
         $platformLabel = $this->getPlatformLabel($connection);
         $minimumVersion = $this->getMinimumVersion($connection);
-        $serverVersion = $connection->getServerVersion();
+        $serverVersion = $connection->getPlatformServerVersion();
         preg_match('/MySQL (5\.5\.5-|)((\d+\.)*(\d+\.)*\d+)/', $serverVersion, $match);
         $currentMysqlVersion = $match[2] ?? null;
         if ($currentMysqlVersion === null) {
@@ -288,6 +290,6 @@ class MySql extends AbstractPlatform
 
     protected function isMariaDb(Connection $connection): bool
     {
-        return $connection->getDatabasePlatform() instanceof MariaDBPlatform;
+        return $connection->getDatabasePlatform() instanceof DoctrineMariaDBPlatform;
     }
 }

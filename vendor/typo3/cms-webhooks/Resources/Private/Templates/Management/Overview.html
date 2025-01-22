@@ -29,7 +29,7 @@
             <f:if condition="{demand.constraints}">
                 <f:then>
                     <f:render section="filter" arguments="{_all}" />
-                    <f:be.infobox state="-2" title="{f:translate(key: 'LLL:EXT:webhooks/Resources/Private/Language/locallang_module_webhooks.xlf:webhook_not_found_with_filter.title')}">
+                    <f:be.infobox state="{f:constant(name: 'TYPO3\CMS\Fluid\ViewHelpers\Be\InfoboxViewHelper::STATE_NOTICE')}" title="{f:translate(key: 'LLL:EXT:webhooks/Resources/Private/Language/locallang_module_webhooks.xlf:webhook_not_found_with_filter.title')}">
                         <p><f:translate key="LLL:EXT:webhooks/Resources/Private/Language/locallang_module_webhooks.xlf:webhook_not_found_with_filter.message"/></p>
                         <a class="btn btn-default" href="{f:be.uri(route:'webhooks_management')}">
                             <f:translate key="LLL:EXT:webhooks/Resources/Private/Language/locallang_module_webhooks.xlf:webhook_no_filter"/>
@@ -45,7 +45,7 @@
                     </form>
                 </f:then>
                 <f:else>
-                    <f:be.infobox state="-1" title="{f:translate(key: 'LLL:EXT:webhooks/Resources/Private/Language/locallang_module_webhooks.xlf:webhook_not_found.title')}">
+                    <f:be.infobox state="{f:constant(name: 'TYPO3\CMS\Fluid\ViewHelpers\Be\InfoboxViewHelper::STATE_INFO')}" title="{f:translate(key: 'LLL:EXT:webhooks/Resources/Private/Language/locallang_module_webhooks.xlf:webhook_not_found.title')}">
                         <p><f:translate key="LLL:EXT:webhooks/Resources/Private/Language/locallang_module_webhooks.xlf:webhook_not_found.message"/></p>
                         <be:link.newRecord returnUrl="{returnUrl}" class="btn btn-primary" table="sys_webhook">
                             <f:translate key="LLL:EXT:webhooks/Resources/Private/Language/locallang_module_webhooks.xlf:webhook_create"/>
@@ -84,7 +84,7 @@
                             <td class="col-icon">
                                 <button
                                     type="button"
-                                    class="btn btn-link p-0"
+                                    class="btn btn-link"
                                     data-contextmenu-trigger="click"
                                     data-contextmenu-table="sys_webhook"
                                     data-contextmenu-uid="{webhook.uid}"
@@ -242,7 +242,7 @@
         </button>
         <ul class="dropdown-menu t3js-multi-record-selection-check-actions">
             <li>
-                <button type="button" class="dropdown-item disabled" data-multi-record-selection-check-action="check-all" title="{f:translate(key: 'LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.checkAll')}">
+                <button type="button" class="dropdown-item" disabled="disabled" data-multi-record-selection-check-action="check-all" title="{f:translate(key: 'LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.checkAll')}">
                     <span class="dropdown-item-columns">
                         <span class="dropdown-item-column dropdown-item-column-icon" aria-hidden="true">
                             <core:icon identifier="actions-selection-elements-all" size="small" />
@@ -254,7 +254,7 @@
                 </button>
             </li>
             <li>
-                <button type="button" class="dropdown-item disabled" data-multi-record-selection-check-action="check-none" title="{f:translate(key: 'LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.uncheckAll')}">
+                <button type="button" class="dropdown-item" disabled="disabled" data-multi-record-selection-check-action="check-none" title="{f:translate(key: 'LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.uncheckAll')}">
                     <span class="dropdown-item-columns">
                         <span class="dropdown-item-column dropdown-item-column-icon" aria-hidden="true">
                             <core:icon identifier="actions-selection-elements-none" size="small" />

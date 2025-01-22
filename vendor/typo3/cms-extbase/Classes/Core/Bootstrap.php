@@ -20,6 +20,7 @@ namespace TYPO3\CMS\Extbase\Core;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface;
 use TYPO3\CMS\Extbase\Mvc\Dispatcher;
@@ -36,42 +37,27 @@ use TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController;
  *
  * This class is the main entry point for extbase extensions.
  *
- * @todo: Please note that this class will become internal in TYPO3 v13.0
+ * @internal
  */
+#[Autoconfigure(public: true, shared: false)]
 class Bootstrap
 {
-    /**
-     * Set by UserContentObject (USER) via setContentObjectRenderer() in frontend
-     */
     protected ?ContentObjectRenderer $cObj = null;
 
-    protected ContainerInterface $container;
-    protected ConfigurationManagerInterface $configurationManager;
-    protected PersistenceManagerInterface $persistenceManager;
-    protected CacheService $cacheService;
-    protected Dispatcher $dispatcher;
-    protected RequestBuilder $extbaseRequestBuilder;
-
     public function __construct(
-        ContainerInterface $container,
-        ConfigurationManagerInterface $configurationManager,
-        PersistenceManagerInterface $persistenceManager,
-        CacheService $cacheService,
-        Dispatcher $dispatcher,
-        RequestBuilder $extbaseRequestBuilder
-    ) {
-        $this->container = $container;
-        $this->configurationManager = $configurationManager;
-        $this->persistenceManager = $persistenceManager;
-        $this->cacheService = $cacheService;
-        $this->dispatcher = $dispatcher;
-        $this->extbaseRequestBuilder = $extbaseRequestBuilder;
-    }
+        protected readonly ContainerInterface $container,
+        protected readonly ConfigurationManagerInterface $configurationManager,
+        protected readonly PersistenceManagerInterface $persistenceManager,
+        protected readonly CacheService $cacheService,
+        protected readonly Dispatcher $dispatcher,
+        protected readonly RequestBuilder $extbaseRequestBuilder
+    ) {}
 
     /**
+     * The current (!) cObj.
      * Called for frontend plugins from UserContentObject via ContentObjectRenderer->callUserFunction().
      */
-    public function setContentObjectRenderer(ContentObjectRenderer $cObj)
+    public function setContentObjectRenderer(ContentObjectRenderer $cObj): void
     {
         $this->cObj = $cObj;
     }
@@ -108,15 +94,13 @@ class Bootstrap
     public function initializeConfiguration(array $configuration, ServerRequestInterface $request): ServerRequestInterface
     {
         if ($this->cObj === null) {
+            // @todo: While the frontend sets the current cObj, a backend extbase request does not.
+            //        It is currently not clear if the backend should have a dummy cObj as well.
+            //        For now, extbase initializes one.
             $this->cObj = $this->container->get(ContentObjectRenderer::class);
             $this->cObj->setRequest($request);
         }
-        // @deprecated since v12. Remove in v13.
-        $this->configurationManager->setContentObject($this->cObj);
-        if (method_exists($this->configurationManager, 'setRequest')) {
-            // @todo: Avoid method_exists() when setRequest() has been added to interface.
-            $this->configurationManager->setRequest($request);
-        }
+        $this->configurationManager->setRequest($request);
         $this->configurationManager->setConfiguration($configuration);
         return $request;
         // todo: Outdated todo, recheck in v13.
@@ -176,13 +160,13 @@ class Bootstrap
         }
         // Usually coming from an error action, ensure all caches are cleared
         if ($response->getStatusCode() === 400) {
-            $this->clearCacheOnError();
+            $this->clearCacheOnError($request);
         }
 
-        // In case TSFE is available and this is a json response, we have to let TSFE know we have a specific Content-Type
-        if (($typoScriptFrontendController = ($GLOBALS['TSFE'] ?? null)) instanceof TypoScriptFrontendController
-            && $response->hasHeader('Content-Type')
-        ) {
+        // If TypoScriptFrontendController has been properly set up and this is a json response,
+        // we let TypoScriptFrontendController know we have a specific Content-Type.
+        $typoScriptFrontendController = $request->getAttribute('frontend.controller');
+        if ($typoScriptFrontendController instanceof TypoScriptFrontendController && $response->hasHeader('Content-Type')) {
             $typoScriptFrontendController->setContentType($response->getHeaderLine('Content-Type'));
             // Do not send the header directly (see below)
             $response = $response->withoutHeader('Content-Type');
@@ -236,12 +220,13 @@ class Bootstrap
     /**
      * Clear cache of current page on error. Needed because we want a re-evaluation of the data.
      */
-    protected function clearCacheOnError(): void
+    protected function clearCacheOnError(ServerRequestInterface $request): void
     {
         $extbaseSettings = $this->configurationManager->getConfiguration(ConfigurationManagerInterface::CONFIGURATION_TYPE_FRAMEWORK);
         if (isset($extbaseSettings['persistence']['enableAutomaticCacheClearing']) && $extbaseSettings['persistence']['enableAutomaticCacheClearing'] === '1') {
-            if (isset($GLOBALS['TSFE'])) {
-                $this->cacheService->clearPageCache([$GLOBALS['TSFE']->id]);
+            $pageId = $request->getAttribute('frontend.page.information')?->getId();
+            if ($pageId !== null) {
+                $this->cacheService->clearPageCache([$pageId]);
             }
         }
     }

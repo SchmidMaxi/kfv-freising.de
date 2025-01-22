@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Workspaces\Controller\Remote;
 
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Backend\View\BackendViewFactory;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
@@ -34,6 +35,7 @@ use TYPO3\CMS\Workspaces\Service\WorkspaceService;
 /**
  * @internal This is a specific Backend Controller implementation and is not considered part of the Public TYPO3 API.
  */
+#[Autoconfigure(public: true)]
 class ActionHandler
 {
     public function __construct(
@@ -208,6 +210,7 @@ class ActionHandler
      */
     public function sendToNextStageWindow($uid, $table, $t3ver_oid)
     {
+        $uid = (int)$uid;
         $elementRecord = BackendUtility::getRecord($table, $uid);
         if (is_array($elementRecord)) {
             $workspaceRecord = WorkspaceRecord::get($elementRecord['t3ver_wsid']);
@@ -239,6 +242,7 @@ class ActionHandler
      */
     public function sendToPrevStageWindow($uid, $table)
     {
+        $uid = (int)$uid;
         $elementRecord = BackendUtility::getRecord($table, $uid);
         if (is_array($elementRecord)) {
             $workspaceRecord = WorkspaceRecord::get($elementRecord['t3ver_wsid']);
@@ -282,7 +286,7 @@ class ActionHandler
         foreach ($elements as $element) {
             $this->stagesService->getRecordService()->add(
                 $element->table,
-                $element->uid
+                (int)$element->uid
             );
         }
 
@@ -332,7 +336,7 @@ class ActionHandler
 
         if ($stageRecord->hasPreselection() && !$stageRecord->isPreselectionChangeable()) {
             $preselectedBackendUsers = $this->stagesService->getBackendUsers(
-                implode(',', $this->stagesService->getPreselectedRecipients($stageRecord))
+                $this->stagesService->getPreselectedRecipients($stageRecord)
             );
 
             foreach ($preselectedBackendUsers as $preselectedBackendUser) {
@@ -445,7 +449,7 @@ class ActionHandler
         return [
             'success' => true,
             // force refresh after publishing changes
-            'refreshLivePanel' => $parameters->stageId == -20,
+            'refreshLivePanel' => (int)$parameters->stageId === StagesService::STAGE_PUBLISH_EXECUTE_ID,
         ];
     }
 
@@ -584,7 +588,7 @@ class ActionHandler
         foreach ($elements as $element) {
             // Avoid any action on records that have already been published to live
             $elementRecord = BackendUtility::getRecord($element->table, $element->uid);
-            if ((int)$elementRecord['t3ver_wsid'] === 0) {
+            if ((int)($elementRecord['t3ver_wsid'] ?? 0) === 0) {
                 continue;
             }
 
@@ -616,7 +620,7 @@ class ActionHandler
     protected function getSentToStageWindow($nextStage)
     {
         if (!$nextStage instanceof StageRecord) {
-            $nextStage = WorkspaceRecord::get($this->getCurrentWorkspace())->getStage($nextStage);
+            $nextStage = WorkspaceRecord::get($this->getCurrentWorkspace())->getStage((int)$nextStage);
         }
 
         $result = [];

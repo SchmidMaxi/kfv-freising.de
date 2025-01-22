@@ -9,7 +9,6 @@ return [
         'prependAtCopy' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.prependAtCopy',
         'title' => 'LLL:EXT:frontend/Resources/Private/Language/locallang_tca.xlf:sys_template',
         'groupName' => 'system',
-        'origUid' => 't3_origuid',
         'crdate' => 'crdate',
         'delete' => 'deleted',
         // Only admin, if any
@@ -37,40 +36,6 @@ return [
                 'size' => 25,
                 'max' => 255,
                 'required' => true,
-            ],
-        ],
-        'hidden' => [
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.enabled',
-            'exclude' => true,
-            'config' => [
-                'type' => 'check',
-                'renderType' => 'checkboxToggle',
-                'default' => 0,
-                'items' => [
-                    [
-                        'label' => '',
-                        'invertStateDisplay' => true,
-                    ],
-                ],
-            ],
-        ],
-        'starttime' => [
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.starttime',
-            'exclude' => true,
-            'config' => [
-                'type' => 'datetime',
-                'default' => 0,
-            ],
-        ],
-        'endtime' => [
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.endtime',
-            'exclude' => true,
-            'config' => [
-                'type' => 'datetime',
-                'default' => 0,
-                'range' => [
-                    'upper' => mktime(0, 0, 0, 1, 1, 2038),
-                ],
             ],
         ],
         'root' => [
@@ -163,14 +128,6 @@ return [
                 'enableTabulator' => true,
                 'fixedFont' => true,
                 'softref' => 'email[subst],url[subst]',
-            ],
-        ],
-        'description' => [
-            'label' => 'LLL:EXT:frontend/Resources/Private/Language/locallang_tca.xlf:sys_template.description',
-            'config' => [
-                'type' => 'text',
-                'rows' => 5,
-                'cols' => 48,
             ],
         ],
         'static_file_mode' => [

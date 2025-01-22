@@ -20,6 +20,7 @@ use TYPO3Fluid\Fluid\Core\Parser\TemplateParser;
 use TYPO3Fluid\Fluid\Core\Parser\TemplateProcessor\EscapingModifierTemplateProcessor;
 use TYPO3Fluid\Fluid\Core\Parser\TemplateProcessor\NamespaceDetectionTemplateProcessor;
 use TYPO3Fluid\Fluid\Core\Parser\TemplateProcessor\PassthroughSourceModifierTemplateProcessor;
+use TYPO3Fluid\Fluid\Core\Parser\TemplateProcessor\RemoveCommentsTemplateProcessor;
 use TYPO3Fluid\Fluid\Core\Parser\TemplateProcessorInterface;
 use TYPO3Fluid\Fluid\Core\Variables\StandardVariableProvider;
 use TYPO3Fluid\Fluid\Core\Variables\VariableProviderInterface;
@@ -30,6 +31,7 @@ use TYPO3Fluid\Fluid\View\TemplatePaths;
 
 /**
  * The rendering context that contains useful information during rendering time of a Fluid template
+ * @todo add missing types with Fluid v5
  */
 class RenderingContext implements RenderingContextInterface
 {
@@ -139,6 +141,7 @@ class RenderingContext implements RenderingContextInterface
                 new EscapingModifierTemplateProcessor(),
                 new PassthroughSourceModifierTemplateProcessor(),
                 new NamespaceDetectionTemplateProcessor(),
+                new RemoveCommentsTemplateProcessor(),
             ],
         );
         $this->setViewHelperResolver(new ViewHelperResolver());

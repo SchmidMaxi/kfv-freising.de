@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 /* (c) Anton Medvedev <anton@medv.io>
  *
@@ -13,6 +15,7 @@ use Deployer\Deployer;
 use Deployer\Exception\ConfigurationException;
 use Deployer\Exception\Exception;
 use Deployer\Task\Context;
+
 use function Deployer\Support\colorize_host;
 use function Deployer\Support\parse_home_dir;
 
@@ -209,6 +212,13 @@ class Host
     public function setLabels(array $labels): self
     {
         $this->config->set('labels', $labels);
+        return $this;
+    }
+
+    public function addLabels(array $labels): self
+    {
+        $existingLabels = $this->getLabels() ?? [];
+        $this->setLabels(array_replace_recursive($existingLabels, $labels));
         return $this;
     }
 

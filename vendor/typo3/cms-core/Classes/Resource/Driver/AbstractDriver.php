@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -15,6 +17,7 @@
 
 namespace TYPO3\CMS\Core\Resource\Driver;
 
+use TYPO3\CMS\Core\Resource\Capabilities;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\PathUtility;
 
@@ -27,35 +30,33 @@ abstract class AbstractDriver implements DriverInterface
      * CAPABILITIES
      *******************/
     /**
-     * The capabilities of this driver. See \TYPO3\CMS\Core\Resource\ResourceStorageInterface::::CAPABILITY_* constants
-     * for possible values. This value should be set in the constructor of derived classes.
-     *
-     * @var int
+     * The capabilities of this driver. This value should be set in the constructor of derived classes.
      */
-    protected $capabilities = 0;
+    protected Capabilities $capabilities;
 
     /**
      * The storage uid the driver was instantiated for
-     *
-     * @var int
      */
-    protected $storageUid;
+    protected ?int $storageUid = null;
 
     /**
      * A list of all supported hash algorithms, written all lower case and
      * without any dashes etc. (e.g. sha1 instead of SHA-1)
      * Be sure to set this in inherited classes!
      *
-     * @var array
+     * @phpstan-var list<string>
+     *
+     * @todo: Remove this from this class. Properties of abstract classes MUST NOT be api. If all drivers
+     *        need to implement this, consider creating a new method stub in the DriverInterface or consider
+     *        creating a new SupportedHashAlgorithmsAwareInterface that demands implementations to provide said
+     *        information. Inside this abstract class, this property is useless, however.
      */
-    protected $supportedHashAlgorithms = [];
+    protected array $supportedHashAlgorithms = [];
 
     /**
      * The configuration of this driver
-     *
-     * @var array
      */
-    protected $configuration = [];
+    protected array $configuration = [];
 
     /**
      * Creates this object.
@@ -68,11 +69,8 @@ abstract class AbstractDriver implements DriverInterface
     /**
      * Checks a fileName for validity. This could be overridden in concrete
      * drivers if they have different file naming rules.
-     *
-     * @param string $fileName
-     * @return bool TRUE if file name is valid
      */
-    protected function isValidFilename($fileName)
+    protected function isValidFilename(string $fileName): bool
     {
         if (str_contains($fileName, '/')) {
             return false;
@@ -85,24 +83,16 @@ abstract class AbstractDriver implements DriverInterface
 
     /**
      * Sets the storage uid the driver belongs to
-     *
-     * @param int $storageUid
      */
-    public function setStorageUid($storageUid)
+    public function setStorageUid(int $storageUid): void
     {
         $this->storageUid = $storageUid;
     }
 
     /**
      * Returns the capabilities of this driver.
-     *
-     * @return int
-     * @see \TYPO3\CMS\Core\Resource\ResourceStorageInterface::CAPABILITY_BROWSABLE
-     * @see \TYPO3\CMS\Core\Resource\ResourceStorageInterface::CAPABILITY_PUBLIC
-     * @see \TYPO3\CMS\Core\Resource\ResourceStorageInterface::CAPABILITY_WRITABLE
-     * @see \TYPO3\CMS\Core\Resource\ResourceStorageInterface::CAPABILITY_HIERARCHICAL_IDENTIFIERS
      */
-    public function getCapabilities()
+    public function getCapabilities(): Capabilities
     {
         return $this->capabilities;
     }
@@ -110,12 +100,11 @@ abstract class AbstractDriver implements DriverInterface
     /**
      * Returns TRUE if this driver has the given capability.
      *
-     * @param int $capability A capability, as defined in a CAPABILITY_* constant
-     * @return bool
+     * @phpstan-param Capabilities::CAPABILITY_* $capability
      */
-    public function hasCapability($capability)
+    public function hasCapability(int $capability): bool
     {
-        return ($this->capabilities & $capability) === $capability;
+        return $this->getCapabilities()->hasCapability($capability);
     }
 
     /*******************
@@ -125,10 +114,10 @@ abstract class AbstractDriver implements DriverInterface
     /**
      * Returns a temporary path for a given file, including the file extension.
      *
-     * @param string $fileIdentifier
-     * @return non-empty-string
+     * @phpstan-param non-empty-string $fileIdentifier
+     * @phpstan-return non-empty-string
      */
-    protected function getTemporaryPathForFile($fileIdentifier)
+    protected function getTemporaryPathForFile(string $fileIdentifier): string
     {
         return GeneralUtility::tempnam('fal-tempfile-', '.' . PathUtility::pathinfo($fileIdentifier, PATHINFO_EXTENSION));
     }
@@ -138,26 +127,13 @@ abstract class AbstractDriver implements DriverInterface
      * into account. This helps mitigating problems with case-insensitive
      * databases.
      *
-     * @param string $identifier
-     * @return string
+     * @phpstan-param non-empty-string $identifier
+     * @phpstan-return non-empty-string
      */
-    public function hashIdentifier($identifier)
+    public function hashIdentifier(string $identifier): string
     {
         $identifier = $this->canonicalizeAndCheckFileIdentifier($identifier);
         return sha1($identifier);
-    }
-
-    /**
-     * Basic implementation of the method that does directly return the
-     * file name as is.
-     *
-     * @param string $fileName Input string, typically the body of a fileName
-     * @param string $charset Charset of the a fileName (defaults to current charset; depending on context)
-     * @return string Output string with any characters not matching [.a-zA-Z0-9_-] is substituted by '_' and trailing dots removed
-     */
-    public function sanitizeFileName($fileName, $charset = '')
-    {
-        return $fileName;
     }
 
     /**
@@ -166,10 +142,8 @@ abstract class AbstractDriver implements DriverInterface
      * underlying file system treats the identifiers; the setting should
      * therefore always reflect the file system and not try to change its
      * behaviour
-     *
-     * @return bool
      */
-    public function isCaseSensitiveFileSystem()
+    public function isCaseSensitiveFileSystem(): bool
     {
         if (isset($this->configuration['caseSensitive'])) {
             return (bool)$this->configuration['caseSensitive'];
@@ -180,25 +154,24 @@ abstract class AbstractDriver implements DriverInterface
     /**
      * Makes sure the path given as parameter is valid
      *
-     * @param string $filePath The file path (most times filePath)
-     * @return string
+     * @phpstan-param non-empty-string $filePath The file path (most times filePath)
+     * @phpstan-return non-empty-string
      */
-    abstract protected function canonicalizeAndCheckFilePath($filePath);
+    abstract protected function canonicalizeAndCheckFilePath(string $filePath): string;
 
     /**
      * Makes sure the identifier given as parameter is valid
      *
-     * @param string $fileIdentifier The file Identifier
-     * @return string
-     * @throws \TYPO3\CMS\Core\Resource\Exception\InvalidPathException
+     * @phpstan-param non-empty-string $fileIdentifier The file Identifier
+     * @phpstan-return non-empty-string
      */
-    abstract protected function canonicalizeAndCheckFileIdentifier($fileIdentifier);
+    abstract protected function canonicalizeAndCheckFileIdentifier(string $fileIdentifier): string;
 
     /**
      * Makes sure the identifier given as parameter is valid
      *
-     * @param string $folderIdentifier The folder identifier
-     * @return string
+     * @phpstan-param non-empty-string $folderIdentifier The folder identifier
+     * @phpstan-return non-empty-string
      */
-    abstract protected function canonicalizeAndCheckFolderIdentifier($folderIdentifier);
+    abstract protected function canonicalizeAndCheckFolderIdentifier(string $folderIdentifier): string;
 }

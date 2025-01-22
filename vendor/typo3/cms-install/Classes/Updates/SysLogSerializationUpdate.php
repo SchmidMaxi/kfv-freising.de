@@ -24,6 +24,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Install\Attribute\UpgradeWizard;
 
 /**
+ * @since 12.1
  * @internal This class is only meant to be used within EXT:install and is not part of the TYPO3 Core API.
  */
 #[UpgradeWizard('sysLogSerialization')]
@@ -94,13 +95,15 @@ class SysLogSerializationUpdate implements UpgradeWizardInterface
     protected function hasRecordsToUpdate(): bool
     {
         $queryBuilder = $this->getPreparedQueryBuilder();
-        return (bool)$queryBuilder
-            ->count('uid')
+        $record = $queryBuilder
+            ->select('uid')
             ->where(
                 $queryBuilder->expr()->like('log_data', $queryBuilder->createNamedParameter('a:%'))
             )
+            ->setMaxResults(1)
             ->executeQuery()
             ->fetchOne();
+        return $record !== false;
     }
 
     protected function getPreparedQueryBuilder(): QueryBuilder

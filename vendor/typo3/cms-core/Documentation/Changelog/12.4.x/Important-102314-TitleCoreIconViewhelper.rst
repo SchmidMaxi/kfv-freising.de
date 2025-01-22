@@ -25,13 +25,13 @@ make sense of.
 Example
 =======
 
-.. code-block:: html
+..  code-block:: html
 
-	<core:icon title="Open actions menu" identifier="actions-menu" />
+    <core:icon title="Open actions menu" identifier="actions-menu" />
 
 This will be rendered as:
 
-.. code-block:: html
+..  code-block:: html
 
     <span
         title="Open actions menu"

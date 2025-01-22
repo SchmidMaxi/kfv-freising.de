@@ -9,7 +9,6 @@ return [
         'crdate' => 'crdate',
         'versioningWS' => true,
         'groupName' => 'system',
-        'origUid' => 't3_origuid',
         'sortby' => 'sorting',
         'delete' => 'deleted',
         'enablecolumns' => [
@@ -33,34 +32,11 @@ return [
                 'required' => true,
             ],
         ],
-        'description' => [
-            'label' => 'LLL:EXT:frontend/Resources/Private/Language/locallang_tca.xlf:backend_layout.description',
-            'config' => [
-                'type' => 'text',
-                'rows' => 5,
-                'cols' => 25,
-            ],
-        ],
         'config' => [
             'label' => 'LLL:EXT:frontend/Resources/Private/Language/locallang_tca.xlf:backend_layout.config',
             'config' => [
                 'type' => 'text',
                 'renderType' => 'belayoutwizard',
-            ],
-        ],
-        'hidden' => [
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.enabled',
-            'exclude' => true,
-            'config' => [
-                'type' => 'check',
-                'renderType' => 'checkboxToggle',
-                'default' => 0,
-                'items' => [
-                    [
-                        'label' => '',
-                        'invertStateDisplay' => true,
-                    ],
-                ],
             ],
         ],
         'icon' => [
@@ -69,7 +45,7 @@ return [
             'config' => [
                 'type' => 'file',
                 'allowed' => 'common-image-types',
-                'maxitems' => 1,
+                'relationship' => 'manyToOne',
                 'appearance' => [
                     'createNewRelationLinkTitle' => 'LLL:EXT:frontend/Resources/Private/Language/locallang_ttc.xlf:images.addFileReference',
                 ],

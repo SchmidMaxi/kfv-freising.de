@@ -42,8 +42,8 @@ use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\WorkspaceRestriction;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
 use TYPO3\CMS\Core\Domain\Repository\PageRepository;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Page\PageRenderer;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
@@ -93,6 +93,7 @@ class RecordListController
         $queryParams = $request->getQueryParams();
 
         $this->pageRenderer->addInlineLanguageLabelFile('EXT:core/Resources/Private/Language/locallang_mod_web_list.xlf');
+        $this->pageRenderer->loadJavaScriptModule('@typo3/backend/element/dispatch-modal-button.js');
 
         BackendUtility::lockRecords();
         $perms_clause = $backendUser->getPagePermsClause(Permission::PAGE_SHOW);
@@ -100,7 +101,6 @@ class RecordListController
         $pointer = max(0, (int)($parsedBody['pointer'] ?? $queryParams['pointer'] ?? 0));
         $this->table = (string)($parsedBody['table'] ?? $queryParams['table'] ?? '');
         $this->searchTerm = trim((string)($parsedBody['searchTerm'] ?? $queryParams['searchTerm'] ?? ''));
-        $search_levels = (int)($parsedBody['search_levels'] ?? $queryParams['search_levels'] ?? 0);
         $this->returnUrl = GeneralUtility::sanitizeLocalUrl((string)($parsedBody['returnUrl'] ?? $queryParams['returnUrl'] ?? ''));
         $cmd = (string)($parsedBody['cmd'] ?? $queryParams['cmd'] ?? '');
         $siteLanguages = $request->getAttribute('site')->getAvailableLanguages($this->getBackendUserAuthentication(), false, $this->id);
@@ -115,12 +115,10 @@ class RecordListController
         // Check if Clipboard is allowed to be shown:
         if (($this->modTSconfig['enableClipBoard'] ?? '') === 'activated') {
             $this->allowClipboard = false;
-            $this->moduleData->set('clipBoard', true);
         } elseif (($this->modTSconfig['enableClipBoard'] ?? '') === 'selectable') {
             $this->allowClipboard = true;
         } elseif (($this->modTSconfig['enableClipBoard'] ?? '') === 'deactivated') {
             $this->allowClipboard = false;
-            $this->moduleData->set('clipBoard', false);
         }
 
         // Check if SearchBox is allowed to be shown:
@@ -134,6 +132,9 @@ class RecordListController
             $this->allowSearch = true;
             $this->moduleData->set('searchBox', true);
         }
+
+        // Get search levels from request or fall back to default, set in TSconifg
+        $search_levels = (int)($parsedBody['search_levels'] ?? $queryParams['search_levels'] ?? $this->modTSconfig['searchLevel.']['default'] ?? 0);
 
         $dbList = GeneralUtility::makeInstance(DatabaseRecordList::class);
         $dbList->setRequest($request);
@@ -233,7 +234,7 @@ class RecordListController
         $clipboardCommandArray = array_replace_recursive($request->getQueryParams()['CB'] ?? [], $request->getParsedBody()['CB'] ?? []);
         if ($cmd === 'copyMarked' || $cmd === 'removeMarked') {
             // Get CBC from request, and map the element values (true => copy, false => remove)
-            $CBC = array_map(static fn() => ($cmd === 'copyMarked'), (array)($request->getParsedBody()['CBC'] ?? []));
+            $CBC = array_map(static fn(): bool => ($cmd === 'copyMarked'), (array)($request->getParsedBody()['CBC'] ?? []));
             $cmd_table = (string)($request->getParsedBody()['cmd_table'] ?? $request->getQueryParams()['cmd_table'] ?? '');
             // Cleanup CBC
             $clipboardCommandArray['el'] = $clipboard->cleanUpCBC($CBC, $cmd_table);
@@ -298,7 +299,7 @@ class RecordListController
                 ->setHref((string)$this->uriBuilder->buildUriFromRoute('db_new', ['id' => $this->id, 'returnUrl' => $listUrl]))
                 ->setTitle($lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_mod_web_list.xlf:newRecordGeneral'))
                 ->setShowLabelText(true)
-                ->setIcon($this->iconFactory->getIcon('actions-plus', Icon::SIZE_SMALL));
+                ->setIcon($this->iconFactory->getIcon('actions-plus', IconSize::SMALL));
             $buttonBar->addButton($newRecordButton, ButtonBar::BUTTON_POSITION_LEFT, 10);
         }
 
@@ -312,7 +313,7 @@ class RecordListController
                     ->setDataAttributes($previewDataAttributes ?? [])
                     ->setDisabled(!$previewDataAttributes)
                     ->setTitle($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.showPage'))
-                    ->setIcon($this->iconFactory->getIcon('actions-view-page', Icon::SIZE_SMALL))
+                    ->setIcon($this->iconFactory->getIcon('actions-view-page', IconSize::SMALL))
                     ->setShowLabelText(true);
                 $buttonBar->addButton($viewButton, ButtonBar::BUTTON_POSITION_LEFT, 15);
             }
@@ -331,7 +332,7 @@ class RecordListController
                     ->setHref((string)$editLink)
                     ->setTitle($lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_mod_web_list.xlf:editPage'))
                     ->setShowLabelText(true)
-                    ->setIcon($this->iconFactory->getIcon('actions-page-open', Icon::SIZE_SMALL));
+                    ->setIcon($this->iconFactory->getIcon('actions-page-open', IconSize::SMALL));
                 $buttonBar->addButton($editButton, ButtonBar::BUTTON_POSITION_LEFT, 20);
             }
         }
@@ -350,7 +351,7 @@ class RecordListController
                         'bs-content' => $confirmMessage,
                         'title' => $lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_mod_web_list.xlf:clip_paste'),
                     ])
-                    ->setIcon($this->iconFactory->getIcon('actions-document-paste-into', Icon::SIZE_SMALL))
+                    ->setIcon($this->iconFactory->getIcon('actions-document-paste-into', IconSize::SMALL))
                     ->setShowLabelText(true);
                 $buttonBar->addButton($pasteButton, ButtonBar::BUTTON_POSITION_LEFT, 40);
             }
@@ -362,7 +363,7 @@ class RecordListController
                 ->setDataAttributes(['id' => $this->id])
                 ->setClasses('t3js-clear-page-cache')
                 ->setTitle($lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.clear_cache'))
-                ->setIcon($this->iconFactory->getIcon('actions-system-cache-clear', Icon::SIZE_SMALL));
+                ->setIcon($this->iconFactory->getIcon('actions-system-cache-clear', IconSize::SMALL));
             $buttonBar->addButton($clearCacheButton, ButtonBar::BUTTON_POSITION_RIGHT);
         }
         if ($table
@@ -375,7 +376,7 @@ class RecordListController
                 $exportButton = $buttonBar->makeLinkButton()
                     ->setHref($url)
                     ->setTitle($lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:rm.export'))
-                    ->setIcon($this->iconFactory->getIcon('actions-document-export-t3d', Icon::SIZE_SMALL))
+                    ->setIcon($this->iconFactory->getIcon('actions-document-export-t3d', IconSize::SMALL))
                     ->setShowLabelText(true);
                 $buttonBar->addButton($exportButton, ButtonBar::BUTTON_POSITION_LEFT, 50);
             }
@@ -384,7 +385,7 @@ class RecordListController
         $reloadButton = $buttonBar->makeLinkButton()
             ->setHref($listUrl)
             ->setTitle($lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.reload'))
-            ->setIcon($this->iconFactory->getIcon('actions-refresh', Icon::SIZE_SMALL));
+            ->setIcon($this->iconFactory->getIcon('actions-refresh', IconSize::SMALL));
         $buttonBar->addButton($reloadButton, ButtonBar::BUTTON_POSITION_RIGHT);
 
         // ViewMode
@@ -445,7 +446,7 @@ class RecordListController
                 ->setHref($this->returnUrl)
                 ->setTitle($lang->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.goBack'))
                 ->setShowLabelText(true)
-                ->setIcon($this->iconFactory->getIcon('actions-view-go-back', Icon::SIZE_SMALL));
+                ->setIcon($this->iconFactory->getIcon('actions-view-go-back', IconSize::SMALL));
             $buttonBar->addButton($backButton, ButtonBar::BUTTON_POSITION_LEFT);
         }
     }
@@ -534,7 +535,7 @@ class RecordListController
 
     /**
      * Returns the configuration of mod.web_list.noViewWithDokTypes or the
-     * default value 254 (Sys Folders) and 255 (Recycler), if not set.
+     * default value 254 (Sys Folders), if not set.
      */
     protected function canCreatePreviewLink(): bool
     {
@@ -543,7 +544,6 @@ class RecordListController
         } else {
             $noViewDokTypes = [
                 PageRepository::DOKTYPE_SYSFOLDER,
-                PageRepository::DOKTYPE_RECYCLER,
             ];
         }
         return !in_array($this->pageInfo['doktype'] ?? 0, $noViewDokTypes);
@@ -615,11 +615,11 @@ class RecordListController
             'searchTerm' => $this->searchTerm,
         ], $params);
 
-        $params = array_filter($params, static function ($value) {
+        $params = array_filter($params, static function (mixed $value): bool {
             return $value !== null && trim((string)$value) !== '';
         });
 
-        return (string)$this->uriBuilder->buildUriFromRoute($request->getAttribute('route')->getOption('_identifier'), $params);
+        return (string)$this->uriBuilder->buildUriFromRequest($request, $params);
     }
 
     /**

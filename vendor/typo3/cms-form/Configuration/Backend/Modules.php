@@ -13,13 +13,14 @@ return [
         'iconIdentifier' => 'module-form',
         'inheritNavigationComponentFromMainModule' => false,
         'labels' => 'LLL:EXT:form/Resources/Private/Language/locallang_module.xlf',
+        'path' => '/module/manage/forms',
         'extensionName' => 'Form',
         'controllerActions' => [
             FormManagerController::class => [
                 'index', 'show', 'create', 'duplicate', 'references', 'delete',
             ],
             FormEditorController::class => [
-                'index', 'saveForm', 'renderFormPage', 'renderRenderableOptions',
+                'index', 'saveForm', 'renderFormPage',
             ],
         ],
     ],

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -15,119 +17,143 @@
 
 namespace TYPO3\CMS\Backend\View\BackendLayout;
 
-use TYPO3\CMS\Core\SingletonInterface;
-
 /**
  * Context that is forwarded to backend layout data providers.
  */
-class DataProviderContext implements SingletonInterface
+final class DataProviderContext
 {
     /**
-     * @var int
+     * @todo: Declare arguments non-optional in TYPO3 v14.
      */
-    protected $pageId;
+    public function __construct(
+        public int $pageId = 0,
+        public string $tableName = '',
+        public string $fieldName = '',
+        public array $data = [],
+        public array $pageTsConfig = [],
+    ) {}
 
     /**
-     * @var string
+     * @deprecated: Remove all setters and getters and set readonly in TYPO3 v14.
      */
-    protected $tableName;
-
-    /**
-     * @var string
-     */
-    protected $fieldName;
-
-    /**
-     * @var array
-     */
-    protected $data;
-
-    /**
-     * @var array
-     */
-    protected $pageTsConfig;
-
-    /**
-     * @return int
-     */
-    public function getPageId()
+    public function getPageId(): int
     {
+        trigger_error(
+            'DataProviderContext->getPageId() is deprecated and will be removed in TYPO3 v14.0. Use $dataProviderContext->pageId instead.',
+            E_USER_DEPRECATED
+        );
         return $this->pageId;
     }
 
     /**
-     * @param int $pageId
-     * @return DataProviderContext
+     * @deprecated: Remove all setters and getters and set readonly in TYPO3 v14.
      */
-    public function setPageId($pageId)
+    public function setPageId(int $pageId): self
     {
+        trigger_error(
+            'DataProviderContext->setPageId() is deprecated and will be removed in TYPO3 v14.0. Create readonly instances using __construct().',
+            E_USER_DEPRECATED
+        );
         $this->pageId = $pageId;
         return $this;
     }
 
     /**
-     * @return string
+     * @deprecated: Remove all setters and getters and set readonly in TYPO3 v14.
      */
-    public function getTableName()
+    public function getTableName(): string
     {
+        trigger_error(
+            'DataProviderContext->getTableName() is deprecated and will be removed in TYPO3 v14.0. Use $dataProviderContext->tableName instead.',
+            E_USER_DEPRECATED
+        );
         return $this->tableName;
     }
 
     /**
-     * @param string $tableName
-     * @return DataProviderContext
+     * @deprecated: Remove all setters and getters and set readonly in TYPO3 v14.
      */
-    public function setTableName($tableName)
+    public function setTableName(string $tableName): self
     {
+        trigger_error(
+            'DataProviderContext->setTableName() is deprecated and will be removed in TYPO3 v14.0. Create readonly instances using __construct().',
+            E_USER_DEPRECATED
+        );
         $this->tableName = $tableName;
         return $this;
     }
 
     /**
-     * @return string
+     * @deprecated: Remove all setters and getters and set readonly in TYPO3 v14.
      */
-    public function getFieldName()
+    public function getFieldName(): string
     {
+        trigger_error(
+            'DataProviderContext->getFieldName() is deprecated and will be removed in TYPO3 v14.0. Use $dataProviderContext->fieldName instead.',
+            E_USER_DEPRECATED
+        );
         return $this->fieldName;
     }
 
     /**
-     * @param string $fieldName
-     * @return DataProviderContext
+     * @deprecated: Remove all setters and getters and set readonly in TYPO3 v14.
      */
-    public function setFieldName($fieldName)
+    public function setFieldName(string $fieldName): self
     {
+        trigger_error(
+            'DataProviderContext->setFieldName() is deprecated and will be removed in TYPO3 v14.0. Create readonly instances using __construct().',
+            E_USER_DEPRECATED
+        );
         $this->fieldName = $fieldName;
         return $this;
     }
 
     /**
-     * @return array
+     * @deprecated: Remove all setters and getters and set readonly in TYPO3 v14.
      */
-    public function getData()
+    public function getData(): array
     {
+        trigger_error(
+            'DataProviderContext->getData() is deprecated and will be removed in TYPO3 v14.0. Use $dataProviderContext->data instead.',
+            E_USER_DEPRECATED
+        );
         return $this->data;
     }
 
     /**
-     * @return DataProviderContext
+     * @deprecated: Remove all setters and getters and set readonly in TYPO3 v14.
      */
-    public function setData(array $data)
+    public function setData(array $data): self
     {
+        trigger_error(
+            'DataProviderContext->setData() is deprecated and will be removed in TYPO3 v14.0. Create readonly instances using __construct().',
+            E_USER_DEPRECATED
+        );
         $this->data = $data;
         return $this;
     }
 
+    /**
+     * @deprecated: Remove all setters and getters and set readonly in TYPO3 v14.
+     */
     public function getPageTsConfig(): array
     {
+        trigger_error(
+            'DataProviderContext->getPageTsConfig() is deprecated and will be removed in TYPO3 v14.0. Use $dataProviderContext->pageTsConfig instead.',
+            E_USER_DEPRECATED
+        );
         return $this->pageTsConfig;
     }
 
     /**
-     * @return DataProviderContext
+     * @deprecated: Remove all setters and getters and set readonly in TYPO3 v14.
      */
-    public function setPageTsConfig(array $pageTsConfig)
+    public function setPageTsConfig(array $pageTsConfig): self
     {
+        trigger_error(
+            'DataProviderContext->setPageTsConfig() is deprecated and will be removed in TYPO3 v14.0. Create readonly instances using __construct().',
+            E_USER_DEPRECATED
+        );
         $this->pageTsConfig = $pageTsConfig;
         return $this;
     }

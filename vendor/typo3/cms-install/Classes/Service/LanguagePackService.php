@@ -28,7 +28,6 @@ use TYPO3\CMS\Core\Localization\Locales;
 use TYPO3\CMS\Core\Package\PackageManager;
 use TYPO3\CMS\Core\Registry;
 use TYPO3\CMS\Core\Service\Archive\ZipService;
-use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\PathUtility;
 use TYPO3\CMS\Install\Service\Event\ModifyLanguagePackRemoteBaseUrlEvent;
@@ -52,33 +51,15 @@ class LanguagePackService
      */
     protected $registry;
 
-    /**
-     * @var EventDispatcherInterface
-     */
-    protected $eventDispatcher;
-
-    /**
-     * @var RequestFactory
-     */
-    protected $requestFactory;
-
-    /**
-     * @var LoggerInterface
-     */
-    protected $logger;
-
     private const LANGUAGE_PACK_URL = 'https://localize.typo3.org/xliff/';
 
     public function __construct(
-        EventDispatcherInterface $eventDispatcher,
-        RequestFactory $requestFactory,
-        LoggerInterface $logger
+        protected readonly EventDispatcherInterface $eventDispatcher,
+        protected readonly RequestFactory $requestFactory,
+        protected readonly LoggerInterface $logger
     ) {
-        $this->eventDispatcher = $eventDispatcher;
         $this->locales = GeneralUtility::makeInstance(Locales::class);
         $this->registry = GeneralUtility::makeInstance(Registry::class);
-        $this->requestFactory = $requestFactory;
-        $this->logger = $logger;
     }
 
     /**
@@ -172,8 +153,8 @@ class LanguagePackService
                 'title' => $title,
                 'type' => $package->getPackageMetaData()->getPackageType(),
             ];
-            if (!empty(ExtensionManagementUtility::getExtensionIcon($path, false))) {
-                $extension['icon'] = PathUtility::getAbsoluteWebPath(ExtensionManagementUtility::getExtensionIcon($path, true));
+            if (!empty($package->getPackageIcon())) {
+                $extension['icon'] = PathUtility::getAbsoluteWebPath($package->getPackagePath() . $package->getPackageIcon());
             }
             $extension['packs'] = [];
             foreach ($activeLanguages as $iso) {

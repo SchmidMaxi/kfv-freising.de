@@ -21,7 +21,9 @@ use TYPO3\CMS\Backend\Routing\PreviewUriBuilder;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Backend\View\PageLayoutContext;
-use TYPO3\CMS\Core\Imaging\Icon;
+use TYPO3\CMS\Core\Imaging\IconSize;
+use TYPO3\CMS\Core\Schema\Capability\TcaSchemaCapability;
+use TYPO3\CMS\Core\Schema\TcaSchemaFactory;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Versioning\VersionState;
 
@@ -44,34 +46,15 @@ use TYPO3\CMS\Core\Versioning\VersionState;
  */
 class LanguageColumn extends AbstractGridObject
 {
-    /**
-     * @var array
-     */
-    protected $localizationConfiguration = [];
-
-    /**
-     * @var Grid|null
-     */
-    protected $grid;
-
-    /**
-     * @var array
-     */
-    protected $translationInfo = [
-        'hasStandaloneContent' => false,
-        'hasTranslations' => false,
-        'untranslatedRecordUids' => [],
-    ];
-
-    public function __construct(PageLayoutContext $context, Grid $grid, array $translationInfo)
-    {
+    public function __construct(
+        protected PageLayoutContext $context,
+        protected readonly Grid $grid,
+        protected readonly array $translationInfo
+    ) {
         parent::__construct($context);
-        $this->localizationConfiguration = BackendUtility::getPagesTSconfig($context->getPageId())['mod.']['web_layout.']['localization.'] ?? [];
-        $this->grid = $grid;
-        $this->translationInfo = $translationInfo;
     }
 
-    public function getGrid(): ?Grid
+    public function getGrid(): Grid
     {
         return $this->grid;
     }
@@ -80,7 +63,7 @@ class LanguageColumn extends AbstractGridObject
     {
         $localizedPageRecord = $this->context->getLocalizedPageRecord() ?? $this->context->getPageRecord();
         return BackendUtility::wrapClickMenuOnIcon(
-            $this->iconFactory->getIconForRecord('pages', $localizedPageRecord, Icon::SIZE_SMALL)->render(),
+            $this->iconFactory->getIconForRecord('pages', $localizedPageRecord, IconSize::SMALL)->render(),
             'pages',
             $localizedPageRecord['uid']
         );
@@ -88,7 +71,7 @@ class LanguageColumn extends AbstractGridObject
 
     public function getAllowTranslate(): bool
     {
-        return ($this->localizationConfiguration['enableTranslate'] ?? true) && !($this->getTranslationData()['hasStandAloneContent'] ?? false);
+        return $this->context->getDrawingConfiguration()->translateModeForTranslationsAllowed() && !($this->getTranslationData()['hasStandAloneContent'] ?? false);
     }
 
     public function getTranslationData(): array
@@ -98,23 +81,13 @@ class LanguageColumn extends AbstractGridObject
 
     public function getAllowTranslateCopy(): bool
     {
-        return ($this->localizationConfiguration['enableCopy'] ?? true) && !($this->getTranslationData()['hasTranslations'] ?? false);
-    }
-
-    public function getTranslatePageTitle(): string
-    {
-        return $this->getLanguageService()->sL('LLL:EXT:backend/Resources/Private/Language/locallang_layout.xlf:newPageContent_translate');
+        return $this->context->getDrawingConfiguration()->copyModeForTranslationsAllowed() && !($this->getTranslationData()['hasTranslations'] ?? false);
     }
 
     public function getAllowEditPage(): bool
     {
         return $this->getBackendUser()->check('tables_modify', 'pages')
-            && $this->getBackendUser()->checkLanguageAccess($this->context->getSiteLanguage()->getLanguageId());
-    }
-
-    public function getPageEditTitle(): string
-    {
-        return $this->getLanguageService()->sL('LLL:EXT:backend/Resources/Private/Language/locallang_layout.xlf:edit');
+            && $this->getBackendUser()->checkLanguageAccess($this->context->getSiteLanguage());
     }
 
     public function getPageEditUrl(): string
@@ -126,26 +99,18 @@ class LanguageColumn extends AbstractGridObject
                     $pageRecordUid => 'edit',
                 ],
             ],
-            // Disallow manual adjustment of the language field for pages
-            'overrideVals' => [
-                'pages' => [
-                    'sys_language_uid' => $this->context->getSiteLanguage()->getLanguageId(),
-                ],
-            ],
-            'returnUrl' => $GLOBALS['TYPO3_REQUEST']->getAttribute('normalizedParams')->getRequestUri(),
+            'returnUrl' => $this->context->getCurrentRequest()->getAttribute('normalizedParams')->getRequestUri(),
         ];
-        $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
-        return (string)$uriBuilder->buildUriFromRoute('record_edit', $urlParameters);
+        // Disallow manual adjustment of the language field for pages
+        if (($languageField = GeneralUtility::makeInstance(TcaSchemaFactory::class)->get('pages')->getCapability(TcaSchemaCapability::Language)->getLanguageField()->getName()) !== '') {
+            $urlParameters['overrideVals']['pages'][$languageField] = $this->context->getSiteLanguage()->getLanguageId();
+        }
+        return (string)GeneralUtility::makeInstance(UriBuilder::class)->buildUriFromRoute('record_edit', $urlParameters);
     }
 
     public function getAllowViewPage(): bool
     {
-        return !VersionState::cast($this->context->getPageRecord()['t3ver_state'])->equals(VersionState::DELETE_PLACEHOLDER);
-    }
-
-    public function getViewPageLinkTitle(): string
-    {
-        return $this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.showPage');
+        return VersionState::tryFrom($this->context->getPageRecord()['t3ver_state'] ?? 0) !== VersionState::DELETE_PLACEHOLDER;
     }
 
     public function getPreviewUrlAttributes(): string

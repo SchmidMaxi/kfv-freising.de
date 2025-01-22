@@ -28,6 +28,9 @@ class JavaScriptRenderer
     protected ImportMap $importMap;
     protected int $javaScriptModuleInstructionFlags = 0;
 
+    /**
+     * @internal Only to be used by PageRenderer
+     */
     public static function create(?string $uri = null): self
     {
         $uri ??= PathUtility::getAbsoluteWebPath(
@@ -36,10 +39,13 @@ class JavaScriptRenderer
         return GeneralUtility::makeInstance(static::class, $uri);
     }
 
+    /**
+     * @internal
+     */
     public function __construct(string $handlerUri)
     {
         $this->handlerUri = $handlerUri;
-        $this->items = GeneralUtility::makeInstance(JavaScriptItems::class);
+        $this->items = new JavaScriptItems();
         $this->importMap = GeneralUtility::makeInstance(ImportMapFactory::class)->create();
     }
 
@@ -53,22 +59,6 @@ class JavaScriptRenderer
         if ($instruction->shallLoadImportMap()) {
             $this->importMap->includeImportsFor($instruction->getName());
         }
-        if ($instruction->shallLoadRequireJs()) {
-            $url = $this->importMap->resolveImport($instruction->getName() . '.js');
-
-            if ($url) {
-                // @todo: Map instruction to an ImportMap instruction. (to avoid loading requirejs if not actually required)
-                $this->javaScriptModuleInstructionFlags |= JavaScriptModuleInstruction::FLAG_LOAD_IMPORTMAP;
-            } else {
-                // If no modules were included, the RequireJS module is not yet
-                // backed by an ES6 replacement, therefore we load all importmap configurations,
-                // in order for all dependencies to be loadable.
-                // But we do only do this for logged in backend users (to avoid extension-list disclosure)
-                if (!empty($GLOBALS['BE_USER']->user['uid'])) {
-                    $this->includeAllImports();
-                }
-            }
-        }
         $this->javaScriptModuleInstructionFlags |= $instruction->getFlags();
         $this->items->addJavaScriptModuleInstruction($instruction);
     }
@@ -76,11 +66,6 @@ class JavaScriptRenderer
     public function hasImportMap(): bool
     {
         return ($this->javaScriptModuleInstructionFlags & JavaScriptModuleInstruction::FLAG_LOAD_IMPORTMAP) === JavaScriptModuleInstruction::FLAG_LOAD_IMPORTMAP;
-    }
-
-    public function hasRequirejs(): bool
-    {
-        return ($this->javaScriptModuleInstructionFlags & JavaScriptModuleInstruction::FLAG_LOAD_REQUIRE_JS) === JavaScriptModuleInstruction::FLAG_LOAD_REQUIRE_JS;
     }
 
     /**

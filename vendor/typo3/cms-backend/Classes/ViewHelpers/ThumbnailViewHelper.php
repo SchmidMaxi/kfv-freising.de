@@ -40,7 +40,7 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\Exception;
  *
  * Output::
  *
- *    <img src="/typo3/thumbnails?token=&parameters={"fileId":1,"configuration":{"_context":"Image.Preview","maxWidth":64,"maxHeight":64}}&hmac="
+ *    <img src="https://www.example.com/typo3/image/process?token=XYZ&id=1160"
  *         width="64"
  *         height="64"
  *         alt="alt set in image record"
@@ -55,7 +55,7 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\Exception;
  *
  * Output::
  *
- *    <img src="/typo3/thumbnails?token=&parameters={"fileId":1,"configuration":{"_context":"Image.Preview","maxWidth":64,"maxHeight":64}}&hmac="
+ *    <img src="https://www.example.com/typo3/image/process?token=XYZ&id=1160"
  *         width="64"
  *         height="64"
  *         alt="alt set in image record"
@@ -79,20 +79,11 @@ final class ThumbnailViewHelper extends AbstractTagBasedViewHelper
     public function initializeArguments(): void
     {
         parent::initializeArguments();
-        $this->registerUniversalTagAttributes();
-        $this->registerTagAttribute('alt', 'string', 'Specifies an alternate text for an image', false);
-        $this->registerTagAttribute('ismap', 'string', 'Specifies an image as a server-side image-map. Rarely used. Look at usemap instead', false);
-        $this->registerTagAttribute('usemap', 'string', 'Specifies an image as a client-side image-map', false);
-        $this->registerTagAttribute('loading', 'string', 'Native lazy-loading for images property. Can be "lazy", "eager" or "auto"', false);
-        $this->registerTagAttribute('decoding', 'string', 'Provides an image decoding hint to the browser. Can be "sync", "async" or "auto"', false);
-
-        // @todo: Probably not all of these are needed for thumbnails. That's a left over from ImageViewHelper
         $this->registerArgument('src', 'string', 'a path to a file, a combined FAL identifier or an uid (int). If $treatIdAsReference is set, the integer is considered the uid of the sys_file_reference record. If you already got a FAL object, consider using the $image parameter instead', false, '');
         $this->registerArgument('treatIdAsReference', 'bool', 'given src argument is a sys_file_reference record', false, false);
         $this->registerArgument('image', 'object', 'a FAL object (\\TYPO3\\CMS\\Core\\Resource\\File or \\TYPO3\\CMS\\Core\\Resource\\FileReference)');
         $this->registerArgument('crop', 'string|bool', 'overrule cropping of image (setting to FALSE disables the cropping set in FileReference)');
         $this->registerArgument('cropVariant', 'string', 'select a cropping variant, in case multiple croppings have been specified or stored in FileReference', false, 'default');
-        $this->registerArgument('fileExtension', 'string', 'Custom file extension to use');
 
         $this->registerArgument('width', 'string', 'width of the image. This can be a numeric value representing the fixed width of the image in pixels. But you can also perform simple calculations by adding "m" or "c" to the value. See imgResource.width for possible options.');
         $this->registerArgument('height', 'string', 'height of the image. This can be a numeric value representing the fixed height of the image in pixels. But you can also perform simple calculations by adding "m" or "c" to the value. See imgResource.width for possible options.');
@@ -100,7 +91,6 @@ final class ThumbnailViewHelper extends AbstractTagBasedViewHelper
         $this->registerArgument('minHeight', 'int', 'minimum height of the image');
         $this->registerArgument('maxWidth', 'int', 'maximum width of the image');
         $this->registerArgument('maxHeight', 'int', 'maximum height of the image');
-        $this->registerArgument('absolute', 'bool', 'Force absolute URL', false, false);
         $this->registerArgument('context', 'string', 'context for image rendering', false, ProcessedFile::CONTEXT_IMAGEPREVIEW);
     }
 
@@ -144,7 +134,7 @@ final class ThumbnailViewHelper extends AbstractTagBasedViewHelper
             if (!$this->tag->hasAttribute('data-focus-area')) {
                 $focusArea = $cropVariantCollection->getFocusArea($cropVariant);
                 if (!$focusArea->isEmpty()) {
-                    $this->tag->addAttribute('data-focus-area', $focusArea->makeAbsoluteBasedOnFile($image));
+                    $this->tag->addAttribute('data-focus-area', (string)$focusArea->makeAbsoluteBasedOnFile($image));
                 }
             }
             $this->tag->addAttribute('src', $imageUri);
@@ -155,10 +145,11 @@ final class ThumbnailViewHelper extends AbstractTagBasedViewHelper
             $title = $image->getProperty('title');
 
             // The alt-attribute is mandatory to have valid html-code, therefore add it even if it is empty
-            if (empty($this->arguments['alt'])) {
+            if (empty($this->additionalArguments['alt'])) {
                 $this->tag->addAttribute('alt', $alt);
             }
-            if (empty($this->arguments['title']) && $title) {
+            if (empty($this->additionalArguments['title']) && $title) {
+                // Set title from image if not manually given as VH argument
                 $this->tag->addAttribute('title', $title);
             }
         } catch (ResourceDoesNotExistException $e) {

@@ -32,7 +32,6 @@ return [
         ],
         'indexed_search' => [
             'catdoc' => '/usr/bin/',
-            'debugMode' => '0',
             'deleteFromIndexAfterEditing' => '1',
             'disableFrontendIndexing' => '0',
             'enableMetaphoneSearch' => '1',
@@ -60,6 +59,7 @@ return [
             'dateTimeNotRequired' => '0',
             'hidePageTreeForAdministrationModule' => '0',
             'manualSorting' => '0',
+            'pageTreePluginPreview' => '1',
             'prependAtCopy' => '1',
             'resourceFolderImporter' => '/news_import',
             'rteForTeaser' => '0',
@@ -67,6 +67,10 @@ return [
             'slugBehaviour' => 'unique',
             'storageUidImporter' => '1',
             'tagPid' => '1',
+        ],
+        'redirects' => [
+            'showCheckIntegrityInfoInReports' => '1',
+            'showCheckIntegrityInfoInReportsSeconds' => '86400',
         ],
         'scheduler' => [
             'maxLifetime' => '1440',
@@ -85,8 +89,6 @@ return [
     ],
     'GFX' => [
         'processor' => 'GraphicsMagick',
-        'processor_allowTemporaryMasksAsPng' => false,
-        'processor_colorspace' => 'RGB',
         'processor_effects' => false,
         'processor_enabled' => true,
         'processor_path' => '/usr/bin/',
@@ -147,7 +149,6 @@ return [
         'exceptionalErrors' => 4096,
         'features' => [
             'security.backend.enforceContentSecurityPolicy' => true,
-            'security.usePasswordPolicyForFrontendUsers' => true,
         ],
         'sitename' => 'KFV Freising e.V.',
         'systemMaintainers' => [

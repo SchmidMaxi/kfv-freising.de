@@ -20,10 +20,10 @@ namespace TYPO3\CMS\Redirects\Service;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UriInterface;
-use Psr\Log\LoggerAwareInterface;
-use Psr\Log\LoggerAwareTrait;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use TYPO3\CMS\Core\Cache\Frontend\PhpFrontend;
 use TYPO3\CMS\Core\Context\Context;
-use TYPO3\CMS\Core\Domain\Repository\PageRepository;
 use TYPO3\CMS\Core\Exception\SiteNotFoundException;
 use TYPO3\CMS\Core\Http\Uri;
 use TYPO3\CMS\Core\LinkHandling\LinkService;
@@ -35,9 +35,13 @@ use TYPO3\CMS\Core\Routing\PageArguments;
 use TYPO3\CMS\Core\Site\Entity\NullSite;
 use TYPO3\CMS\Core\Site\Entity\SiteInterface;
 use TYPO3\CMS\Core\Site\SiteFinder;
+use TYPO3\CMS\Core\TypoScript\FrontendTypoScriptFactory;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\HttpUtility;
+use TYPO3\CMS\Frontend\Aspect\PreviewAspect;
+use TYPO3\CMS\Frontend\Cache\CacheInstruction;
 use TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController;
+use TYPO3\CMS\Frontend\Page\PageInformationFactory;
 use TYPO3\CMS\Frontend\Typolink\AbstractTypolinkBuilder;
 use TYPO3\CMS\Frontend\Typolink\UnableToLinkException;
 use TYPO3\CMS\Redirects\Event\BeforeRedirectMatchDomainEvent;
@@ -45,17 +49,20 @@ use TYPO3\CMS\Redirects\Event\BeforeRedirectMatchDomainEvent;
 /**
  * Creates a proper URL to redirect from a matched redirect of a request
  *
- * @internal due to some possible refactorings in TYPO3 v9
+ * @internal due to some possible refactorings
  */
-class RedirectService implements LoggerAwareInterface
+class RedirectService
 {
-    use LoggerAwareTrait;
-
     public function __construct(
         private readonly RedirectCacheService $redirectCacheService,
         private readonly LinkService $linkService,
         private readonly SiteFinder $siteFinder,
-        private readonly EventDispatcherInterface $eventDispatcher
+        private readonly EventDispatcherInterface $eventDispatcher,
+        private readonly PageInformationFactory $pageInformationFactory,
+        private readonly FrontendTypoScriptFactory $frontendTypoScriptFactory,
+        #[Autowire(service: 'cache.typoscript')]
+        private readonly PhpFrontend $typoScriptCache,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /**
@@ -374,7 +381,6 @@ class RedirectService implements LoggerAwareInterface
      *
      * Instantiating is done by the middleware stack (see Configuration/RequestMiddlewares.php)
      *
-     * - TSFE->fe_user
      * - TSFE->sys_page
      * - TSFE->config
      * - TSFE->cObj
@@ -389,40 +395,61 @@ class RedirectService implements LoggerAwareInterface
      */
     protected function bootFrontendController(SiteInterface $site, array $queryParams, ServerRequestInterface $originalRequest): TypoScriptFrontendController
     {
-        // Request without a matching site configuration can still have matching redirects and the $site already
-        // contains a resolved site based on the target or a default one. If the request site is a NullSite, we
-        // replace it here to ensure proper TypoScript loading, which is essential if no sys_template record exist
-        // and extension like `b13/bolt` providing fake template rows. Without this, they could work properly.
-        //
-        // There is currently not a better way to pass this down, and is fixed in TYPO3 v13 due to a more extensive
-        // rework and implementation of a TypoScript factory already.
-        //
-        // See https://forge.typo3.org/issues/103395
-        if ($originalRequest->getAttribute('site') instanceof NullSite) {
-            $originalRequest = $originalRequest
-                ->withAttribute('site', $site)
-                ->withAttribute('siteLanguage', $site->getDefaultLanguage());
-        }
-        $controller = GeneralUtility::makeInstance(
-            TypoScriptFrontendController::class,
-            GeneralUtility::makeInstance(Context::class),
+        $context = GeneralUtility::makeInstance(Context::class);
+        $context->setAspect('frontend.preview', new PreviewAspect());
+        $cacheInstruction = $originalRequest->getAttribute('frontend.cache.instruction', new CacheInstruction());
+        $originalRequest = $originalRequest->withAttribute('frontend.cache.instruction', $cacheInstruction);
+        $queryParamsFromRequest = $originalRequest->getQueryParams();
+        $mergedQueryParams = array_merge($queryParams, $queryParamsFromRequest);
+        $originalRequest = $originalRequest->withQueryParams($mergedQueryParams);
+        $pageArguments = new PageArguments($site->getRootPageId(), '0', []);
+        $originalRequest = $originalRequest->withAttribute('routing', $pageArguments);
+        $pageInformation = $this->pageInformationFactory->create($originalRequest);
+        $originalRequest = $originalRequest->withAttribute('frontend.page.information', $pageInformation);
+        $controller = GeneralUtility::makeInstance(TypoScriptFrontendController::class);
+        $controller->initializePageRenderer($originalRequest);
+        $expressionMatcherVariables = $this->getExpressionMatcherVariables($site, $originalRequest, $controller);
+        $frontendTypoScript = $this->frontendTypoScriptFactory->createSettingsAndSetupConditions(
             $site,
-            $site->getDefaultLanguage(),
-            new PageArguments($site->getRootPageId(), '0', []),
-            $originalRequest->getAttribute('frontend.user')
+            $pageInformation->getSysTemplateRows(),
+            // $originalRequest does not contain site ...
+            $expressionMatcherVariables,
+            $this->typoScriptCache,
         );
-        $controller->determineId($originalRequest);
-        $controller->calculateLinkVars($queryParams);
-        $newRequest = $controller->getFromCache($originalRequest);
-        $controller->releaseLocks();
+        $frontendTypoScript = $this->frontendTypoScriptFactory->createSetupConfigOrFullSetup(
+            false,
+            $frontendTypoScript,
+            $site,
+            $pageInformation->getSysTemplateRows(),
+            $expressionMatcherVariables,
+            '0',
+            $this->typoScriptCache,
+            null
+        );
+        $newRequest = $originalRequest->withAttribute('frontend.typoscript', $frontendTypoScript);
         $controller->newCObj($newRequest);
         if (!isset($GLOBALS['TSFE']) || !$GLOBALS['TSFE'] instanceof TypoScriptFrontendController) {
             $GLOBALS['TSFE'] = $controller;
         }
-        if (!$GLOBALS['TSFE']->sys_page instanceof PageRepository) {
-            $GLOBALS['TSFE']->sys_page = GeneralUtility::makeInstance(PageRepository::class);
-        }
         return $controller;
+    }
+
+    private function getExpressionMatcherVariables(SiteInterface $site, ServerRequestInterface $request, TypoScriptFrontendController $controller): array
+    {
+        $pageInformation = $request->getAttribute('frontend.page.information');
+        $topDownRootLine = $pageInformation->getRootLine();
+        $localRootline = $pageInformation->getLocalRootLine();
+        ksort($topDownRootLine);
+        return [
+            'request' => $request,
+            'pageId' => $pageInformation->getId(),
+            'page' => $pageInformation->getPageRecord(),
+            'fullRootLine' => $topDownRootLine,
+            'localRootLine' => $localRootline,
+            'site' => $site,
+            'siteLanguage' => $request->getAttribute('language'),
+            'tsfe' => $controller,
+        ];
     }
 
     protected function replaceRegExpCaptureGroup(array $matchedRedirect, UriInterface $uri, array $linkDetails): array

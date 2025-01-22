@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Core\Page;
 
 use Psr\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Core\Page\Event\BeforeJavaScriptsRenderingEvent;
 use TYPO3\CMS\Core\Page\Event\BeforeStylesheetsRenderingEvent;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\ConsumableNonce;
@@ -27,23 +28,13 @@ use TYPO3\CMS\Core\Utility\PathUtility;
 /**
  * @internal The AssetRenderer is used for the asset rendering and is not public API
  */
-class AssetRenderer
+#[Autoconfigure(public: true)]
+readonly class AssetRenderer
 {
-    /**
-     * @var AssetCollector
-     */
-    protected $assetCollector;
-
-    /**
-     * @var EventDispatcherInterface
-     */
-    protected $eventDispatcher;
-
-    public function __construct(?AssetCollector $assetCollector = null, ?EventDispatcherInterface $eventDispatcher = null)
-    {
-        $this->assetCollector = $assetCollector ?? GeneralUtility::makeInstance(AssetCollector::class);
-        $this->eventDispatcher = $eventDispatcher ?? GeneralUtility::makeInstance(EventDispatcherInterface::class);
-    }
+    public function __construct(
+        protected AssetCollector $assetCollector,
+        protected EventDispatcherInterface $eventDispatcher,
+    ) {}
 
     public function renderInlineJavaScript($priority = false, ?ConsumableNonce $nonce = null): string
     {
@@ -65,7 +56,10 @@ class AssetRenderer
         $template = '<script%attributes%></script>';
         $assets = $this->assetCollector->getJavaScripts($priority);
         foreach ($assets as &$assetData) {
-            $assetData['attributes']['src'] = $this->getAbsoluteWebPath($assetData['source']);
+            if (!($assetData['options']['external'] ?? false)) {
+                $assetData['source'] = $this->getAbsoluteWebPath($assetData['source']);
+            }
+            $assetData['attributes']['src'] = $assetData['source'];
         }
         return $this->render($assets, $template, $nonce);
     }
@@ -90,7 +84,10 @@ class AssetRenderer
         $template = '<link%attributes% ' . $endingSlash . '>';
         $assets = $this->assetCollector->getStyleSheets($priority);
         foreach ($assets as &$assetData) {
-            $assetData['attributes']['href'] = $this->getAbsoluteWebPath($assetData['source']);
+            if (!($assetData['options']['external'] ?? false)) {
+                $assetData['source'] = $this->getAbsoluteWebPath($assetData['source']);
+            }
+            $assetData['attributes']['href'] = $assetData['source'];
             $assetData['attributes']['rel'] = $assetData['attributes']['rel'] ?? 'stylesheet';
         }
         return $this->render($assets, $template, $nonce);

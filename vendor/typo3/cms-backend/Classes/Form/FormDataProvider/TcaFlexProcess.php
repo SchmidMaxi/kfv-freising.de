@@ -31,14 +31,11 @@ class TcaFlexProcess implements FormDataProviderInterface
     /**
      * Determine possible pageTsConfig overrides and apply them to ds.
      * Determine available languages and sanitize ds for further processing. Then kick
-     * and validate further details like excluded fields. Finally for each possible
+     * and validate further details like excluded fields. Finally, for each possible
      * value and ds, call FormDataCompiler with set FlexFormSegment group to resolve
      * single field stuff like item processor functions.
-     *
-     * @throws \RuntimeException
-     * @return array
      */
-    public function addData(array $result)
+    public function addData(array $result): array
     {
         foreach ($result['processedTca']['columns'] as $fieldName => $fieldConfig) {
             if (empty($fieldConfig['config']['type']) || $fieldConfig['config']['type'] !== 'flex') {
@@ -50,7 +47,6 @@ class TcaFlexProcess implements FormDataProviderInterface
                     1480765571
                 );
             }
-            $this->scanForInvalidSectionContainerTca($result, $fieldName);
             $dataStructureIdentifier = $result['processedTca']['columns'][$fieldName]['config']['dataStructureIdentifier'];
             $simpleDataStructureIdentifier = $this->getSimplifiedDataStructureIdentifier($dataStructureIdentifier);
             $pageTsConfigOfFlex = $this->getPageTsOfFlex($result, $fieldName, $simpleDataStructureIdentifier);
@@ -68,95 +64,6 @@ class TcaFlexProcess implements FormDataProviderInterface
         }
 
         return $result;
-    }
-
-    /**
-     * Some TCA combinations like inline or nesting a section into a section container is not
-     * supported and throws exceptions.
-     *
-     * @param array $result Result array
-     * @param string $fieldName Handled field name
-     * @throws \UnexpectedValueException
-     */
-    protected function scanForInvalidSectionContainerTca(array $result, string $fieldName)
-    {
-        $dataStructure = $result['processedTca']['columns'][$fieldName]['config']['ds'];
-        if (!isset($dataStructure['sheets']) || !is_array($dataStructure['sheets'])) {
-            return;
-        }
-        foreach ($dataStructure['sheets'] as $dataStructureSheetName => $dataStructureSheetDefinition) {
-            if (!isset($dataStructureSheetDefinition['ROOT']['el']) || !is_array($dataStructureSheetDefinition['ROOT']['el'])) {
-                continue;
-            }
-            $dataStructureFields = $dataStructureSheetDefinition['ROOT']['el'];
-            foreach ($dataStructureFields as $dataStructureFieldName => $dataStructureFieldDefinition) {
-                if (isset($dataStructureFieldDefinition['type']) && $dataStructureFieldDefinition['type'] === 'array'
-                    && isset($dataStructureFieldDefinition['section']) && (string)$dataStructureFieldDefinition['section'] === '1'
-                ) {
-                    if (isset($dataStructureFieldDefinition['el']) && is_array($dataStructureFieldDefinition['el'])) {
-                        foreach ($dataStructureFieldDefinition['el'] as $containerName => $containerConfiguration) {
-                            if (isset($containerConfiguration['el']) && is_array($containerConfiguration['el'])) {
-                                foreach ($containerConfiguration['el'] as $singleFieldName => $singleFieldConfiguration) {
-                                    // Nesting type=inline in container sections is not supported. Throw an exception if configured.
-                                    if (isset($singleFieldConfiguration['config']['type'])) {
-                                        if ($singleFieldConfiguration['config']['type'] === 'inline') {
-                                            throw new \UnexpectedValueException(
-                                                'Invalid flex form data structure on field name "' . $fieldName . '" with element "' . $singleFieldName . '"'
-                                                . ' in section container "' . $containerName . '": Nesting inline elements in flex form'
-                                                . ' sections is not allowed.',
-                                                1458745468
-                                            );
-                                        }
-                                        if ($singleFieldConfiguration['config']['type'] === 'file') {
-                                            throw new \UnexpectedValueException(
-                                                'Invalid flex form data structure on field name "' . $fieldName . '" with element "' . $singleFieldName . '"'
-                                                . ' in section container "' . $containerName . '": Nesting file elements in flex form'
-                                                . ' sections is not allowed.',
-                                                1664473929
-                                            );
-                                        }
-                                    }
-
-                                    // Nesting sections is not supported. Throw an exception if configured.
-                                    if (is_array($singleFieldConfiguration)
-                                        && isset($singleFieldConfiguration['type']) && $singleFieldConfiguration['type'] === 'array'
-                                        && isset($singleFieldConfiguration['section']) && (string)$singleFieldConfiguration['section'] === '1'
-                                    ) {
-                                        throw new \UnexpectedValueException(
-                                            'Invalid flex form data structure on field name "' . $fieldName . '" with element "' . $singleFieldName . '"'
-                                            . ' in section container "' . $containerName . '": Nesting sections in container elements'
-                                            . ' sections is not allowed.',
-                                            1458745712
-                                        );
-                                    }
-
-                                    // Nesting type="select", type="category" and type="group" within section
-                                    // containers is not supported, the data storage can not deal with that and in
-                                    // general it is not supported to add a named reference to the anonymous section
-                                    // container structure.
-                                    if (isset($singleFieldConfiguration['config']['MM'])
-                                        && in_array($singleFieldConfiguration['config']['type'] ?? '', ['select', 'category', 'group'], true)
-                                    ) {
-                                        throw new \UnexpectedValueException(
-                                            'Invalid flex form data structure on field name "' . $fieldName . '" with element "' . $singleFieldName . '"'
-                                            . ' in section container "' . $containerName . '": Nesting select, category and group elements in flex form'
-                                            . ' sections is not allowed with MM relations.',
-                                            1481647089
-                                        );
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } elseif (isset($dataStructureFieldDefinition['type']) xor isset($dataStructureFieldDefinition['section'])) {
-                    // type without section is not ok
-                    throw new \UnexpectedValueException(
-                        'Broken data structure on field name ' . $fieldName . '. section without type or vice versa is not allowed',
-                        1440685208
-                    );
-                }
-            }
-        }
     }
 
     /**
@@ -190,8 +97,6 @@ class TcaFlexProcess implements FormDataProviderInterface
      * more comments on this.
      * Another limitation is that the current syntax in both pageTsConfig and exclude fields does not
      * consider flex form section containers at all.
-     *
-     * @param string $dataStructureIdentifier
      */
     protected function getSimplifiedDataStructureIdentifier(string $dataStructureIdentifier): string
     {
@@ -398,10 +303,6 @@ class TcaFlexProcess implements FormDataProviderInterface
                         foreach ($containerValueArray as $aContainerIdentifier => $aContainerArray) {
                             if (is_array($aContainerArray)) {
                                 foreach ($aContainerArray as $aContainerName => $aContainerElementArray) {
-                                    if ($aContainerName === '_TOGGLE') {
-                                        // Don't handle internal toggle state field
-                                        continue;
-                                    }
                                     if (!isset($dataStructureFields[$dataStructureFieldName]['el'][$aContainerName])) {
                                         // Container not defined in ds
                                         continue;

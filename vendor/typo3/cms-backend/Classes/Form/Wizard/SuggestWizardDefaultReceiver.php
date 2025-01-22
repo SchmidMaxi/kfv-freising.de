@@ -23,8 +23,8 @@ use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Core\Database\Query\QueryHelper;
 use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\WorkspaceRestriction;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -149,15 +149,19 @@ class SuggestWizardDefaultReceiver
         $this->params = &$params;
         $start = $recursionCounter * $maxQueryResults;
         $this->prepareSelectStatement();
-        $this->prepareOrderByStatement();
-        $result = $this->queryBuilder->select($this->table . '.*')
+
+        $selectQueryBuilder = clone $this->queryBuilder;
+        $selectQueryBuilder = $this->prepareOrderByStatement($selectQueryBuilder);
+        $result = $selectQueryBuilder->select($this->table . '.*')
             ->from($this->table)
             ->setFirstResult($start)
             ->setMaxResults($maxQueryResults)
             ->executeQuery();
-        $allRowsCount = $this->queryBuilder
+
+        $countQueryBuilder = clone $this->queryBuilder;
+        $allRowsCount = $countQueryBuilder
             ->count($this->table . '.uid')
-            ->resetQueryPart('orderBy')
+            ->from($this->table)
             ->executeQuery()
             ->fetchOne();
         if ($allRowsCount) {
@@ -172,7 +176,7 @@ class SuggestWizardDefaultReceiver
                 if (!$this->checkRecordAccess($row, $row['uid'])) {
                     continue;
                 }
-                $icon = $this->iconFactory->getIconForRecord($this->table, $row, Icon::SIZE_SMALL);
+                $icon = $this->iconFactory->getIconForRecord($this->table, $row, IconSize::SMALL);
                 $uid = ($row['t3ver_oid'] ?? 0) > 0 ? $row['t3ver_oid'] : $row['uid'];
                 $path = $this->getRecordPath($row, $uid);
                 $label = $this->getLabel($row);
@@ -217,7 +221,7 @@ class SuggestWizardDefaultReceiver
             }
         }
         if (!empty($this->allowedPages)) {
-            $pidList = array_map('intval', $this->allowedPages);
+            $pidList = array_map(intval(...), $this->allowedPages);
             if (!empty($pidList)) {
                 $this->queryBuilder->andWhere(
                     $expressionBuilder->in('pid', $pidList)
@@ -262,7 +266,7 @@ class SuggestWizardDefaultReceiver
      */
     protected function splitSearchString(string $searchString): array
     {
-        return str_getcsv($searchString, ' ');
+        return str_getcsv($searchString, ' ', '"', '\\');
     }
 
     /**
@@ -290,16 +294,17 @@ class SuggestWizardDefaultReceiver
      * Prepares the clause by which the result elements are sorted. See description of ORDER BY in
      * SQL standard for reference.
      */
-    protected function prepareOrderByStatement()
+    protected function prepareOrderByStatement(QueryBuilder $queryBuilder): QueryBuilder
     {
         if (empty($this->config['orderBy'])) {
-            $this->queryBuilder->addOrderBy($GLOBALS['TCA'][$this->table]['ctrl']['label']);
+            $queryBuilder->addOrderBy($GLOBALS['TCA'][$this->table]['ctrl']['label']);
         } else {
             foreach (QueryHelper::parseOrderBy($this->config['orderBy']) as $orderPair) {
                 [$fieldName, $order] = $orderPair;
-                $this->queryBuilder->addOrderBy($fieldName, $order);
+                $queryBuilder->addOrderBy($fieldName, $order);
             }
         }
+        return $queryBuilder;
     }
 
     /**

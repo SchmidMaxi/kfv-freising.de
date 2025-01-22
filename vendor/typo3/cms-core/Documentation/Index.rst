@@ -1,8 +1,8 @@
 .. include:: /Includes.rst.txt
 
-==========
-TYPO3 Core
-==========
+====================
+TYPO3 Core Changelog
+====================
 
 :Extension key:
    core
@@ -43,6 +43,7 @@ documented here.
    :maxdepth: 1
    :titlesonly:
 
+   Changelog-13
    Changelog-12
    Changelog-11
    Changelog-10

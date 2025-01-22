@@ -19,6 +19,7 @@ namespace TYPO3\CMS\Extbase\Persistence\Generic;
 
 use Psr\EventDispatcher\EventDispatcherInterface;
 use TYPO3\CMS\Core\Context\LanguageAspect;
+use TYPO3\CMS\Core\Database\Query\QueryHelper;
 use TYPO3\CMS\Core\Database\ReferenceIndex;
 use TYPO3\CMS\Core\SingletonInterface;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -41,6 +42,7 @@ use TYPO3\CMS\Extbase\Persistence\Generic\Mapper\DataMapper;
 use TYPO3\CMS\Extbase\Persistence\ObjectStorage;
 use TYPO3\CMS\Extbase\Persistence\PersistenceManagerInterface;
 use TYPO3\CMS\Extbase\Persistence\QueryInterface;
+use TYPO3\CMS\Extbase\Reflection\ClassSchema\Property;
 use TYPO3\CMS\Extbase\Reflection\ObjectAccess;
 use TYPO3\CMS\Extbase\Reflection\ReflectionService;
 
@@ -51,93 +53,32 @@ use TYPO3\CMS\Extbase\Reflection\ReflectionService;
  */
 class Backend implements BackendInterface, SingletonInterface
 {
-    /**
-     * @var \TYPO3\CMS\Extbase\Persistence\Generic\Session
-     */
-    protected $session;
-
-    /**
-     * @var \TYPO3\CMS\Extbase\Persistence\PersistenceManagerInterface
-     */
-    protected $persistenceManager;
-
-    /**
-     * @var \TYPO3\CMS\Extbase\Persistence\ObjectStorage
-     */
-    protected $aggregateRootObjects;
-
-    /**
-     * @var \TYPO3\CMS\Extbase\Persistence\ObjectStorage
-     */
-    protected $deletedEntities;
-
-    /**
-     * @var \TYPO3\CMS\Extbase\Persistence\ObjectStorage
-     */
-    protected $changedEntities;
-
-    /**
-     * @var \TYPO3\CMS\Extbase\Persistence\ObjectStorage
-     */
-    protected $visitedDuringPersistence;
-
-    /**
-     * @var \TYPO3\CMS\Extbase\Reflection\ReflectionService
-     */
-    protected $reflectionService;
-
-    /**
-     * @var \TYPO3\CMS\Extbase\Persistence\Generic\Storage\BackendInterface
-     */
-    protected $storageBackend;
-
-    /**
-     * @var \TYPO3\CMS\Extbase\Persistence\Generic\Mapper\DataMapFactory
-     */
-    protected $dataMapFactory;
-
-    /**
-     * The TYPO3 reference index object
-     *
-     * @var \TYPO3\CMS\Core\Database\ReferenceIndex
-     */
-    protected $referenceIndex;
-
-    /**
-     * @var \TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface
-     */
-    protected $configurationManager;
-
-    /**
-     * @var EventDispatcherInterface
-     */
-    protected $eventDispatcher;
+    protected PersistenceManagerInterface $persistenceManager;
+    protected ObjectStorage $aggregateRootObjects;
+    protected ObjectStorage $deletedEntities;
+    protected ObjectStorage $changedEntities;
+    protected ObjectStorage $visitedDuringPersistence;
+    protected ReferenceIndex $referenceIndex;
 
     /**
      * Constructs the backend
+     * @todo Refactor unit tests, so all promoted properties can be readonly
      */
     public function __construct(
-        ConfigurationManagerInterface $configurationManager,
-        Session $session,
-        ReflectionService $reflectionService,
-        \TYPO3\CMS\Extbase\Persistence\Generic\Storage\BackendInterface $storageBackend,
-        DataMapFactory $dataMapFactory,
-        EventDispatcherInterface $eventDispatcher
+        protected readonly ConfigurationManagerInterface $configurationManager,
+        protected Session $session,
+        protected readonly ReflectionService $reflectionService,
+        protected \TYPO3\CMS\Extbase\Persistence\Generic\Storage\BackendInterface $storageBackend,
+        protected DataMapFactory $dataMapFactory,
+        protected readonly EventDispatcherInterface $eventDispatcher
     ) {
-        $this->configurationManager = $configurationManager;
-        $this->session = $session;
-        $this->reflectionService = $reflectionService;
-        $this->storageBackend = $storageBackend;
-        $this->dataMapFactory = $dataMapFactory;
-        $this->eventDispatcher = $eventDispatcher;
-
         $this->referenceIndex = GeneralUtility::makeInstance(ReferenceIndex::class);
         $this->aggregateRootObjects = new ObjectStorage();
         $this->deletedEntities = new ObjectStorage();
         $this->changedEntities = new ObjectStorage();
     }
 
-    public function setPersistenceManager(PersistenceManagerInterface $persistenceManager)
+    public function setPersistenceManager(PersistenceManagerInterface $persistenceManager): void
     {
         $this->persistenceManager = $persistenceManager;
     }
@@ -260,7 +201,7 @@ class Backend implements BackendInterface, SingletonInterface
     /**
      * Traverse and persist all aggregate roots and their object graph.
      */
-    protected function persistObjects()
+    protected function persistObjects(): void
     {
         $this->visitedDuringPersistence = new ObjectStorage();
         foreach ($this->aggregateRootObjects as $object) {
@@ -277,10 +218,8 @@ class Backend implements BackendInterface, SingletonInterface
 
     /**
      * Persists the given object.
-     *
-     * @param DomainObjectInterface $object The object to be inserted
      */
-    protected function persistObject(DomainObjectInterface $object)
+    protected function persistObject(DomainObjectInterface $object): void
     {
         if (isset($this->visitedDuringPersistence[$object])) {
             return;
@@ -319,11 +258,11 @@ class Backend implements BackendInterface, SingletonInterface
                     if ($propertyValue->_isNew()) {
                         $this->insertObject($propertyValue, $object, $propertyName);
                     }
-                    $row[$columnMap->getColumnName()] = $this->getPlainValue($propertyValue);
+                    $row[$columnMap->getColumnName()] = $this->getPlainValue($propertyValue, null, $property);
                 }
                 $queue[] = $propertyValue;
             } elseif ($object->_isNew() || $object->_isDirty($propertyName)) {
-                $row[$columnMap->getColumnName()] = $this->getPlainValue($propertyValue, $columnMap);
+                $row[$columnMap->getColumnName()] = $this->getPlainValue($propertyValue, $columnMap, $property);
             }
         }
         if (!empty($row)) {
@@ -339,19 +278,14 @@ class Backend implements BackendInterface, SingletonInterface
 
     /**
      * Checks, if the property value is lazy loaded and was not initialized
-     *
-     * @param mixed $propertyValue The property value
-     * @return bool
      */
-    protected function propertyValueIsLazyLoaded($propertyValue)
+    protected function propertyValueIsLazyLoaded(mixed $propertyValue): bool
     {
         if ($propertyValue instanceof LazyLoadingProxy) {
             return true;
         }
-        if ($propertyValue instanceof LazyObjectStorage) {
-            if ($propertyValue->isInitialized() === false) {
-                return true;
-            }
+        if (($propertyValue instanceof LazyObjectStorage) && $propertyValue->isInitialized() === false) {
+            return true;
         }
         return false;
     }
@@ -367,8 +301,12 @@ class Backend implements BackendInterface, SingletonInterface
      * @param string $propertyName The name of the property holding the object storage.
      * @param array $row The row array of the parent object to be persisted. It's passed by reference and gets filled with either a comma separated list of uids (csv) or the number of contained objects.
      */
-    protected function persistObjectStorage(ObjectStorage $objectStorage, DomainObjectInterface $parentObject, $propertyName, array &$row)
-    {
+    protected function persistObjectStorage(
+        ObjectStorage $objectStorage,
+        DomainObjectInterface $parentObject,
+        string $propertyName,
+        array &$row
+    ): void {
         $className = get_class($parentObject);
         $dataMapper = GeneralUtility::makeInstance(DataMapper::class);
         $columnMap = $this->dataMapFactory->buildDataMap($className)->getColumnMap($propertyName);
@@ -393,7 +331,7 @@ class Backend implements BackendInterface, SingletonInterface
             }
             $cleanProperty = $parentObject->_getCleanProperty($propertyName);
             if ($object->_isNew()) {
-                $this->insertObject($object);
+                $this->insertObject($object, $parentObject);
                 $this->attachObjectToParentObject($object, $parentObject, $propertyName, $sortingPosition);
                 // if a new object is inserted, all objects after this need to have their sorting updated
                 $updateSortingOfFollowing = true;
@@ -425,12 +363,8 @@ class Backend implements BackendInterface, SingletonInterface
     /**
      * Returns the removed objects determined by a comparison of the clean property value
      * with the actual property value.
-     *
-     * @param DomainObjectInterface $object The object
-     * @param string $propertyName
-     * @return array An array of removed objects
      */
-    protected function getRemovedChildObjects(DomainObjectInterface $object, $propertyName)
+    protected function getRemovedChildObjects(DomainObjectInterface $object, string $propertyName): array
     {
         $removedObjects = [];
         $cleanPropertyValue = $object->_getCleanProperty($propertyName);
@@ -447,12 +381,13 @@ class Backend implements BackendInterface, SingletonInterface
 
     /**
      * Updates the fields defining the relation between the object and the parent object.
-     *
-     * @param string $parentPropertyName
-     * @param int $sortingPosition
      */
-    protected function attachObjectToParentObject(DomainObjectInterface $object, DomainObjectInterface $parentObject, $parentPropertyName, $sortingPosition = 0)
-    {
+    protected function attachObjectToParentObject(
+        DomainObjectInterface $object,
+        DomainObjectInterface $parentObject,
+        string $parentPropertyName,
+        int $sortingPosition = 0
+    ): void {
         $parentDataMap = $this->dataMapFactory->buildDataMap(get_class($parentObject));
 
         $parentColumnMap = $parentDataMap->getColumnMap($parentPropertyName);
@@ -465,12 +400,13 @@ class Backend implements BackendInterface, SingletonInterface
 
     /**
      * Updates the fields defining the relation between the object and the parent object.
-     *
-     * @param string $parentPropertyName
-     * @param int $sortingPosition
      */
-    protected function updateRelationOfObjectToParentObject(DomainObjectInterface $object, DomainObjectInterface $parentObject, $parentPropertyName, $sortingPosition = 0)
-    {
+    protected function updateRelationOfObjectToParentObject(
+        DomainObjectInterface $object,
+        DomainObjectInterface $parentObject,
+        string $parentPropertyName,
+        int $sortingPosition = 0
+    ): void {
         $parentDataMap = $this->dataMapFactory->buildDataMap(get_class($parentObject));
         $parentColumnMap = $parentDataMap->getColumnMap($parentPropertyName);
         if ($parentColumnMap->getTypeOfRelation() === Relation::HAS_MANY) {
@@ -483,12 +419,14 @@ class Backend implements BackendInterface, SingletonInterface
     /**
      * Updates fields defining the relation between the object and the parent object in relation has-many.
      *
-     * @param string $parentPropertyName
-     * @param int $sortingPosition
-     * @throws \TYPO3\CMS\Extbase\Persistence\Exception\IllegalRelationTypeException
+     * @throws IllegalRelationTypeException
      */
-    protected function attachObjectToParentObjectRelationHasMany(DomainObjectInterface $object, DomainObjectInterface $parentObject, $parentPropertyName, $sortingPosition = 0)
-    {
+    protected function attachObjectToParentObjectRelationHasMany(
+        DomainObjectInterface $object,
+        DomainObjectInterface $parentObject,
+        string $parentPropertyName,
+        int $sortingPosition = 0
+    ): void {
         $parentDataMap = $this->dataMapFactory->buildDataMap(get_class($parentObject));
         $parentColumnMap = $parentDataMap->getColumnMap($parentPropertyName);
         if ($parentColumnMap->getTypeOfRelation() !== Relation::HAS_MANY) {
@@ -522,11 +460,12 @@ class Backend implements BackendInterface, SingletonInterface
 
     /**
      * Updates the fields defining the relation between the object and the parent object.
-     *
-     * @param string $parentPropertyName
      */
-    protected function detachObjectFromParentObject(DomainObjectInterface $object, DomainObjectInterface $parentObject, $parentPropertyName)
-    {
+    protected function detachObjectFromParentObject(
+        DomainObjectInterface $object,
+        DomainObjectInterface $parentObject,
+        string $parentPropertyName
+    ): void {
         $parentDataMap = $this->dataMapFactory->buildDataMap(get_class($parentObject));
         $parentColumnMap = $parentDataMap->getColumnMap($parentPropertyName);
         if ($parentColumnMap->getTypeOfRelation() === Relation::HAS_MANY) {
@@ -557,13 +496,12 @@ class Backend implements BackendInterface, SingletonInterface
 
     /**
      * Inserts an object in the storage backend
-     *
-     * @param DomainObjectInterface $object The object to be inserted in the storage
-     * @param DomainObjectInterface $parentObject The parentobject.
-     * @param string $parentPropertyName
      */
-    protected function insertObject(DomainObjectInterface $object, ?DomainObjectInterface $parentObject = null, $parentPropertyName = '')
-    {
+    protected function insertObject(
+        DomainObjectInterface $object,
+        ?DomainObjectInterface $parentObject = null,
+        string $parentPropertyName = ''
+    ): void {
         if ($object instanceof AbstractValueObject) {
             $result = $this->getUidOfAlreadyPersistedValueObject($object);
             if ($result !== null) {
@@ -596,7 +534,7 @@ class Backend implements BackendInterface, SingletonInterface
                     $row[$columnMap->getColumnName()] = 0;
                 }
             } elseif ($propertyValue !== null) {
-                $row[$columnMap->getColumnName()] = $this->getPlainValue($propertyValue, $columnMap);
+                $row[$columnMap->getColumnName()] = $this->getPlainValue($propertyValue, $columnMap, $property);
             }
         }
         $this->addCommonFieldsToRow($object, $row);
@@ -620,12 +558,23 @@ class Backend implements BackendInterface, SingletonInterface
                 $row[$parentColumnDataMap->getParentKeyFieldName()] = (int)$parentObject->getUid();
             }
         }
+
+        if ($parentObject) {
+            // Ensure a nested object respects the storage PID for new records or inherits the storage PID from
+            // the parent object.
+            $storagePidForObject = $this->determineStoragePageIdForNewRecord($object);
+            if ($storagePidForObject === 0) {
+                $storagePidForObject = $parentObject->getPid() ?? 0;
+            }
+            $row['pid'] = $storagePidForObject;
+        }
+
         $uid = $this->storageBackend->addRow($dataMap->getTableName(), $row);
         $localizedUid = $object->_getProperty(AbstractDomainObject::PROPERTY_LOCALIZED_UID);
         $identifier = $uid . ($localizedUid ? '_' . $localizedUid : '');
-        $object->_setProperty(AbstractDomainObject::PROPERTY_UID, (int)$uid);
+        $object->_setProperty(AbstractDomainObject::PROPERTY_UID, $uid);
         $object->setPid((int)$row['pid']);
-        if ((int)$uid >= 1) {
+        if ($uid >= 1) {
             $this->eventDispatcher->dispatch(new EntityAddedToPersistenceEvent($object));
         }
         $frameworkConfiguration = $this->configurationManager->getConfiguration(ConfigurationManagerInterface::CONFIGURATION_TYPE_FRAMEWORK);
@@ -633,7 +582,7 @@ class Backend implements BackendInterface, SingletonInterface
             $this->referenceIndex->updateRefIndexTable($dataMap->getTableName(), $uid);
         }
         $this->session->registerObject($object, $identifier);
-        if ((int)$uid >= 1) {
+        if ($uid >= 1) {
             $this->eventDispatcher->dispatch(new EntityFinalizedAfterPersistenceEvent($object));
         }
     }
@@ -641,10 +590,9 @@ class Backend implements BackendInterface, SingletonInterface
     /**
      * Tests, if the given Value Object already exists in the storage backend and if so, it returns the uid.
      *
-     * @param \TYPO3\CMS\Extbase\DomainObject\AbstractValueObject $object The object to be tested
      * @return int|null The matching uid if an object was found, else null
      */
-    protected function getUidOfAlreadyPersistedValueObject(AbstractValueObject $object)
+    protected function getUidOfAlreadyPersistedValueObject(AbstractValueObject $object): ?int
     {
         return $this->storageBackend->getUidOfAlreadyPersistedValueObject($object);
     }
@@ -652,14 +600,14 @@ class Backend implements BackendInterface, SingletonInterface
     /**
      * Inserts mm-relation into a relation table
      *
-     * @param DomainObjectInterface $object The related object
-     * @param DomainObjectInterface $parentObject The parent object
-     * @param string $propertyName The name of the parent object's property where the related objects are stored in
-     * @param int $sortingPosition Defaults to NULL
      * @return int The uid of the inserted row
      */
-    protected function insertRelationInRelationtable(DomainObjectInterface $object, DomainObjectInterface $parentObject, $propertyName, $sortingPosition = null)
-    {
+    protected function insertRelationInRelationtable(
+        DomainObjectInterface $object,
+        DomainObjectInterface $parentObject,
+        string $propertyName,
+        ?int $sortingPosition = null
+    ): int {
         $dataMap = $this->dataMapFactory->buildDataMap(get_class($parentObject));
         $columnMap = $dataMap->getColumnMap($propertyName);
         $parentUid = $parentObject->getUid();
@@ -679,11 +627,6 @@ class Backend implements BackendInterface, SingletonInterface
         if (is_array($relationTableMatchFields)) {
             $row = array_merge($relationTableMatchFields, $row);
         }
-        // @deprecated since v12. Remove in v13 with other MM_insert_fields places.
-        $relationTableInsertFields = $columnMap->getRelationTableInsertFields();
-        if (is_array($relationTableInsertFields)) {
-            $row = array_merge($relationTableInsertFields, $row);
-        }
         $res = $this->storageBackend->addRow($relationTableName, $row, true);
         return $res;
     }
@@ -691,20 +634,20 @@ class Backend implements BackendInterface, SingletonInterface
     /**
      * Updates mm-relation in a relation table
      *
-     * @param DomainObjectInterface $object The related object
-     * @param DomainObjectInterface $parentObject The parent object
-     * @param string $propertyName The name of the parent object's property where the related objects are stored in
-     * @param int $sortingPosition Defaults to NULL
      * @return bool TRUE if update was successfully
      */
-    protected function updateRelationInRelationTable(DomainObjectInterface $object, DomainObjectInterface $parentObject, $propertyName, $sortingPosition = 0)
-    {
+    protected function updateRelationInRelationTable(
+        DomainObjectInterface $object,
+        DomainObjectInterface $parentObject,
+        string $propertyName,
+        int $sortingPosition = 0
+    ): bool {
         $dataMap = $this->dataMapFactory->buildDataMap(get_class($parentObject));
         $columnMap = $dataMap->getColumnMap($propertyName);
         $row = [
             $columnMap->getParentKeyFieldName() => (int)$parentObject->getUid(),
             $columnMap->getChildKeyFieldName() => (int)$object->getUid(),
-            $columnMap->getChildSortByFieldName() => (int)$sortingPosition,
+            $columnMap->getChildSortByFieldName() => $sortingPosition,
         ];
         $relationTableName = $columnMap->getRelationTableName();
         $relationTableMatchFields = $columnMap->getRelationTableMatchFields();
@@ -721,12 +664,12 @@ class Backend implements BackendInterface, SingletonInterface
     /**
      * Delete all mm-relations of a parent from a relation table
      *
-     * @param DomainObjectInterface $parentObject The parent object
-     * @param string $parentPropertyName The name of the parent object's property where the related objects are stored in
      * @return bool TRUE if delete was successfully
      */
-    protected function deleteAllRelationsFromRelationtable(DomainObjectInterface $parentObject, $parentPropertyName)
-    {
+    protected function deleteAllRelationsFromRelationtable(
+        DomainObjectInterface $parentObject,
+        string $parentPropertyName
+    ): bool {
         $dataMap = $this->dataMapFactory->buildDataMap(get_class($parentObject));
         $columnMap = $dataMap->getColumnMap($parentPropertyName);
         $relationTableName = $columnMap->getRelationTableName();
@@ -743,14 +686,12 @@ class Backend implements BackendInterface, SingletonInterface
 
     /**
      * Delete an mm-relation from a relation table
-     *
-     * @param DomainObjectInterface $relatedObject The related object
-     * @param DomainObjectInterface $parentObject The parent object
-     * @param string $parentPropertyName The name of the parent object's property where the related objects are stored in
-     * @return bool
      */
-    protected function deleteRelationFromRelationtable(DomainObjectInterface $relatedObject, DomainObjectInterface $parentObject, $parentPropertyName)
-    {
+    protected function deleteRelationFromRelationtable(
+        DomainObjectInterface $relatedObject,
+        DomainObjectInterface $parentObject,
+        string $parentPropertyName
+    ): bool {
         $dataMap = $this->dataMapFactory->buildDataMap(get_class($parentObject));
         $columnMap = $dataMap->getColumnMap($parentPropertyName);
         $relationTableName = $columnMap->getRelationTableName();
@@ -768,12 +709,8 @@ class Backend implements BackendInterface, SingletonInterface
 
     /**
      * Updates a given object in the storage
-     *
-     * @param DomainObjectInterface $object The object to be updated
-     * @param array $row Row to be stored
-     * @return bool
      */
-    protected function updateObject(DomainObjectInterface $object, array $row)
+    protected function updateObject(DomainObjectInterface $object, array $row): bool
     {
         $dataMap = $this->dataMapFactory->buildDataMap(get_class($object));
         $this->addCommonFieldsToRow($object, $row);
@@ -789,7 +726,7 @@ class Backend implements BackendInterface, SingletonInterface
 
         $frameworkConfiguration = $this->configurationManager->getConfiguration(ConfigurationManagerInterface::CONFIGURATION_TYPE_FRAMEWORK);
         if (($frameworkConfiguration['persistence']['updateReferenceIndex'] ?? '') === '1') {
-            $this->referenceIndex->updateRefIndexTable($dataMap->getTableName(), $row['uid']);
+            $this->referenceIndex->updateRefIndexTable($dataMap->getTableName(), (int)$row['uid']);
         }
         return true;
     }
@@ -797,7 +734,7 @@ class Backend implements BackendInterface, SingletonInterface
     /**
      * Adds common database fields to a row
      */
-    protected function addCommonFieldsToRow(DomainObjectInterface $object, array &$row)
+    protected function addCommonFieldsToRow(DomainObjectInterface $object, array &$row): void
     {
         $dataMap = $this->dataMapFactory->buildDataMap(get_class($object));
         $this->addCommonDateFieldsToRow($object, $row);
@@ -811,10 +748,8 @@ class Backend implements BackendInterface, SingletonInterface
 
     /**
      * Adjusts the common date fields of the given row to the current time
-     *
-     * @param array $row The row to be updated
      */
-    protected function addCommonDateFieldsToRow(DomainObjectInterface $object, array &$row)
+    protected function addCommonDateFieldsToRow(DomainObjectInterface $object, array &$row): void
     {
         $dataMap = $this->dataMapFactory->buildDataMap(get_class($object));
         if ($object->_isNew() && $dataMap->getCreationDateColumnName() !== null) {
@@ -828,7 +763,7 @@ class Backend implements BackendInterface, SingletonInterface
     /**
      * Iterate over deleted aggregate root objects and process them
      */
-    protected function processDeletedObjects()
+    protected function processDeletedObjects(): void
     {
         foreach ($this->deletedEntities as $entity) {
             if ($this->session->hasObject($entity)) {
@@ -842,11 +777,8 @@ class Backend implements BackendInterface, SingletonInterface
 
     /**
      * Deletes an object
-     *
-     * @param DomainObjectInterface $object The object to be removed from the storage
-     * @param bool $markAsDeleted Whether to just flag the row deleted (default) or really delete it
      */
-    protected function removeEntity(DomainObjectInterface $object, $markAsDeleted = true)
+    protected function removeEntity(DomainObjectInterface $object, bool $markAsDeleted = true): void
     {
         $dataMap = $this->dataMapFactory->buildDataMap(get_class($object));
         $tableName = $dataMap->getTableName();
@@ -872,10 +804,8 @@ class Backend implements BackendInterface, SingletonInterface
 
     /**
      * Remove related objects
-     *
-     * @param DomainObjectInterface $object The object to scanned for related objects
      */
-    protected function removeRelatedObjects(DomainObjectInterface $object)
+    protected function removeRelatedObjects(DomainObjectInterface $object): void
     {
         $className = get_class($object);
         $dataMap = $this->dataMapFactory->buildDataMap($className);
@@ -911,10 +841,9 @@ class Backend implements BackendInterface, SingletonInterface
      * - If there is a TypoScript configuration "classes.CLASSNAME.newRecordStoragePid", that is used to store new records.
      * - If there is no such TypoScript configuration, it uses the first value of The "storagePid" taken for reading records.
      *
-     * @param DomainObjectInterface|null $object
      * @return int the storage Page ID where the object should be stored
      */
-    protected function determineStoragePageIdForNewRecord(?DomainObjectInterface $object = null)
+    protected function determineStoragePageIdForNewRecord(?DomainObjectInterface $object = null): int
     {
         $frameworkConfiguration = $this->configurationManager->getConfiguration(ConfigurationManagerInterface::CONFIGURATION_TYPE_FRAMEWORK);
         if ($object !== null) {
@@ -930,23 +859,52 @@ class Backend implements BackendInterface, SingletonInterface
             }
         }
         $storagePidList = GeneralUtility::intExplode(',', (string)($frameworkConfiguration['persistence']['storagePid'] ?? ''));
-        return (int)$storagePidList[0];
+        return $storagePidList[0];
     }
 
     /**
-     * Returns a plain value
-     *
-     * i.e. objects are flattened out if possible.
-     * Checks explicitly for null values as DataMapper's getPlainValue would convert this to 'NULL'
+     * Returns a plain value, i.e. objects are flattened out if possible.
+     * Checks explicitly for null values as DataMapper's getPlainValue would convert this to 'NULL'.
+     * For null values, the expected DB null value will be considered.
      *
      * @param mixed $input The value that will be converted
      * @param ColumnMap|null $columnMap Optional column map for retrieving the date storage format
+     * @param Property|null $property The current property
      * @return int|string|null
      */
-    protected function getPlainValue($input, ?ColumnMap $columnMap = null)
+    protected function getPlainValue(mixed $input, ?ColumnMap $columnMap = null, ?Property $property = null)
     {
-        return $input !== null
-            ? GeneralUtility::makeInstance(DataMapper::class)->getPlainValue($input, $columnMap)
-            : null;
+        if ($input !== null) {
+            return GeneralUtility::makeInstance(DataMapper::class)->getPlainValue($input, $columnMap);
+        }
+
+        if (!$property) {
+            return null;
+        }
+
+        $className = $property->getPrimaryType()->getClassName();
+
+        // Nullable domain model property
+        if (is_subclass_of($className, DomainObjectInterface::class)) {
+            return 0;
+        }
+
+        // Nullable DateTime property
+        if ($columnMap && is_subclass_of($className, \DateTimeInterface::class)) {
+            $datetimeFormats = QueryHelper::getDateTimeFormats();
+            $dateFormat = $columnMap->getDateTimeStorageFormat();
+            if (!$dateFormat) {
+                // Datetime property with no TCA dbType
+                return 0;
+            }
+
+            if (isset($datetimeFormats[$dateFormat])) {
+                // Datetime property with TCA dbType defined. Nullable fields will be saved with the empty value
+                // (e.g. "00:00:00" for dbType = time) as well, but DataMapper will correctly map those values to null
+                return $datetimeFormats[$dateFormat]['empty'];
+            }
+        }
+
+        return null;
     }
 }

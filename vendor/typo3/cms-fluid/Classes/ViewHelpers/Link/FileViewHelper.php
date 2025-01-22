@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Fluid\ViewHelpers\Link;
 
 use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Resource\File;
 use TYPO3\CMS\Core\Resource\FileInterface;
 use TYPO3\CMS\Core\Resource\FileReference;
@@ -76,11 +77,6 @@ final class FileViewHelper extends AbstractTagBasedViewHelper
         $this->registerArgument('file', FileInterface::class, 'Specifies the file to create a link to', true);
         $this->registerArgument('download', 'bool', 'Specifies if file should be downloaded instead of displayed');
         $this->registerArgument('filename', 'string', 'Specifies an alternative filename. If filename contains a file extension, this must be the same as from \'file\'.');
-        $this->registerUniversalTagAttributes();
-        $this->registerTagAttribute('name', 'string', 'Specifies the name of an anchor');
-        $this->registerTagAttribute('rel', 'string', 'Specifies the relationship between the current document and the linked document');
-        $this->registerTagAttribute('rev', 'string', 'Specifies the relationship between the linked document and the current document');
-        $this->registerTagAttribute('target', 'string', 'Specifies where to open the linked document');
     }
 
     public function render(): string
@@ -117,7 +113,8 @@ final class FileViewHelper extends AbstractTagBasedViewHelper
         }
 
         $this->tag->addAttribute('href', $publicUrl);
-        $this->tag->setContent($this->renderChildren() ?? htmlspecialchars($file->getName()));
+        $childContent = $this->renderChildren();
+        $this->tag->setContent($childContent ? (string)$childContent : htmlspecialchars($file->getName()));
         $this->tag->forceClosingTag(true);
 
         return $this->tag->render();
@@ -149,7 +146,8 @@ final class FileViewHelper extends AbstractTagBasedViewHelper
             $parameters['fn'] = $filename;
         }
 
-        $parameters['token'] = GeneralUtility::hmac(implode('|', $parameters), 'resourceStorageDumpFile');
+        $hashService = GeneralUtility::makeInstance(HashService::class);
+        $parameters['token'] = $hashService->hmac(implode('|', $parameters), 'resourceStorageDumpFile');
 
         return GeneralUtility::locationHeaderUrl(PathUtility::getAbsoluteWebPath(Environment::getPublicPath() . '/index.php'))
             . '?' . http_build_query($parameters, '', '&', PHP_QUERY_RFC3986);

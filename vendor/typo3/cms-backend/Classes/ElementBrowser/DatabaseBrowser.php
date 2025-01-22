@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -21,7 +23,7 @@ use TYPO3\CMS\Backend\RecordList\ElementBrowserRecordList;
 use TYPO3\CMS\Backend\Tree\View\LinkParameterProviderInterface;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Backend\View\RecordSearchBoxComponent;
-use TYPO3\CMS\Core\Imaging\Icon;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\MathUtility;
@@ -46,9 +48,9 @@ class DatabaseBrowser extends AbstractElementBrowser implements ElementBrowserIn
     protected $expandPage;
     protected array $modTSconfig = [];
 
-    protected function initialize()
+    protected function initialize(ServerRequestInterface $request)
     {
-        parent::initialize();
+        parent::initialize($request);
         $this->pageRenderer->loadJavaScriptModule('@typo3/backend/browse-database.js');
         $this->pageRenderer->loadJavaScriptModule('@typo3/backend/tree/page-browser.js');
         $this->pageRenderer->loadJavaScriptModule('@typo3/backend/column-selector-button.js');
@@ -56,10 +58,10 @@ class DatabaseBrowser extends AbstractElementBrowser implements ElementBrowserIn
         $this->pageRenderer->loadJavaScriptModule('@typo3/backend/record-search.js');
     }
 
-    protected function initVariables()
+    protected function initVariables(ServerRequestInterface $request)
     {
-        parent::initVariables();
-        $this->expandPage = $this->getRequest()->getParsedBody()['expandPage'] ?? $this->getRequest()->getQueryParams()['expandPage'] ?? null;
+        parent::initVariables($request);
+        $this->expandPage = $request->getParsedBody()['expandPage'] ?? $request->getQueryParams()['expandPage'] ?? null;
     }
 
     /**
@@ -156,11 +158,11 @@ class DatabaseBrowser extends AbstractElementBrowser implements ElementBrowserIn
         if (is_array($mainPageRecord)) {
             $pText = htmlspecialchars(GeneralUtility::fixed_lgd_cs($mainPageRecord['title'], $titleLen));
 
-            $out .= '<p>' . $this->iconFactory->getIconForRecord('pages', $mainPageRecord, Icon::SIZE_SMALL)->render() . '&nbsp;';
+            $out .= '<p>' . $this->iconFactory->getIconForRecord('pages', $mainPageRecord, IconSize::SMALL)->render() . '&nbsp;';
             if (in_array('pages', $tablesArr, true)) {
                 $out .= '<span data-uid="' . htmlspecialchars((string)$mainPageRecord['uid']) . '" data-table="pages" data-title="' . htmlspecialchars($mainPageRecord['title']) . '">';
                 $out .= '<a href="#" data-close="0">'
-                    . $this->iconFactory->getIcon('actions-plus', Icon::SIZE_SMALL)->render()
+                    . $this->iconFactory->getIcon('actions-plus', IconSize::SMALL)->render()
                     . '</a>'
                     . '<a href="#" data-close="1">'
                     . $pText
@@ -202,7 +204,7 @@ class DatabaseBrowser extends AbstractElementBrowser implements ElementBrowserIn
 
         $selectedTable = (string)($request->getParsedBody()['table'] ?? $request->getQueryParams()['table'] ?? '');
         $searchWord = (string)($request->getParsedBody()['searchTerm'] ?? $request->getQueryParams()['searchTerm'] ?? '');
-        $searchLevels = (int)($request->getParsedBody()['search_levels'] ?? $request->getQueryParams()['search_levels'] ?? 0);
+        $searchLevels = (int)($request->getParsedBody()['search_levels'] ?? $request->getQueryParams()['search_levels'] ?? $this->modTSconfig['searchLevel.']['default'] ?? 0);
         $pointer = (int)($request->getParsedBody()['pointer'] ?? $request->getQueryParams()['pointer'] ?? 0);
 
         $dbList->start(
@@ -236,7 +238,7 @@ class DatabaseBrowser extends AbstractElementBrowser implements ElementBrowserIn
      * @param array $values Array of values to include into the parameters
      * @return string[] Array of parameters which have to be added to URLs
      */
-    public function getUrlParameters(array $values)
+    public function getUrlParameters(array $values): array
     {
         $pid = $values['pid'] ?? $this->expandPage;
         return [
@@ -244,24 +246,5 @@ class DatabaseBrowser extends AbstractElementBrowser implements ElementBrowserIn
             'expandPage' => $pid,
             'bparams' => $this->bparams,
         ];
-    }
-
-    /**
-     * @param array $values Values to be checked
-     * @return bool Returns TRUE if the given values match the currently selected item
-     */
-    public function isCurrentlySelectedItem(array $values)
-    {
-        return false;
-    }
-
-    /**
-     * Returns the URL of the current script
-     *
-     * @return string
-     */
-    public function getScriptUrl()
-    {
-        return $this->thisScript;
     }
 }

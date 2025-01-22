@@ -19,6 +19,7 @@ namespace TYPO3\CMS\Core\Middleware;
 
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Http\Uri;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\PolicyProvider;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Reporting\Report;
@@ -26,7 +27,6 @@ use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Reporting\ReportDetails;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Reporting\ReportRepository;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Reporting\ReportStatus;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Scope;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\IpAnonymizationUtility;
 
 /**
@@ -38,7 +38,8 @@ abstract class AbstractContentSecurityPolicyReporter implements MiddlewareInterf
 
     public function __construct(
         protected readonly PolicyProvider $policyProvider,
-        protected readonly ReportRepository $reportRepository
+        protected readonly ReportRepository $reportRepository,
+        protected readonly HashService $hashService,
     ) {}
 
     protected function persistCspReport(Scope $scope, ServerRequestInterface $request): void
@@ -52,7 +53,15 @@ abstract class AbstractContentSecurityPolicyReporter implements MiddlewareInterf
             'addr' => IpAnonymizationUtility::anonymizeIp($normalizedParams->getRemoteAddress()),
             'agent' => $normalizedParams->getHttpUserAgent(),
         ];
-        $requestTime = (int)($request->getQueryParams()['requestTime'] ?? 0);
+        // skip potential externally injected violation reports
+        $requestTime = $this->getRequestQueryParam($request, 'requestTime');
+        $requestHash = $this->getRequestQueryParam($request, 'requestHash');
+        if ($requestTime === null
+            || $requestHash === null
+            || !$this->hashService->validateHmac($requestTime, self::class, $requestHash)
+        ) {
+            return;
+        }
         $originalDetails = json_decode($payload, true)['csp-report'] ?? [];
         $originalDetails = $this->anonymizeDetails($originalDetails);
         $details = new ReportDetails($originalDetails);
@@ -60,7 +69,7 @@ abstract class AbstractContentSecurityPolicyReporter implements MiddlewareInterf
         $report = new Report(
             $scope,
             ReportStatus::New,
-            $requestTime,
+            (int)$requestTime,
             $meta,
             $details,
             $summary
@@ -70,7 +79,7 @@ abstract class AbstractContentSecurityPolicyReporter implements MiddlewareInterf
 
     protected function generateReportSummary(Scope $scope, ReportDetails $details): string
     {
-        return GeneralUtility::hmac(
+        return $this->hashService->hmac(
             json_encode([
                 $scope,
                 $details['effective-directive'],
@@ -122,6 +131,12 @@ abstract class AbstractContentSecurityPolicyReporter implements MiddlewareInterf
         return $request->getMethod() === 'POST'
             && str_starts_with($normalizedParams->getRequestUri(), (string)$reportingUriBase)
             && $contentTypeHeader === 'application/csp-report';
+    }
+
+    protected function getRequestQueryParam(ServerRequestInterface $request, string $name): ?string
+    {
+        $value = $request->getQueryParams()[$name] ?? null;
+        return is_string($value) ? $value : null;
     }
 
     protected function isJson(string $value): bool

@@ -19,16 +19,17 @@ namespace TYPO3\CMS\Impexp\Controller;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Routing\PreviewUriBuilder;
 use TYPO3\CMS\Backend\Template\ModuleTemplate;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Package\PackageManager;
-use TYPO3\CMS\Core\Resource\DuplicationBehavior;
+use TYPO3\CMS\Core\Resource\Enum\DuplicationBehavior;
 use TYPO3\CMS\Core\Resource\File;
 use TYPO3\CMS\Core\Resource\Filter\FileExtensionFilter;
 use TYPO3\CMS\Core\Resource\ResourceFactory;
@@ -44,6 +45,7 @@ use TYPO3\CMS\Impexp\Import;
  *
  * @internal This class is not considered part of the public TYPO3 API.
  */
+#[AsController]
 class ImportController
 {
     protected const NO_UPLOAD = 0;
@@ -139,7 +141,7 @@ class ImportController
             ->setDataAttributes($previewDataAttributes ?? [])
             ->setDisabled(!$previewDataAttributes)
             ->setTitle($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.showPage'))
-            ->setIcon($this->iconFactory->getIcon('actions-view-page', Icon::SIZE_SMALL))
+            ->setIcon($this->iconFactory->getIcon('actions-view-page', IconSize::SMALL))
             ->setShowLabelText(true);
         $buttonBar->addButton($viewButton);
     }
@@ -150,7 +152,7 @@ class ImportController
         $file = $parsedBody['file'] ?? [];
         $conflictMode = empty($parsedBody['overwriteExistingFiles']) ? DuplicationBehavior::CANCEL : DuplicationBehavior::REPLACE;
         $this->fileProcessor->setActionPermissions();
-        $this->fileProcessor->setExistingFilesConflictMode(DuplicationBehavior::cast($conflictMode));
+        $this->fileProcessor->setExistingFilesConflictMode($conflictMode);
         $this->fileProcessor->start($file);
         $result = $this->fileProcessor->processData();
         if (isset($result['upload'][0][0])) {
@@ -183,7 +185,7 @@ class ImportController
                 $filePath = $this->getFilePathWithinFileMountBoundaries((string)$inputData['file']);
             }
             try {
-                $import->loadFile($filePath, true);
+                $import->loadFile($filePath);
                 $import->checkImportPrerequisites();
                 if ($inputData['import_file'] ?? false) {
                     $import->importData();

@@ -401,4 +401,21 @@ return [
         'path' => '/sudo-mode/verify',
         'target' =>  Controller\Security\SudoModeController::class . '::verifyAction',
     ],
+
+    // Get TSRef
+    'codeeditor_tsref' => [
+        'path' => '/code-editor/tsref',
+        'target' => \TYPO3\CMS\Backend\Controller\CodeEditor\TypoScriptReferenceController::class . '::loadReference',
+    ],
+
+    // Load code completion templates
+    'codeeditor_codecompletion_loadtemplates' => [
+        'path' => '/code-editor/codecompletion/load-templates',
+        'target' => \TYPO3\CMS\Backend\Controller\CodeEditor\CodeCompletionController::class . '::loadCompletions',
+    ],
+
+    'color_scheme_update' => [
+        'path' => '/color-scheme/update',
+        'target' => Controller\ColorSchemeController::class . '::updateAction',
+    ],
 ];

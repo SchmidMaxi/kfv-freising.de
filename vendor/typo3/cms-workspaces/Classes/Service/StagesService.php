@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -21,12 +23,11 @@ use TYPO3\CMS\Core\Authentication\GroupResolver;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\SingletonInterface;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Core\Utility\MathUtility;
 use TYPO3\CMS\Workspaces\Domain\Record\StageRecord;
 use TYPO3\CMS\Workspaces\Domain\Record\WorkspaceRecord;
 
 /**
- * Stages service
+ * @internal
  */
 class StagesService implements SingletonInterface
 {
@@ -37,26 +38,15 @@ class StagesService implements SingletonInterface
     public const STAGE_PUBLISH_ID = -10;
     public const STAGE_EDIT_ID = 0;
 
-    /**
-     * Path to the locallang file
-     *
-     * @var string
-     */
-    private $pathToLocallang = 'LLL:EXT:workspaces/Resources/Private/Language/locallang.xlf';
+    private string $pathToLocallang = 'LLL:EXT:workspaces/Resources/Private/Language/locallang.xlf';
 
     protected ?RecordService $recordService;
 
     /**
      * Local cache to reduce number of database queries for stages, groups, etc.
-     *
-     * @var array
      */
-    protected $workspaceStageCache = [];
-
-    /**
-     * @var array
-     */
-    protected $workspaceStageAllowedCache = [];
+    protected array $workspaceStageCache = [];
+    protected array $workspaceStageAllowedCache = [];
 
     /**
      * Getter for current workspace id
@@ -69,18 +59,17 @@ class StagesService implements SingletonInterface
     /**
      * Find the highest possible "previous" stage for all $byTableName
      *
-     * @param array $workspaceItems
      * @return array Current and next highest possible stage
      */
     public function getPreviousStageForElementCollection(
-        $workspaceItems,
+        array $workspaceItems,
         array $byTableName = ['tt_content', 'pages']
-    ) {
+    ): array {
         $currentStage = [];
         $previousStage = [];
         $usedStages = [];
         $found = false;
-        $availableStagesForWS = array_reverse($this->getStagesForWS());
+        $availableStagesForWS = array_reverse($this->getAllStagesOfWorkspace());
         $availableStagesForWSUser = $this->getStagesForWSUser();
         $byTableName = array_flip($byTableName);
         foreach ($workspaceItems as $tableName => $items) {
@@ -116,17 +105,16 @@ class StagesService implements SingletonInterface
     /**
      * Retrieve the next stage based on the lowest stage given in the $workspaceItems record array.
      *
-     * @param array $workspaceItems
      * @return array Current and next possible stage.
      */
     public function getNextStageForElementCollection(
-        $workspaceItems,
+        array $workspaceItems,
         array $byTableName = ['tt_content', 'pages']
-    ) {
+    ): array {
         $currentStage = [];
         $usedStages = [];
         $nextStage = [];
-        $availableStagesForWS = $this->getStagesForWS();
+        $availableStagesForWS = $this->getAllStagesOfWorkspace();
         $availableStagesForWSUser = $this->getStagesForWSUser();
         $byTableName = array_flip($byTableName);
         $found = false;
@@ -165,7 +153,7 @@ class StagesService implements SingletonInterface
      *
      * @return array id and title of the stages
      */
-    public function getStagesForWS()
+    public function getAllStagesOfWorkspace(): array
     {
         if (isset($this->workspaceStageCache[$this->getWorkspaceId()])) {
             $stages = $this->workspaceStageCache[$this->getWorkspaceId()];
@@ -183,10 +171,10 @@ class StagesService implements SingletonInterface
      *
      * @return array id and title of stages
      */
-    public function getStagesForWSUser()
+    public function getStagesForWSUser(): array
     {
         if ($this->getBackendUser()->isAdmin()) {
-            return $this->getStagesForWS();
+            return $this->getAllStagesOfWorkspace();
         }
         // The LIVE workspace has no stages
         if ($this->getWorkspaceId() === 0) {
@@ -226,9 +214,8 @@ class StagesService implements SingletonInterface
      * Prepares simplified stages array
      *
      * @param StageRecord[] $stageRecords
-     * @return array
      */
-    protected function prepareStagesArray(array $stageRecords)
+    protected function prepareStagesArray(array $stageRecords): array
     {
         $stagesArray = [];
         foreach ($stageRecords as $stageRecord) {
@@ -247,26 +234,23 @@ class StagesService implements SingletonInterface
     }
 
     /**
-     * Gets the title of a stage.
-     *
-     * @param int $ver_stage
-     * @return string
+     * Gets the title of a stage
      */
-    public function getStageTitle($ver_stage)
+    public function getStageTitle(int $stageId): string
     {
-        switch ($ver_stage) {
+        switch ($stageId) {
             case self::STAGE_PUBLISH_EXECUTE_ID:
-                $stageTitle = $this->getLanguageService()->sL('LLL:EXT:workspaces/Resources/Private/Language/locallang_mod_user_ws.xlf:stage_publish');
+                $stageTitle = $this->getLanguageService()->sL('LLL:EXT:workspaces/Resources/Private/Language/locallang_mod.xlf:stage_publish');
                 break;
             case self::STAGE_PUBLISH_ID:
                 $stageTitle = $this->getLanguageService()->sL('LLL:EXT:workspaces/Resources/Private/Language/locallang_mod.xlf:stage_ready_to_publish');
                 break;
             case self::STAGE_EDIT_ID:
-                $stageTitle = $this->getLanguageService()->sL('LLL:EXT:workspaces/Resources/Private/Language/locallang_mod_user_ws.xlf:stage_editing');
+                $stageTitle = $this->getLanguageService()->sL('LLL:EXT:workspaces/Resources/Private/Language/locallang_mod.xlf:stage_editing');
                 break;
             default:
-                $stageTitle = $this->getPropertyOfCurrentWorkspaceStage($ver_stage, 'title');
-                if ($stageTitle == null) {
+                $stageTitle = $this->getPropertyOfCurrentWorkspaceStage($stageId, 'title');
+                if ($stageTitle === null) {
                     $stageTitle = $this->getLanguageService()->sL('LLL:EXT:workspaces/Resources/Private/Language/locallang.xlf:error.getStageTitle.stageNotFound');
                 }
         }
@@ -274,34 +258,16 @@ class StagesService implements SingletonInterface
     }
 
     /**
-     * Gets a particular stage record.
-     *
-     * @param int $stageid
-     * @return array|null
-     */
-    public function getStageRecord($stageid)
-    {
-        return BackendUtility::getRecord('sys_workspace_stage', $stageid);
-    }
-
-    /**
      * Gets next stage in process for given stage id
      *
      * @param int $stageId Id of the stage to fetch the next one for
      * @return array The next stage (id + details)
-     * @throws \InvalidArgumentException
      */
-    public function getNextStage($stageId)
+    public function getNextStage(int $stageId): array
     {
-        if (!MathUtility::canBeInterpretedAsInteger($stageId)) {
-            throw new \InvalidArgumentException(
-                $this->getLanguageService()->sL('LLL:EXT:workspaces/Resources/Private/Language/locallang.xlf:error.stageId.integer'),
-                1291109987
-            );
-        }
         $nextStage = false;
-        $workspaceStageRecs = $this->getStagesForWS();
-        if (is_array($workspaceStageRecs) && !empty($workspaceStageRecs)) {
+        $workspaceStageRecs = $this->getAllStagesOfWorkspace();
+        if ($workspaceStageRecs !== []) {
             reset($workspaceStageRecs);
             while (key($workspaceStageRecs) !== null) {
                 $workspaceStageRec = current($workspaceStageRecs);
@@ -317,7 +283,7 @@ class StagesService implements SingletonInterface
                 [
                     'uid' => self::STAGE_EDIT_ID,
                     'title' => $this->getLanguageService()->sL($this->pathToLocallang . ':actionSendToStage') . ' "'
-                        . $this->getLanguageService()->sL('LLL:EXT:workspaces/Resources/Private/Language/locallang_mod_user_ws.xlf:stage_editing') . '"',
+                        . $this->getLanguageService()->sL('LLL:EXT:workspaces/Resources/Private/Language/locallang_mod.xlf:stage_editing') . '"',
                 ],
             ];
         }
@@ -331,14 +297,14 @@ class StagesService implements SingletonInterface
      * @param int $stageId Current stage id of the record
      * @return array Next stages
      */
-    public function getNextStages(array &$nextStageArray, $stageId)
+    protected function getNextStages(array &$nextStageArray, int $stageId): array
     {
         // Current stage is "Ready to publish" - there is no next stage
         if ($stageId == self::STAGE_PUBLISH_ID) {
             return $nextStageArray;
         }
         $nextStageRecord = $this->getNextStage($stageId);
-        if (empty($nextStageRecord) || !is_array($nextStageRecord)) {
+        if ($nextStageRecord === []) {
             // There is no next stage
             return $nextStageArray;
         }
@@ -347,7 +313,7 @@ class StagesService implements SingletonInterface
         // has always the needed permission
         if ($this->isStageAllowedForUser($stageId)) {
             $nextStageArray[] = $nextStageRecord;
-            return $this->getNextStages($nextStageArray, $nextStageRecord['uid']);
+            return $this->getNextStages($nextStageArray, (int)$nextStageRecord['uid']);
         }
         // He hasn't - return given next stage array
         return $nextStageArray;
@@ -357,20 +323,13 @@ class StagesService implements SingletonInterface
      * Get next stage in process for given stage id
      *
      * @param int $stageId Id of the stage to fetch the previous one for
-     * @return bool|array The previous stage or false
-     * @throws \InvalidArgumentException
+     * @return false|array The previous stage or false
      */
-    public function getPrevStage($stageId)
+    public function getPrevStage(int $stageId): false|array
     {
-        if (!MathUtility::canBeInterpretedAsInteger($stageId)) {
-            throw new \InvalidArgumentException(
-                $this->getLanguageService()->sL('LLL:EXT:workspaces/Resources/Private/Language/locallang.xlf:error.stageId.integer'),
-                1476048351
-            );
-        }
         $prevStage = false;
-        $workspaceStageRecs = $this->getStagesForWS();
-        if (is_array($workspaceStageRecs) && !empty($workspaceStageRecs)) {
+        $workspaceStageRecs = $this->getAllStagesOfWorkspace();
+        if ($workspaceStageRecs !== []) {
             end($workspaceStageRecs);
             while (key($workspaceStageRecs) !== null) {
                 $workspaceStageRec = current($workspaceStageRecs);
@@ -392,19 +351,20 @@ class StagesService implements SingletonInterface
      * @param int $stageId Current stage id of the record
      * @return array prev stages
      */
-    public function getPrevStages(array &$prevStageArray, $stageId)
+    protected function getPrevStages(array &$prevStageArray, int $stageId): array
     {
         // Current stage is "Editing" - there is no prev stage
-        if ($stageId != self::STAGE_EDIT_ID) {
-            $prevStageRecord = $this->getPrevStage($stageId);
-            if (!empty($prevStageRecord) && is_array($prevStageRecord)) {
-                // Check if the user has the permission to switch to that stage
-                // If this prev stage record is the first previous stage before the current
-                // the user has always the needed permission
-                if ($this->isStageAllowedForUser($stageId)) {
-                    $prevStageArray[] = $prevStageRecord;
-                    $prevStageArray = $this->getPrevStages($prevStageArray, $prevStageRecord['uid']);
-                }
+        if ($stageId === self::STAGE_EDIT_ID) {
+            return $prevStageArray;
+        }
+        $prevStageRecord = $this->getPrevStage($stageId);
+        if (!empty($prevStageRecord) && is_array($prevStageRecord)) {
+            // Check if the user has the permission to switch to that stage
+            // If this prev stage record is the first previous stage before the current
+            // the user has always the needed permission
+            if ($this->isStageAllowedForUser($stageId)) {
+                $prevStageArray[] = $prevStageRecord;
+                $prevStageArray = $this->getPrevStages($prevStageArray, $prevStageRecord['uid']);
             }
         }
         return $prevStageArray;
@@ -414,17 +374,14 @@ class StagesService implements SingletonInterface
      * Gets all backend user records that are considered to be responsible
      * for a particular stage or workspace.
      *
-     * @param StageRecord|int $stageRecord Stage
      * @param bool $selectDefaultUserField If field notification_defaults should be selected instead of responsible users
      * @return array be_users with e-mail and name
      */
-    public function getResponsibleBeUser($stageRecord, $selectDefaultUserField = false)
+    public function getResponsibleBeUser(StageRecord|int $stageRecord, bool $selectDefaultUserField = false): array
     {
         if (!$stageRecord instanceof StageRecord) {
             $stageRecord = $this->getWorkspaceRecord()->getStage($stageRecord);
         }
-
-        $recipientArray = [];
 
         if (!$selectDefaultUserField) {
             $backendUserIds = $stageRecord->getAllRecipients();
@@ -432,8 +389,8 @@ class StagesService implements SingletonInterface
             $backendUserIds = $stageRecord->getDefaultRecipients();
         }
 
-        $userList = implode(',', $backendUserIds);
-        $userRecords = $this->getBackendUsers($userList);
+        $userRecords = $this->getBackendUsers($backendUserIds);
+        $recipientArray = [];
         foreach ($userRecords as $userUid => $userRecord) {
             $recipientArray[$userUid] = $userRecord;
         }
@@ -443,11 +400,8 @@ class StagesService implements SingletonInterface
     /**
      * Resolves backend user ids from a mixed list of backend users
      * and backend user groups (e.g. "be_users_1,be_groups_3,be_users_4,...")
-     *
-     * @param string $backendUserGroupList
-     * @return array
      */
-    public function resolveBackendUserIds($backendUserGroupList)
+    public function resolveBackendUserIds(string $backendUserGroupList): array
     {
         $elements = GeneralUtility::trimExplode(',', $backendUserGroupList, true);
         $backendUserIds = [];
@@ -477,32 +431,20 @@ class StagesService implements SingletonInterface
 
     /**
      * Gets backend user records from a given list of ids.
-     *
-     * @param string $backendUserList
-     * @return array
      */
-    public function getBackendUsers($backendUserList)
+    public function getBackendUsers(array $backendUserIds): array
     {
-        if (empty($backendUserList)) {
+        if ($backendUserIds === []) {
             return [];
         }
-
-        $backendUserList = implode(',', GeneralUtility::intExplode(',', $backendUserList));
-        $backendUsers = BackendUtility::getUserNames(
+        $backendUserList = implode(',', GeneralUtility::intExplode(',', implode(',', $backendUserIds)));
+        return BackendUtility::getUserNames(
             'username, uid, email, realName, lang, uc',
             'AND uid IN (' . $backendUserList . ')' . BackendUtility::BEenableFields('be_users')
         );
-
-        if (empty($backendUsers)) {
-            $backendUsers = [];
-        }
-        return $backendUsers;
     }
 
-    /**
-     * @return array
-     */
-    public function getPreselectedRecipients(StageRecord $stageRecord)
+    public function getPreselectedRecipients(StageRecord $stageRecord): array
     {
         if ($stageRecord->areEditorsPreselected()) {
             return array_merge(
@@ -513,31 +455,17 @@ class StagesService implements SingletonInterface
         return $stageRecord->getPreselectedRecipients();
     }
 
-    /**
-     * @return WorkspaceRecord
-     */
-    protected function getWorkspaceRecord()
+    protected function getWorkspaceRecord(): WorkspaceRecord
     {
         return WorkspaceRecord::get($this->getWorkspaceId());
     }
 
     /**
      * Gets a property of a workspaces stage.
-     *
-     * @param int $stageId
-     * @param string $property
-     * @return string
-     * @throws \InvalidArgumentException
      */
-    public function getPropertyOfCurrentWorkspaceStage($stageId, $property)
+    public function getPropertyOfCurrentWorkspaceStage(int $stageId, string $property): ?string
     {
         $result = null;
-        if (!MathUtility::canBeInterpretedAsInteger($stageId)) {
-            throw new \InvalidArgumentException(
-                $this->getLanguageService()->sL('LLL:EXT:workspaces/Resources/Private/Language/locallang.xlf:error.stageId.integer'),
-                1476048371
-            );
-        }
         $workspaceStage = BackendUtility::getRecord(self::TABLE_STAGE, $stageId);
         if (is_array($workspaceStage) && isset($workspaceStage[$property])) {
             $result = $workspaceStage[$property];
@@ -549,12 +477,11 @@ class StagesService implements SingletonInterface
      * Gets the position of the given workspace in the hole process
      * f.e. 3 means step 3 of 20, by which 1 is edit and 20 is ready to publish
      *
-     * @param int $stageId
      * @return array position => 3, count => 20
      */
-    public function getPositionOfCurrentStage($stageId)
+    public function getPositionOfCurrentStage(int $stageId): array
     {
-        $stagesOfWS = $this->getStagesForWS();
+        $stagesOfWS = $this->getAllStagesOfWorkspace();
         $countOfStages = count($stagesOfWS);
         switch ($stageId) {
             case self::STAGE_PUBLISH_ID:
@@ -565,9 +492,9 @@ class StagesService implements SingletonInterface
                 break;
             default:
                 $position = 1;
-                foreach ($stagesOfWS as $key => $stageInfoArray) {
+                foreach ($stagesOfWS as $stageInfoArray) {
                     $position++;
-                    if ($stageId == $stageInfoArray['uid']) {
+                    if ($stageId === (int)$stageInfoArray['uid']) {
                         break;
                     }
                 }
@@ -577,11 +504,8 @@ class StagesService implements SingletonInterface
 
     /**
      * Check if the user has access to the previous stage, relative to the given stage
-     *
-     * @param int $stageId
-     * @return bool
      */
-    public function isPrevStageAllowedForUser($stageId)
+    public function isPrevStageAllowedForUser(int $stageId): bool
     {
         $isAllowed = false;
         try {
@@ -599,11 +523,8 @@ class StagesService implements SingletonInterface
 
     /**
      * Check if the user has access to the next stage, relative to the given stage
-     *
-     * @param int $stageId
-     * @return bool
      */
-    public function isNextStageAllowedForUser($stageId)
+    public function isNextStageAllowedForUser(int $stageId): bool
     {
         $isAllowed = false;
         try {
@@ -619,11 +540,7 @@ class StagesService implements SingletonInterface
         return $isAllowed;
     }
 
-    /**
-     * @param int $stageId
-     * @return bool
-     */
-    protected function isStageAllowedForUser($stageId)
+    protected function isStageAllowedForUser(int $stageId): bool
     {
         $cacheKey = $this->getWorkspaceId() . '_' . $stageId;
         if (isset($this->workspaceStageAllowedCache[$cacheKey])) {
@@ -635,15 +552,12 @@ class StagesService implements SingletonInterface
     }
 
     /**
-     * Determines whether a stage Id is valid.
-     *
-     * @param int $stageId The stage Id to be checked
-     * @return bool
+     * Determines whether a stageId is valid.
      */
-    public function isValid($stageId)
+    public function isValid(int $stageId): bool
     {
         $isValid = false;
-        $stages = $this->getStagesForWS();
+        $stages = $this->getAllStagesOfWorkspace();
         foreach ($stages as $stage) {
             if ($stage['uid'] == $stageId) {
                 $isValid = true;
@@ -653,10 +567,7 @@ class StagesService implements SingletonInterface
         return $isValid;
     }
 
-    /**
-     * @return RecordService
-     */
-    public function getRecordService()
+    public function getRecordService(): RecordService
     {
         if (!isset($this->recordService)) {
             $this->recordService = GeneralUtility::makeInstance(RecordService::class);

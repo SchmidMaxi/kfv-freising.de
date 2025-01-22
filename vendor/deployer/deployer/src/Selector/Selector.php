@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 /* (c) Anton Medvedev <anton@medv.io>
  *
@@ -10,6 +12,7 @@ namespace Deployer\Selector;
 
 use Deployer\Host\Host;
 use Deployer\Host\HostCollection;
+
 use function Deployer\Support\array_all;
 
 class Selector
@@ -56,8 +59,16 @@ class Selector
 
         foreach ($conditions as $hmm) {
             $ok = [];
-            foreach ($hmm as list($op, $var, $value)) {
-                $ok[] = self::compare($op, $labels[$var] ?? null, $value);
+            foreach ($hmm as [$op, $var, $value]) {
+                if (is_array($value)) {
+                    $orOk = [];
+                    foreach ($value as $val) {
+                        $orOk[] = self::compare($op, $labels[$var] ?? null, $val);
+                    }
+                    $ok[] = count(array_filter($orOk, $isTrue)) > 0;
+                } else {
+                    $ok[] = self::compare($op, $labels[$var] ?? null, $value);
+                }
             }
             if (count($ok) > 0 && array_all($ok, $isTrue)) {
                 return true;
@@ -71,8 +82,8 @@ class Selector
      */
     private static function compare(string $op, $a, ?string $b): bool
     {
-        $matchFunction = function($a, ?string $b) {
-            foreach ((array)$a as $item) {
+        $matchFunction = function ($a, ?string $b) {
+            foreach ((array) $a as $item) {
                 if ($item === $b) {
                     return true;
                 }
@@ -102,7 +113,8 @@ class Selector
                     continue;
                 }
                 if (preg_match('/(?<var>.+?)(?<op>!?=)(?<value>.+)/', $part, $match)) {
-                    $conditions[] = [$match['op'], trim($match['var']), trim($match['value'])];
+                    $values = array_map('trim', explode('|', trim($match['value'])));
+                    $conditions[] = [$match['op'], trim($match['var']), $values];
                 } else {
                     $conditions[] = ['=', 'alias', trim($part)];
                 }

@@ -57,11 +57,13 @@ class MaintenanceController extends AbstractController
     public function __construct(
         private readonly LateBootService $lateBootService,
         private readonly ClearCacheService $clearCacheService,
+        private readonly ClearTableService $clearTableService,
         private readonly ConfigurationManager $configurationManager,
         private readonly PasswordHashFactory $passwordHashFactory,
         private readonly Locales $locales,
         private readonly LanguageServiceFactory $languageServiceFactory,
-        private readonly FormProtectionFactory $formProtectionFactory
+        private readonly FormProtectionFactory $formProtectionFactory,
+        private readonly SchemaMigrator $schemaMigrator,
     ) {
         $GLOBALS['LANG'] = $this->languageServiceFactory->create('en');
         $passwordPolicy = $GLOBALS['TYPO3_CONF_VARS']['BE']['passwordPolicy'] ?? 'default';
@@ -228,8 +230,7 @@ class MaintenanceController extends AbstractController
         try {
             $sqlReader = $container->get(SqlReader::class);
             $sqlStatements = $sqlReader->getCreateTableStatementArray($sqlReader->getTablesDefinitionString());
-            $schemaMigrationService = GeneralUtility::makeInstance(SchemaMigrator::class);
-            $addCreateChange = $schemaMigrationService->getUpdateSuggestions($sqlStatements);
+            $addCreateChange = $this->schemaMigrator->getUpdateSuggestions($sqlStatements);
 
             // Aggregate the per-connection statements into one flat array
             $addCreateChange = array_merge_recursive(...array_values($addCreateChange));
@@ -284,7 +285,7 @@ class MaintenanceController extends AbstractController
             }
 
             // Difference from current to expected
-            $dropRename = $schemaMigrationService->getUpdateSuggestions($sqlStatements, true);
+            $dropRename = $this->schemaMigrator->getUpdateSuggestions($sqlStatements, true);
 
             // Aggregate the per-connection statements into one flat array
             $dropRename = array_merge_recursive(...array_values($dropRename));
@@ -387,9 +388,8 @@ class MaintenanceController extends AbstractController
         } else {
             $sqlReader = $container->get(SqlReader::class);
             $sqlStatements = $sqlReader->getCreateTableStatementArray($sqlReader->getTablesDefinitionString());
-            $schemaMigrationService = GeneralUtility::makeInstance(SchemaMigrator::class);
             $statementHashesToPerform = array_flip($selectedHashes);
-            $results = $schemaMigrationService->migrate($sqlStatements, $statementHashesToPerform);
+            $results = $this->schemaMigrator->migrate($sqlStatements, $statementHashesToPerform);
             // Create error flash messages if any
             foreach ($results as $errorMessage) {
                 $messageQueue->enqueue(new FlashMessage(
@@ -421,7 +421,7 @@ class MaintenanceController extends AbstractController
         ]);
         return new JsonResponse([
             'success' => true,
-            'stats' => (new ClearTableService())->getTableStatistics(),
+            'stats' => $this->clearTableService->getTableStatistics(),
             'html' => $view->render('Maintenance/ClearTables'),
             'buttons' => [
                 [
@@ -446,7 +446,7 @@ class MaintenanceController extends AbstractController
                 1501944076
             );
         }
-        (new ClearTableService())->clearSelectedTable($table);
+        $this->clearTableService->clearSelectedTable($table);
         $messageQueue = new FlashMessageQueue('install');
         $messageQueue->enqueue(
             new FlashMessage('The table ' . $table . ' has been cleared.', 'Table cleared')
@@ -546,7 +546,7 @@ class MaintenanceController extends AbstractController
 
                 if ($isSystemMaintainer) {
                     // Get the new admin user uid just created
-                    $newAdminUserUid = (int)$connectionPool->getConnectionForTable('be_users')->lastInsertId('be_users');
+                    $newAdminUserUid = (int)$connectionPool->getConnectionForTable('be_users')->lastInsertId();
 
                     // Get the list of the existing systemMaintainer
                     $existingSystemMaintainersList = $GLOBALS['TYPO3_CONF_VARS']['SYS']['systemMaintainers'] ?? [];
@@ -619,6 +619,7 @@ class MaintenanceController extends AbstractController
         $availableLanguages = $languagePackService->getAvailableLanguages();
         $activeLanguages = $languagePackService->getActiveLanguages();
         $iso = $request->getParsedBody()['install']['iso'];
+
         if (!$this->configurationManager->canWriteConfiguration()) {
             $messageQueue->enqueue(new FlashMessage(
                 sprintf('The language %s was not activated as the configuration file is not writable.', $availableLanguages[$iso]),
@@ -651,15 +652,15 @@ class MaintenanceController extends AbstractController
                 foreach ($activateArray as $activateIso) {
                     $activationArray[] = $availableLanguages[$activateIso] . ' (' . $activateIso . ')';
                 }
-                $messageQueue->enqueue(
-                    new FlashMessage(
-                        'These languages have been activated: ' . implode(', ', $activationArray)
-                    )
-                );
+                $messageQueue->enqueue(new FlashMessage(
+                    'These languages have been activated: ' . implode(', ', $activationArray)
+                ));
             } else {
-                $messageQueue->enqueue(
-                    new FlashMessage('Language with ISO code "' . $iso . '" not found or already active.', '', ContextualFeedbackSeverity::ERROR)
-                );
+                $messageQueue->enqueue(new FlashMessage(
+                    'Language with ISO code "' . $iso . '" not found or already active.',
+                    '',
+                    ContextualFeedbackSeverity::ERROR
+                ));
             }
         }
         return new JsonResponse([
@@ -707,15 +708,13 @@ class MaintenanceController extends AbstractController
                 foreach ($otherActiveLanguageDependencies as $dependency) {
                     $dependentArray[] = $availableLanguages[$dependency] . ' (' . $dependency . ')';
                 }
-                $messageQueue->enqueue(
-                    new FlashMessage(
-                        'Language "' . $availableLanguages[$iso] . ' (' . $iso . ')" can not be deactivated. These'
-                        . ' other languages depend on it and need to be deactivated before:'
-                        . implode(', ', $dependentArray),
-                        '',
-                        ContextualFeedbackSeverity::ERROR
-                    )
-                );
+                $messageQueue->enqueue(new FlashMessage(
+                    'Language "' . $availableLanguages[$iso] . ' (' . $iso . ')" can not be deactivated. These'
+                    . ' other languages depend on it and need to be deactivated before:'
+                    . implode(', ', $dependentArray),
+                    '',
+                    ContextualFeedbackSeverity::ERROR
+                ));
             } else {
                 if (in_array($iso, $activeLanguages, true)) {
                     // Deactivate this language
@@ -730,19 +729,15 @@ class MaintenanceController extends AbstractController
                         'EXTCONF/lang',
                         ['availableLanguages' => $newActiveLanguages]
                     );
-                    $messageQueue->enqueue(
-                        new FlashMessage(
-                            'Language "' . $availableLanguages[$iso] . ' (' . $iso . ')" has been deactivated'
-                        )
-                    );
+                    $messageQueue->enqueue(new FlashMessage(
+                        'Language "' . $availableLanguages[$iso] . ' (' . $iso . ')" has been deactivated'
+                    ));
                 } else {
-                    $messageQueue->enqueue(
-                        new FlashMessage(
-                            'Language "' . $availableLanguages[$iso] . ' (' . $iso . ')" has not been deactivated',
-                            '',
-                            ContextualFeedbackSeverity::ERROR
-                        )
-                    );
+                    $messageQueue->enqueue(new FlashMessage(
+                        'Language "' . $availableLanguages[$iso] . ' (' . $iso . ')" has not been deactivated',
+                        '',
+                        ContextualFeedbackSeverity::ERROR
+                    ));
                 }
             }
         }

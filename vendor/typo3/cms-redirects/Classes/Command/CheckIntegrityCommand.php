@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Redirects\Command;
 
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Input\InputArgument;
@@ -26,25 +27,18 @@ use TYPO3\CMS\Core\Registry;
 use TYPO3\CMS\Extbase\Utility\LocalizationUtility;
 use TYPO3\CMS\Redirects\Service\IntegrityService;
 
+#[AsCommand('redirects:checkintegrity', 'Check integrity of redirects')]
 class CheckIntegrityCommand extends Command
 {
     private const REGISTRY_NAMESPACE = 'tx_redirects';
-    private const REGISTRY_KEY = 'conflicting_redirects';
+    public const REGISTRY_KEY_CONFLICTING_REDIRECTS = 'conflicting_redirects';
+    public const REGISTRY_KEY_LAST_TIMESTAMP_CHECK_INTEGRITY = 'redirects_check_integrity_last_check';
+    private const LANGUAGE_FILE_PATH = 'LLL:EXT:redirects/Resources/Private/Language/locallang_db.xlf';
 
-    /**
-     * @var Registry
-     */
-    private $registry;
-
-    /**
-     * @var IntegrityService
-     */
-    private $integrityService;
-
-    public function __construct(Registry $registry, IntegrityService $integrityService)
-    {
-        $this->registry = $registry;
-        $this->integrityService = $integrityService;
+    public function __construct(
+        private readonly Registry $registry,
+        private readonly IntegrityService $integrityService
+    ) {
         parent::__construct();
     }
 
@@ -63,7 +57,8 @@ class CheckIntegrityCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $this->registry->remove(self::REGISTRY_NAMESPACE, self::REGISTRY_KEY);
+        $this->registry->remove(self::REGISTRY_NAMESPACE, self::REGISTRY_KEY_CONFLICTING_REDIRECTS);
+        $this->registry->remove(self::REGISTRY_NAMESPACE, self::REGISTRY_KEY_LAST_TIMESTAMP_CHECK_INTEGRITY);
 
         $conflictingRedirects = [];
         $list = [];
@@ -73,31 +68,45 @@ class CheckIntegrityCommand extends Command
         $table->setHeaders(
             [
                 LocalizationUtility::translate(
-                    'LLL:EXT:redirects/Resources/Private/Language/locallang_db.xlf:sys_redirect.source_host'
+                    self::LANGUAGE_FILE_PATH . ':sys_redirect.uid'
                 ),
                 LocalizationUtility::translate(
-                    'LLL:EXT:redirects/Resources/Private/Language/locallang_db.xlf:sys_redirect.source_path'
+                    self::LANGUAGE_FILE_PATH . ':sys_redirect.source_host'
                 ),
                 LocalizationUtility::translate(
-                    'LLL:EXT:redirects/Resources/Private/Language/locallang_db.xlf:sys_redirect.target'
+                    self::LANGUAGE_FILE_PATH . ':sys_redirect.source_path'
+                ),
+                LocalizationUtility::translate(
+                    self::LANGUAGE_FILE_PATH . ':sys_redirect.target'
+                ),
+                LocalizationUtility::translate(
+                    self::LANGUAGE_FILE_PATH . ':sys_redirect.integrity_status'
                 ),
             ]
         );
 
+        $integrityStatusLabel = ':sys_redirect.integrity_status.';
         foreach ($this->integrityService->findConflictingRedirects($site) as $conflict) {
             $conflictingRedirects[] = [
+                $conflict['redirect']['uid'],
                 $conflict['redirect']['source_host'],
                 $conflict['redirect']['source_path'],
                 $conflict['uri'],
+                LocalizationUtility::translate(
+                    self::LANGUAGE_FILE_PATH . $integrityStatusLabel . $conflict['redirect']['integrity_status']
+                ),
             ];
             $list[] = $conflict;
+            $this->integrityService->setIntegrityStatus($conflict['redirect']);
         }
 
         if ($conflictingRedirects !== []) {
             $table->setRows($conflictingRedirects);
             $table->render();
         }
-        $this->registry->set(self::REGISTRY_NAMESPACE, self::REGISTRY_KEY, $list);
+
+        $this->registry->set(self::REGISTRY_NAMESPACE, self::REGISTRY_KEY_CONFLICTING_REDIRECTS, $list);
+        $this->registry->set(self::REGISTRY_NAMESPACE, self::REGISTRY_KEY_LAST_TIMESTAMP_CHECK_INTEGRITY, time());
         return Command::SUCCESS;
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 /*
 ## Installing
   1. Create telegram bot with [BotFather](https://t.me/BotFather) and grab the token provided
@@ -24,16 +25,16 @@ before('deploy', 'telegram:notify');
 - `telegram_title` – the title of application, default `{{application}}`
 - `telegram_text` – notification message template
   ```
-  _{{user}}_ deploying `{{branch}}` to *{{target}}*
+  _{{user}}_ deploying `{{what}}` to *{{where}}*
   ```
 - `telegram_success_text` – success template, default:
   ```
-  Deploy to *{{target}}* successful
+  Deploy to *{{where}}* successful
 
   ```
 - `telegram_failure_text` – failure template, default:
   ```
-  Deploy to *{{target}}* failed
+  Deploy to *{{where}}* failed
   ```
 
 ## Usage
@@ -56,7 +57,9 @@ after('deploy:failed', 'telegram:notify:failure');
 
 
  */
+
 namespace Deployer;
+
 use Deployer\Utility\Httpie;
 
 // Title of project
@@ -72,13 +75,13 @@ set('telegram_chat_id', function () {
     throw new \Exception('Please, configure "telegram_chat_id" parameter.');
 });
 set('telegram_url', function () {
-   return 'https://api.telegram.org/bot' . get('telegram_token') . '/sendmessage';
+    return 'https://api.telegram.org/bot' . get('telegram_token') . '/sendmessage';
 });
 
 // Deploy message
-set('telegram_text', '_{{user}}_ deploying `{{branch}}` to *{{target}}*');
-set('telegram_success_text', 'Deploy to *{{target}}* successful');
-set('telegram_failure_text', 'Deploy to *{{target}}* failed');
+set('telegram_text', '_{{user}}_ deploying `{{what}}` to *{{where}}*');
+set('telegram_success_text', 'Deploy to *{{where}}* successful');
+set('telegram_failure_text', 'Deploy to *{{where}}* failed');
 
 
 desc('Notifies Telegram');
@@ -93,12 +96,12 @@ task('telegram:notify', function () {
         return;
     }
 
-    $telegramUrl = get('telegram_url') . '?' . http_build_query (
-        Array (
+    $telegramUrl = get('telegram_url') . '?' . http_build_query(
+        [
             'chat_id' => get('telegram_chat_id'),
             'text' => get('telegram_text'),
             'parse_mode' => 'Markdown',
-        )
+        ],
     );
 
     $httpie = Httpie::get($telegramUrl);
@@ -112,39 +115,8 @@ task('telegram:notify', function () {
     ->once()
     ->hidden();
 
-  desc('Notifies Telegram about deploy finish');
-  task('telegram:notify:success', function () {
-      if (!get('telegram_token', false)) {
-          warning('No Telegram token configured');
-          return;
-      }
-
-      if (!get('telegram_chat_id', false)) {
-          warning('No Telegram chat id configured');
-          return;
-      }
-
-      $telegramUrl = get('telegram_url') . '?' . http_build_query (
-          Array (
-              'chat_id' => get('telegram_chat_id'),
-              'text' => get('telegram_success_text'),
-              'parse_mode' => 'Markdown',
-          )
-      );
-
-      $httpie = Httpie::get($telegramUrl);
-
-      if (get('telegram_proxy', '') !== '') {
-          $httpie = $httpie->setopt(CURLOPT_PROXY, get('telegram_proxy'));
-      }
-
-      $httpie->send();
-})
-    ->once()
-    ->hidden();
-
-  desc('Notifies Telegram about deploy failure');
-  task('telegram:notify:failure', function () {
+desc('Notifies Telegram about deploy finish');
+task('telegram:notify:success', function () {
     if (!get('telegram_token', false)) {
         warning('No Telegram token configured');
         return;
@@ -155,21 +127,52 @@ task('telegram:notify', function () {
         return;
     }
 
-      $telegramUrl = get('telegram_url') . '?' . http_build_query (
-          Array (
-              'chat_id' => get('telegram_chat_id'),
-              'text' => get('telegram_failure_text'),
-              'parse_mode' => 'Markdown',
-          )
-      );
+    $telegramUrl = get('telegram_url') . '?' . http_build_query(
+        [
+            'chat_id' => get('telegram_chat_id'),
+            'text' => get('telegram_success_text'),
+            'parse_mode' => 'Markdown',
+        ],
+    );
 
-      $httpie = Httpie::get($telegramUrl);
+    $httpie = Httpie::get($telegramUrl);
 
-      if (get('telegram_proxy', '') !== '') {
-          $httpie = $httpie->setopt(CURLOPT_PROXY, get('telegram_proxy'));
-      }
+    if (get('telegram_proxy', '') !== '') {
+        $httpie = $httpie->setopt(CURLOPT_PROXY, get('telegram_proxy'));
+    }
 
-      $httpie->send();
+    $httpie->send();
 })
-    ->once()
-    ->hidden();
+  ->once()
+  ->hidden();
+
+desc('Notifies Telegram about deploy failure');
+task('telegram:notify:failure', function () {
+    if (!get('telegram_token', false)) {
+        warning('No Telegram token configured');
+        return;
+    }
+
+    if (!get('telegram_chat_id', false)) {
+        warning('No Telegram chat id configured');
+        return;
+    }
+
+    $telegramUrl = get('telegram_url') . '?' . http_build_query(
+        [
+            'chat_id' => get('telegram_chat_id'),
+            'text' => get('telegram_failure_text'),
+            'parse_mode' => 'Markdown',
+        ],
+    );
+
+    $httpie = Httpie::get($telegramUrl);
+
+    if (get('telegram_proxy', '') !== '') {
+        $httpie = $httpie->setopt(CURLOPT_PROXY, get('telegram_proxy'));
+    }
+
+    $httpie->send();
+})
+  ->once()
+  ->hidden();

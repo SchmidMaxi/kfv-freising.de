@@ -20,9 +20,13 @@ namespace TYPO3\CMS\Core\Security\ContentSecurityPolicy;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UriInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Core\Core\RequestId;
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Http\NormalizedParams;
 use TYPO3\CMS\Core\Http\Uri;
+use TYPO3\CMS\Core\Middleware\AbstractContentSecurityPolicyReporter;
+use TYPO3\CMS\Core\Routing\BackendEntryPointResolver;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Event\PolicyMutatedEvent;
 use TYPO3\CMS\Core\Site\Entity\Site;
 use TYPO3\CMS\Core\Site\Entity\SiteLanguage;
@@ -33,6 +37,7 @@ use TYPO3\CMS\Core\Site\SiteFinder;
  *
  * @internal
  */
+#[Autoconfigure(public: true)]
 final class PolicyProvider
 {
     protected const REPORTING_URI = '@http-reporting';
@@ -42,7 +47,9 @@ final class PolicyProvider
         private readonly SiteFinder $siteFinder,
         private readonly PolicyRegistry $policyRegistry,
         private readonly EventDispatcherInterface $eventDispatcher,
-        protected readonly MutationRepository $mutationRepository,
+        private readonly MutationRepository $mutationRepository,
+        private readonly BackendEntryPointResolver $backendEntryPointResolver,
+        private readonly HashService $hashService,
     ) {}
 
     /**
@@ -84,8 +91,12 @@ final class PolicyProvider
                 return null;
             }
         }
+        $requestTime = (string)$this->requestId->microtime;
+        $requestHash = $this->hashService->hmac($requestTime, AbstractContentSecurityPolicyReporter::class);
         $uriBase = $this->getDefaultReportingUriBase($scope, $request);
-        return $uriBase->withQuery($uriBase->getQuery() . '&requestTime=' . $this->requestId->microtime);
+        return $uriBase->withQuery(
+            $uriBase->getQuery() . '&requestTime=' . $requestTime . '&requestHash=' . $requestHash
+        );
     }
 
     /**
@@ -105,9 +116,9 @@ final class PolicyProvider
         } else {
             $uri = new Uri($normalizedParams->getSitePath());
         }
-        // add `typo3/` path in backend scope
+        // add backend entryPoint route prefix in backend scope
         if ($scope->type->isBackend()) {
-            $uri = $uri->withPath($uri->getPath() . 'typo3/');
+            $uri = $this->backendEntryPointResolver->getUriFromRequest($request);
         }
         // prefix current require scheme, host, port in case it's not given
         if ($absolute && ($uri->getScheme() === '' || $uri->getHost() === '')) {

@@ -25,7 +25,7 @@ use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
 use TYPO3\CMS\Core\Http\RedirectResponse;
-use TYPO3\CMS\Core\Imaging\Icon;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\TypoScript\AST\AstBuilderInterface;
 use TYPO3\CMS\Core\TypoScript\AST\Node\RootNode;
 use TYPO3\CMS\Core\TypoScript\AST\Traverser\AstTraverser;
@@ -132,11 +132,19 @@ class ConstantEditorController extends AbstractTemplateModuleController
                 $currentTemplateConstants = $templateRow['constants'] ?? '';
             }
         }
+        $currentTemplateRecord = [];
+        foreach ($allTemplatesOnPage as $templateRow) {
+            if ((int)$templateRow['uid'] === $selectedTemplateUid) {
+                $currentTemplateRecord = $templateRow;
+                break;
+            }
+        }
 
         // Build the constant include tree
         $rootLine = GeneralUtility::makeInstance(RootlineUtility::class, $pageUid)->get();
-        $sysTemplateRows = $this->sysTemplateRepository->getSysTemplateRowsByRootlineWithUidOverride($rootLine, $request, $selectedTemplateUid);
         $site = $request->getAttribute('site');
+        $rootLine = $this->getScopedRootline($site, $rootLine);
+        $sysTemplateRows = $this->sysTemplateRepository->getSysTemplateRowsByRootlineWithUidOverride($rootLine, $request, $selectedTemplateUid);
         $constantIncludeTree = $this->treeBuilder->getTreeBySysTemplateRowsAndSite('constants', $sysTemplateRows, $this->losslessTokenizer, $site);
         $constantAstBuilderVisitor = GeneralUtility::makeInstance(IncludeTreeCommentAwareAstBuilderVisitor::class);
         $this->treeTraverser->traverse($constantIncludeTree, [$constantAstBuilderVisitor]);
@@ -192,6 +200,7 @@ class ConstantEditorController extends AbstractTemplateModuleController
         $view->assignMultiple([
             'templateTitle' => $templateTitle,
             'pageUid' => $pageUid,
+            'templateRecord' => $currentTemplateRecord,
             'allTemplatesOnPage' => $allTemplatesOnPage,
             'selectedTemplateUid' => $selectedTemplateUid,
             'relevantCategories' => $relevantCategories,
@@ -230,6 +239,7 @@ class ConstantEditorController extends AbstractTemplateModuleController
 
         $rootLine = GeneralUtility::makeInstance(RootlineUtility::class, $pageUid)->get();
         $site = $request->getAttribute('site');
+        $rootLine = $this->getScopedRootline($site, $rootLine);
         $sysTemplateRows = $this->sysTemplateRepository->getSysTemplateRowsByRootlineWithUidOverride($rootLine, $request, $selectedTemplateUid);
         $constantIncludeTree = $this->treeBuilder->getTreeBySysTemplateRowsAndSite('constants', $sysTemplateRows, $this->losslessTokenizer, $site);
         $constantAstBuilderVisitor = GeneralUtility::makeInstance(IncludeTreeCommentAwareAstBuilderVisitor::class);
@@ -457,7 +467,7 @@ class ConstantEditorController extends AbstractTemplateModuleController
             ->setValue('1')
             ->setForm('TypoScriptConstantEditorController')
             ->setTitle($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:rm.saveDoc'))
-            ->setIcon($this->iconFactory->getIcon('actions-document-save', Icon::SIZE_SMALL))
+            ->setIcon($this->iconFactory->getIcon('actions-document-save', IconSize::SMALL))
             ->setShowLabelText(true);
         $buttonBar->addButton($saveButton);
     }

@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Workspaces\Command;
 
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -30,24 +31,17 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Workspaces\Service\WorkspaceService;
 
 /**
- * Call on the workspace logic to publish workspaces whose publication date is in the past
+ * Call on the workspace logic to publish workspaces whose publication date is in the past.
+ *
+ * @internal
  */
+#[AsCommand('workspace:autopublish', 'Publish a workspace with a publication date.')]
 class AutoPublishCommand extends Command
 {
-    /**
-     * @var WorkspaceService
-     */
-    private $workspaceService;
-
-    /**
-     * @var ConnectionPool
-     */
-    private $connectionPool;
-
-    public function __construct(WorkspaceService $workspaceService, ConnectionPool $connectionPool)
-    {
-        $this->workspaceService = $workspaceService;
-        $this->connectionPool = $connectionPool;
+    public function __construct(
+        private readonly WorkspaceService $workspaceService,
+        private readonly ConnectionPool $connectionPool
+    ) {
         parent::__construct();
     }
 
@@ -83,7 +77,7 @@ class AutoPublishCommand extends Command
                 );
 
             // Get CMD array
-            $cmd = $this->workspaceService->getCmdArrayForPublishWS($workspaceRecord['uid']);
+            $cmd = $this->workspaceService->getCmdArrayForPublishWS((int)$workspaceRecord['uid']);
             $tce = GeneralUtility::makeInstance(DataHandler::class);
             $tce->start([], $cmd);
             $tce->process_cmdmap();

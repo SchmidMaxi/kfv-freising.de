@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Linkvalidator\Repository;
 
 use Doctrine\DBAL\Exception\TableNotFoundException;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Platform\PlatformInformation;
@@ -28,6 +29,7 @@ use TYPO3\CMS\Linkvalidator\QueryRestrictions\EditableRestriction;
 /**
  * Repository for finding broken links that were detected previously.
  */
+#[Autoconfigure(public: true)]
 class BrokenLinkRepository
 {
     protected const TABLE = 'tx_linkvalidator_link';
@@ -228,7 +230,7 @@ class BrokenLinkRepository
      *
      * @param int[] $pageIds Pages to check for broken links
      * @param string[] $linkTypes Link types to validate
-     * @param string[] $searchFields table => [fields1, field2, ...], ... : fields in which linkvalidator should
+     * @param string[][] $searchFields table => [fields1, field2, ...], ... : fields in which linkvalidator should
      *   search for broken links
      * @param int[] $languages Allowed languages
      */
@@ -326,15 +328,14 @@ class BrokenLinkRepository
      *
      * @param array $record
      * @param bool $isValid
-     * @param array|null $errorParams
+     * @param array $errorParams
      * @throws \InvalidArgumentException
      * @throws \UnexpectedValueException
-     * @todo Make default value of $errorParams [] instead of null and add strict typing in v13
      */
-    public function addBrokenLink($record, bool $isValid, ?array $errorParams = null): void
+    public function addBrokenLink($record, bool $isValid, array $errorParams = []): void
     {
         $response = ['valid' => $isValid];
-        $response['errorParams'] = $errorParams ?? [];
+        $response['errorParams'] = $errorParams;
         $record['url_response'] = json_encode($response);
         GeneralUtility::makeInstance(ConnectionPool::class)
             ->getConnectionForTable(self::TABLE)

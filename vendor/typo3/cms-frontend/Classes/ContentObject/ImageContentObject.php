@@ -15,12 +15,14 @@
 
 namespace TYPO3\CMS\Frontend\ContentObject;
 
-use TYPO3\CMS\Core\Core\Environment;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use TYPO3\CMS\Core\Page\AssetCollector;
+use TYPO3\CMS\Core\Resource\File;
+use TYPO3\CMS\Core\Resource\FileReference;
 use TYPO3\CMS\Core\Service\MarkerBasedTemplateService;
 use TYPO3\CMS\Core\TypoScript\TypoScriptService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Core\Utility\PathUtility;
+use TYPO3\CMS\Frontend\ContentObject\Event\ModifyImageSourceCollectionEvent;
 
 /**
  * Contains IMAGE class object.
@@ -34,7 +36,7 @@ class ImageContentObject extends AbstractContentObject
     /**
      * Rendering the cObject, IMAGE
      *
-     * @param array $conf Array of TypoScript properties
+     * @param array|mixed $conf Array of TypoScript properties
      * @return string Output
      */
     public function render($conf = [])
@@ -43,7 +45,7 @@ class ImageContentObject extends AbstractContentObject
             return '';
         }
 
-        $theValue = $this->cImage($conf['file'] ?? '', $conf);
+        $theValue = $this->cImage($conf['file'] ?? '', is_array($conf) ? $conf : []);
         if (isset($conf['stdWrap.'])) {
             $theValue = $this->cObj->stdWrap($theValue, $conf['stdWrap.']);
         }
@@ -54,45 +56,42 @@ class ImageContentObject extends AbstractContentObject
      * Returns a <img> tag with the image file defined by $file and processed according to the properties in the TypoScript array.
      * Mostly this function is a sub-function to the IMAGE function which renders the IMAGE cObject in TypoScript.
      *
-     * @param string $file File TypoScript resource
+     * @param string|File|FileReference|null $file File TypoScript resource
      * @param array $conf TypoScript configuration properties
      * @return string HTML <img> tag, (possibly wrapped in links and other HTML) if any image found.
      */
-    protected function cImage($file, $conf)
+    protected function cImage($file, array $conf): string
     {
         $tsfe = $this->getTypoScriptFrontendController();
-        $info = $this->cObj->getImgResource($file, $conf['file.'] ?? []);
-        if (!is_array($info)) {
+        $imageResource = $this->cObj->getImgResource($file, $conf['file.'] ?? []);
+        if ($imageResource === null) {
             return '';
         }
         // $info['originalFile'] will be set, when the file is processed by FAL.
         // In that case the URL is final and we must not add a prefix
-        if (!isset($info['originalFile']) && is_file($info['3'])) {
-            $source = $tsfe->absRefPrefix . str_replace('%2F', '/', rawurlencode(PathUtility::stripPathSitePrefix($info['3'])));
+        if ($imageResource->getOriginalFile() === null && is_file($imageResource->getFullPath())) {
+            $source = $tsfe->absRefPrefix . str_replace('%2F', '/', rawurlencode($imageResource->getPublicUrl()));
         } else {
-            $source = PathUtility::stripPathSitePrefix($info[3]);
+            $source = $imageResource->getPublicUrl();
         }
-        // Remove file objects for AssetCollector, as it only allows to store scalar values
-        $infoOriginalFile = $info['originalFile'] ?? null;
-        unset($info['originalFile'], $info['processedFile']);
         GeneralUtility::makeInstance(AssetCollector::class)->addMedia(
             $source,
-            $info
+            $imageResource->getLegacyImageResourceInformation()
         );
 
-        $layoutKey = (string)$this->cObj->stdWrapValue('layoutKey', $conf ?? []);
+        $layoutKey = (string)$this->cObj->stdWrapValue('layoutKey', $conf);
         $imageTagTemplate = $this->getImageTagTemplate($layoutKey, $conf);
         $sourceCollection = $this->getImageSourceCollection($layoutKey, $conf, $file);
 
         $altParam = $this->getAltParam($conf);
-        $params = $this->cObj->stdWrapValue('params', $conf ?? []);
+        $params = $this->cObj->stdWrapValue('params', $conf);
         if ($params !== '' && $params[0] !== ' ') {
             $params = ' ' . $params;
         }
 
         $imageTagValues = [
-            'width' =>  (int)$info[0],
-            'height' => (int)$info[1],
+            'width' =>  $imageResource->getWidth(),
+            'height' => $imageResource->getHeight(),
             'src' => htmlspecialchars($source),
             'params' => $params,
             'altParams' => $altParam,
@@ -102,14 +101,14 @@ class ImageContentObject extends AbstractContentObject
 
         $theValue = $this->markerTemplateService->substituteMarkerArray($imageTagTemplate, $imageTagValues, '###|###', true, true);
 
-        $linkWrap = (string)$this->cObj->stdWrapValue('linkWrap', $conf ?? []);
+        $linkWrap = (string)$this->cObj->stdWrapValue('linkWrap', $conf);
         if ($linkWrap !== '') {
-            $theValue = $this->linkWrap((string)$theValue, $linkWrap);
+            $theValue = $this->linkWrap($theValue, $linkWrap);
         } elseif ($conf['imageLinkWrap'] ?? false) {
-            $originalFile = !empty($infoOriginalFile) ? $infoOriginalFile : urldecode($info['origFile']);
+            $originalFile = urldecode($imageResource->getFullPath());
             $theValue = $this->cObj->imageLinkWrap($theValue, $originalFile, $conf['imageLinkWrap.']);
         }
-        $wrap = $this->cObj->stdWrapValue('wrap', $conf ?? []);
+        $wrap = $this->cObj->stdWrapValue('wrap', $conf);
         if ((string)$wrap !== '') {
             $theValue = $this->cObj->wrap($theValue, $conf['wrap']);
         }
@@ -136,11 +135,10 @@ class ImageContentObject extends AbstractContentObject
      *
      * @param string $layoutKey rendering key
      * @param array $conf TypoScript configuration properties
-     * @param string $file
-     * @throws \UnexpectedValueException
+     * @param string|File|FileReference|null $file
      * @return string
      */
-    protected function getImageSourceCollection($layoutKey, $conf, $file)
+    protected function getImageSourceCollection(string $layoutKey, array $conf, $file)
     {
         $sourceCollection = '';
         if ($layoutKey
@@ -153,7 +151,7 @@ class ImageContentObject extends AbstractContentObject
             // find active sourceCollection
             $activeSourceCollections = [];
             foreach ($conf['sourceCollection.'] as $sourceCollectionKey => $sourceCollectionConfiguration) {
-                if (substr($sourceCollectionKey, -1) === '.') {
+                if (str_ends_with($sourceCollectionKey, '.')) {
                     if (empty($sourceCollectionConfiguration['if.']) || $this->cObj->checkIf($sourceCollectionConfiguration['if.'])) {
                         $activeSourceCollections[] = $sourceCollectionConfiguration;
                     }
@@ -164,6 +162,7 @@ class ImageContentObject extends AbstractContentObject
             $tsfe = $this->getTypoScriptFrontendController();
             $typoScriptService = GeneralUtility::makeInstance(TypoScriptService::class);
             $srcLayoutOptionSplitted = $typoScriptService->explodeConfigurationForOptionSplit((array)$conf['layout.'][$layoutKey . '.'], count($activeSourceCollections));
+            $eventDispatcher = GeneralUtility::makeInstance(EventDispatcherInterface::class);
 
             // render sources
             foreach ($activeSourceCollections as $key => $sourceConfiguration) {
@@ -194,7 +193,7 @@ class ImageContentObject extends AbstractContentObject
                                 $dimension .= $dimensionParts[1];
                             }
                         } elseif ($dimensionKey === 'XY') {
-                            $dimensionParts = GeneralUtility::intExplode(',', $dimension, false, 2);
+                            $dimensionParts = GeneralUtility::intExplode(',', $dimension);
                             $dimension = $dimensionParts[0] * $pixelDensity;
                             if ($dimensionParts[1]) {
                                 $dimension .= ',' . $dimensionParts[1] * $pixelDensity;
@@ -207,39 +206,26 @@ class ImageContentObject extends AbstractContentObject
                         unset($sourceRenderConfiguration['file.'][$dimensionKey . '.']);
                     }
                 }
-                $sourceInfo = $this->cObj->getImgResource($sourceRenderConfiguration['file'], $sourceRenderConfiguration['file.']);
-                if ($sourceInfo) {
-                    $sourceConfiguration['width'] = $sourceInfo[0];
-                    $sourceConfiguration['height'] = $sourceInfo[1];
+                $imageResource = $this->cObj->getImgResource($sourceRenderConfiguration['file'], $sourceRenderConfiguration['file.']);
+                if ($imageResource !== null) {
+                    $sourceConfiguration['width'] = $imageResource->getWidth();
+                    $sourceConfiguration['height'] = $imageResource->getHeight();
 
                     $urlPrefix = '';
-                    $publicUrl = str_starts_with($sourceInfo[3], Environment::getPublicPath())
-                        ? PathUtility::stripPathSitePrefix($sourceInfo[3])
-                        : $sourceInfo[3];
-
                     // Prepend 'absRefPrefix' to file path only if file was not processed
                     // by FAL, e.g. GIFBUILDER
-                    if (!isset($sourceInfo['originalFile']) && is_file(Environment::getPublicPath() . '/' . $publicUrl)) {
+                    if ($imageResource->getOriginalFile() === null && is_file($imageResource->getFullPath())) {
                         $urlPrefix = $tsfe->absRefPrefix;
                     }
 
-                    $sourceConfiguration['src'] = htmlspecialchars($urlPrefix . $publicUrl);
+                    $sourceConfiguration['src'] = htmlspecialchars($urlPrefix . $imageResource->getPublicUrl());
                     $sourceConfiguration['selfClosingTagSlash'] = $this->getPageRenderer()->getDocType()->isXmlCompliant() ? ' /' : '';
 
                     $oneSourceCollection = $this->markerTemplateService->substituteMarkerArray($sourceLayout, $sourceConfiguration, '###|###', true, true);
 
-                    foreach ($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['tslib/class.tslib_content.php']['getImageSourceCollection'] ?? [] as $className) {
-                        $hookObject = GeneralUtility::makeInstance($className);
-                        if (!$hookObject instanceof ContentObjectOneSourceCollectionHookInterface) {
-                            throw new \UnexpectedValueException(
-                                '$hookObject must implement interface ' . ContentObjectOneSourceCollectionHookInterface::class,
-                                1380017853
-                            );
-                        }
-                        $oneSourceCollection = $hookObject->getOneSourceCollection((array)$sourceRenderConfiguration, (array)$sourceConfiguration, $oneSourceCollection, $this->cObj);
-                    }
-
-                    $sourceCollection .= $oneSourceCollection;
+                    $sourceCollection .= $eventDispatcher->dispatch(
+                        new ModifyImageSourceCollectionEvent($oneSourceCollection, $sourceCollection, (array)$sourceConfiguration, $sourceRenderConfiguration, $this->cObj)
+                    )->getSourceCollection();
                 }
             }
         }
@@ -260,7 +246,8 @@ class ImageContentObject extends AbstractContentObject
     {
         $wrapArr = explode('|', $wrap);
         if (preg_match('/\\{([0-9]*)\\}/', $wrapArr[0], $reg)) {
-            $uid = $this->getTypoScriptFrontendController()->config['rootLine'][$reg[1]]['uid'] ?? null;
+            $localRootLine = $this->request->getAttribute('frontend.page.information')->getLocalRootLine();
+            $uid = $localRootLine[$reg[1]]['uid'] ?? null;
             if ($uid) {
                 $wrapArr[0] = str_replace($reg[0], $uid, $wrapArr[0]);
             }
@@ -277,13 +264,13 @@ class ImageContentObject extends AbstractContentObject
      */
     protected function getAltParam(array $conf): string
     {
-        $altText = trim((string)$this->cObj->stdWrapValue('altText', $conf ?? []));
-        $titleText = trim((string)$this->cObj->stdWrapValue('titleText', $conf ?? []));
+        $altText = trim((string)$this->cObj->stdWrapValue('altText', $conf));
+        $titleText = trim((string)$this->cObj->stdWrapValue('titleText', $conf));
 
         // "alt":
         $altParam = ' alt="' . htmlspecialchars($altText) . '"';
         // "title":
-        $emptyTitleHandling = $this->cObj->stdWrapValue('emptyTitleHandling', $conf ?? []);
+        $emptyTitleHandling = $this->cObj->stdWrapValue('emptyTitleHandling', $conf);
         // Choices: 'keepEmpty' | 'useAlt' | 'removeAttr'
         if ($titleText || $emptyTitleHandling === 'keepEmpty') {
             $altParam .= ' title="' . htmlspecialchars($titleText) . '"';

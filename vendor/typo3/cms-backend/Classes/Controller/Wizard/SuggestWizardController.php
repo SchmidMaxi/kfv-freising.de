@@ -19,6 +19,7 @@ namespace TYPO3\CMS\Backend\Controller\Wizard;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Form\Wizard\SuggestWizardDefaultReceiver;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
@@ -33,8 +34,13 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  * Receives ajax request from FormEngine suggest wizard and creates suggest answer as json result
  * @internal This class is a specific Backend controller implementation and is not considered part of the Public TYPO3 API.
  */
+#[AsController]
 class SuggestWizardController
 {
+    public function __construct(
+        private readonly FlexFormTools $flexFormTools,
+    ) {}
+
     /**
      * Ajax handler for the "suggest" feature in FormEngine.
      *
@@ -76,8 +82,7 @@ class SuggestWizardController
             }
         } else {
             // A flex flex form field
-            $flexFormTools = GeneralUtility::makeInstance(FlexFormTools::class);
-            $dataStructure = $flexFormTools->parseDataStructureByIdentifier($dataStructureIdentifier);
+            $dataStructure = $this->flexFormTools->parseDataStructureByIdentifier($dataStructureIdentifier);
             if (empty($flexFormContainerFieldName)) {
                 // @todo: See if a path in pageTsConfig like "TCEForm.tableName.theContainerFieldName =" is useful and works with other pageTs, too.
                 $fieldNameInPageTsConfig = $flexFormFieldName;

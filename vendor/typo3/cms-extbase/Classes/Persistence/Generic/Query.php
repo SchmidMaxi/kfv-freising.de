@@ -16,6 +16,7 @@
 namespace TYPO3\CMS\Extbase\Persistence\Generic;
 
 use Psr\Container\ContainerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Persistence\Generic\Exception\UnexpectedTypeException;
 use TYPO3\CMS\Extbase\Persistence\Generic\Mapper\DataMapFactory;
@@ -37,6 +38,7 @@ use TYPO3\CMS\Extbase\Utility\TypeHandlingUtility;
  * @template T of object
  * @implements QueryInterface<T>
  */
+#[Autoconfigure(public: true, shared: false)]
 class Query implements QueryInterface
 {
     /**
@@ -70,10 +72,7 @@ class Query implements QueryInterface
     protected QueryObjectModelFactory $qomFactory;
     protected ContainerInterface $container;
 
-    /**
-     * @var \TYPO3\CMS\Extbase\Persistence\Generic\Qom\SourceInterface
-     */
-    protected $source;
+    protected ?SourceInterface $source = null;
 
     /**
      * @var \TYPO3\CMS\Extbase\Persistence\Generic\Qom\ConstraintInterface
@@ -185,10 +184,7 @@ class Query implements QueryInterface
         return $this->type;
     }
 
-    /**
-     * Sets the source to fetch the result from
-     */
-    public function setSource(SourceInterface $source)
+    public function setSource(SourceInterface $source): void
     {
         $this->source = $source;
     }
@@ -208,12 +204,7 @@ class Query implements QueryInterface
         return '';
     }
 
-    /**
-     * Gets the node-tuple source for this query.
-     *
-     * @return \TYPO3\CMS\Extbase\Persistence\Generic\Qom\SourceInterface the node-tuple source; non-null
-     */
-    public function getSource()
+    public function getSource(): SourceInterface
     {
         if ($this->source === null) {
             $this->source = $this->qomFactory->selector($this->getType(), $this->dataMapFactory->buildDataMap($this->getType())->getTableName());

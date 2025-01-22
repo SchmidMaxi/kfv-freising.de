@@ -23,12 +23,10 @@ use TYPO3\CMS\Core\Resource\Exception\UploadSizeException;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
- * Class UploadedFile which represents one uploaded file, usually coming
+ * Class which represents one uploaded file, usually coming
  * from $_FILES, according to PSR-7 standard.
  *
  * Highly inspired by https://github.com/phly/http/
- *
- * @internal Note that this is not public API yet.
  */
 class UploadedFile implements UploadedFileInterface
 {

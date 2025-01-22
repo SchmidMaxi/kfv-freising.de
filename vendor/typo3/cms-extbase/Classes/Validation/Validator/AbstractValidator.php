@@ -17,7 +17,10 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Extbase\Validation\Validator;
 
+use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Core\Http\UploadedFile;
 use TYPO3\CMS\Extbase\Error\Result;
+use TYPO3\CMS\Extbase\Persistence\ObjectStorage;
 use TYPO3\CMS\Extbase\Utility\LocalizationUtility;
 use TYPO3\CMS\Extbase\Validation\Error;
 use TYPO3\CMS\Extbase\Validation\Exception\InvalidValidationOptionsException;
@@ -39,6 +42,11 @@ abstract class AbstractValidator implements ValidatorInterface
     protected $acceptsEmptyValues = true;
 
     /**
+     * Contains an array of property names used for translation handling of error messages.
+     */
+    protected array $translationOptions = ['message'];
+
+    /**
      * This contains the supported options, their default values, types and descriptions.
      *
      * @var array
@@ -47,10 +55,20 @@ abstract class AbstractValidator implements ValidatorInterface
 
     protected array $options = [];
     protected Result $result;
+    protected ?ServerRequestInterface $request = null;
 
     public function setOptions(array $options): void
     {
         $this->initializeDefaultOptions($options);
+        $this->initializeTranslationOptions($options);
+    }
+
+    /**
+     * @todo: Add to ValidatorInterface in TYPO3 v14
+     */
+    public function setRequest(?ServerRequestInterface $request): void
+    {
+        $this->request = $request;
     }
 
     /**
@@ -111,6 +129,14 @@ abstract class AbstractValidator implements ValidatorInterface
     }
 
     /**
+     * @todo: Add to ValidatorInterface in TYPO3 v14
+     */
+    public function getRequest(): ?ServerRequestInterface
+    {
+        return $this->request;
+    }
+
+    /**
      * TRUE if the given $value is NULL or an empty string ('')
      */
     final protected function isEmpty(mixed $value): bool
@@ -119,10 +145,18 @@ abstract class AbstractValidator implements ValidatorInterface
     }
 
     /**
-     * Wrap static call to LocalizationUtility to simplify unit testing.
+     * Translates an error message using LocalizationUtility::translate() method. If the translate key does not
+     * start with 'LLL:' and if no extension name is provided, the original translate key is returned.
      */
-    protected function translateErrorMessage(string $translateKey, string $extensionName, array $arguments = []): string
-    {
+    protected function translateErrorMessage(
+        string $translateKey,
+        string $extensionName = '',
+        array $arguments = []
+    ): string {
+        if ($extensionName === '' && !str_starts_with($translateKey, 'LLL:')) {
+            return $translateKey;
+        }
+
         return LocalizationUtility::translate(
             $translateKey,
             $extensionName,
@@ -158,5 +192,39 @@ abstract class AbstractValidator implements ValidatorInterface
             ),
             $options
         );
+    }
+
+    /**
+     * Ensures that the provided value is either an instance of UploadedFile or an ObjectStorage containing only
+     * UploadedFile instances.
+     */
+    protected function ensureFileUploadTypes(mixed $value): void
+    {
+        if ($value instanceof UploadedFile) {
+            return;
+        }
+
+        if ($value instanceof ObjectStorage) {
+            foreach ($value as $uploadedFile) {
+                if (!$uploadedFile instanceof UploadedFile) {
+                    throw new \InvalidArgumentException('Value to validate must be an ObjectStorage of TYPO3\\CMS\\Core\\Http\\UploadedFile', 1722763902);
+                }
+            }
+            return;
+        }
+
+        throw new \InvalidArgumentException('Value to validate must be a TYPO3\\CMS\\Core\\Http\\UploadedFile', 1712057926);
+    }
+
+    /**
+     * Initializes all registered translation options with custom translation options from the given options array
+     */
+    protected function initializeTranslationOptions(array $options): void
+    {
+        foreach ($this->translationOptions as $translationOption) {
+            if (property_exists($this, $translationOption)) {
+                $this->$translationOption = $options[$translationOption] ?? $this->$translationOption;
+            }
+        }
     }
 }

@@ -62,27 +62,39 @@ class WebServerConfigurationFileService
             return false;
         }
 
-        $newRewriteRule = PHP_EOL . '
-    ### BEGIN: TYPO3 automated migration
-    # If the file/symlink/directory does not exist but is below /typo3/, redirect to the TYPO3 Backend entry point.
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteCond %{REQUEST_FILENAME} !-l
-    RewriteRule ^typo3/(.*)$ %{ENV:CWD}typo3/index.php [QSA,L]
-    ### END: TYPO3 automated migration';
-
-        return (bool)file_put_contents(
-            $configurationFilename,
-            str_replace(
-                '# Stop rewrite processing, if we are in the typo3/ directory or any other known directory',
-                '# Stop rewrite processing, if we are in any other known directory',
-                $this->performBackendRoutingRewriteRulesUpdate(
-                    '/(RewriteRule\s\^\(\?\:(typo3\/\|).*\s\[L\])(.*RewriteRule\s\^\.\*\$\s%{ENV:CWD}index\.php\s\[QSA,L\])/s',
-                    $newRewriteRule,
-                    $configurationFileContent,
-                )
-            )
+        $count = 0;
+        $configurationFileContent = preg_replace(
+            pattern: sprintf('/%s/', implode('\s*', array_map(
+                static fn($s) => preg_quote($s, '/'),
+                [
+                    'RewriteCond %{REQUEST_FILENAME} !-d',
+                    'RewriteCond %{REQUEST_FILENAME} !-l',
+                    'RewriteRule ^typo3/(.*)$ %{ENV:CWD}typo3/index.php [QSA,L]',
+                ]
+            ))),
+            replacement: 'RewriteRule ^typo3/(.*)$ %{ENV:CWD}index.php [QSA,L]',
+            subject: $configurationFileContent,
+            count: $count
         );
+
+        $configurationFileContent = str_replace(
+            [
+                '# Stop rewrite processing, if we are in any other known directory',
+                '# Stop rewrite processing, if we are in the typo3/ directory or any other known directory', // v10 style comment
+                '# If the file does not exist but is below /typo3/, redirect to the TYPO3 Backend entry point.',
+            ],
+            [
+                '# Stop rewrite processing, if we are in any known directory',
+                '# Stop rewrite processing, if we are in any known directory',
+                '# If the file does not exist but is below /typo3/, rewrite to the main TYPO3 entry point.',
+            ],
+            $configurationFileContent,
+            $count
+        );
+
+        // Return FALSE in case no replacement has been done. This might be the
+        // case if already modified versions of the configuration are in place.
+        return $count > 0 && file_put_contents($configurationFilename, $configurationFileContent);
     }
 
     protected function addMicrosoftIisBackendRoutingRewriteRules(): bool
@@ -94,27 +106,23 @@ class WebServerConfigurationFileService
             return false;
         }
 
-        $newRewriteRule = '
-                <!-- BEGIN: TYPO3 automated migration -->
-                <rule name="TYPO3 - If the file/directory does not exist but is below /typo3/, redirect to the TYPO3 Backend entry point." stopProcessing="true">
-                    <match url="^typo3/(.*)$" ignoreCase="false" />
-                    <conditions logicalGrouping="MatchAll">
-                        <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
-                        <add input="{REQUEST_FILENAME}" matchType="IsDirectory" negate="true" />
-                        <add input="{REQUEST_URI}" matchType="Pattern" pattern="^/typo3/.*$" />
-                    </conditions>
-                    <action type="Rewrite" url="typo3/index.php" appendQueryString="true" />
-                </rule>
-                <!-- END: TYPO3 automated migration -->';
-
-        return (bool)file_put_contents(
-            $configurationFilename,
-            $this->performBackendRoutingRewriteRulesUpdate(
-                '/(<match\surl="\^\/\((typo3\|).*\)\$"\s\/>.+?<\/rule>)(.*<action\stype="Rewrite"\surl="index\.php")/s',
-                $newRewriteRule,
-                $configurationFileContent
-            )
+        $count = 0;
+        $configurationFileContent = str_replace(
+            [
+                '<rule name="TYPO3 - If the file/directory does not exist but is below /typo3/, redirect to the TYPO3 Backend entry point." stopProcessing="true">',
+                '<action type="Rewrite" url="typo3/index.php" appendQueryString="true" />',
+            ],
+            [
+                '<rule name="TYPO3 - If the file/directory does not exist but is below /typo3/, redirect to the main TYPO3 entry point." stopProcessing="true">',
+                '<action type="Rewrite" url="index.php" appendQueryString="true" />',
+            ],
+            $configurationFileContent,
+            $count
         );
+
+        // Return FALSE in case no replacement has been done. This might be the
+        // case if already modified versions of the configuration are in place.
+        return $count > 0 && file_put_contents($configurationFilename, $configurationFileContent);
     }
 
     /**
@@ -145,46 +153,12 @@ class WebServerConfigurationFileService
     protected function updateNecessary(string $configurationFileContent): bool
     {
         if ($this->isApache()) {
-            return (bool)preg_match('/RewriteRule\s\^\(\?\:typo3\/\|.*\s\[L\].*RewriteRule\s\^\.\*\$\s%{ENV:CWD}index\.php\s\[QSA,L\]/s', $configurationFileContent)
-                && !str_contains($configurationFileContent, 'RewriteRule ^typo3/(.*)$ %{ENV:CWD}typo3/index.php [QSA,L]');
+            return str_contains($configurationFileContent, 'RewriteRule ^typo3/(.*)$ %{ENV:CWD}typo3/index.php [QSA,L]');
         }
         if ($this->isMicrosoftIis()) {
-            return (bool)preg_match('/<match\surl="\^\/\(typo3\|.*\)\$"\s\/>.*<action\stype="Rewrite"\surl="index.php"\sappendQueryString="true"\s\/>/s', $configurationFileContent)
-                && !str_contains($configurationFileContent, '<action type="Rewrite" url="typo3/index.php" appendQueryString="true" />');
+            return str_contains($configurationFileContent, '<action type="Rewrite" url="typo3/index.php" appendQueryString="true" />');
         }
         return false;
-    }
-
-    /**
-     * Removes the 'typo3' directory from the existing "known directory" rewrite rule and
-     * adds the new backend rewrite rule between this rule and the frontend rewrite rule.
-     *
-     * Pattern must contain three capturing groups:
-     * 1: The "known directory" rule from which "typo3" should be removed
-     * 2: The "typo3" string to be removed
-     * 3: The subsequent part including the frontend rewrite rule
-     *
-     * The new rule will then be added between group 1 and group 3.
-     *
-     * @param string $pattern
-     * @param string $newRewriteRule
-     * @param string $configurationFileContent
-     *
-     * @return string The updated webserver configuration
-     */
-    protected function performBackendRoutingRewriteRulesUpdate(
-        string $pattern,
-        string $newRewriteRule,
-        string $configurationFileContent
-    ): string {
-        return (string)preg_replace_callback(
-            $pattern,
-            static function ($matches) use ($newRewriteRule) {
-                return str_replace($matches[2], '', ($matches[1] . $newRewriteRule)) . $matches[3];
-            },
-            $configurationFileContent,
-            1
-        );
     }
 
     protected function isApache(): bool

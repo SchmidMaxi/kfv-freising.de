@@ -7,9 +7,7 @@
 
 namespace TYPO3Fluid\Fluid\ViewHelpers;
 
-use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
-use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
 
 /**
  * Or ViewHelper
@@ -36,8 +34,6 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
  */
 class OrViewHelper extends AbstractViewHelper
 {
-    use CompileWithRenderStatic;
-
     /**
      * Initialize
      */
@@ -49,30 +45,22 @@ class OrViewHelper extends AbstractViewHelper
     }
 
     /**
-     * @param array $arguments
-     * @param \Closure $renderChildrenClosure
-     * @param RenderingContextInterface $renderingContext
      * @return mixed
      */
-    public static function renderStatic(array $arguments, \Closure $renderChildrenClosure, RenderingContextInterface $renderingContext)
+    public function render()
     {
-        $alternative = $arguments['alternative'];
-        $arguments = (array)$arguments['arguments'];
-
-        if (empty($arguments)) {
-            $arguments = null;
+        $alternative = $this->arguments['alternative'];
+        $sprintfArguments = (array)$this->arguments['arguments'];
+        if (empty($sprintfArguments)) {
+            $sprintfArguments = null;
         }
-
-        $content = $renderChildrenClosure();
-
+        $content = $this->renderChildren();
         if (null === $content) {
             $content = $alternative;
         }
-
         if (false === empty($content)) {
-            $content = null !== $arguments ? vsprintf($content, $arguments) : $content;
+            $content = null !== $sprintfArguments ? vsprintf($content, $sprintfArguments) : $content;
         }
-
         return $content;
     }
 

@@ -19,13 +19,13 @@ namespace TYPO3\CMS\Workspaces\Controller;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Exception\SiteNotFoundException;
 use TYPO3\CMS\Core\Information\Typo3Information;
-use TYPO3\CMS\Core\Localization\DateFormatter;
 use TYPO3\CMS\Core\Page\PageRenderer;
 use TYPO3\CMS\Core\Routing\InvalidRouteArgumentsException;
 use TYPO3\CMS\Core\Routing\UnableToLinkToPageException;
@@ -40,6 +40,7 @@ use TYPO3\CMS\Workspaces\Service\WorkspaceService;
  *
  * @internal This is a specific Backend Controller implementation and is not considered part of the Public TYPO3 API.
  */
+#[AsController]
 class PreviewController
 {
     public function __construct(
@@ -71,19 +72,6 @@ class PreviewController
         $this->pageRenderer->addInlineSetting('Workspaces', 'States', $backendUser->uc['moduleData']['Workspaces']['States'] ?? []);
         $this->pageRenderer->addInlineSetting('FormEngine', 'moduleUrl', (string)$this->uriBuilder->buildUriFromRoute('record_edit'));
         $this->pageRenderer->addInlineSetting('RecordHistory', 'moduleUrl', (string)$this->uriBuilder->buildUriFromRoute('record_history'));
-
-        // Needed for FormEngine manipulation (date picker)
-        $formatter = new DateFormatter();
-        $dateFormat = [];
-        $dateFormat[0] = $formatter->convertPhpFormatToLuxon($GLOBALS['TYPO3_CONF_VARS']['SYS']['ddmmyy'] ?? 'Y-m-d');
-        $dateFormat[1] = $formatter->convertPhpFormatToLuxon($GLOBALS['TYPO3_CONF_VARS']['SYS']['hhmm'] ?? 'H:i') . ' ' . $dateFormat[0];
-        $this->pageRenderer->addInlineSetting('DateTimePicker', 'DateFormat', $dateFormat);
-
-        // @todo Most likely the inline configuration can be removed. Seems to be unused in the JavaScript module
-        $this->pageRenderer->addInlineSetting('TYPO3', 'configuration', [
-            'username' => htmlspecialchars($backendUser->user['username']),
-            'showRefreshLoginPopup' => (bool)($GLOBALS['TYPO3_CONF_VARS']['BE']['showRefreshLoginPopup'] ?? false),
-        ]);
         $this->pageRenderer->addCssFile('EXT:workspaces/Resources/Public/Css/preview.css');
         $this->pageRenderer->addInlineLanguageLabelFile('EXT:core/Resources/Private/Language/wizard.xlf');
         $this->pageRenderer->addInlineLanguageLabelFile('EXT:workspaces/Resources/Private/Language/locallang.xlf');

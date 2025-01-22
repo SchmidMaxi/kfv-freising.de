@@ -22,6 +22,7 @@ use TYPO3\CMS\Core\TypoScript\IncludeTree\IncludeNode\AtImportInclude;
 use TYPO3\CMS\Core\TypoScript\IncludeTree\IncludeNode\ConditionElseInclude;
 use TYPO3\CMS\Core\TypoScript\IncludeTree\IncludeNode\ConditionInclude;
 use TYPO3\CMS\Core\TypoScript\IncludeTree\IncludeNode\ConditionIncludeTyposcriptInclude;
+use TYPO3\CMS\Core\TypoScript\IncludeTree\IncludeNode\ConditionStopInclude;
 use TYPO3\CMS\Core\TypoScript\IncludeTree\IncludeNode\DefaultTypoScriptMagicKeyInclude;
 use TYPO3\CMS\Core\TypoScript\IncludeTree\IncludeNode\IncludeInterface;
 use TYPO3\CMS\Core\TypoScript\IncludeTree\IncludeNode\IncludeTyposcriptInclude;
@@ -59,6 +60,7 @@ final class TreeFromLineStreamBuilder
     /** @var 'constants'|'setup'|'other' */
     private string $type;
     private TokenizerInterface $tokenizer;
+    private bool $enableMagicIncludes = false;
 
     /**
      * Using "@import" with wildcards, the file ending depends on the given type:
@@ -78,7 +80,7 @@ final class TreeFromLineStreamBuilder
         private readonly FileNameValidator $fileNameValidator,
     ) {}
 
-    public function buildTree(IncludeInterface $node, string $type, TokenizerInterface $tokenizer): void
+    public function buildTree(IncludeInterface $node, string $type, TokenizerInterface $tokenizer, bool $enableMagicIncludes = true): void
     {
         if (!in_array($type, ['constants', 'setup', 'tsconfig', 'other'], true)) {
             // Type "constants" and "setup" trigger the weird addStaticMagicFromGlobals() resolving, while "other" ignores it.
@@ -86,6 +88,7 @@ final class TreeFromLineStreamBuilder
         }
         $this->type = $type;
         $this->tokenizer = $tokenizer;
+        $this->enableMagicIncludes = $enableMagicIncludes;
         $this->buildTreeInternal($node);
     }
 
@@ -163,10 +166,32 @@ final class TreeFromLineStreamBuilder
             ) {
                 // Finish condition segment due to [end] or [global] line
                 $node->setSplit();
-                $lineStream->append($line);
                 $childNode->setLineStream($lineStream);
                 $node->addChild($childNode);
                 $node = $parentNode;
+                $childNode = new ConditionStopInclude();
+                $childNode->setName($node->getName());
+                $childNode->setLineStream((new LineStream())->append($line));
+                $node->addChild($childNode);
+                $childNode = new SegmentInclude();
+                $childNode->setName($node->getName());
+                $childNode->setPath($node->getPath());
+                $lineStream = new LineStream();
+                continue;
+            }
+
+            if ($line instanceof ConditionStopLine) {
+                // [end] or [global] not within open condition context. Fishy. Still finish current
+                // segment, mark node split, add new ConditionStopInclude(), open a new segment.
+                $node->setSplit();
+                if (!$lineStream->isEmpty()) {
+                    $childNode->setLineStream($lineStream);
+                    $node->addChild($childNode);
+                }
+                $childNode = new ConditionStopInclude();
+                $childNode->setName($node->getName());
+                $childNode->setLineStream((new LineStream())->append($line));
+                $node->addChild($childNode);
                 $childNode = new SegmentInclude();
                 $childNode->setName($node->getName());
                 $childNode->setPath($node->getPath());
@@ -220,6 +245,17 @@ final class TreeFromLineStreamBuilder
             }
 
             if ($line instanceof ImportOldLine) {
+                // @deprecated: Remove together with related code in v14, search for keyword INCLUDE_TYPOSCRIPT
+                $deprecationPath = $node->getPath();
+                $deprecationName = $node->getName();
+                $deprecationString = '<INCLUDE_TYPOSCRIPT:' . $line->getValueToken() . '>';
+                trigger_error(
+                    'TypoScript syntax "<INCLUDE_TYPOSCRIPT:" has been deprecated with TYPO3 v13 and will be removed with TYPO3 v14. Switch to "@import" instead.'
+                    . ' Found string: "' . $deprecationString . '"'
+                    . ' Potential path: "' . $deprecationPath . '"'
+                    . ' Internal name: "' . $deprecationName . '"',
+                    E_USER_DEPRECATED
+                );
                 $node->setSplit();
                 $includeTypoScriptValueToken = $line->getValueToken();
                 if (!$lineStream->isEmpty()) {
@@ -251,12 +287,14 @@ final class TreeFromLineStreamBuilder
     private function processAtImport(string $fileSuffix, IncludeInterface $node, Token $atImportValueToken, LineInterface $atImportLine, bool $tryRelative = false): void
     {
         $atImportValue = $atImportValueToken->getValue();
+        $atImportName = $atImportValue;
         if ($tryRelative) {
             if (empty($node->getPath())) {
                 return;
             }
             $parentPath = rtrim(dirname($node->getPath()), '/') . '/';
             $atImportValue = ltrim($atImportValue, './');
+            $atImportName = preg_replace('#([:/])[^:/]+$#', '$1', $node->getName()) . $atImportValue;
             $atImportValue = $parentPath . $atImportValue;
         }
         $absoluteFileName = rtrim(GeneralUtility::getFileAbsFileName($atImportValue), '/');
@@ -266,7 +304,7 @@ final class TreeFromLineStreamBuilder
         if (str_ends_with($absoluteFileName, '.' . $fileSuffix) && is_file($absoluteFileName)) {
             // Simple file with allowed file suffix
             if ($this->fileNameValidator->isValid($absoluteFileName)) {
-                $this->addSingleAtImportFile($node, $absoluteFileName, $atImportValue, $atImportLine);
+                $this->addSingleAtImportFile($node, $absoluteFileName, $atImportValue, $atImportName, $atImportLine);
                 $this->addStaticMagicFromGlobals($node, $atImportValue);
             }
         } elseif (is_dir($absoluteFileName)) {
@@ -281,7 +319,7 @@ final class TreeFromLineStreamBuilder
                 }
                 $singleAbsoluteFileName = $absoluteFileName . '/' . $potentialInclude;
                 $identifier = rtrim($atImportValue, '/') . '/' . $potentialInclude;
-                $this->addSingleAtImportFile($node, $singleAbsoluteFileName, $identifier, $atImportLine);
+                $this->addSingleAtImportFile($node, $singleAbsoluteFileName, $identifier, $identifier, $atImportLine);
                 $this->addStaticMagicFromGlobals($node, $identifier);
             }
         } elseif (is_file($absoluteFileName . '.' . $fileSuffix)) {
@@ -289,7 +327,7 @@ final class TreeFromLineStreamBuilder
             if ($this->fileNameValidator->isValid($absoluteFileName . '.' . $fileSuffix)) {
                 $singleAbsoluteFileName = $absoluteFileName . '.' . $fileSuffix;
                 $identifier = $atImportValue . '.' . $fileSuffix;
-                $this->addSingleAtImportFile($node, $singleAbsoluteFileName, $identifier, $atImportLine);
+                $this->addSingleAtImportFile($node, $singleAbsoluteFileName, $identifier, $identifier, $atImportLine);
                 $this->addStaticMagicFromGlobals($node, $identifier);
             }
         } elseif (str_contains($absoluteFileName, '*')) {
@@ -336,7 +374,7 @@ final class TreeFromLineStreamBuilder
                 }
                 $singleAbsoluteFileName = $directory . $potentialInclude;
                 $identifier = rtrim(dirname($atImportValue), '/') . '/' . $potentialInclude;
-                $this->addSingleAtImportFile($node, $singleAbsoluteFileName, $identifier, $atImportLine);
+                $this->addSingleAtImportFile($node, $singleAbsoluteFileName, $identifier, $identifier, $atImportLine);
                 $this->addStaticMagicFromGlobals($node, $identifier);
             }
         } elseif (!$tryRelative) {
@@ -350,11 +388,16 @@ final class TreeFromLineStreamBuilder
      *
      * Warning: Recursively calls buildTree() to process includes of included content.
      */
-    private function addSingleAtImportFile(IncludeInterface $parentNode, string $absoluteFileName, string $path, LineInterface $atImportLine): void
-    {
+    private function addSingleAtImportFile(
+        IncludeInterface $parentNode,
+        string $absoluteFileName,
+        string $path,
+        string $name,
+        LineInterface $atImportLine
+    ): void {
         $content = file_get_contents($absoluteFileName);
         $newNode = new AtImportInclude();
-        $newNode->setName($path);
+        $newNode->setName($name);
         $newNode->setPath($path);
         $newNode->setLineStream($this->tokenizer->tokenize($content));
         $newNode->setOriginalLine($atImportLine);
@@ -362,6 +405,9 @@ final class TreeFromLineStreamBuilder
         $parentNode->addChild($newNode);
     }
 
+    /**
+     * @deprecated: Remove together with related code in v14, search for keyword INCLUDE_TYPOSCRIPT
+     */
     private function processIncludeTyposcript(IncludeInterface $node, Token $includeTyposcriptValueToken, LineInterface $importKeywordOldLine): void
     {
         $fullString = $includeTyposcriptValueToken->getValue();
@@ -445,6 +491,8 @@ final class TreeFromLineStreamBuilder
      * ConditionIncludeTyposcriptInclude node the included file is added as child to.
      * The method either returns current parent node if there is no condition, or the new
      * conditional sub node, if there is one.
+     *
+     * @deprecated: Remove together with related code in v14, search for keyword INCLUDE_TYPOSCRIPT
      */
     private function processConditionalIncludeTyposcript(IncludeInterface $parentNode, ?string $condition, string $fileName): IncludeInterface
     {
@@ -460,6 +508,9 @@ final class TreeFromLineStreamBuilder
         return $nodeToAddTo;
     }
 
+    /**
+     * @deprecated: Remove together with related code in v14, search for keyword INCLUDE_TYPOSCRIPT
+     */
     private function importIncludeTyposcriptDirectoryRecursive(
         IncludeInterface $nodeToAddTo,
         LineInterface $importKeywordOldLine,
@@ -513,6 +564,8 @@ final class TreeFromLineStreamBuilder
      * Get content of a single INCLUDE_TYPOSCRIPT file and add to current node as child.
      *
      * Warning: Recursively calls buildTree() to process includes of included content.
+     *
+     * @deprecated: Remove together with related code in v14, search for keyword INCLUDE_TYPOSCRIPT
      */
     private function addSingleIncludeTyposcriptFile(IncludeInterface $parentNode, string $absoluteFileName, string $path, LineInterface $importKeywordOldLine): void
     {
@@ -553,6 +606,10 @@ final class TreeFromLineStreamBuilder
             return;
         }
         $globalsLookup = $extensionKeyWithoutUnderscores . '/' . $pathSegmentWithAppendedSlash;
+
+        if (!$this->enableMagicIncludes) {
+            return;
+        }
         // If this is a template of type "default content rendering", see if other extensions have added their TypoScript that should be included.
         if (in_array($globalsLookup, $GLOBALS['TYPO3_CONF_VARS']['FE']['contentRenderingTemplates'], true)) {
             $source = $GLOBALS['TYPO3_CONF_VARS']['FE']['defaultTypoScript_' . $type . '.']['defaultContentRendering'] ?? null;

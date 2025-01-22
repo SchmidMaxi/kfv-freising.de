@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -95,39 +97,19 @@ class DataMapProcessor
      *
      * @param array $dataMap The submitted data-map to be worked on
      * @param BackendUserAuthentication $backendUser Forwarded backend-user scope
-     * @param ReferenceIndexUpdater|null $referenceIndexUpdater Forward reference index updater to sub DataHandler instances
-     * @return DataMapProcessor
+     * @param ReferenceIndexUpdater $referenceIndexUpdater Forward reference index updater to sub DataHandler instances
      */
     public static function instance(
         array $dataMap,
         BackendUserAuthentication $backendUser,
-        ?ReferenceIndexUpdater $referenceIndexUpdater = null
-    ) {
-        return GeneralUtility::makeInstance(
-            static::class,
-            $dataMap,
-            $backendUser,
-            $referenceIndexUpdater
-        );
-    }
-
-    /**
-     * @param array $dataMap The submitted data-map to be worked on
-     * @param BackendUserAuthentication $backendUser Forwarded backend-user scope
-     * @param ReferenceIndexUpdater|null $referenceIndexUpdater Forward reference index updater to sub DataHandler instances
-     */
-    public function __construct(
-        array $dataMap,
-        BackendUserAuthentication $backendUser,
-        ?ReferenceIndexUpdater $referenceIndexUpdater = null
-    ) {
-        $this->allDataMap = $dataMap;
-        $this->modifiedDataMap = $dataMap;
-        $this->backendUser = $backendUser;
-        if ($referenceIndexUpdater === null) {
-            $referenceIndexUpdater = GeneralUtility::makeInstance(ReferenceIndexUpdater::class);
-        }
-        $this->referenceIndexUpdater = $referenceIndexUpdater;
+        ReferenceIndexUpdater $referenceIndexUpdater,
+    ): DataMapProcessor {
+        $instance = GeneralUtility::makeInstance(static::class);
+        $instance->allDataMap = $dataMap;
+        $instance->modifiedDataMap = $dataMap;
+        $instance->backendUser = $backendUser;
+        $instance->referenceIndexUpdater = $referenceIndexUpdater;
+        return $instance;
     }
 
     /**
@@ -611,8 +593,8 @@ class DataMapProcessor
         }
         // execute copy, localize and delete actions on persisted child records
         if (!empty($localCommandMap)) {
-            $localDataHandler = GeneralUtility::makeInstance(DataHandler::class, $this->referenceIndexUpdater);
-            $localDataHandler->start([], $localCommandMap, $this->backendUser);
+            $localDataHandler = GeneralUtility::makeInstance(DataHandler::class);
+            $localDataHandler->start([], $localCommandMap, $this->backendUser, $this->referenceIndexUpdater);
             $localDataHandler->process_cmdmap();
             // update copied or localized ids
             foreach ($createAncestorIds as $createAncestorId) {
@@ -857,7 +839,7 @@ class DataMapProcessor
                 $queryBuilder->expr()->in(
                     't3ver_state',
                     $queryBuilder->createNamedParameter(
-                        [VersionState::DEFAULT_STATE, VersionState::NEW_PLACEHOLDER, VersionState::MOVE_POINTER],
+                        [VersionState::DEFAULT_STATE->value, VersionState::NEW_PLACEHOLDER->value, VersionState::MOVE_POINTER->value],
                         Connection::PARAM_INT_ARRAY
                     )
                 ),
@@ -1153,7 +1135,7 @@ class DataMapProcessor
     {
         return array_filter(
             $items,
-            static function (DataMapItem $item) use ($type) {
+            static function (DataMapItem $item) use ($type): bool {
                 return $item->getType() === $type;
             }
         );
@@ -1169,11 +1151,9 @@ class DataMapProcessor
     {
         $ids = array_filter(
             $ids,
-            static function ($id) {
-                return MathUtility::canBeInterpretedAsInteger($id);
-            }
+            MathUtility::canBeInterpretedAsInteger(...)
         );
-        return array_map('intval', $ids);
+        return array_map(intval(...), $ids);
     }
 
     /**
@@ -1186,7 +1166,7 @@ class DataMapProcessor
     {
         return array_filter(
             $ids,
-            function ($id) use ($tableName) {
+            function (string|int $id) use ($tableName): bool {
                 return $this->findItem($tableName, $id) === null;
             }
         );
@@ -1195,12 +1175,12 @@ class DataMapProcessor
     /**
      * Flatten array
      *
-     * @return string[]
+     * @return int[]
      */
-    protected function mapRelationItemId(array $relationItems)
+    protected function mapRelationItemId(array $relationItems): array
     {
         return array_map(
-            static function (array $relationItem) {
+            static function (array $relationItem): int {
                 return (int)$relationItem['id'];
             },
             $relationItems

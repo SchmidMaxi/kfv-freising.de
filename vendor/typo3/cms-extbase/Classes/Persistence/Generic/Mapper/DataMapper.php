@@ -19,11 +19,12 @@ namespace TYPO3\CMS\Extbase\Persistence\Generic\Mapper;
 
 use Doctrine\Instantiator\InstantiatorInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
-use Symfony\Component\PropertyInfo\Type;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Context\LanguageAspect;
 use TYPO3\CMS\Core\Database\Query\QueryHelper;
 use TYPO3\CMS\Core\Database\RelationHandler;
+use TYPO3\CMS\Core\Schema\TcaSchemaFactory;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\DomainObject\AbstractDomainObject;
 use TYPO3\CMS\Extbase\DomainObject\DomainObjectInterface;
@@ -38,7 +39,9 @@ use TYPO3\CMS\Extbase\Persistence\Generic\LoadingStrategyInterface;
 use TYPO3\CMS\Extbase\Persistence\Generic\Mapper\ColumnMap\Relation;
 use TYPO3\CMS\Extbase\Persistence\Generic\Mapper\Exception\NonExistentPropertyException;
 use TYPO3\CMS\Extbase\Persistence\Generic\Mapper\Exception\UnknownPropertyTypeException;
+use TYPO3\CMS\Extbase\Persistence\Generic\Qom\JoinInterface;
 use TYPO3\CMS\Extbase\Persistence\Generic\Qom\QueryObjectModelFactory;
+use TYPO3\CMS\Extbase\Persistence\Generic\Qom\SourceInterface;
 use TYPO3\CMS\Extbase\Persistence\Generic\Query;
 use TYPO3\CMS\Extbase\Persistence\Generic\QueryFactoryInterface;
 use TYPO3\CMS\Extbase\Persistence\Generic\Session;
@@ -47,6 +50,7 @@ use TYPO3\CMS\Extbase\Persistence\QueryInterface;
 use TYPO3\CMS\Extbase\Persistence\QueryResultInterface;
 use TYPO3\CMS\Extbase\Reflection\ClassSchema\Exception\NoPropertyTypesException;
 use TYPO3\CMS\Extbase\Reflection\ClassSchema\Exception\NoSuchPropertyException;
+use TYPO3\CMS\Extbase\Reflection\ClassSchema\Property;
 use TYPO3\CMS\Extbase\Reflection\ReflectionService;
 use TYPO3\CMS\Extbase\Utility\TypeHandlingUtility;
 
@@ -54,6 +58,7 @@ use TYPO3\CMS\Extbase\Utility\TypeHandlingUtility;
  * A mapper to map database tables configured in $TCA on domain objects.
  * @internal only to be used within Extbase, not part of TYPO3 Core API.
  */
+#[Autoconfigure(public: true, shared: false)]
 class DataMapper
 {
     /**
@@ -69,6 +74,7 @@ class DataMapper
         private readonly QueryFactoryInterface $queryFactory,
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly InstantiatorInterface $instantiator,
+        private readonly TcaSchemaFactory $tcaSchemaFactory,
     ) {}
 
     public function setQuery(QueryInterface $query): void
@@ -199,7 +205,7 @@ class DataMapper
                 $object->_setProperty(AbstractDomainObject::PROPERTY_LOCALIZED_UID, (int)$row['_LOCALIZED_UID']);
             }
         }
-        if (!empty($row['_ORIG_uid']) && !empty($GLOBALS['TCA'][$dataMap->getTableName()]['ctrl']['versioningWS'])) {
+        if (!empty($row['_ORIG_uid']) && $this->tcaSchemaFactory->get($dataMap->getTableName())->isWorkspaceAware()) {
             $object->_setProperty(AbstractDomainObject::PROPERTY_VERSIONED_UID, (int)$row['_ORIG_uid']);
         }
         foreach ($classSchema->getDomainObjectProperties() as $property) {
@@ -208,17 +214,22 @@ class DataMapper
                 continue;
             }
             $columnMap = $dataMap->getColumnMap($propertyName);
-            $columnName = $columnMap->getColumnName();
+            if (!$columnMap instanceof ColumnMap) {
+                continue;
+            }
 
+            $columnName = $columnMap->getColumnName();
             if (!isset($row[$columnName])) {
                 continue;
             }
+
+            $propertyValue = $row[$columnName];
 
             $nonProxyPropertyTypes = $property->getFilteredTypes([$property, 'filterLazyLoadingProxyAndLazyObjectStorage']);
             if ($nonProxyPropertyTypes === []) {
                 throw new UnknownPropertyTypeException(
                     'The type of property ' . $className . '::' . $propertyName . ' could not be identified, therefore the desired value (' .
-                    var_export($row[$columnName], true) . ') cannot be mapped onto it. The type of a class property is usually defined via property types or php doc blocks. ' .
+                    var_export($propertyValue, true) . ') cannot be mapped onto it. The type of a class property is usually defined via property types or php doc blocks. ' .
                     'Make sure the property has a property type or valid @var tag set which defines the type.',
                     1579965021
                 );
@@ -227,62 +238,79 @@ class DataMapper
             if (count($nonProxyPropertyTypes) > 1) {
                 throw new UnknownPropertyTypeException(
                     'The type of property ' . $className . '::' . $propertyName . ' could not be identified because the property is defined as union or intersection type, therefore the desired value (' .
-                    var_export($row[$columnName], true) . ') cannot be mapped onto it. Make sure to use only a single type.',
+                    var_export($propertyValue, true) . ') cannot be mapped onto it. Make sure to use only a single type.',
                     1660215701
                 );
             }
 
-            $propertyType = $nonProxyPropertyTypes[0]->getClassName() ?? $nonProxyPropertyTypes[0]->getBuiltinType();
+            $primaryType = $nonProxyPropertyTypes[0];
 
-            $propertyValue = null;
-            switch ($propertyType) {
-                case 'int':
-                case 'integer':
-                    $propertyValue = (int)$row[$columnName];
-                    break;
-                case 'float':
-                    $propertyValue = (float)$row[$columnName];
-                    break;
-                case 'bool':
-                case 'boolean':
-                    $propertyValue = (bool)$row[$columnName];
-                    break;
-                case 'string':
-                    $propertyValue = (string)$row[$columnName];
-                    break;
-                case 'array':
-                    // $propertyValue = $this->mapArray($row[$columnName]); // Not supported, yet!
-                    break;
-                case \SplObjectStorage::class:
-                case ObjectStorage::class:
-                    $propertyValue = $this->mapResultToPropertyValue(
-                        $object,
-                        $propertyName,
-                        $this->fetchRelated($object, $propertyName, $row[$columnName])
-                    );
-                    break;
-                default:
-                    if (is_subclass_of($propertyType, \DateTimeInterface::class)) {
-                        $propertyValue = $this->mapDateTime(
-                            $row[$columnName],
-                            $columnMap->getDateTimeStorageFormat(),
-                            $propertyType
-                        );
-                    } elseif (TypeHandlingUtility::isCoreType($propertyType)) {
-                        $propertyValue = $this->mapCoreType($propertyType, $row[$columnName]);
-                    } else {
-                        $propertyValue = $this->mapObjectToClassProperty(
-                            $object,
-                            $propertyName,
-                            $row[$columnName]
-                        );
-                    }
-            }
+            $propertyType = $primaryType->getBuiltinType();
+            $propertyClassName = $primaryType->getClassName();
+
+            $propertyValue = match ($propertyType) {
+                'int', 'integer' => (int)$propertyValue,
+                'bool', 'boolean' => (bool)$propertyValue,
+                'float' => (float)$propertyValue,
+                'string' => (string)$propertyValue,
+                'array' => null, // $this->mapArray($propertyValue); // Not supported, yet!
+                'object' => $this->thawObjectProperty($property, $columnMap, $object, $propertyName, $propertyValue, $propertyClassName),
+                default => null,
+            };
 
             if ($propertyValue !== null || $property->isNullable()) {
                 $object->_setProperty($propertyName, $propertyValue);
             }
         }
+    }
+
+    /**
+     * @param non-empty-string $propertyName
+     * @param class-string|null $targetClassName
+     */
+    private function thawObjectProperty(
+        Property $propertySchema,
+        ColumnMap $columnMap,
+        DomainObjectInterface $parent,
+        string $propertyName,
+        mixed $propertyValue,
+        ?string $targetClassName
+    ): ?object {
+        if ($targetClassName === null) {
+            return null;
+        }
+
+        if (is_subclass_of($targetClassName, \BackedEnum::class)) {
+            return $propertySchema->isNullable()
+                 ? $targetClassName::tryFrom($propertyValue)
+                 : $targetClassName::from($propertyValue);
+        }
+
+        if (in_array($targetClassName, [\SplObjectStorage::class, ObjectStorage::class], true)) {
+            return $this->mapResultToPropertyValue(
+                $parent,
+                $propertyName,
+                $this->fetchRelated($parent, $propertyName, $propertyValue)
+            );
+        }
+
+        if (is_subclass_of($targetClassName, \DateTimeInterface::class)) {
+            return $this->mapDateTime(
+                $propertyValue,
+                $columnMap->getDateTimeStorageFormat(),
+                $targetClassName
+            );
+        }
+
+        if (TypeHandlingUtility::isCoreType($targetClassName)) {
+            return $this->mapCoreType($targetClassName, $propertyValue);
+        }
+
+        return $this->mapObjectToClassProperty(
+            $parent,
+            $propertyName,
+            $propertyValue
+        );
     }
 
     /**
@@ -496,21 +524,30 @@ class DataMapper
         $dataMap = $this->getDataMap(get_class($parentObject));
         $columnMap = $dataMap->getColumnMap($propertyName);
         $workspaceId = GeneralUtility::makeInstance(Context::class)->getPropertyFromAspect('workspace', 'id');
+        $parentId = $this->resolveParentId($parentObject, $workspaceId, $columnMap);
         if ($columnMap && $workspaceId > 0) {
-            $resolvedRelationIds = $this->resolveRelationValuesOfField($dataMap, $columnMap, $parentObject, $fieldValue, $workspaceId);
+            $resolvedRelationIds = $this->resolveRelationValuesOfField($dataMap, $columnMap, $parentId, $fieldValue, $workspaceId);
         } else {
             $resolvedRelationIds = [];
         }
         // Work with the UIDs directly in a workspace
         if (!empty($resolvedRelationIds)) {
-            if ($query->getSource() instanceof Persistence\Generic\Qom\JoinInterface) {
-                $constraint = $query->in($query->getSource()->getJoinCondition()->getProperty1Name(), $resolvedRelationIds);
+            $source = $query->getSource();
+            if ($source instanceof JoinInterface) {
+                $constraint = $query->in($source->getJoinCondition()->getProperty1Name(), $resolvedRelationIds);
                 // When querying MM relations directly, Typo3DbQueryParser uses enableFields and thus, filters
                 // out versioned records by default. However, we directly query versioned UIDs here, so we want
                 // to include the versioned records explicitly.
                 if ($columnMap->getTypeOfRelation() === Relation::HAS_AND_BELONGS_TO_MANY) {
                     $query->getQuerySettings()->setEnableFieldsToBeIgnored(['pid']);
                     $query->getQuerySettings()->setIgnoreEnableFields(true);
+                }
+                // Also, we still need to restrict the MM on the foreign side
+                if ($columnMap->getParentKeyFieldName() !== null) {
+                    $constraint = $query->logicalAnd(
+                        $constraint,
+                        $query->equals($columnMap->getParentKeyFieldName(), $parentId)
+                    );
                 }
             } else {
                 $constraint = $query->in('uid', $resolvedRelationIds);
@@ -551,6 +588,23 @@ class DataMapper
     }
 
     /**
+     * Fetch the actual "uid" which we need to query to fetch relations to this UID.
+     */
+    protected function resolveParentId(DomainObjectInterface $parentObject, int $workspaceId, ?ColumnMap $columnMap): ?int
+    {
+        $parentId = $parentObject->getUid();
+        if ($columnMap && $workspaceId > 0) {
+            // versionedUid in a multi-language setup is the overlaid versioned AND translated ID
+            if ($parentObject->_hasProperty(AbstractDomainObject::PROPERTY_VERSIONED_UID) && $parentObject->_getProperty(AbstractDomainObject::PROPERTY_VERSIONED_UID) > 0 && $parentObject->_getProperty(AbstractDomainObject::PROPERTY_VERSIONED_UID) !== $parentId) {
+                $parentId = $parentObject->_getProperty(AbstractDomainObject::PROPERTY_VERSIONED_UID);
+            } elseif ($parentObject->_hasProperty(AbstractDomainObject::PROPERTY_LANGUAGE_UID) && $parentObject->_getProperty(AbstractDomainObject::PROPERTY_LANGUAGE_UID) > 0) {
+                $parentId = $parentObject->_getProperty(AbstractDomainObject::PROPERTY_LOCALIZED_UID);
+            }
+        }
+        return $parentId;
+    }
+
+    /**
      * This resolves relations via RelationHandler and returns their UIDs respectively, and works for MM/ForeignField/CSV in IRRE + Select + Group.
      *
      * Note: This only happens for resolving properties for models. When limiting a parentQuery, the Typo3DbQueryParser is taking care of it.
@@ -562,30 +616,23 @@ class DataMapper
      *
      * @param DataMap $dataMap
      * @param ColumnMap $columnMap
-     * @param DomainObjectInterface $parentObject
+     * @param int|null $parentId
      * @param string $fieldValue
      * @param int $workspaceId
      * @return array|false|mixed
      */
-    protected function resolveRelationValuesOfField(DataMap $dataMap, ColumnMap $columnMap, DomainObjectInterface $parentObject, $fieldValue, int $workspaceId)
+    protected function resolveRelationValuesOfField(DataMap $dataMap, ColumnMap $columnMap, ?int $parentId, $fieldValue, int $workspaceId)
     {
-        $parentId = $parentObject->getUid();
-        // versionedUid in a multi-language setup is the overlaid versioned AND translated ID
-        if ($parentObject->_hasProperty(AbstractDomainObject::PROPERTY_VERSIONED_UID) && $parentObject->_getProperty(AbstractDomainObject::PROPERTY_VERSIONED_UID) > 0 && $parentObject->_getProperty(AbstractDomainObject::PROPERTY_VERSIONED_UID) !== $parentId) {
-            $parentId = $parentObject->_getProperty(AbstractDomainObject::PROPERTY_VERSIONED_UID);
-        } elseif ($parentObject->_hasProperty(AbstractDomainObject::PROPERTY_LANGUAGE_UID) && $parentObject->_getProperty(AbstractDomainObject::PROPERTY_LANGUAGE_UID) > 0) {
-            $parentId = $parentObject->_getProperty(AbstractDomainObject::PROPERTY_LOCALIZED_UID);
-        }
         $relationHandler = GeneralUtility::makeInstance(RelationHandler::class);
         $relationHandler->setWorkspaceId($workspaceId);
         $relationHandler->setUseLiveReferenceIds(true);
         $relationHandler->setUseLiveParentIds(true);
         $tableName = $dataMap->getTableName();
         $fieldName = $columnMap->getColumnName();
-        $fieldConfiguration = $GLOBALS['TCA'][$tableName]['columns'][$fieldName]['config'] ?? null;
-        if (!is_array($fieldConfiguration)) {
+        if (!$this->tcaSchemaFactory->get($tableName)->hasField($fieldName)) {
             return [];
         }
+        $fieldConfiguration = $this->tcaSchemaFactory->get($tableName)->getField($fieldName)->getConfiguration();
         $relationHandler->start(
             $fieldValue,
             $fieldConfiguration['allowed'] ?? $fieldConfiguration['foreign_table'] ?? '',
@@ -606,17 +653,15 @@ class DataMapper
      * Builds and returns the source to build a join for a m:n relation.
      *
      * @param string $propertyName
-     * @return \TYPO3\CMS\Extbase\Persistence\Generic\Qom\SourceInterface $source
      */
-    protected function getSource(DomainObjectInterface $parentObject, $propertyName)
+    protected function getSource(DomainObjectInterface $parentObject, $propertyName): SourceInterface
     {
         $columnMap = $this->getDataMap(get_class($parentObject))->getColumnMap($propertyName);
         $left = $this->qomFactory->selector(null, $columnMap->getRelationTableName());
         $childClassName = $this->getType(get_class($parentObject), $propertyName);
         $right = $this->qomFactory->selector($childClassName, $columnMap->getChildTableName());
         $joinCondition = $this->qomFactory->equiJoinCondition($columnMap->getRelationTableName(), $columnMap->getChildKeyFieldName(), $columnMap->getChildTableName(), 'uid');
-        $source = $this->qomFactory->join($left, $right, Query::JCR_JOIN_TYPE_INNER, $joinCondition);
-        return $source;
+        return $this->qomFactory->join($left, $right, Query::JCR_JOIN_TYPE_INNER, $joinCondition);
     }
 
     /**
@@ -638,41 +683,36 @@ class DataMapper
     {
         if ($this->propertyMapsByForeignKey($parentObject, $propertyName)) {
             $result = $this->fetchRelated($parentObject, $propertyName, $fieldValue);
-            $propertyValue = $this->mapResultToPropertyValue($parentObject, $propertyName, $result);
-        } elseif (empty($fieldValue)) {
-            $propertyValue = $this->getEmptyRelationValue($parentObject, $propertyName);
-        } else {
-            $property = $this->reflectionService->getClassSchema(get_class($parentObject))->getProperty($propertyName);
-            if ($this->persistenceSession->hasIdentifier((string)$fieldValue, $property->getType())) {
-                $propertyValue = $this->persistenceSession->getObjectByIdentifier((string)$fieldValue, $property->getType());
-            } else {
-                $primaryType = $this->reflectionService
-                    ->getClassSchema(get_class($parentObject))
-                    ->getProperty($propertyName)
-                    ->getPrimaryType();
-
-                if ($primaryType === null) {
-                    throw NoPropertyTypesException::create($parentObject::class, $propertyName);
-                }
-
-                $className = $primaryType->getClassName();
-                if (!is_string($className)) {
-                    throw new \LogicException(
-                        sprintf('Evaluated type of class property %s::%s is not a class name. Check the type declaration of the property to use a valid class name.', $parentObject::class, $propertyName),
-                        1660217846
-                    );
-                }
-
-                if ($this->persistenceSession->hasIdentifier((string)$fieldValue, $className)) {
-                    $propertyValue = $this->persistenceSession->getObjectByIdentifier((string)$fieldValue, $className);
-                } else {
-                    $result = $this->fetchRelated($parentObject, $propertyName, $fieldValue);
-                    $propertyValue = $this->mapResultToPropertyValue($parentObject, $propertyName, $result);
-                }
-            }
+            return $this->mapResultToPropertyValue($parentObject, $propertyName, $result);
         }
 
-        return $propertyValue;
+        if (empty($fieldValue)) {
+            return $this->getEmptyRelationValue($parentObject, $propertyName);
+        }
+
+        $primaryType = $this->reflectionService
+            ->getClassSchema(get_class($parentObject))
+            ->getProperty($propertyName)
+            ->getPrimaryType();
+
+        if ($primaryType === null) {
+            throw NoPropertyTypesException::create($parentObject::class, $propertyName);
+        }
+
+        $className = $primaryType->getClassName();
+        if (!is_string($className)) {
+            throw new \LogicException(
+                sprintf('Evaluated type of class property %s::%s is not a class name. Check the type declaration of the property to use a valid class name.', $parentObject::class, $propertyName),
+                1660217846
+            );
+        }
+
+        if ($this->persistenceSession->hasIdentifier((string)$fieldValue, $className)) {
+            return $this->persistenceSession->getObjectByIdentifier((string)$fieldValue, $className);
+        }
+
+        $result = $this->fetchRelated($parentObject, $propertyName, $fieldValue);
+        return $this->mapResultToPropertyValue($parentObject, $propertyName, $result);
     }
 
     /**
@@ -835,60 +875,67 @@ class DataMapper
      * Multi value objects or arrays will be converted to a comma-separated list for use in IN SQL queries.
      *
      * @param mixed $input The value that will be converted.
-     * @param ColumnMap $columnMap Optional column map for retrieving the date storage format.
+     * @param ColumnMap|null $columnMap Optional column map for retrieving the date storage format.
      * @throws \InvalidArgumentException
      * @throws UnexpectedTypeException
      * @return int|string
      */
-    public function getPlainValue($input, $columnMap = null)
+    public function getPlainValue(mixed $input, ?ColumnMap $columnMap = null): int|string
     {
         if ($input === null) {
             return 'NULL';
         }
+
+        if ($input instanceof \BackedEnum) {
+            return $input->value;
+        }
+
         if ($input instanceof LazyLoadingProxy) {
             $input = $input->_loadRealInstance();
         }
 
         if (is_bool($input)) {
-            $parameter = (int)$input;
-        } elseif (is_int($input)) {
-            $parameter = $input;
-        } elseif ($input instanceof \DateTimeInterface) {
+            return (int)$input;
+        }
+
+        if (is_int($input)) {
+            return $input;
+        }
+
+        if ($input instanceof \DateTimeInterface) {
             if ($columnMap !== null && $columnMap->getDateTimeStorageFormat() !== null) {
                 $storageFormat = $columnMap->getDateTimeStorageFormat();
-                switch ($storageFormat) {
-                    case 'datetime':
-                        $parameter = $input->format('Y-m-d H:i:s');
-                        break;
-                    case 'date':
-                        $parameter = $input->format('Y-m-d');
-                        break;
-                    case 'time':
-                        $parameter = $input->format('H:i');
-                        break;
-                    default:
-                        throw new \InvalidArgumentException('Column map DateTime format "' . $storageFormat . '" is unknown. Allowed values are date, datetime or time.', 1395353470);
-                }
-            } else {
-                $parameter = $input->format('U');
+                return match ($storageFormat) {
+                    'datetime' => $input->format('Y-m-d H:i:s'),
+                    'date' => $input->format('Y-m-d'),
+                    'time' => $input->format('H:i'),
+                    default => throw new \InvalidArgumentException('Column map DateTime format "' . $storageFormat . '" is unknown. Allowed values are date, datetime or time.', 1395353470),
+                };
             }
-        } elseif ($input instanceof DomainObjectInterface) {
-            $parameter = (int)$input->getUid();
-        } elseif (TypeHandlingUtility::isValidTypeForMultiValueComparison($input)) {
+
+            return $input->format('U');
+        }
+
+        if ($input instanceof DomainObjectInterface) {
+            return (int)$input->getUid();
+        }
+
+        if (TypeHandlingUtility::isValidTypeForMultiValueComparison($input)) {
             $plainValueArray = [];
             foreach ($input as $inputElement) {
                 $plainValueArray[] = $this->getPlainValue($inputElement, $columnMap);
             }
-            $parameter = implode(',', $plainValueArray);
-        } elseif (is_object($input)) {
-            if (TypeHandlingUtility::isCoreType($input) || $input instanceof \Stringable) {
-                $parameter = (string)$input;
-            } else {
-                throw new UnexpectedTypeException('An object of class "' . get_class($input) . '" could not be converted to a plain value.', 1274799934);
-            }
-        } else {
-            $parameter = (string)$input;
+            return implode(',', $plainValueArray);
         }
-        return $parameter;
+
+        if (is_object($input)) {
+            if (TypeHandlingUtility::isCoreType($input) || $input instanceof \Stringable) {
+                return (string)$input;
+            }
+
+            throw new UnexpectedTypeException('An object of class "' . get_class($input) . '" could not be converted to a plain value.', 1274799934);
+        }
+
+        return (string)$input;
     }
 }

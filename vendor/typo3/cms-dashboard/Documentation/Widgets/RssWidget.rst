@@ -1,6 +1,6 @@
 .. include:: /Includes.rst.txt
 
-.. _rss-widget:
+..  _rss-widget:
 
 ==========
 RSS Widget
@@ -12,6 +12,8 @@ RSS Widget
 Widgets using this class will show a list of items of the configured RSS feed.
 
 You can use this kind of widget to create a widget showing your own RSS feed.
+
+..  _rss-widget-example:
 
 Example
 -------
@@ -36,7 +38,6 @@ Example
       dashboard.widget.t3news:
         class: 'TYPO3\CMS\Dashboard\Widgets\RssWidget'
         arguments:
-          $cache: '@cache.dashboard.rss'
           $buttonProvider: '@dashboard.buttons.t3news'
           $options:
             feedUrl: 'https://www.typo3.org/rss'
@@ -52,6 +53,8 @@ Example
             iconIdentifier: 'content-widget-rss'
             height: 'large'
             width: 'medium'
+
+..  _rss-widget-options:
 
 Options
 -------
@@ -81,6 +84,8 @@ The following options are available via :yaml:`services.dashboard.widget.t3news.
 
     Defines how many RSS items should be shown.
 
+..  _rss-widget-dependencies:
+
 Dependencies
 ------------
 
@@ -93,9 +98,3 @@ Dependencies
     :php-short:`\TYPO3\CMS\Dashboard\Widgets\ButtonProviderInterface`.
 
     See :ref:`adding-buttons` for further info and configuration options.
-
-..  confval:: $cache
-    :name: rss-widget-cache
-
-    Used to cache fetched RSS items.
-    This should not be changed.

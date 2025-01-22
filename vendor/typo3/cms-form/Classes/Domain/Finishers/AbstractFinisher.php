@@ -126,7 +126,7 @@ abstract class AbstractFinisher implements FinisherInterface
      *
      * Override and fill with your own implementation!
      *
-     * @return string|null
+     * @return string|void|null
      */
     abstract protected function executeInternal();
 
@@ -362,10 +362,7 @@ abstract class AbstractFinisher implements FinisherInterface
         return !isset($this->options['renderingOptions']['enabled']) || (bool)$this->parseOption('renderingOptions.enabled') === true;
     }
 
-    /**
-     * @return TypoScriptFrontendController
-     */
-    protected function getTypoScriptFrontendController()
+    protected function getTypoScriptFrontendController(): TypoScriptFrontendController
     {
         return $GLOBALS['TSFE'];
     }

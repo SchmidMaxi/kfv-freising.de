@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file belongs to the package "TYPO3 Fluid".
  * See LICENSE.txt that was shipped with this package.
@@ -63,9 +65,9 @@ class TemplatePaths
     /**
      * Holds already resolved identifiers for template files
      *
-     * @var array
+     * @var array<string, string[]>
      */
-    protected $resolvedIdentifiers = [
+    protected array $resolvedIdentifiers = [
         self::NAME_TEMPLATES => [],
         self::NAME_LAYOUTS => [],
         self::NAME_PARTIALS => [],
@@ -74,57 +76,48 @@ class TemplatePaths
     /**
      * Holds already resolved identifiers for template files
      *
-     * @var array
+     * @var array<string, string[]>
      */
-    protected $resolvedFiles = [
+    protected array $resolvedFiles = [
         self::NAME_TEMPLATES => [],
         self::NAME_LAYOUTS => [],
         self::NAME_PARTIALS => [],
     ];
 
     /**
-     * @var array
+     * @var string[]
      */
-    protected $templateRootPaths = [];
+    protected array $templateRootPaths = [];
 
     /**
-     * @var array
+     * @var string[]
      */
-    protected $layoutRootPaths = [];
+    protected array $layoutRootPaths = [];
 
     /**
-     * @var array
+     * @var string[]
      */
-    protected $partialRootPaths = [];
+    protected array $partialRootPaths = [];
+
+    protected ?string $templatePathAndFilename = null;
+
+    protected ?string $layoutPathAndFilename = null;
 
     /**
-     * @var string
+     * @todo this can also contain resources, see getTemplateSource(). We should check if this is necessary.
+     *
+     * @var string|resource|null
      */
-    protected $templatePathAndFilename;
+    protected mixed $templateSource = null;
 
-    /**
-     * @var string
-     */
-    protected $layoutPathAndFilename;
-
-    /**
-     * @var string|null
-     */
-    protected $templateSource;
-
-    /**
-     * @var string
-     */
-    protected $format = self::DEFAULT_FORMAT;
+    protected string $format = self::DEFAULT_FORMAT;
 
     /**
      * This constructor will be removed with Fluid v5 as the underlying methods are
      * deprecated and will be removed with Fluid v5 as well. The appropriate setters
      * (like setTemplateRootPaths()) should be called instead.
-     *
-     * @param array|string|null $packageNameOrArray
      */
-    public function __construct($packageNameOrArray = null)
+    public function __construct(array|string|null $packageNameOrArray = null)
     {
         if (is_array($packageNameOrArray)) {
             $this->fillFromConfigurationArray($packageNameOrArray);
@@ -134,12 +127,12 @@ class TemplatePaths
     }
 
     /**
-     * @return array
      * @deprecated will be removed in Fluid v5; use the individual getters instead. Sanitation is not necessary
      *             because setters already sanitize input values
      */
-    public function toArray()
+    public function toArray(): array
     {
+        trigger_error('toArray() has been deprecated and will be removed in Fluid v5.', E_USER_DEPRECATED);
         return [
             self::CONFIG_TEMPLATEROOTPATHS => $this->sanitizePaths($this->getTemplateRootPaths()),
             self::CONFIG_LAYOUTROOTPATHS => $this->sanitizePaths($this->getLayoutRootPaths()),
@@ -147,85 +140,70 @@ class TemplatePaths
         ];
     }
 
-    /**
-     * @param string $templatePathAndFilename
-     */
-    public function setTemplatePathAndFilename($templatePathAndFilename)
+    public function setTemplatePathAndFilename(string $templatePathAndFilename): void
     {
-        $this->templatePathAndFilename = (string)$this->sanitizePath($templatePathAndFilename);
+        $this->templatePathAndFilename = $this->sanitizePath($templatePathAndFilename);
+    }
+
+    public function setLayoutPathAndFilename(string $layoutPathAndFilename): void
+    {
+        $this->layoutPathAndFilename = $this->sanitizePath($layoutPathAndFilename);
     }
 
     /**
-     * @param string $layoutPathAndFilename
+     * @return string[]
      */
-    public function setLayoutPathAndFilename($layoutPathAndFilename)
-    {
-        $this->layoutPathAndFilename = (string)$this->sanitizePath($layoutPathAndFilename);
-    }
-
-    /**
-     * @return array
-     */
-    public function getTemplateRootPaths()
+    public function getTemplateRootPaths(): array
     {
         return $this->templateRootPaths;
     }
 
     /**
-     * @param array $templateRootPaths
+     * @param string[] $templateRootPaths
      */
-    public function setTemplateRootPaths(array $templateRootPaths)
+    public function setTemplateRootPaths(array $templateRootPaths): void
     {
-        $this->templateRootPaths = (array)$this->sanitizePaths($templateRootPaths);
+        $this->templateRootPaths = $this->sanitizePaths($templateRootPaths);
         $this->clearResolvedIdentifiersAndTemplates(self::NAME_TEMPLATES);
     }
 
-    /**
-     * @return array
-     */
-    public function getLayoutRootPaths()
+    public function getLayoutRootPaths(): array
     {
         return $this->layoutRootPaths;
     }
 
     /**
-     * @param array $layoutRootPaths
+     * @param string[] $layoutRootPaths
      */
-    public function setLayoutRootPaths(array $layoutRootPaths)
+    public function setLayoutRootPaths(array $layoutRootPaths): void
     {
-        $this->layoutRootPaths = (array)$this->sanitizePaths($layoutRootPaths);
+        $this->layoutRootPaths = $this->sanitizePaths($layoutRootPaths);
         $this->clearResolvedIdentifiersAndTemplates(self::NAME_LAYOUTS);
     }
 
     /**
-     * @return array
+     * @return string[]
      */
-    public function getPartialRootPaths()
+    public function getPartialRootPaths(): array
     {
         return $this->partialRootPaths;
     }
 
     /**
-     * @param array $partialRootPaths
+     * @param string[] $partialRootPaths
      */
-    public function setPartialRootPaths(array $partialRootPaths)
+    public function setPartialRootPaths(array $partialRootPaths): void
     {
-        $this->partialRootPaths = (array)$this->sanitizePaths($partialRootPaths);
+        $this->partialRootPaths = $this->sanitizePaths($partialRootPaths);
         $this->clearResolvedIdentifiersAndTemplates(self::NAME_PARTIALS);
     }
 
-    /**
-     * @return string
-     */
-    public function getFormat()
+    public function getFormat(): string
     {
         return $this->format;
     }
 
-    /**
-     * @param string $format
-     */
-    public function setFormat($format)
+    public function setFormat(string $format): void
     {
         $this->format = $format;
     }
@@ -252,14 +230,9 @@ class TemplatePaths
      * this reverse behavior (which you should
      * already be, given that it is the same way
      * TypoScript path configurations work).
-     *
-     * @param string $controller
-     * @param string $action
-     * @param string $format
-     * @return string|null
      * @api
      */
-    public function resolveTemplateFileForControllerAndActionAndFormat($controller, $action, $format = null)
+    public function resolveTemplateFileForControllerAndActionAndFormat(string $controller, string $action, ?string $format = null): ?string
     {
         if ($this->templatePathAndFilename !== null) {
             return $this->templatePathAndFilename;
@@ -283,43 +256,38 @@ class TemplatePaths
     }
 
     /**
-     * @param string|null $controllerName
-     * @param string $format
-     * @return array
+     * @return string[]
      */
-    public function resolveAvailableTemplateFiles($controllerName, $format = null)
+    public function resolveAvailableTemplateFiles(?string $controllerName, ?string $format = null): array
     {
         $paths = $this->getTemplateRootPaths();
         foreach ($paths as $index => $path) {
-            $paths[$index] = rtrim($path . $controllerName, '/') . '/';
+            $paths[$index] = rtrim($path . ($controllerName ?? ''), '/') . '/';
         }
         return $this->resolveFilesInFolders($paths, $format ?: $this->getFormat());
     }
 
     /**
-     * @param string $format
-     * @return array
+     * @return string[]
      */
-    public function resolveAvailablePartialFiles($format = null)
+    public function resolveAvailablePartialFiles(?string $format = null): array
     {
         return $this->resolveFilesInFolders($this->getPartialRootPaths(), $format ?: $this->getFormat());
     }
 
     /**
-     * @param string $format
-     * @return array
+     * @return string[]
      */
-    public function resolveAvailableLayoutFiles($format = null)
+    public function resolveAvailableLayoutFiles(?string $format = null): array
     {
         return $this->resolveFilesInFolders($this->getLayoutRootPaths(), $format ?: $this->getFormat());
     }
 
     /**
-     * @param array $folders
-     * @param string $format
-     * @return array
+     * @param string[] $folders
+     * @return string[]
      */
-    protected function resolveFilesInFolders(array $folders, $format)
+    protected function resolveFilesInFolders(array $folders, string $format): array
     {
         $files = [];
         foreach ($folders as $folder) {
@@ -329,11 +297,9 @@ class TemplatePaths
     }
 
     /**
-     * @param string $folder
-     * @param string $format
-     * @return array
+     * @return string[]
      */
-    protected function resolveFilesInFolder($folder, $format)
+    protected function resolveFilesInFolder(string $folder, string $format): array
     {
         if (!is_dir($folder)) {
             return [];
@@ -379,13 +345,13 @@ class TemplatePaths
      *
      * Will replace any currently configured paths.
      *
-     * @param array $paths
      * @api
      * @deprecated will be removed with Fluid v5; appropriate setters (like setTemplateRootPaths())
      *             should be called instead
      */
-    public function fillFromConfigurationArray(array $paths)
+    public function fillFromConfigurationArray(array $paths): void
     {
+        trigger_error('fillFromConfigurationArray() has been deprecated and will be removed in Fluid v5.', E_USER_DEPRECATED);
         list($templateRootPaths, $layoutRootPaths, $partialRootPaths, $format) = $this->extractPathArrays($paths);
         $this->setTemplateRootPaths($templateRootPaths);
         $this->setLayoutRootPaths($layoutRootPaths);
@@ -400,13 +366,13 @@ class TemplatePaths
      *
      * Will replace any currently configured paths.
      *
-     * @param string $packageName
      * @api
      * @deprecated will be removed with Fluid v5; appropriate setters (like setTemplateRootPaths())
      *             should be called instead
      */
-    public function fillDefaultsByPackageName($packageName)
+    public function fillDefaultsByPackageName(string $packageName): void
     {
+        trigger_error('fillDefaultsByPackageName() has been deprecated and will be removed in Fluid v5.', E_USER_DEPRECATED);
         $path = $this->getPackagePath($packageName);
         $this->setTemplateRootPaths([$path . self::DEFAULT_TEMPLATES_DIRECTORY]);
         $this->setLayoutRootPaths([$path . self::DEFAULT_LAYOUTS_DIRECTORY]);
@@ -417,35 +383,38 @@ class TemplatePaths
      * Sanitize a path, ensuring it is absolute and
      * if a directory, suffixed by a trailing slash.
      *
-     * @param string|array $path
-     * @return string|array<string>
+     * @todo $path should really be string. Array handling should not be part of this method, and other types
+     *       (such as bool) should really not be passed to this method in the first place. Further refactoring
+     *       is necessary to guarantee this.
+     * @param mixed $path
+     * @return string|string[]
      */
-    protected function sanitizePath($path)
+    protected function sanitizePath(mixed $path): string|array
     {
         if (is_array($path)) {
             $paths = array_map([$this, 'sanitizePath'], $path);
             return array_unique($paths);
         }
-        if (($wrapper = parse_url($path, PHP_URL_SCHEME)) && in_array($wrapper, stream_get_wrappers())) {
+        if (($wrapper = parse_url((string)$path, PHP_URL_SCHEME)) && in_array($wrapper, stream_get_wrappers())) {
             return $path;
         }
         if (!empty($path)) {
             $path = str_replace(['\\', '//'], '/', (string)$path);
-            $path = (string)$this->ensureAbsolutePath($path);
+            $path = $this->ensureAbsolutePath($path);
             if (is_dir($path)) {
                 $path = $this->ensureSuffixedPath($path);
             }
         }
-        return $path;
+        return (string)$path;
     }
 
     /**
      * Sanitize paths passing each through sanitizePath().
      *
-     * @param array $paths
-     * @return array
+     * @param string[] $paths
+     * @return string[]
      */
-    protected function sanitizePaths(array $paths)
+    protected function sanitizePaths(array $paths): array
     {
         return array_unique(array_map([$this, 'sanitizePath'], $paths));
     }
@@ -453,11 +422,8 @@ class TemplatePaths
     /**
      * Guarantees that $reference is turned into a
      * correct, absolute path.
-     *
-     * @param string $path
-     * @return string
      */
-    protected function ensureAbsolutePath($path)
+    protected function ensureAbsolutePath(string $path): string
     {
         return (!empty($path) && $path[0] !== '/' && $path[1] !== ':') ? $this->sanitizePath(realpath($path)) : $path;
     }
@@ -466,20 +432,17 @@ class TemplatePaths
      * Guarantees that array $reference with paths
      * are turned into correct, absolute paths
      *
-     * @param array $reference
-     * @return array
+     * @param string[] $reference
+     * @return string[]
      * @deprecated will be removed with Fluid v5
      */
-    protected function ensureAbsolutePaths(array $reference)
+    protected function ensureAbsolutePaths(array $reference): array
     {
+        trigger_error('ensureAbsolutePaths() has been deprecated and will be removed in Fluid v5.', E_USER_DEPRECATED);
         return array_map([$this, 'ensureAbsolutePath'], $reference);
     }
 
-    /**
-     * @param string $path
-     * @return string
-     */
-    protected function ensureSuffixedPath($path)
+    protected function ensureSuffixedPath(string $path): string
     {
         return $path !== '' ? rtrim($path, '/') . '/' : '';
     }
@@ -495,12 +458,11 @@ class TemplatePaths
      *
      * Adds legacy singular name as last option, if set.
      *
-     * @param array $paths
-     * @return array
      * @deprecated will be removed with Fluid v5
      */
-    protected function extractPathArrays(array $paths)
+    protected function extractPathArrays(array $paths): array
     {
+        trigger_error('extractPathArrays() has been deprecated and will be removed in Fluid v5.', E_USER_DEPRECATED);
         $format = $this->getFormat();
         // pre-processing: if special parameters exist, extract them:
         if (isset($paths[self::CONFIG_FORMAT])) {
@@ -525,12 +487,11 @@ class TemplatePaths
     }
 
     /**
-     * @param string $packageName
-     * @return string
      * @deprecated will be removed with Fluid v5
      */
-    protected function getPackagePath($packageName)
+    protected function getPackagePath(string $packageName): string
     {
+        trigger_error('getPackagePath() has been deprecated and will be removed in Fluid v5.', E_USER_DEPRECATED);
         return '';
     }
 
@@ -541,7 +502,7 @@ class TemplatePaths
      * @param string $layoutName The name of the layout
      * @return string layout identifier
      */
-    public function getLayoutIdentifier($layoutName = 'Default')
+    public function getLayoutIdentifier(string $layoutName = 'Default'): string
     {
         $filePathAndFilename = $this->getLayoutPathAndFilename($layoutName);
         $layoutName = str_replace('.', '_', $layoutName);
@@ -561,7 +522,7 @@ class TemplatePaths
      * @return string Path and filename of layout file
      * @throws InvalidTemplateResourceException
      */
-    public function getLayoutSource($layoutName = 'Default')
+    public function getLayoutSource(string $layoutName = 'Default'): string
     {
         $layoutPathAndFilename = $this->getLayoutPathAndFilename($layoutName);
         return file_get_contents($layoutPathAndFilename);
@@ -575,8 +536,12 @@ class TemplatePaths
      * @param string $action Name of the action. If null, will be taken from request.
      * @return string template identifier
      */
-    public function getTemplateIdentifier($controller = 'Default', $action = 'Default')
+    public function getTemplateIdentifier(?string $controller = 'Default', ?string $action = 'Default'): string
     {
+        /** @todo this needs further refactoring to avoid this fallback */
+        $controller ??= '';
+        $action ??= '';
+
         if ($this->templateSource !== null) {
             return 'source_' . hash('xxh3', (string)$this->templateSource) . '_' . $controller . '_' . $action . '_' . $this->getFormat();
         }
@@ -588,7 +553,7 @@ class TemplatePaths
     /**
      * @param mixed $source
      */
-    public function setTemplateSource($source)
+    public function setTemplateSource(mixed $source): void
     {
         $this->templateSource = $source;
     }
@@ -602,8 +567,12 @@ class TemplatePaths
      * @return string Full path to template
      * @throws InvalidTemplateResourceException
      */
-    public function getTemplateSource($controller = 'Default', $action = 'Default')
+    public function getTemplateSource(?string $controller = 'Default', ?string $action = 'Default')
     {
+        /** @todo this needs further refactoring to avoid this fallback */
+        $controller ??= '';
+        $action ??= '';
+
         if (is_string($this->templateSource)) {
             return $this->templateSource;
         }
@@ -634,15 +603,10 @@ class TemplatePaths
      * Returns a unique identifier for the given file in the format
      * <PackageKey>_<SubPackageKey>_<ControllerName>_<prefix>_<hash>
      * The SH1 hash is a checksum that is based on the file path and last modification date
-     *
-     * @param string|null $pathAndFilename
-     * @param string $prefix
-     * @return string
      */
-    protected function createIdentifierForFile($pathAndFilename, $prefix)
+    protected function createIdentifierForFile(?string $pathAndFilename, string $prefix): string
     {
-        $pathAndFilename = (string)$pathAndFilename;
-        $templateModifiedTimestamp = $pathAndFilename !== 'php://stdin' && file_exists($pathAndFilename) ? filemtime($pathAndFilename) : 0;
+        $templateModifiedTimestamp = $pathAndFilename !== null && $pathAndFilename !== 'php://stdin' && file_exists($pathAndFilename) ? filemtime($pathAndFilename) : 0;
         return sprintf('%s_%s', $prefix, hash('xxh3', $pathAndFilename . '|' . $templateModifiedTimestamp));
     }
 
@@ -658,7 +622,7 @@ class TemplatePaths
      * @return string Path and filename of layout files
      * @throws Exception\InvalidTemplateResourceException
      */
-    public function getLayoutPathAndFilename($layoutName = 'Default')
+    public function getLayoutPathAndFilename(string $layoutName = 'Default'): string
     {
         if ($this->layoutPathAndFilename !== null) {
             return $this->layoutPathAndFilename;
@@ -679,7 +643,7 @@ class TemplatePaths
      * @param string $partialName The name of the partial
      * @return string partial identifier
      */
-    public function getPartialIdentifier($partialName)
+    public function getPartialIdentifier(string $partialName): string
     {
         $partialKey = $partialName . '.' . $this->getFormat();
         if (!array_key_exists($partialKey, $this->resolvedIdentifiers[self::NAME_PARTIALS])) {
@@ -697,7 +661,7 @@ class TemplatePaths
      * @return string contents of the partial template
      * @throws InvalidTemplateResourceException
      */
-    public function getPartialSource($partialName)
+    public function getPartialSource(string $partialName): string
     {
         $partialPathAndFilename = $this->getPartialPathAndFilename($partialName);
         return file_get_contents($partialPathAndFilename);
@@ -710,7 +674,7 @@ class TemplatePaths
      * @return string the full path which should be used. The path definitely exists.
      * @throws InvalidTemplateResourceException
      */
-    public function getPartialPathAndFilename($partialName)
+    public function getPartialPathAndFilename(string $partialName): string
     {
         $partialKey = $partialName . '.' . $this->getFormat();
         if (!array_key_exists($partialKey, $this->resolvedFiles[self::NAME_PARTIALS])) {
@@ -722,13 +686,10 @@ class TemplatePaths
     }
 
     /**
-     * @param array $paths
-     * @param string $relativePathAndFilename
-     * @param string $format Optional format to resolve.
-     * @return string
+     * @param string[] $paths
      * @throws \TYPO3Fluid\Fluid\View\Exception\InvalidTemplateResourceException
      */
-    protected function resolveFileInPaths(array $paths, $relativePathAndFilename, $format = null)
+    protected function resolveFileInPaths(array $paths, string $relativePathAndFilename, ?string $format = null): string
     {
         $format = $format ?: $this->getFormat();
         $tried = [];
@@ -753,10 +714,7 @@ class TemplatePaths
         );
     }
 
-    /**
-     * @param string|null $type
-     */
-    protected function clearResolvedIdentifiersAndTemplates($type = null)
+    protected function clearResolvedIdentifiersAndTemplates(?string $type = null): void
     {
         if ($type !== null) {
             $this->resolvedIdentifiers[$type] = $this->resolvedFiles[$type] = [];

@@ -25,6 +25,7 @@ use TYPO3\CMS\Core\Resource\Event\AfterFileMetaDataUpdatedEvent;
 use TYPO3\CMS\Core\Resource\Event\EnrichFileMetaDataEvent;
 use TYPO3\CMS\Core\Resource\Exception\InvalidUidException;
 use TYPO3\CMS\Core\Resource\File;
+use TYPO3\CMS\Core\Resource\FileType;
 use TYPO3\CMS\Core\SingletonInterface;
 use TYPO3\CMS\Core\Type\File\ImageInfo;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -49,15 +50,9 @@ class MetaDataRepository implements SingletonInterface
      */
     protected $tableFields = [];
 
-    /**
-     * @var EventDispatcherInterface
-     */
-    protected $eventDispatcher;
-
-    public function __construct(EventDispatcherInterface $eventDispatcher)
-    {
-        $this->eventDispatcher = $eventDispatcher;
-    }
+    public function __construct(
+        protected readonly EventDispatcherInterface $eventDispatcher,
+    ) {}
 
     /**
      * Returns array of meta-data properties
@@ -75,7 +70,7 @@ class MetaDataRepository implements SingletonInterface
         // This logic can be transferred into a custom PSR-14 event listener in the future by just using
         // the AfterMetaDataCreated event.
         if (!empty($record['crdate']) && (int)$record['crdate'] === $GLOBALS['EXEC_TIME']) {
-            if ($file->getType() === File::FILETYPE_IMAGE && $file->getStorage()->getDriverType() === 'Local') {
+            if ($file->isType(FileType::IMAGE) && $file->getStorage()->getDriverType() === 'Local') {
                 $fileNameAndPath = $file->getForLocalProcessing(false);
 
                 $imageInfo = GeneralUtility::makeInstance(ImageInfo::class, $fileNameAndPath);
@@ -154,7 +149,7 @@ class MetaDataRepository implements SingletonInterface
         );
 
         $record = $emptyRecord;
-        $record['uid'] = $connection->lastInsertId($this->tableName);
+        $record['uid'] = $connection->lastInsertId();
 
         return $this->eventDispatcher->dispatch(new AfterFileMetaDataCreatedEvent($fileUid, (int)$record['uid'], $record))->getRecord();
     }

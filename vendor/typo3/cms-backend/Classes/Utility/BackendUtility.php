@@ -17,18 +17,12 @@ namespace TYPO3\CMS\Backend\Utility;
 
 use Doctrine\DBAL\Statement;
 use Doctrine\DBAL\Types\Type;
-use Psr\Http\Message\ServerRequestInterface;
 use Psr\Log\LoggerInterface;
 use TYPO3\CMS\Backend\Configuration\TranslationConfigurationProvider;
 use TYPO3\CMS\Backend\Domain\Model\Element\ImmediateActionElement;
-use TYPO3\CMS\Backend\Module\ModuleProvider;
-use TYPO3\CMS\Backend\Routing\Route;
-use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Cache\CacheManager;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
-use TYPO3\CMS\Core\Context\Context;
-use TYPO3\CMS\Core\Context\DateTimeAspect;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
@@ -36,14 +30,13 @@ use TYPO3\CMS\Core\Database\Platform\PlatformInformation;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Core\Database\Query\QueryHelper;
 use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
-use TYPO3\CMS\Core\Database\Query\Restriction\HiddenRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\WorkspaceRestriction;
 use TYPO3\CMS\Core\Database\RelationHandler;
 use TYPO3\CMS\Core\DataHandling\ItemProcessingService;
 use TYPO3\CMS\Core\Domain\Repository\PageRepository;
 use TYPO3\CMS\Core\Exception\SiteNotFoundException;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Imaging\ImageDimension;
 use TYPO3\CMS\Core\Imaging\ImageManipulation\CropVariantCollection;
 use TYPO3\CMS\Core\Localization\LanguageService;
@@ -51,20 +44,14 @@ use TYPO3\CMS\Core\Log\LogManager;
 use TYPO3\CMS\Core\Resource\Exception\FileDoesNotExistException;
 use TYPO3\CMS\Core\Resource\ProcessedFile;
 use TYPO3\CMS\Core\Resource\ResourceFactory;
-use TYPO3\CMS\Core\Routing\InvalidRouteArgumentsException;
-use TYPO3\CMS\Core\Routing\RouterInterface;
-use TYPO3\CMS\Core\Routing\UnableToLinkToPageException;
 use TYPO3\CMS\Core\Site\Entity\NullSite;
 use TYPO3\CMS\Core\Site\SiteFinder;
-use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Core\TypoScript\PageTsConfig;
 use TYPO3\CMS\Core\TypoScript\PageTsConfigFactory;
 use TYPO3\CMS\Core\Utility\ArrayUtility;
 use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Core\Utility\HttpUtility;
 use TYPO3\CMS\Core\Utility\MathUtility;
-use TYPO3\CMS\Core\Utility\PathUtility;
 use TYPO3\CMS\Core\Utility\StringUtility;
 use TYPO3\CMS\Core\Versioning\VersionState;
 
@@ -99,33 +86,33 @@ class BackendUtility
      */
     public static function getRecord($table, $uid, $fields = '*', $where = '', $useDeleteClause = true): ?array
     {
-        // Ensure we have a valid uid (not 0 and not NEWxxxx) and a valid TCA
-        if ((int)$uid && !empty($GLOBALS['TCA'][$table])) {
-            $queryBuilder = static::getQueryBuilderForTable($table);
-
-            // do not use enabled fields here
-            $queryBuilder->getRestrictions()->removeAll();
-
-            // should the delete clause be used
-            if ($useDeleteClause) {
-                $queryBuilder->getRestrictions()->add(GeneralUtility::makeInstance(DeletedRestriction::class));
-            }
-
-            // set table and where clause
-            $queryBuilder
-                ->select(...GeneralUtility::trimExplode(',', $fields, true))
-                ->from($table)
-                ->where($queryBuilder->expr()->eq('uid', $queryBuilder->createNamedParameter((int)$uid, Connection::PARAM_INT)));
-
-            // add custom where clause
-            if ($where) {
-                $queryBuilder->andWhere(QueryHelper::stripLogicalOperatorPrefix($where));
-            }
-
-            $row = $queryBuilder->executeQuery()->fetchAssociative();
-            if ($row) {
-                return $row;
-            }
+        if (empty($GLOBALS['TCA'][$table])
+            || !MathUtility::canBeInterpretedAsInteger($uid)
+            || (int)$uid > 2147483647
+            || (int)$uid < 1
+        ) {
+            // Return null early in case there is no TCA, the input is no integer, or an integer is
+            // larger than (2^31) - 1. This needs to be increased when we switch to bigint uids.
+            // Do not throw an exception because normal operation needs to
+            // continue as DataHandler and friends expect 'null' records for these cases.
+            return null;
+        }
+        $uid = (int)$uid;
+        $queryBuilder = static::getQueryBuilderForTable($table);
+        $queryBuilder->getRestrictions()->removeAll();
+        if ($useDeleteClause) {
+            $queryBuilder->getRestrictions()->add(GeneralUtility::makeInstance(DeletedRestriction::class));
+        }
+        $queryBuilder
+            ->select(...GeneralUtility::trimExplode(',', $fields, true))
+            ->from($table)
+            ->where($queryBuilder->expr()->eq('uid', $queryBuilder->createNamedParameter($uid, Connection::PARAM_INT)));
+        if ($where) {
+            // Add custom where clause
+            $queryBuilder->andWhere(QueryHelper::stripLogicalOperatorPrefix($where));
+        }
+        if ($row = $queryBuilder->executeQuery()->fetchAssociative()) {
+            return $row;
         }
         return null;
     }
@@ -494,6 +481,42 @@ class BackendUtility
     }
 
     /**
+     * Fetch all records of the given page ID.
+     * Does not check permissions.
+     *
+     * @internal
+     */
+    public static function getExistingPageTranslations(int $pageUid): array
+    {
+        if ($pageUid === 0) {
+            return [];
+        }
+        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('pages');
+        $queryBuilder->getRestrictions()->removeAll()
+            ->add(GeneralUtility::makeInstance(DeletedRestriction::class))
+            ->add(GeneralUtility::makeInstance(WorkspaceRestriction::class, self::getBackendUserAuthentication()->workspace));
+        $result = $queryBuilder
+            ->select('*')
+            ->from('pages')
+            ->where(
+                $queryBuilder->expr()->eq(
+                    $GLOBALS['TCA']['pages']['ctrl']['transOrigPointerField'],
+                    $queryBuilder->createNamedParameter($pageUid, Connection::PARAM_INT)
+                )
+            )
+            ->executeQuery();
+
+        $rows = [];
+        while ($row = $result->fetchAssociative()) {
+            BackendUtility::workspaceOL('pages', $row, self::getBackendUserAuthentication()->workspace);
+            if ($row && VersionState::tryFrom($row['t3ver_state']) !== VersionState::DELETE_PLACEHOLDER) {
+                $rows[] = $row;
+            }
+        }
+        return $rows;
+    }
+
+    /**
      * Opens the page tree to the specified page id
      *
      * @param int $pid Page id.
@@ -677,6 +700,11 @@ class BackendUtility
                 $typeNum = 0;
             }
         }
+        // If typeNum is an array, e.g. when using type=select and renderType=selectCheckBox, use the
+        // first value or fallback to NULL in case multiple values are selected - which does not work.
+        if (is_array($typeNum)) {
+            $typeNum = count($typeNum) === 1 ? reset($typeNum) : null;
+        }
         // If current typeNum doesn't exist, set it to 0 (or to 1 for historical reasons, if 0 doesn't exist)
         if (!isset($GLOBALS['TCA'][$table]['types'][$typeNum]) || !$GLOBALS['TCA'][$table]['types'][$typeNum]) {
             $typeNum = isset($GLOBALS['TCA'][$table]['types']['0']) ? 0 : 1;
@@ -835,7 +863,7 @@ class BackendUtility
 
         while ($record = $res->fetchAssociative()) {
             // store the uid, because it might be unset if it's not among the requested $fields
-            $recordId = $record['uid'];
+            $recordId = (int)$record['uid'];
             $record[$titleField] = self::getRecordTitle($table, $record);
 
             // include only the requested fields in the result
@@ -973,16 +1001,14 @@ class BackendUtility
         if ($workspaceId !== null) {
             $relationHandler->setWorkspaceId($workspaceId);
         }
-        $relationHandler->start(
-            $element[$fieldName],
-            $configuration['foreign_table'],
-            $configuration['MM'] ?? '',
-            $element['uid'],
+        $relationHandler->initializeForField(
             $tableName,
-            $configuration
+            $configuration,
+            $element,
+            $element[$fieldName],
         );
         $relationHandler->processDeletePlaceholder();
-        $referenceUids = $relationHandler->tableArray[$configuration['foreign_table']];
+        $referenceUids = $relationHandler->tableArray[$configuration['foreign_table']] ?? [];
 
         foreach ($referenceUids as $referenceUid) {
             try {
@@ -1017,7 +1043,7 @@ class BackendUtility
     /**
      * Returns a linked image-tag for thumbnail(s)/fileicons/truetype-font-previews from a database row with sys_file_references
      * All $GLOBALS['TYPO3_CONF_VARS']['GFX']['imagefile_ext'] extension are made to thumbnails + ttf file (renders font-example)
-     * Thumbnails are linked to ShowItemController (/thumbnails route)
+     * Thumbnails are linked to FileInterface->getPublicUrl().
      *
      * @param array $row Row is the database row from the table, $table.
      * @param string $table Table name for $row (present in TCA)
@@ -1030,6 +1056,7 @@ class BackendUtility
      * @param int|string $size Optional: $size is [w]x[h] of the thumbnail. 64 is default.
      * @param bool $linkInfoPopup Whether to wrap with a link opening the info popup
      * @return string Thumbnail image tag.
+     * @deprecated Will be removed in TYPO3 v14
      */
     public static function thumbCode(
         $row,
@@ -1043,6 +1070,7 @@ class BackendUtility
         $size = '',
         $linkInfoPopup = true
     ) {
+        trigger_error('BackendUtility::thumbCode() will be removed in TYPO3 v14.', E_USER_DEPRECATED);
         $size = (int)(trim((string)$size) ?: 64);
         $targetDimension = new ImageDimension($size, $size);
         $thumbData = '';
@@ -1062,7 +1090,7 @@ class BackendUtility
                         . '<div class="preview-thumbnails-element">'
                             . '<div class="preview-thumbnails-element-image">'
                                 . $iconFactory
-                                    ->getIcon('mimetypes-other-other', Icon::SIZE_MEDIUM, 'overlay-missing')
+                                    ->getIcon('mimetypes-other-other', IconSize::MEDIUM, 'overlay-missing')
                                     ->setTitle(static::getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:warning.file_missing') . ' ' . $fileObject->getName())
                                     ->render()
                             . '</div>'
@@ -1101,7 +1129,7 @@ class BackendUtility
                 } else {
                     // Icon
                     $imgTag = $iconFactory
-                        ->getIconForResource($fileObject, Icon::SIZE_MEDIUM)
+                        ->getIconForResource($fileObject, IconSize::MEDIUM)
                         ->setTitle($fileObject->getName())
                         ->render();
                 }
@@ -1133,24 +1161,6 @@ class BackendUtility
     }
 
     /**
-     * @deprecated since TYPO3 v12.4. Will be removed in TYPO3 v13.0 - use the ResourceFactory API instead.
-     */
-    public static function getThumbnailUrl(int $fileId, array $configuration): string
-    {
-        trigger_error(
-            'BackendUtility::getThumbnailUrl() will be removed in TYPO3 v13.0. The ResourceFactory API should be used instead.',
-            E_USER_DEPRECATED
-        );
-        $taskType = $configuration['_context'] ?? ProcessedFile::CONTEXT_IMAGEPREVIEW;
-        unset($configuration['_context']);
-
-        return GeneralUtility::makeInstance(ResourceFactory::class)
-                ->getFileObject($fileId)
-                ->process($taskType, $configuration)
-                ->getPublicUrl();
-    }
-
-    /**
      * Returns title-attribute information for a page-record informing about id, doktype, hidden, starttime, endtime, fe_group etc.
      *
      * @param array $row Input must be a page row ($row) with the proper fields set (be sure - send the full range of fields for the table)
@@ -1176,14 +1186,14 @@ class BackendUtility
             $out = implode(' - ', $parts);
             return $includeAttrib ? 'title="' . htmlspecialchars($out) . '"' : $out;
         }
-        switch (VersionState::cast($row['t3ver_state'])) {
-            case new VersionState(VersionState::DELETE_PLACEHOLDER):
+        switch (VersionState::tryFrom($row['t3ver_state'] ?? 0)) {
+            case VersionState::DELETE_PLACEHOLDER:
                 $parts[] = 'Deleted element!';
                 break;
-            case new VersionState(VersionState::MOVE_POINTER):
+            case VersionState::MOVE_POINTER:
                 $parts[] = 'NEW LOCATION (Move-to Pointer) WSID#' . $row['t3ver_wsid'];
                 break;
-            case new VersionState(VersionState::NEW_PLACEHOLDER):
+            case VersionState::NEW_PLACEHOLDER:
                 $parts[] = 'New element!';
                 break;
         }
@@ -1252,19 +1262,6 @@ class BackendUtility
     }
 
     /**
-     * Returns the combined markup for Bootstraps tooltips
-     *
-     * @param string $table
-     * @return string
-     * @deprecated will be removed in TYPO3 v13.0 - use getRecordIconAltText directly
-     */
-    public static function getRecordToolTip(array $row, $table = 'pages')
-    {
-        trigger_error('BackendUtility::getRecordToolTip() will be removed in TYPO3 v13.0 - use getRecordIconAltText() instead', E_USER_DEPRECATED);
-        return 'title="' . self::getRecordIconAltText($row, $table) . '"';
-    }
-
-    /**
      * Returns title-attribute information for ANY record (from a table defined in TCA of course)
      * The included information depends on features of the table, but if hidden, starttime, endtime and fe_group fields are configured for, information about the record status in regard to these features are is included.
      * "pages" table can be used as well and will return the result of ->titleAttribForPages() for that page.
@@ -1272,10 +1269,8 @@ class BackendUtility
      * @param array $row Table row; $row is a row from the table, $table
      * @param string $table Table name
      * @param bool $escapeResult If $escapeResult is set, then the return value is escaped with htmlspecialchars()
-     *
-     * @return string
      */
-    public static function getRecordIconAltText($row, $table = 'pages', bool $escapeResult = true)
+    public static function getRecordIconAltText($row, $table = 'pages', bool $escapeResult = true): string
     {
         if ($table === 'pages') {
             $title = self::titleAttribForPages($row, '', false);
@@ -1309,14 +1304,14 @@ class BackendUtility
         }
 
         if (static::isTableWorkspaceEnabled($table)) {
-            switch (VersionState::cast($row['t3ver_state'] ?? null)) {
-                case new VersionState(VersionState::DELETE_PLACEHOLDER):
+            switch (VersionState::tryFrom($row['t3ver_state'] ?? 0)) {
+                case VersionState::DELETE_PLACEHOLDER:
                     $parts[] = 'Deleted element!';
                     break;
-                case new VersionState(VersionState::MOVE_POINTER):
+                case VersionState::MOVE_POINTER:
                     $parts[] = 'NEW LOCATION (Move-to Pointer) WSID#' . ($row['t3ver_wsid'] ?? 0);
                     break;
-                case new VersionState(VersionState::NEW_PLACEHOLDER):
+                case VersionState::NEW_PLACEHOLDER:
                     $parts[] = 'New element!';
                     break;
             }
@@ -1529,7 +1524,9 @@ class BackendUtility
                     false,
                     false,
                     $row['uid'] ?? null,
-                    $forceResult
+                    $forceResult,
+                    0,
+                    $row
                 ) ?? '';
                 if (!empty($GLOBALS['TCA'][$table]['ctrl']['label_alt'])
                     && (!empty($GLOBALS['TCA'][$table]['ctrl']['label_alt_force']) || $recordTitle === '')
@@ -1545,7 +1542,7 @@ class BackendUtility
                             $recordTitle = trim(strip_tags((string)($row[$fN] ?? '')));
                         }
                         if ($recordTitle !== '') {
-                            $recordTitle = self::getProcessedValue($table, $fN, $recordTitle, 0, false, false, $row['uid'] ?? 0);
+                            $recordTitle = self::getProcessedValue($table, $fN, $recordTitle, 0, false, false, $row['uid'] ?? 0, true, 0, $row);
                             if (!($GLOBALS['TCA'][$table]['ctrl']['label_alt_force'] ?? false)) {
                                 break;
                             }
@@ -1626,6 +1623,7 @@ class BackendUtility
      * @param int $uid Uid of the current record
      * @param bool $forceResult If BackendUtility::getRecordTitle is used to process the value, this parameter is forwarded.
      * @param int $pid Optional page uid is used to evaluate page TSconfig for the given field
+     * @param array $fullRow Optional full database row to provide additional context, e.g. to be used in itemsProcFunc
      * @throws \InvalidArgumentException
      * @return string|null
      */
@@ -1638,7 +1636,8 @@ class BackendUtility
         $noRecordLookup = false,
         $uid = 0,
         $forceResult = true,
-        $pid = 0
+        $pid = 0,
+        $fullRow = [],
     ) {
         if ($col === 'uid') {
             // uid is not in TCA-array
@@ -1662,11 +1661,25 @@ class BackendUtility
             GeneralUtility::callUserFunction($_funcRef, $theColConf, $referenceObject);
         }
 
+        // Label functions can transport the full $row as context.
+        // If missing, a minimal context row is constructed.
+        // @see #102698
+        if ($fullRow === []) {
+            $fullRow = ['uid' => (int)$uid, 'pid' => (int)$pid];
+        } else {
+            // Ensure uid and pid are always provided in full $row
+            if (!isset($fullRow['uid'])) {
+                $fullRow['uid'] = (int)$uid;
+            }
+            if (!isset($fullRow['pid'])) {
+                $fullRow['pid'] = (int)$pid;
+            }
+        }
         $l = '';
         $lang = static::getLanguageService();
         switch ((string)($theColConf['type'] ?? '')) {
             case 'radio':
-                $l = $lang->sL(self::getLabelFromItemlist($table, $col, $value, ['uid' => (int)$uid, 'pid' => (int)$pid]));
+                $l = $lang->sL(self::getLabelFromItemlist($table, $col, $value, $fullRow));
                 if ($l === '' && !empty($value)) {
                     // Use plain database value when label is empty
                     $l = $value;
@@ -1698,7 +1711,7 @@ class BackendUtility
                             $columnTsConfig = $pageTsConfig['TCEFORM.'][$table . '.'][$col . '.'];
                         }
                     }
-                    $l = self::getLabelsFromItemsList($table, $col, (string)$value, $columnTsConfig, ['uid' => (int)$uid, 'pid' => (int)$pid]);
+                    $l = self::getLabelsFromItemsList($table, $col, (string)$value, $columnTsConfig, $fullRow);
                     if (!empty($theColConf['foreign_table']) && !$l && !empty($GLOBALS['TCA'][$theColConf['foreign_table']])) {
                         if ($noRecordLookup) {
                             $l = $value;
@@ -1890,15 +1903,7 @@ class BackendUtility
         $finalValues = [];
 
         $relationHandler = GeneralUtility::makeInstance(RelationHandler::class);
-        $relationHandler->registerNonTableValues = (bool)($theColConf['allowNonIdValues'] ?? false);
-        $relationHandler->start(
-            $value,
-            $theColConf['allowed'] ?? $theColConf['foreign_table'] ?? '',
-            $theColConf['MM'] ?? '',
-            $recordId,
-            $table,
-            $theColConf
-        );
+        $relationHandler->initializeForField($table, $theColConf, $recordId, $value);
 
         if ($noRecordLookup) {
             $finalValues = array_column($relationHandler->itemArray, 'id');
@@ -1932,6 +1937,7 @@ class BackendUtility
      * @param int $uid Uid of the current record
      * @param bool $forceResult If BackendUtility::getRecordTitle is used to process the value, this parameter is forwarded.
      * @param int $pid Optional page uid is used to evaluate page TSconfig for the given field
+     * @param array $fullRow Optional full database row to provide additional context, e.g. to be used in itemsProcFunc
      * @return string
      * @see getProcessedValue()
      */
@@ -1942,9 +1948,10 @@ class BackendUtility
         $fixed_lgd_chars = 0,
         $uid = 0,
         $forceResult = true,
-        $pid = 0
+        $pid = 0,
+        $fullRow = []
     ) {
-        $fVnew = self::getProcessedValue($table, $fN, $fV, $fixed_lgd_chars, true, false, $uid, $forceResult, $pid);
+        $fVnew = self::getProcessedValue($table, $fN, $fV, $fixed_lgd_chars, true, false, $uid, $forceResult, $pid, $fullRow);
         if (!isset($fVnew)) {
             if (is_array($GLOBALS['TCA'][$table])) {
                 if ($fN == ($GLOBALS['TCA'][$table]['ctrl']['tstamp'] ?? 0) || $fN == ($GLOBALS['TCA'][$table]['ctrl']['crdate'] ?? 0)) {
@@ -2012,140 +2019,6 @@ class BackendUtility
         return implode(',', array_unique($fields));
     }
 
-    /*******************************************
-     *
-     * Backend Modules API functions
-     *
-     *******************************************/
-
-    /**
-     * API for getting CSH icons/text for use in backend modules.
-     * TCA_DESCR will be loaded if it isn't already
-     *
-     * @param string $table Table name ('_MOD_'+module name)
-     * @param string $field Field name (CSH locallang main key)
-     * @param string $_ (unused)
-     * @param string $wrap Wrap code for icon-mode, splitted by "|". Not used for full-text mode.
-     * @return string HTML content for help text
-     *
-     * @deprecated The functionality has been removed in v12. The method will be removed in TYPO3 v13.
-     */
-    public static function cshItem($table, $field, $_ = '', $wrap = '')
-    {
-        trigger_error(
-            'Method ' . __METHOD__ . ' is returning an empty string in TYPO3 v12 and will be removed in TYPO3 v13.0.',
-            E_USER_DEPRECATED
-        );
-        return '';
-    }
-
-    /**
-     * Returns the preview url
-     *
-     * It will detect the correct domain name if needed and provide the link with the right back path.
-     *
-     * @param int $pageUid Page UID
-     * @param string $backPath Must point back to TYPO3_mainDir (where the site is assumed to be one level above)
-     * @param array|null $rootLine If root line is supplied the function will look for the first found domain record and use that URL instead (if found)
-     * @param string $anchorSection Optional anchor to the URL
-     * @param string $alternativeUrl An alternative URL that, if set, will ignore other parameters except $switchFocus: It will return the window.open command wrapped around this URL!
-     * @param string $additionalGetVars Additional GET variables.
-     * @param bool $switchFocus If TRUE, then the preview window will gain the focus.
-     * @deprecated since TYPO3 v12.0. Use PreviewUriBuilder instead.
-     */
-    public static function getPreviewUrl(
-        $pageUid,
-        $backPath = '',
-        $rootLine = null,
-        $anchorSection = '',
-        $alternativeUrl = '',
-        $additionalGetVars = '',
-        &$switchFocus = true
-    ): string {
-        trigger_error('BackendUtility::getPreviewUrl() will be removed in TYPO3 v13.0. Use PreviewUriBuilder instead.', E_USER_DEPRECATED);
-        $viewScript = '/index.php?id=';
-        if ($alternativeUrl) {
-            $viewScript = $alternativeUrl;
-        }
-
-        if (!empty($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_befunc.php']['viewOnClickClass'])) {
-            trigger_error(
-                'Hook $GLOBALS[\'TYPO3_CONF_VARS\'][\'SC_OPTIONS\'][\'t3lib/class.t3lib_befunc.php\'][\'viewOnClickClass\'] will be removed in TYPO3 v13.0. Use BeforePagePreviewUriGeneratedEvent and AfterPagePreviewUriGeneratedEvent instead.',
-                E_USER_DEPRECATED
-            );
-        }
-
-        foreach ($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_befunc.php']['viewOnClickClass'] ?? [] as $className) {
-            $hookObj = GeneralUtility::makeInstance($className);
-            if (method_exists($hookObj, 'preProcess')) {
-                $hookObj->preProcess(
-                    $pageUid,
-                    $backPath,
-                    $rootLine,
-                    $anchorSection,
-                    $viewScript,
-                    $additionalGetVars,
-                    $switchFocus
-                );
-            }
-        }
-
-        // If there is an alternative URL or the URL has been modified by a hook, use that one.
-        if ($alternativeUrl || $viewScript !== '/index.php?id=') {
-            $previewUrl = $viewScript;
-        } else {
-            $permissionClause = $GLOBALS['BE_USER']->getPagePermsClause(Permission::PAGE_SHOW);
-            $pageInfo = self::readPageAccess($pageUid, $permissionClause) ?: [];
-            // prepare custom context for link generation (to allow for example time based previews)
-            $context = clone GeneralUtility::makeInstance(Context::class);
-            $additionalGetVars .= self::ADMCMD_previewCmds($pageInfo, $context);
-
-            // Build the URL with a site as prefix, if configured
-            $siteFinder = GeneralUtility::makeInstance(SiteFinder::class);
-            // Check if the page (= its rootline) has a site attached, otherwise just keep the URL as is
-            $rootLine = $rootLine ?? BackendUtility::BEgetRootLine($pageUid);
-            try {
-                $site = $siteFinder->getSiteByPageId((int)$pageUid, $rootLine);
-            } catch (SiteNotFoundException $e) {
-                throw new UnableToLinkToPageException('The page ' . $pageUid . ' had no proper connection to a site, no link could be built.', 1559794919);
-            }
-            // Create a multi-dimensional array out of the additional get vars
-            $additionalQueryParams = [];
-            parse_str($additionalGetVars, $additionalQueryParams);
-            if (isset($additionalQueryParams['L'])) {
-                $additionalQueryParams['_language'] = $additionalQueryParams['_language'] ?? $additionalQueryParams['L'];
-                unset($additionalQueryParams['L']);
-            }
-            try {
-                $previewUrl = (string)$site->getRouter($context)->generateUri(
-                    $pageUid,
-                    $additionalQueryParams,
-                    $anchorSection,
-                    RouterInterface::ABSOLUTE_URL
-                );
-            } catch (\InvalidArgumentException | InvalidRouteArgumentsException $e) {
-                throw new UnableToLinkToPageException(sprintf('The link to the page with ID "%d" could not be generated: %s', $pageUid, $e->getMessage()), 1559794914, $e);
-            }
-        }
-
-        foreach ($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_befunc.php']['viewOnClickClass'] ?? [] as $className) {
-            $hookObj = GeneralUtility::makeInstance($className);
-            if (method_exists($hookObj, 'postProcess')) {
-                $previewUrl = $hookObj->postProcess(
-                    $previewUrl,
-                    $pageUid,
-                    $rootLine,
-                    $anchorSection,
-                    $viewScript,
-                    $additionalGetVars,
-                    $switchFocus
-                );
-            }
-        }
-
-        return $previewUrl;
-    }
-
     /**
      * Makes click menu link (context sensitive menu)
      *
@@ -2168,27 +2041,7 @@ class BackendUtility
     public static function wrapClickMenuOnIcon($content, $table, $uid = 0, $context = '', array $row = []): string
     {
         $attributes = self::getContextMenuAttributes((string)$table, $uid, (string)$context, 'click', $row);
-        return '<button type="button" class="btn btn-link p-0" ' . GeneralUtility::implodeAttributes($attributes, true) . '>' . $content . '</button>';
-    }
-
-    /**
-     * @deprecated since v12, will be removed in v13. Use BackendUtility::getContextMenuAttributes instead.
-     *
-     * @param string $table Table name/File path. If the icon is for a database
-     * record, enter the tablename from $GLOBALS['TCA']. If a file then enter
-     * the absolute filepath
-     * @param int|string $uid If icon is for database record this is the UID for the
-     * record from $table or identifier for sys_file record
-     * @param string $context Set tree if menu is called from tree view
-     */
-    public static function getClickMenuOnIconTagParameters(string $table, $uid = 0, string $context = ''): array
-    {
-        return self::getContextMenuAttributes(
-            $table,
-            $uid,
-            $context,
-            'click'
-        );
+        return '<button type="button" class="btn btn-link" ' . GeneralUtility::implodeAttributes($attributes, true) . '>' . $content . '</button>';
     }
 
     /**
@@ -2232,217 +2085,6 @@ class BackendUtility
     }
 
     /**
-     * Returns a URL with a command to TYPO3 Datahandler
-     *
-     * @param string $parameters Set of GET params to send. Example: "&cmd[tt_content][123][move]=456" or "&data[tt_content][123][hidden]=1&data[tt_content][123][title]=Hello%20World
-     * @param string $redirectUrl Redirect URL, default is to use $GLOBALS['TYPO3_REQUEST']->getAttribute('normalizedParams')->getRequestUri()
-     * @return string
-     * @deprecated since TYPO3 v12.4. Will be removed in TYPO3 v13.0 - use the UriBuilder API instead.
-     */
-    public static function getLinkToDataHandlerAction($parameters, $redirectUrl = '')
-    {
-        trigger_error(
-            'BackendUtility::getLinkToDataHandlerAction() will be removed in TYPO3 v13.0. The UriBuilder API should be used instead.',
-            E_USER_DEPRECATED
-        );
-        $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
-        $url = (string)$uriBuilder->buildUriFromRoute('tce_db') . $parameters . '&redirect=';
-        $url .= rawurlencode($redirectUrl ?: $GLOBALS['TYPO3_REQUEST']->getAttribute('normalizedParams')->getRequestUri());
-        return $url;
-    }
-
-    /**
-     * Returns a selector box "function menu" for a module
-     *
-     * @param mixed $mainParams The "&id=" parameter value to be sent to the module, but it can be also a parameter array which will be passed instead of the &id=...
-     * @param string $elementName The form elements name, probably something like "SET[...]
-     * @param string $currentValue The value to be selected currently.
-     * @param array $menuItems An array with the menu items for the selector box
-     * @param string $script The script to send the &id to, if empty it's automatically found
-     * @param string $addParams Additional parameters to pass to the script.
-     * @return string HTML code for selector box
-     * @deprecated since TYPO3 v12.2. will be removed in TYPO3 v13.0.
-     */
-    public static function getFuncMenu(
-        $mainParams,
-        $elementName,
-        $currentValue,
-        $menuItems,
-        $script = '',
-        $addParams = ''
-    ): string {
-        trigger_error(
-            'BackendUtility::getFuncMenu will be removed in TYPO3 v13.0, use Fluid based templating instead.',
-            E_USER_DEPRECATED
-        );
-
-        if (!is_array($menuItems) || count($menuItems) <= 1) {
-            return '';
-        }
-        $scriptUrl = self::buildScriptUrl($mainParams, $addParams, $script);
-        $options = [];
-        foreach ($menuItems as $value => $label) {
-            $options[] = '<option value="'
-                . htmlspecialchars($value) . '"'
-                . ((string)$currentValue === (string)$value ? ' selected="selected"' : '') . '>'
-                . htmlspecialchars($label, ENT_COMPAT, 'UTF-8', false) . '</option>';
-        }
-        $dataMenuIdentifier = str_replace(['SET[', ']'], '', $elementName);
-        $dataMenuIdentifier = GeneralUtility::camelCaseToLowerCaseUnderscored($dataMenuIdentifier);
-        $dataMenuIdentifier = str_replace('_', '-', $dataMenuIdentifier);
-        // relies on module 'TYPO3/CMS/Backend/ActionDispatcher'
-        $attributes = GeneralUtility::implodeAttributes([
-            'name' => $elementName,
-            'class' => 'form-select mb-3',
-            'data-menu-identifier' => $dataMenuIdentifier,
-            'data-global-event' => 'change',
-            'data-action-navigate' => '$data=~s/$value/',
-            'data-navigate-value' => $scriptUrl . '&' . $elementName . '=${value}',
-        ], true);
-        return sprintf(
-            '<select %s>%s</select>',
-            $attributes,
-            implode('', $options)
-        );
-    }
-
-    /**
-     * Returns a selector box to switch the view
-     * Based on BackendUtility::getFuncMenu() but done as new function because it has another purpose.
-     * Mingling with getFuncMenu would harm the docHeader Menu.
-     *
-     * @param mixed $mainParams The "&id=" parameter value to be sent to the module, but it can be also a parameter array which will be passed instead of the &id=...
-     * @param string $elementName The form elements name, probably something like "SET[...]
-     * @param string|int $currentValue The value to be selected currently.
-     * @param array $menuItems An array with the menu items for the selector box
-     * @param string $script The script to send the &id to, if empty it's automatically found
-     * @param string $addParams Additional parameters to pass to the script.
-     * @param array $additionalAttributes Additional attributes for the select element
-     * @return string HTML code for selector box
-     * @deprecated since TYPO3 v12.2. will be removed in TYPO3 v13.0.
-     */
-    public static function getDropdownMenu(
-        $mainParams,
-        $elementName,
-        $currentValue,
-        $menuItems,
-        $script = '',
-        $addParams = '',
-        array $additionalAttributes = []
-    ) {
-        trigger_error(
-            'BackendUtility::getDropdownMenu will be removed in TYPO3 v13.0, use Fluid based templating instead.',
-            E_USER_DEPRECATED
-        );
-        if (!is_array($menuItems) || count($menuItems) <= 1) {
-            return '';
-        }
-        $scriptUrl = self::buildScriptUrl($mainParams, $addParams, $script);
-        $options = [];
-        foreach ($menuItems as $value => $label) {
-            $options[] = '<option value="'
-                . htmlspecialchars($value) . '"'
-                . ((string)$currentValue === (string)$value ? ' selected="selected"' : '') . '>'
-                . htmlspecialchars($label, ENT_COMPAT, 'UTF-8', false) . '</option>';
-        }
-        $dataMenuIdentifier = str_replace(['SET[', ']'], '', $elementName);
-        $dataMenuIdentifier = GeneralUtility::camelCaseToLowerCaseUnderscored($dataMenuIdentifier);
-        $dataMenuIdentifier = str_replace('_', '-', $dataMenuIdentifier);
-        // relies on module 'TYPO3/CMS/Backend/ActionDispatcher'
-        $attributes = GeneralUtility::implodeAttributes(array_merge([
-            'name' => $elementName,
-            'data-menu-identifier' => $dataMenuIdentifier,
-            'data-global-event' => 'change',
-            'data-action-navigate' => '$data=~s/$value/',
-            'data-navigate-value' => $scriptUrl . '&' . $elementName . '=${value}',
-        ], $additionalAttributes), true);
-        return '
-        <div class="input-group">
-            <!-- Function Menu of module -->
-            <select class="form-select" ' . $attributes . '>
-                ' . implode(LF, $options) . '
-            </select>
-        </div>';
-    }
-
-    /**
-     * Checkbox function menu.
-     * Works like ->getFuncMenu() but takes no $menuItem array since this is a simple checkbox.
-     *
-     * @param mixed $mainParams $id is the "&id=" parameter value to be sent to the module, but it can be also a parameter array which will be passed instead of the &id=...
-     * @param string $elementName The form elements name, probably something like "SET[...]
-     * @param string|bool $currentValue The value to be selected currently.
-     * @param string $script The script to send the &id to, if empty it's automatically found
-     * @param string $addParams Additional parameters to pass to the script.
-     * @param string $tagParams Additional attributes for the checkbox input tag
-     * @return string HTML code for checkbox
-     * @see getFuncMenu()
-     * @deprecated since TYPO3 v12.2. will be removed in TYPO3 v13.0.
-     */
-    public static function getFuncCheck(
-        $mainParams,
-        $elementName,
-        $currentValue,
-        $script = '',
-        $addParams = '',
-        $tagParams = ''
-    ) {
-        trigger_error(
-            'BackendUtility::getFuncCheck will be removed in TYPO3 v13.0, use Fluid based templating instead.',
-            E_USER_DEPRECATED
-        );
-
-        // relies on module 'TYPO3/CMS/Backend/ActionDispatcher'
-        $scriptUrl = self::buildScriptUrl($mainParams, $addParams, $script);
-        $attributes = GeneralUtility::implodeAttributes([
-            'type' => 'checkbox',
-            'class' => 'form-check-input',
-            'name' => $elementName,
-            'value' => '1',
-            'data-global-event' => 'change',
-            'data-action-navigate' => '$data=~s/$value/',
-            'data-navigate-value' => sprintf('%s&%s=${value}', $scriptUrl, $elementName),
-            'data-empty-value' => '0',
-        ], true);
-        return
-            '<input ' . $attributes .
-            ($currentValue ? ' checked="checked"' : '') .
-            ($tagParams ? ' ' . $tagParams : '') .
-            ' />';
-    }
-
-    /**
-     * Builds the URL to the current script with given arguments
-     *
-     * @param mixed $mainParams $id is the "&id=" parameter value to be sent to the module, but it can be also a parameter array which will be passed instead of the &id=...
-     * @param string $addParams Additional parameters to pass to the script.
-     * @param string $script The script to send the &id to, if empty it's automatically found
-     * @return string The complete script URL
-     * @todo Check if this can be removed or replaced by routing
-     */
-    protected static function buildScriptUrl($mainParams, $addParams, $script = '')
-    {
-        if (!is_array($mainParams)) {
-            $mainParams = ['id' => $mainParams];
-        }
-
-        if (($GLOBALS['TYPO3_REQUEST'] ?? null) instanceof ServerRequestInterface
-            && ($route = $GLOBALS['TYPO3_REQUEST']->getAttribute('route')) instanceof Route
-        ) {
-            $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
-            $scriptUrl = (string)$uriBuilder->buildUriFromRoute($route->getOption('_identifier'), $mainParams);
-            $scriptUrl .= $addParams;
-        } else {
-            if (!$script) {
-                $script = PathUtility::basename(Environment::getCurrentScript());
-            }
-            $scriptUrl = $script . HttpUtility::buildQueryString($mainParams, '?') . $addParams;
-        }
-
-        return $scriptUrl;
-    }
-
-    /**
      * Call to update the page tree frame (or something else..?) after
      * use 'updatePageTree' as a first parameter will set the page tree to be updated.
      *
@@ -2477,85 +2119,16 @@ class BackendUtility
     }
 
     /**
-     * Call to update the page tree frame (or something else..?) if this is set by the function
-     * setUpdateSignal(). It will return some JavaScript that does the update
-     *
-     * @return string HTML javascript code
-     * @see BackendUtility::setUpdateSignal()
-     * @deprecated will be removed in TYPO3 v13.0, use getUpdateSignalDetails() instead
-     */
-    public static function getUpdateSignalCode()
-    {
-        trigger_error(
-            'BackendUtility::getUpdateSignalCode will be removed in TYPO3 v13.0, use BackendUtility::getUpdateSignalDetails instead.',
-            E_USER_DEPRECATED
-        );
-
-        $signals = [];
-        $modData = static::getBackendUserAuthentication()->getModuleData(
-            BackendUtility::class . '::getUpdateSignal',
-            'ses'
-        );
-        if (empty($modData)) {
-            return '';
-        }
-        // Hook: Allows to let TYPO3 execute your JS code
-        $updateSignals = $GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_befunc.php']['updateSignalHook'] ?? [];
-        // Loop through all setUpdateSignals and get the JS code
-        foreach ($modData as $set => $val) {
-            if (isset($updateSignals[$set])) {
-                $params = ['set' => $set, 'parameter' => $val['parameter'], 'JScode' => ''];
-                $ref = null;
-                GeneralUtility::callUserFunction($updateSignals[$set], $params, $ref);
-                $signals[] = $params['JScode'];
-            } else {
-                switch ($set) {
-                    case 'updatePageTree':
-                        $signals[] = '
-								if (top) {
-									top.document.dispatchEvent(new CustomEvent("typo3:pagetree:refresh"));
-								}';
-                        break;
-                    case 'updateFolderTree':
-                        $signals[] = '
-								if (top) {
-									top.document.dispatchEvent(new CustomEvent("typo3:filestoragetree:refresh"));
-								}';
-                        break;
-                    case 'updateModuleMenu':
-                        $signals[] = '
-								if (top && top.TYPO3.ModuleMenu && top.TYPO3.ModuleMenu.App) {
-									top.TYPO3.ModuleMenu.App.refreshMenu();
-								}';
-                        break;
-                    case 'updateTopbar':
-                        $signals[] = '
-								if (top && top.TYPO3.Backend && top.TYPO3.Backend.Topbar) {
-									top.TYPO3.Backend.Topbar.refresh();
-								}';
-                        break;
-                }
-            }
-        }
-        $content = implode(LF, $signals);
-        // For backwards compatibility, should be replaced
-        self::setUpdateSignal();
-        return $content;
-    }
-
-    /**
      * Gets instructions for update signals (e.g. page tree shall be refreshed,
      * since some page title has been modified during the current HTTP request).
      *
-     * @return array{html: list<string>, script: list<string>}
+     * @return array{html: list<string>}
      * @see BackendUtility::setUpdateSignal()
      */
     public static function getUpdateSignalDetails(): array
     {
         $details = [
             'html' => [],
-            // @deprecated `script` will be removed in TYPO3 v13.0
-            'script' => [],
         ];
         $modData = static::getBackendUserAuthentication()->getModuleData(
             BackendUtility::class . '::getUpdateSignal',
@@ -2569,20 +2142,11 @@ class BackendUtility
         // Loop through all setUpdateSignals and get the JS code
         foreach ($modData as $set => $val) {
             if (isset($updateSignals[$set])) {
-                $params = ['set' => $set, 'parameter' => $val['parameter'], 'JScode' => '', 'html' => ''];
+                $params = ['set' => $set, 'parameter' => $val['parameter'], 'html' => ''];
                 $ref = null;
                 GeneralUtility::callUserFunction($updateSignals[$set], $params, $ref);
                 if (!empty($params['html'])) {
                     $details['html'][] = $params['html'];
-                } elseif (!empty($params['JScode'])) {
-                    trigger_error(
-                        sprintf(
-                            'Using `JScode` in update signal "%s" will be removed in TYPO3 v13.0, use `html` instead.',
-                            $set
-                        ),
-                        E_USER_DEPRECATED
-                    );
-                    $details['script'][] = $params['JScode'];
                 }
             } else {
                 switch ($set) {
@@ -2596,6 +2160,44 @@ class BackendUtility
                     case 'updateFolderTree':
                         $details['html'][] = ImmediateActionElement::dispatchCustomEvent(
                             'typo3:filestoragetree:refresh',
+                            null,
+                            true
+                        );
+                        break;
+                    case 'updateColorScheme':
+                        $details['html'][] = ImmediateActionElement::dispatchCustomEvent(
+                            'typo3:color-scheme:update',
+                            ['colorScheme' => $val['parameter']],
+                            true
+                        );
+                        break;
+                    case 'updateTheme':
+                        $details['html'][] = ImmediateActionElement::dispatchCustomEvent(
+                            'typo3:theme:update',
+                            ['theme' => $val['parameter']],
+                            true
+                        );
+                        break;
+                    case 'updateTitleFormat':
+                        $details['html'][] = ImmediateActionElement::dispatchCustomEvent(
+                            'typo3:title-format:update',
+                            ['format' => $val['parameter']],
+                            true
+                        );
+                        break;
+                    case 'updateBackendLanguage':
+                        $details['html'][] = ImmediateActionElement::dispatchCustomEvent(
+                            'typo3:backend-language:update',
+                            [
+                                'language' => $val['parameter']['language'],
+                                'direction' => $val['parameter']['direction'] ?? null,
+                            ],
+                            true
+                        );
+                        break;
+                    case 'updateSystemInformationMenu':
+                        $details['html'][] = ImmediateActionElement::dispatchCustomEvent(
+                            'typo3:system-information-menu:update',
                             null,
                             true
                         );
@@ -2974,65 +2576,31 @@ class BackendUtility
     }
 
     /**
-     * Returns TRUE if $modName is set and is found as a main- or submodule in $TBE_MODULES array
-     *
-     * @param string $modName Module name
-     * @return bool
-     * @deprecated no longer in use. Will be removed in v13. Use the ModuleProvider API instead.
-     */
-    public static function isModuleSetInTBE_MODULES($modName)
-    {
-        trigger_error(
-            'BackendUtility::isModuleSetInTBE_MODULES() will be removed in TYPO3 v13.0. Use the ModuleProvider API instead.',
-            E_USER_DEPRECATED
-        );
-
-        return GeneralUtility::makeInstance(ModuleProvider::class)->isModuleRegistered((string)$modName);
-    }
-
-    /**
      * Counting references to a record/file
      *
-     * @param string $table Table name (or "_FILE" if its a file)
-     * @param string $ref Reference: If table, then int-uid, if _FILE, then file reference (relative to Environment::getPublicPath())
-     * @param string $msg Message with %s, eg. "There were %s records pointing to this file!
+     * @param string $table Table name
+     * @param int $ref Record uid
+     * @param string $msg Message with %s, e.g. "There were %s records pointing to this file!"
      * @param string|int|null $count Reference count
      * @return string|int Output string (or int count value if no msg string specified)
+     * @todo: The method should vanish altogether: The signature with $msg and $count and
+     *        string|int return value is odd, and the method contains hacks for sys_file.
      */
     public static function referenceCount($table, $ref, $msg = '', $count = null)
     {
-        if ($count === null) {
-            // Build base query
+        if ($count === null && MathUtility::canBeInterpretedAsInteger($ref)) {
+            // MathUtility::canBeInterpretedAsInteger($ref) and no method type hint for b/w compat.
             $queryBuilder = static::getQueryBuilderForTable('sys_refindex');
-            $queryBuilder
-                ->count('*')
-                ->from('sys_refindex')
+            $queryBuilder->count('*')->from('sys_refindex')
                 ->where(
-                    $queryBuilder->expr()->eq('ref_table', $queryBuilder->createNamedParameter($table))
-                );
-
-            // Look up the path:
-            if ($table === '_FILE') {
-                if (!str_starts_with($ref, Environment::getPublicPath())) {
-                    return '';
-                }
-
-                $ref = PathUtility::stripPathSitePrefix($ref);
-                $queryBuilder->andWhere(
-                    $queryBuilder->expr()->eq('ref_string', $queryBuilder->createNamedParameter($ref))
-                );
-            } else {
-                $queryBuilder->andWhere(
+                    $queryBuilder->expr()->eq('ref_table', $queryBuilder->createNamedParameter($table)),
                     $queryBuilder->expr()->eq('ref_uid', $queryBuilder->createNamedParameter($ref, Connection::PARAM_INT))
                 );
-                if ($table === 'sys_file') {
-                    $queryBuilder->andWhere($queryBuilder->expr()->neq('tablename', $queryBuilder->quote('sys_file_metadata')));
-                }
+            if ($table === 'sys_file') {
+                $queryBuilder->andWhere($queryBuilder->expr()->neq('tablename', $queryBuilder->quote('sys_file_metadata')));
             }
-
             $count = $queryBuilder->executeQuery()->fetchOne();
         }
-
         if ($count) {
             return $msg ? sprintf($msg, $count) : $count;
         }
@@ -3204,9 +2772,9 @@ class BackendUtility
 
         // Check if input record is a moved record
         $incomingRecordIsAMoveVersion = false;
-        if (isset($row['t3ver_oid'], $row['t3ver_state'])
+        if (isset($row['t3ver_oid'])
             && $row['t3ver_oid'] > 0
-            && (int)$row['t3ver_state'] === VersionState::MOVE_POINTER
+            && VersionState::tryFrom($row['t3ver_state'] ?? 0) === VersionState::MOVE_POINTER
         ) {
             // @todo: This handling needs a review, together with the 4th param $unsetMovePointers
             $incomingRecordIsAMoveVersion = true;
@@ -3224,12 +2792,12 @@ class BackendUtility
             // If t3ver_state is not found, then find it... (but we like best if it is here...)
             if (!isset($wsAlt['t3ver_state'])) {
                 $stateRec = self::getRecord($table, $wsAlt['uid'], 't3ver_state');
-                $versionState = VersionState::cast($stateRec['t3ver_state']);
+                $versionState = VersionState::tryFrom($stateRec['t3ver_state'] ?? 0);
             } else {
-                $versionState = VersionState::cast($wsAlt['t3ver_state']);
+                $versionState = VersionState::tryFrom($wsAlt['t3ver_state']);
             }
             // Check if this is in move-state
-            if ($versionState->equals(VersionState::MOVE_POINTER)) {
+            if ($versionState === VersionState::MOVE_POINTER) {
                 // @todo Same problem as frontend in versionOL(). See TODO point there and todo above.
                 if (!$incomingRecordIsAMoveVersion && $unsetMovePointers) {
                     $row = false;
@@ -3240,7 +2808,7 @@ class BackendUtility
                 $wsAlt['_ORIG_pid'] = $row['pid'];
             }
             // Swap UID
-            if (!$versionState->equals(VersionState::NEW_PLACEHOLDER)) {
+            if ($versionState !== VersionState::NEW_PLACEHOLDER) {
                 $wsAlt['_ORIG_uid'] = $wsAlt['uid'];
                 $wsAlt['uid'] = $row['uid'];
             }
@@ -3289,7 +2857,7 @@ class BackendUtility
                                 ),
                                 $queryBuilder->expr()->eq(
                                     't3ver_state',
-                                    $queryBuilder->createNamedParameter(VersionState::NEW_PLACEHOLDER, Connection::PARAM_INT)
+                                    $queryBuilder->createNamedParameter(VersionState::NEW_PLACEHOLDER->value, Connection::PARAM_INT)
                                 )
                             ),
                             $queryBuilder->expr()->eq(
@@ -3379,7 +2947,7 @@ class BackendUtility
             if (is_array($currentRecord)) {
                 if ((int)$currentRecord['t3ver_oid'] > 0) {
                     $liveVersionId = $currentRecord['t3ver_oid'];
-                } elseif ((int)($currentRecord['t3ver_state']) === VersionState::NEW_PLACEHOLDER) {
+                } elseif (VersionState::tryFrom($currentRecord['t3ver_state'] ?? 0) === VersionState::NEW_PLACEHOLDER) {
                     // New versions do not have a live counterpart
                     $liveVersionId = (int)$uid;
                 }
@@ -3415,82 +2983,6 @@ class BackendUtility
      * Miscellaneous
      *
      *******************************************/
-    /**
-     * Creates ADMCMD parameters for the "viewpage" extension / frontend
-     *
-     * @param array $pageInfo Page record
-     * @return string Query-parameters
-     * @internal this method will be removed in TYPO3 v13.0 along with BackendUtility::getPreviewUrl()
-     */
-    public static function ADMCMD_previewCmds($pageInfo, Context $context)
-    {
-        if ($pageInfo === []) {
-            return '';
-        }
-        // Initialize access restriction values from current page
-        $access = [
-            'fe_group' => (string)($pageInfo['fe_group'] ?? ''),
-            'starttime' => (int)($pageInfo['starttime'] ?? 0),
-            'endtime' => (int)($pageInfo['endtime'] ?? 0),
-        ];
-        // Only check rootline if the current page has not set extendToSubpages itself
-        if (!(bool)($pageInfo['extendToSubpages'] ?? false)) {
-            $rootline = self::BEgetRootLine((int)($pageInfo['uid'] ?? 0));
-            // remove the current page from the rootline
-            array_shift($rootline);
-            foreach ($rootline as $page) {
-                // Skip root node, invalid pages and pages which do not define extendToSubpages
-                if ((int)($page['uid'] ?? 0) <= 0 || !(bool)($page['extendToSubpages'] ?? false)) {
-                    continue;
-                }
-                $access['fe_group'] = (string)($page['fe_group'] ?? '');
-                $access['starttime'] = (int)($page['starttime'] ?? 0);
-                $access['endtime'] = (int)($page['endtime'] ?? 0);
-                // Stop as soon as a page in the rootline has extendToSubpages set
-                break;
-            }
-        }
-        $simUser = '';
-        $simTime = '';
-        if ((int)$access['fe_group'] === -2) {
-            // -2 means "show at any login". We simulate first available fe_group.
-            $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
-                ->getQueryBuilderForTable('fe_groups');
-            $queryBuilder->getRestrictions()
-                ->removeAll()
-                ->add(GeneralUtility::makeInstance(DeletedRestriction::class))
-                ->add(GeneralUtility::makeInstance(HiddenRestriction::class));
-
-            $activeFeGroupId = $queryBuilder->select('uid')
-                ->from('fe_groups')
-                ->executeQuery()
-                ->fetchOne();
-
-            if ($activeFeGroupId) {
-                $simUser = '&ADMCMD_simUser=' . $activeFeGroupId;
-            }
-        } elseif (!empty($access['fe_group'])) {
-            $simUser = '&ADMCMD_simUser=' . $access['fe_group'];
-        }
-        if ($access['starttime'] > $GLOBALS['EXEC_TIME']) {
-            // simulate access time to ensure PageRepository will find the page and in turn PageRouter will generate
-            // an URL for it
-            $dateAspect = GeneralUtility::makeInstance(DateTimeAspect::class, new \DateTimeImmutable('@' . $access['starttime']));
-            $context->setAspect('date', $dateAspect);
-            $simTime = '&ADMCMD_simTime=' . $access['starttime'];
-        }
-        if ($access['endtime'] < $GLOBALS['EXEC_TIME'] && $access['endtime'] !== 0) {
-            // Set access time to page's endtime subtracted one second to ensure PageRepository will find the page and
-            // in turn PageRouter will generate an URL for it
-            $dateAspect = GeneralUtility::makeInstance(
-                DateTimeAspect::class,
-                new \DateTimeImmutable('@' . ($access['endtime'] - 1))
-            );
-            $context->setAspect('date', $dateAspect);
-            $simTime = '&ADMCMD_simTime=' . ($access['endtime'] - 1);
-        }
-        return $simUser . $simTime;
-    }
 
     /**
      * Determines whether a table is enabled for workspaces.
@@ -3509,9 +3001,11 @@ class BackendUtility
      * @param string $table Name of the table
      * @param string $field Name of the field
      * @return array
+     * @deprecated will be removed in TYPO3 v14, use TcaSchema instead.
      */
     public static function getTcaFieldConfiguration($table, $field)
     {
+        trigger_error('BackendUtility::getTcaFieldConfiguration() will be removed in TYPO3 v14. Use TcaSchema instead.', E_USER_DEPRECATED);
         $configuration = [];
         if (isset($GLOBALS['TCA'][$table]['columns'][$field]['config'])) {
             $configuration = $GLOBALS['TCA'][$table]['columns'][$field]['config'];

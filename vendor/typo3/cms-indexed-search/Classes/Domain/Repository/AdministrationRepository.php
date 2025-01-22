@@ -23,9 +23,8 @@ use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\QueryHelper;
 use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
-use TYPO3\CMS\Core\DataHandling\DataHandler;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\IndexedSearch\FileContentParser;
@@ -37,29 +36,17 @@ use TYPO3\CMS\IndexedSearch\FileContentParser;
 class AdministrationRepository
 {
     /**
-     * List of fileContentParsers
-     *
      * @var FileContentParser[]
      */
-    public $external_parsers = [];
+    public array $external_parsers = [];
 
-    /**
-     * @var array
-     */
-    protected $allPhashListed = [];
-
-    /**
-     * @var array
-     */
-    protected $iconFileNameCache = [];
+    protected array $allPhashListed = [];
+    protected array $iconFileNameCache = [];
 
     /**
      * Get group list information
-     *
-     * @param int $phash
-     * @return array
      */
-    public function getGrlistRecord($phash)
+    public function getGrlistRecord(string $phash): array
     {
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('index_grlist');
         $result = $queryBuilder
@@ -68,7 +55,7 @@ class AdministrationRepository
             ->where(
                 $queryBuilder->expr()->eq(
                     'phash',
-                    $queryBuilder->createNamedParameter($phash, Connection::PARAM_INT)
+                    $queryBuilder->createNamedParameter($phash)
                 )
             )
             ->executeQuery();
@@ -84,13 +71,7 @@ class AdministrationRepository
         return $allRows;
     }
 
-    /**
-     * Get number of fulltext records
-     *
-     * @param int $phash
-     * @return int|bool
-     */
-    public function getNumberOfFulltextRecords($phash)
+    public function getNumberOfFulltextRecords(string $phash): int|false
     {
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('index_fulltext');
         return $queryBuilder
@@ -99,20 +80,14 @@ class AdministrationRepository
             ->where(
                 $queryBuilder->expr()->eq(
                     'phash',
-                    $queryBuilder->createNamedParameter($phash, Connection::PARAM_INT)
+                    $queryBuilder->createNamedParameter($phash)
                 )
             )
             ->executeQuery()
             ->fetchOne();
     }
 
-    /**
-     * Get number of words
-     *
-     * @param int $phash
-     * @return int|bool
-     */
-    public function getNumberOfWords($phash)
+    public function getNumberOfWords(string $phash): int|false
     {
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('index_rel');
         return $queryBuilder
@@ -121,7 +96,7 @@ class AdministrationRepository
             ->where(
                 $queryBuilder->expr()->eq(
                     'phash',
-                    $queryBuilder->createNamedParameter($phash, Connection::PARAM_INT)
+                    $queryBuilder->createNamedParameter($phash)
                 )
             )
             ->executeQuery()
@@ -130,10 +105,8 @@ class AdministrationRepository
 
     /**
      * Get statistic of external documents
-     *
-     * @return array
      */
-    public function getExternalDocumentsStatistic()
+    public function getExternalDocumentsStatistic(): array
     {
         $result = [];
 
@@ -183,11 +156,11 @@ class AdministrationRepository
                     ->where(
                         $queryBuilder->expr()->eq(
                             'phash_grouping',
-                            $queryBuilder->createNamedParameter($row['phash_grouping'], Connection::PARAM_INT)
+                            $queryBuilder->createNamedParameter($row['phash_grouping'])
                         ),
                         $queryBuilder->expr()->neq(
                             'phash',
-                            $queryBuilder->createNamedParameter($row['phash'], Connection::PARAM_INT)
+                            $queryBuilder->createNamedParameter($row['phash'])
                         )
                     )
                     ->executeQuery();
@@ -202,10 +175,8 @@ class AdministrationRepository
 
     /**
      * Get count of the tables used for indexed_search
-     *
-     * @return array
      */
-    public function getRecordsNumbers()
+    public function getRecordsNumbers(): array
     {
         $tables = [
             'index_phash',
@@ -229,10 +200,8 @@ class AdministrationRepository
 
     /**
      * Get hash types
-     *
-     * @return array
      */
-    public function getPageHashTypes()
+    public function getPageHashTypes(): array
     {
         $counts = [];
         $types = [
@@ -268,11 +237,8 @@ class AdministrationRepository
 
     /**
      * Count unique types
-     *
-     * @param string $itemType
-     * @return int
      */
-    protected function countUniqueTypes($itemType)
+    protected function countUniqueTypes(string $itemType): int
     {
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('index_phash');
         $items = $queryBuilder
@@ -293,11 +259,8 @@ class AdministrationRepository
 
     /**
      * Get number of section records
-     *
-     * @param int $pageHash
-     * @return int
      */
-    public function getNumberOfSections($pageHash)
+    public function getNumberOfSections(string $pageHash): int
     {
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('index_section');
         return (int)$queryBuilder
@@ -306,7 +269,7 @@ class AdministrationRepository
             ->where(
                 $queryBuilder->expr()->eq(
                     'phash',
-                    $queryBuilder->createNamedParameter($pageHash, Connection::PARAM_INT)
+                    $queryBuilder->createNamedParameter($pageHash)
                 )
             )
             ->executeQuery()
@@ -315,10 +278,8 @@ class AdministrationRepository
 
     /**
      * Get page statistic
-     *
-     * @return array
      */
-    public function getPageStatistic()
+    public function getPageStatistic(): array
     {
         $result = [];
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('index_phash');
@@ -366,11 +327,11 @@ class AdministrationRepository
                     ->where(
                         $queryBuilder->expr()->eq(
                             'phash_grouping',
-                            $queryBuilder->createNamedParameter($row['phash_grouping'], Connection::PARAM_INT)
+                            $queryBuilder->createNamedParameter($row['phash_grouping'])
                         ),
                         $queryBuilder->expr()->neq(
                             'phash',
-                            $queryBuilder->createNamedParameter($row['phash'], Connection::PARAM_INT)
+                            $queryBuilder->createNamedParameter($row['phash'])
                         )
                     )
                     ->executeQuery();
@@ -385,42 +346,37 @@ class AdministrationRepository
 
     /**
      * Get general statistic
-     *
-     * @param string $additionalWhere
-     * @param int $pageUid
-     * @param int $max
-     * @return array|null
      */
-    public function getGeneralSearchStatistic($additionalWhere, $pageUid, $max = 50)
+    public function getGeneralSearchStatistic(string $additionalWhere, int $pageUid, int $max = 50): ?array
     {
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
             ->getQueryBuilderForTable('index_stat_word');
         $queryBuilder
-            ->select('word')
             ->from('index_stat_word')
-            ->addSelectLiteral($queryBuilder->expr()->count('*', 'c'))
             ->where(
                 $queryBuilder->expr()->eq(
                     'pageid',
                     $queryBuilder->createNamedParameter($pageUid, Connection::PARAM_INT)
                 )
-            )
-            ->groupBy('word')
-            ->orderBy('c', 'desc')
-            ->setMaxResults((int)$max);
+            );
 
         if (!empty($additionalWhere)) {
             $queryBuilder->andWhere(QueryHelper::stripLogicalOperatorPrefix($additionalWhere));
         }
 
-        $result = $queryBuilder->executeQuery();
         $countQueryBuilder = clone $queryBuilder;
-        $countQueryBuilder->resetQueryPart('orderBy');
+
+        $queryBuilder
+            ->select('word')
+            ->addSelectLiteral($queryBuilder->expr()->count('*', 'c'))
+            ->groupBy('word')
+            ->orderBy('c', 'desc')
+            ->setMaxResults($max);
+
         $count = (int)$countQueryBuilder
             ->count('uid')
             ->executeQuery()
             ->fetchOne();
-        $result->free();
 
         // exist several statistics for this page?
         if ($count === 0) {
@@ -428,10 +384,7 @@ class AdministrationRepository
             $queryBuilder->where(
                 $queryBuilder->expr()->in(
                     'pageid',
-                    $queryBuilder->createNamedParameter(
-                        $this->extGetTreeList((int)$pageUid),
-                        Connection::PARAM_INT_ARRAY
-                    )
+                    $queryBuilder->quoteArrayBasedValueListToIntegerList($this->extGetTreeList($pageUid))
                 ),
                 QueryHelper::stripLogicalOperatorPrefix($additionalWhere)
             );
@@ -443,7 +396,7 @@ class AdministrationRepository
     /**
      * Add additional information to the result row
      */
-    protected function addAdditionalInformation(array &$row)
+    protected function addAdditionalInformation(array &$row): void
     {
         $grListRec = $this->getGrlistRecord($row['phash']);
         $row['static_page_arguments'] = $row['static_page_arguments'] ? json_decode($row['static_page_arguments'], true) : null;
@@ -456,16 +409,11 @@ class AdministrationRepository
 
     /**
      * Get the page tree by using \TYPO3\CMS\Backend\Tree\View\PageTreeView
-     *
-     * @param int $pageId
-     * @param int $depth
-     * @param string $mode
-     * @return array
      */
-    public function getTree($pageId, $depth, $mode)
+    public function getTree(int $pageId, int $depth, string $mode): array
     {
         $allLines = [];
-        $pageRecord = BackendUtility::getRecord('pages', (int)$pageId);
+        $pageRecord = BackendUtility::getRecord('pages', $pageId);
         if (!$pageRecord) {
             return $allLines;
         }
@@ -473,14 +421,14 @@ class AdministrationRepository
         $perms_clause = $this->getBackendUserAuthentication()->getPagePermsClause(Permission::PAGE_SHOW);
         $tree->init('AND ' . $perms_clause);
         $iconFactory = GeneralUtility::makeInstance(IconFactory::class);
-        $HTML = '<span title="' . htmlspecialchars($pageRecord['title']) . '">' . $iconFactory->getIconForRecord('pages', $pageRecord, Icon::SIZE_SMALL)->render() . '</span>';
+        $HTML = '<span title="' . htmlspecialchars($pageRecord['title']) . '">' . $iconFactory->getIconForRecord('pages', $pageRecord, IconSize::SMALL)->render() . '</span>';
         $tree->tree[] = [
             'row' => $pageRecord,
             'HTML' => $HTML,
         ];
 
         if ($depth > 0) {
-            $tree->getTree((int)$pageId, $depth);
+            $tree->getTree($pageId, $depth);
         }
 
         foreach ($tree->tree as $singleLine) {
@@ -502,7 +450,7 @@ class AdministrationRepository
                     ->where(
                         $queryBuilder->expr()->eq(
                             'index_rel.phash',
-                            $queryBuilder->createNamedParameter($row['phash'], Connection::PARAM_INT)
+                            $queryBuilder->createNamedParameter($row['phash'])
                         ),
                         $queryBuilder->expr()->eq('index_words.wid', $queryBuilder->quoteIdentifier('index_rel.wid'))
                     )
@@ -528,7 +476,7 @@ class AdministrationRepository
                         ->where(
                             $queryBuilder->expr()->eq(
                                 'phash',
-                                $queryBuilder->createNamedParameter($row['phash'], Connection::PARAM_INT)
+                                $queryBuilder->createNamedParameter($row['phash'])
                             )
                         )
                         ->setMaxResults(1)
@@ -543,7 +491,7 @@ class AdministrationRepository
                         ->where(
                             $queryBuilder->expr()->eq(
                                 'index_rel.phash',
-                                $queryBuilder->createNamedParameter($row['phash'], Connection::PARAM_INT)
+                                $queryBuilder->createNamedParameter($row['phash'])
                             ),
                             $queryBuilder->expr()->eq(
                                 'index_words.wid',
@@ -664,7 +612,6 @@ class AdministrationRepository
      * Generates a list of Page-uid's from $id.
      * The only pages excluded from the list are deleted pages.
      *
-     * @param int $id page id
      * @return array Returns an array with all page IDs
      */
     protected function extGetTreeList(int $id): array
@@ -716,12 +663,8 @@ class AdministrationRepository
 
     /**
      * Remove indexed phash row
-     *
-     * @param string $phashList
-     * @param int $pageId
-     * @param int $depth
      */
-    public function removeIndexedPhashRow($phashList, $pageId, $depth = 4)
+    public function removeIndexedPhashRow(string $phashList, int $pageId, int $depth = 4): void
     {
         if ($phashList === 'ALL') {
             if ($depth === 0) {
@@ -737,8 +680,7 @@ class AdministrationRepository
         }
 
         foreach ($phashRows as $phash) {
-            $phash = (int)$phash;
-            if ($phash > 0) {
+            if ($phash !== '') {
                 $idList = [];
                 $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
                     ->getQueryBuilderForTable('index_section');
@@ -748,7 +690,7 @@ class AdministrationRepository
                     ->where(
                         $queryBuilder->expr()->eq(
                             'phash',
-                            $queryBuilder->createNamedParameter($phash, Connection::PARAM_INT)
+                            $queryBuilder->createNamedParameter($phash)
                         )
                     )
                     ->executeQuery();
@@ -770,12 +712,11 @@ class AdministrationRepository
                     'index_section',
                     'index_grlist',
                     'index_fulltext',
-                    'index_debug',
                 ];
                 foreach ($tableArr as $table) {
                     GeneralUtility::makeInstance(ConnectionPool::class)
                         ->getConnectionForTable($table)
-                        ->delete($table, ['phash' => (int)$phash]);
+                        ->delete($table, ['phash' => $phash]);
                 }
             }
         }
@@ -783,10 +724,8 @@ class AdministrationRepository
 
     /**
      * Save stop words
-     *
-     * @param array $words stop words
      */
-    public function saveStopWords(array $words)
+    public function saveStopWords(array $words): void
     {
         foreach ($words as $wid => $state) {
             $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('index_words');
@@ -796,7 +735,7 @@ class AdministrationRepository
                 ->where(
                     $queryBuilder->expr()->eq(
                         'wid',
-                        $queryBuilder->createNamedParameter($wid, Connection::PARAM_INT)
+                        $queryBuilder->createNamedParameter($wid)
                     )
                 )
                 ->executeStatement();
@@ -804,48 +743,15 @@ class AdministrationRepository
     }
 
     /**
-     * Save keywords
-     *
-     * @param array $words keywords
-     * @param int $pageId page id
-     */
-    public function saveKeywords(array $words, $pageId)
-    {
-        // Get pages current keywords
-        $pageRec = BackendUtility::getRecord('pages', $pageId);
-        if (!is_array($pageRec)) {
-            return;
-        }
-        $keywords = array_flip(GeneralUtility::trimExplode(',', $pageRec['keywords'], true));
-        // Merge keywords:
-        foreach ($words as $key => $v) {
-            if ($v) {
-                $keywords[$key] = 1;
-            } else {
-                unset($keywords[$key]);
-            }
-        }
-        // Compile new list:
-        $data = [];
-        $data['pages'][$pageId]['keywords'] = implode(', ', array_keys($keywords));
-        $dataHandler = GeneralUtility::makeInstance(DataHandler::class);
-        $dataHandler->start($data, []);
-        $dataHandler->process_datamap();
-    }
-
-    /**
      * Collect the type icons
-     *
-     * @param string $itemType
-     * @return string
      */
-    protected function makeItemTypeIcon($itemType)
+    protected function makeItemTypeIcon(string $itemType): string
     {
         if (!isset($this->iconFileNameCache[$itemType])) {
             $icon = '';
             if ($itemType === '0') {
                 $icon = 'EXT:indexed_search/Resources/Public/Icons/FileTypes/pages.gif';
-            } elseif ($this->external_parsers[$itemType]) {
+            } elseif ($this->external_parsers[$itemType] ?? false) {
                 $icon = $this->external_parsers[$itemType]->getIcon($itemType);
             }
             $this->iconFileNameCache[$itemType] = $icon;

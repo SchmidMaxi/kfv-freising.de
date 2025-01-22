@@ -1,4 +1,5 @@
 <?php
+
 namespace Deployer;
 
 require_once __DIR__ . '/common.php';
@@ -10,7 +11,6 @@ use Deployer\Exception\RunException;
 use Deployer\Host\Host;
 
 const CONFIG_IMPORT_NEEDED_EXIT_CODE = 2;
-const CONFIG_PHP_UPDATE_NEEDED_EXIT_CODE = 1;
 const DB_UPDATE_NEEDED_EXIT_CODE = 2;
 const MAINTENANCE_MODE_ACTIVE_OUTPUT_MSG = 'maintenance mode is active';
 const ENV_CONFIG_FILE_PATH = 'app/etc/env.php';
@@ -59,7 +59,7 @@ set('magento_themes_backend', ['Magento/backend' => null]);
 
 // Configuration
 
-// Also set the number of conccurent jobs to run. The default is 1
+// Also set the number of concurrent jobs to run. The default is 1
 // Update using: `set('static_content_jobs', '1');`
 set('static_content_jobs', '1');
 
@@ -88,14 +88,14 @@ set('shared_dirs', [
     '{{magento_dir}}/var/tmp',
     '{{magento_dir}}/pub/sitemap',
     '{{magento_dir}}/pub/media',
-    '{{magento_dir}}/pub/static/_cache'
+    '{{magento_dir}}/pub/static/_cache',
 ]);
 set('writable_dirs', [
     '{{magento_dir}}/var',
     '{{magento_dir}}/pub/static',
     '{{magento_dir}}/pub/media',
     '{{magento_dir}}/generated',
-    '{{magento_dir}}/var/page_cache'
+    '{{magento_dir}}/var/page_cache',
 ]);
 set('clear_paths', [
     '{{magento_dir}}/generated/*',
@@ -103,7 +103,7 @@ set('clear_paths', [
     '{{magento_dir}}/var/generation/*',
     '{{magento_dir}}/var/cache/*',
     '{{magento_dir}}/var/page_cache/*',
-    '{{magento_dir}}/var/view_preprocessed/*'
+    '{{magento_dir}}/var/view_preprocessed/*',
 ]);
 
 set('bin/magento', '{{release_or_current_path}}/{{magento_dir}}/bin/magento');
@@ -135,15 +135,6 @@ set('database_upgrade_needed', function () {
         run('{{bin/php}} {{bin/magento}} setup:db:status');
     } catch (RunException $e) {
         if ($e->getExitCode() == DB_UPDATE_NEEDED_EXIT_CODE) {
-            return true;
-        }
-
-        throw $e;
-    }
-    try {
-        run('{{bin/php}} {{bin/magento}} module:config:status');
-    } catch (RunException $e) {
-        if ($e->getExitCode() == CONFIG_PHP_UPDATE_NEEDED_EXIT_CODE) {
             return true;
         }
 
@@ -196,12 +187,13 @@ task('magento:deploy:assets', function () {
         invoke('magento:deploy:assets:adminhtml');
         invoke('magento:deploy:assets:frontend');
     } else {
-        if (count(get('magento_themes')) > 0 ) {
-            foreach (get('magento_themes') as $theme) {
+        if (count(get('magento_themes')) > 0) {
+            $themes = array_is_list(get('magento_themes')) ? get('magento_themes') : array_keys(get('magento_themes'));
+            foreach ($themes as $theme) {
                 $themesToCompile .= ' -t ' . $theme;
             }
         }
-        run("{{bin/php}} {{release_or_current_path}}/bin/magento setup:static-content:deploy --content-version={{content_version}} {{static_deploy_options}} {{static_content_locales}} $themesToCompile -j {{static_content_jobs}}");
+        run("{{bin/php}} {{release_or_current_path}}/bin/magento setup:static-content:deploy -f --content-version={{content_version}} {{static_deploy_options}} {{static_content_locales}} $themesToCompile -j {{static_content_jobs}}");
     }
 });
 
@@ -245,7 +237,7 @@ function magentoDeployAssetsSplit(string $area)
         : 'adminhtml';
 
     if ($useDefaultLanguages) {
-        $themes = '-t '.implode(' -t ', $themes);
+        $themes = '-t ' . implode(' -t ', $themes);
 
         run("{{bin/php}} {{bin/magento}} setup:static-content:deploy -f --area=$staticContentArea --content-version={{content_version}} {{static_deploy_options}} $defaultLanguages $themes -j {{static_content_jobs}}");
         return;
@@ -299,11 +291,12 @@ task('magento:config:import', function () {
 desc('Upgrades magento database');
 task('magento:upgrade:db', function () {
     if (get('database_upgrade_needed')) {
-        run("{{bin/php}} {{bin/magento}} setup:upgrade --keep-generated --no-interaction");
+        run("{{bin/php}} {{bin/magento}} setup:db-schema:upgrade --no-interaction");
+        run("{{bin/php}} {{bin/magento}} setup:db-data:upgrade --no-interaction");
     } else {
         writeln('Database schema is up to date => upgrade skipped');
     }
-});
+})->once();
 
 desc('Flushes Magento Cache');
 task('magento:cache:flush', function () {
@@ -317,7 +310,6 @@ task('deploy:magento', [
     'magento:config:import',
     'magento:upgrade:db',
     'magento:maintenance:disable',
-    'magento:cache:flush',
 ]);
 
 desc('Magento2 build operations');
@@ -334,6 +326,8 @@ task('deploy', [
     'deploy:magento',
     'deploy:publish',
 ]);
+
+after('deploy:symlink', 'magento:cache:flush');
 
 after('deploy:failed', 'magento:maintenance:disable');
 
@@ -375,10 +369,10 @@ set('bin/tar', function () {
 // tasks section
 
 desc('Packages all relevant files in an artifact.');
-task('artifact:package', function() {
+task('artifact:package', function () {
     if (!test('[ -f {{artifact_excludes_file}} ]')) {
         throw new GracefulShutdownException(
-            "No artifact excludes file provided, provide one at artifacts/excludes or change location"
+            "No artifact excludes file provided, provide one at artifacts/excludes or change location",
         );
     }
     run('{{bin/tar}} --exclude-from={{artifact_excludes_file}} -czf {{artifact_path}} -C {{release_or_current_path}} .');
@@ -396,12 +390,12 @@ task('artifact:extract', function () {
 });
 
 desc('Clears generated files prior to building.');
-task('build:remove-generated', function() {
+task('build:remove-generated', function () {
     run('rm -rf generated/*');
 });
 
 desc('Prepare local artifact build');
-task('build:prepare', function() {
+task('build:prepare', function () {
     if (!currentHost()->get('local')) {
         throw new GracefulShutdownException('Artifact can only be built locally, you provided a non local host');
     }
@@ -427,12 +421,12 @@ task('build:prepare', function() {
 
 desc('Builds an artifact.');
 task('artifact:build', [
-        'build:prepare',
-        'build:remove-generated',
-        'deploy:vendors',
-        'magento:compile',
-        'magento:deploy:assets',
-        'artifact:package',
+    'build:prepare',
+    'build:remove-generated',
+    'deploy:vendors',
+    'magento:compile',
+    'magento:deploy:assets',
+    'artifact:package',
 ]);
 
 // Array of shared files that will be added to the default shared_files without overriding
@@ -536,35 +530,35 @@ task('magento:cron:install', function () {
 
 desc('Prepares an artifact on the target server');
 task('artifact:prepare', [
-        'deploy:info',
-        'deploy:setup',
-        'deploy:lock',
-        'deploy:release',
-        'artifact:upload',
-        'artifact:extract',
-        'deploy:additional-shared',
-        'deploy:shared',
-        'deploy:writable',
+    'deploy:info',
+    'deploy:setup',
+    'deploy:lock',
+    'deploy:release',
+    'artifact:upload',
+    'artifact:extract',
+    'deploy:additional-shared',
+    'deploy:shared',
+    'deploy:writable',
 ]);
 
 desc('Executes the tasks after artifact is released');
 task('artifact:finish', [
-        'magento:cache:flush',
-        'cachetool:clear:opcache',
-        'deploy:cleanup',
-        'deploy:unlock',
-        'deploy:success'
+    'magento:cache:flush',
+    'cachetool:clear:opcache',
+    'deploy:cleanup',
+    'deploy:unlock',
+    'deploy:success',
 ]);
 
 desc('Actually releases the artifact deployment');
 task('artifact:deploy', [
-        'artifact:prepare',
-        'magento:maintenance:enable-if-needed',
-        'magento:config:import',
-        'magento:upgrade:db',
-        'magento:maintenance:disable',
-        'deploy:symlink',
-        'artifact:finish',
+    'artifact:prepare',
+    'magento:maintenance:enable-if-needed',
+    'magento:config:import',
+    'magento:upgrade:db',
+    'magento:maintenance:disable',
+    'deploy:symlink',
+    'artifact:finish',
 ]);
 
 fail('artifact:deploy', 'deploy:failed');

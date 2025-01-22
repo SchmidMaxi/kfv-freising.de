@@ -38,17 +38,13 @@ class BcryptPasswordHash implements PasswordHashInterface
     /**
      * Set default PHP cost: Default is 10 with PHP <8.4, 12 since PHP 8.4. At the time
      * of this writing, this leads to 150-200ms computing time on a casual I7 CPU.
-     *
-     * @var array
      */
-    protected $options = [
+    protected array $options = [
         'cost' => 12,
     ];
 
     /**
      * Constructor sets options if given
-     *
-     * @throws \InvalidArgumentException
      */
     public function __construct(array $options = [])
     {

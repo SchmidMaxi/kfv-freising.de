@@ -19,6 +19,8 @@ namespace TYPO3\CMS\Recycler\Controller;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\History\RecordHistory;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Backend\View\BackendViewFactory;
@@ -26,10 +28,9 @@ use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
-use TYPO3\CMS\Core\DataHandling\History\RecordHistoryStore;
 use TYPO3\CMS\Core\Http\JsonResponse;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\MathUtility;
@@ -38,9 +39,11 @@ use TYPO3\CMS\Recycler\Domain\Model\DeletedRecords;
 use TYPO3\CMS\Recycler\Utility\RecyclerUtility;
 
 /**
- * Controller class for the 'recycler' extension. Handles the AJAX Requests
+ * Controller class for the 'recycler' extension. Handles the AJAX requests.
+ *
  * @internal This class is a specific Backend controller implementation and is not considered part of the Public TYPO3 API.
  */
+#[AsController]
 class RecyclerAjaxController
 {
     /**
@@ -50,9 +53,11 @@ class RecyclerAjaxController
 
     public function __construct(
         protected readonly BackendViewFactory $backendViewFactory,
+        #[Autowire(service: 'cache.runtime')]
         protected readonly FrontendInterface $runtimeCache,
         protected readonly IconFactory $iconFactory,
-        protected readonly ConnectionPool $connectionPool
+        protected readonly ConnectionPool $connectionPool,
+        protected readonly RecordHistory $recordHistory
     ) {}
 
     /**
@@ -138,7 +143,7 @@ class RecyclerAjaxController
                 }
 
                 $model = GeneralUtility::makeInstance(DeletedRecords::class);
-                $success = $model->deleteData($this->conf['records'] ?? null);
+                $success = $model->deleteData($this->conf['records']);
                 $affectedRecords = count($this->conf['records']);
                 $messageKey = 'flashmessage.delete.' . ($success ? 'success' : 'failure') . '.' . ($affectedRecords === 1 ? 'singular' : 'plural');
                 $content = [
@@ -161,7 +166,6 @@ class RecyclerAjaxController
         $groupedRecords = [];
         $lang = $this->getLanguageService();
 
-        $recordHistory = GeneralUtility::makeInstance(RecordHistory::class);
         foreach ($deletedRowsArray as $table => $rows) {
             $groupedRecords[$table]['information'] = [
                 'table' => $table,
@@ -169,24 +173,23 @@ class RecyclerAjaxController
             ];
             foreach ($rows as $row) {
                 $pageTitle = $this->getPageTitle((int)$row['pid']);
-                $ownerInformation = $recordHistory->getCreationInformationForRecord($table, $row);
+                $ownerInformation = $this->recordHistory->getCreationInformationForRecord($table, $row);
                 $ownerUid = (int)(is_array($ownerInformation) && $ownerInformation['usertype'] === 'BE' ? $ownerInformation['userid'] : 0);
-                $backendUserName = $this->getBackendUserInformation($ownerUid);
-                $userIdWhoDeleted = $this->getUserWhoDeleted($table, (int)$row['uid']);
+                $deleteUserUid = $this->recordHistory->getUserIdFromDeleteActionForRecord($table, (int)$row['uid']);
 
                 $groupedRecords[$table]['records'][] = [
                     'uid' => $row['uid'],
                     'pid' => $row['pid'],
-                    'icon' => $this->iconFactory->getIconForRecord($table, $row, Icon::SIZE_SMALL)->render(),
+                    'icon' => $this->iconFactory->getIconForRecord($table, $row, IconSize::SMALL)->render(),
                     'pageTitle' => $pageTitle,
                     'crdate' => isset($GLOBALS['TCA'][$table]['ctrl']['crdate']) ? BackendUtility::datetime($row[$GLOBALS['TCA'][$table]['ctrl']['crdate']]) : '',
                     'tstamp' => isset($GLOBALS['TCA'][$table]['ctrl']['tstamp']) ? BackendUtility::datetime($row[$GLOBALS['TCA'][$table]['ctrl']['tstamp']]) : '',
-                    'owner' => $backendUserName,
-                    'owner_uid' => $ownerUid,
+                    'backendUserUid' => $ownerUid,
+                    'backendUser' => $this->getBackendUserInformation($ownerUid),
                     'title' => BackendUtility::getRecordTitle($table, $row),
                     'path' => $this->getRecordPath((int)$row['pid']),
-                    'delete_user_uid' => $userIdWhoDeleted,
-                    'delete_user' => $this->getBackendUserInformation($userIdWhoDeleted),
+                    'deletedBackendUserUid' => $deleteUserUid,
+                    'deletedBackendUser' => $this->getBackendUserInformation($deleteUserUid),
                     'isParentDeleted' => $table === 'pages' && $this->isParentPageDeleted((int)$row['pid']),
                 ];
             }
@@ -215,60 +218,27 @@ class RecyclerAjaxController
     }
 
     /**
-     * Gets the username of a given backend user
+     * Gets the username and real name of a given backend user
      */
-    protected function getBackendUserInformation(int $userId): string
+    protected function getBackendUserInformation(int $userId): array
     {
         if ($userId === 0) {
-            return '';
+            return [];
         }
         $cacheId = 'recycler-user-' . $userId;
         $username = $this->runtimeCache->get($cacheId);
+        $userData = [];
         if ($username === false) {
-            $backendUser = BackendUtility::getRecord('be_users', $userId, 'username', '', false);
-            if ($backendUser === null) {
-                $username = sprintf(
-                    '[%s]',
-                    LocalizationUtility::translate('LLL:EXT:recycler/Resources/Private/Language/locallang.xlf:record.deleted')
-                );
-            } else {
-                $username = $backendUser['username'];
+            $backendUser = BackendUtility::getRecord('be_users', $userId, 'username, realName', '', false);
+            if ($backendUser !== null) {
+                $userData[] = [
+                    'username' => $backendUser['username'] ?? '',
+                    'realName' => $backendUser['realName'] ?? '',
+                ];
             }
             $this->runtimeCache->set($cacheId, $username);
         }
-        return $username;
-    }
-
-    /**
-     * Get the user uid of the user who deleted the record
-     * @todo: move this to RecordHistory class
-     */
-    protected function getUserWhoDeleted(string $table, int $uid): int
-    {
-        $queryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_history');
-        $queryBuilder->select('userid')
-            ->from('sys_history')
-            ->where(
-                $queryBuilder->expr()->eq(
-                    'tablename',
-                    $queryBuilder->createNamedParameter($table)
-                ),
-                $queryBuilder->expr()->eq(
-                    'usertype',
-                    $queryBuilder->createNamedParameter('BE')
-                ),
-                $queryBuilder->expr()->eq(
-                    'recuid',
-                    $queryBuilder->createNamedParameter($uid, Connection::PARAM_INT)
-                ),
-                $queryBuilder->expr()->eq(
-                    'actiontype',
-                    $queryBuilder->createNamedParameter(RecordHistoryStore::ACTION_DELETE, Connection::PARAM_INT)
-                )
-            )
-            ->setMaxResults(1);
-
-        return (int)$queryBuilder->executeQuery()->fetchOne();
+        return $userData;
     }
 
     /**

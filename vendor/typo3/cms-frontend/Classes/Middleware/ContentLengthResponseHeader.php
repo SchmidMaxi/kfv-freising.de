@@ -21,33 +21,31 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
-use TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController;
+use TYPO3\CMS\Core\Context\Context;
 
 /**
  * Add content-length HTTP header to the response.
  *
  * Notice that all Content outside the length of the content-length header will be cut off!
- * Therefore content of unknown length from later-on middlewares and if admin users are logged
+ * Therefore, content of unknown length from later-on middlewares and if admin users are logged
  * in (admin panel might show...), we disable it!
  *
  * @internal
  */
-class ContentLengthResponseHeader implements MiddlewareInterface
+final readonly class ContentLengthResponseHeader implements MiddlewareInterface
 {
-    /**
-     * Adds the content length
-     */
+    public function __construct(private Context $context) {}
+
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         $response = $handler->handle($request);
-        if ($GLOBALS['TSFE'] instanceof TypoScriptFrontendController) {
-            $context = $GLOBALS['TSFE']->getContext();
-            if (
-                (!isset($GLOBALS['TSFE']->config['config']['enableContentLengthHeader']) || $GLOBALS['TSFE']->config['config']['enableContentLengthHeader'])
-                && !$context->getPropertyFromAspect('backend.user', 'isLoggedIn', false) && !$context->getPropertyFromAspect('workspace', 'isOffline', false)
-            ) {
-                $response = $response->withHeader('Content-Length', (string)$response->getBody()->getSize());
-            }
+        $typoScriptConfigArray = $request->getAttribute('frontend.typoscript')->getConfigArray();
+        if (
+            (!isset($typoScriptConfigArray['enableContentLengthHeader']) || $typoScriptConfigArray['enableContentLengthHeader'])
+            && !$this->context->getPropertyFromAspect('backend.user', 'isLoggedIn', false)
+            && !$this->context->getPropertyFromAspect('workspace', 'isOffline', false)
+        ) {
+            $response = $response->withHeader('Content-Length', (string)$response->getBody()->getSize());
         }
         return $response;
     }

@@ -19,25 +19,19 @@ namespace TYPO3\CMS\Install\CoreVersion;
 
 class MajorRelease
 {
-    protected string $version;
-    protected ?string $lts = null;
-    protected string $title;
-    protected MaintenanceWindow $maintenanceWindow;
-
-    public function __construct(string $version, ?string $lts, string $title, MaintenanceWindow $maintenanceWindow)
-    {
-        $this->version = $version;
-        $this->lts = $lts;
-        $this->title = $title;
-        $this->maintenanceWindow = $maintenanceWindow;
-    }
+    public function __construct(
+        protected readonly string $version,
+        protected readonly ?string $lts,
+        protected readonly string $title,
+        protected readonly MaintenanceWindow $maintenanceWindow
+    ) {}
 
     public static function fromApiResponse(array $response): self
     {
         $maintenanceWindow = MaintenanceWindow::fromApiResponse($response);
         $ltsVersion = isset($response['lts']) ? (string)$response['lts'] : null;
 
-        return new self((string)$response['version'], $ltsVersion, $response['title'], $maintenanceWindow);
+        return new self((string)($response['version'] ?? ''), $ltsVersion, (string)($response['title'] ?? ''), $maintenanceWindow);
     }
 
     public function getVersion(): string

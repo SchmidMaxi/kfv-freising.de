@@ -18,6 +18,8 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Core\TypoScript\AST;
 
 use Psr\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\DependencyInjection\Attribute\AsAlias;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Core\TypoScript\AST\CurrentObjectPath\CurrentObjectPath;
 use TYPO3\CMS\Core\TypoScript\AST\CurrentObjectPath\CurrentObjectPathStack;
 use TYPO3\CMS\Core\TypoScript\AST\Node\RootNode;
@@ -41,6 +43,7 @@ use TYPO3\CMS\Core\TypoScript\Tokenizer\Token\ConstantAwareTokenStream;
  *
  * @internal: Internal AST structure.
  */
+#[Autoconfigure(public: true), AsAlias(AstBuilderInterface::class)]
 final class AstBuilder extends AbstractAstBuilder implements AstBuilderInterface
 {
     public function __construct(

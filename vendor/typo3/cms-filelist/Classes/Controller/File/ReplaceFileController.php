@@ -19,11 +19,12 @@ namespace TYPO3\CMS\Filelist\Controller\File;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\ModuleTemplate;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Page\PageRenderer;
 use TYPO3\CMS\Core\Resource\Exception\InsufficientFileAccessPermissionsException;
@@ -33,9 +34,11 @@ use TYPO3\CMS\Core\Resource\ResourceInterface;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
- * Script Class for the replace-file form
+ * Script Class for the replace-file form.
+ *
  * @internal This class is a specific Backend controller implementation and is not considered part of the Public TYPO3 API.
  */
+#[AsController]
 class ReplaceFileController
 {
     /**
@@ -151,7 +154,7 @@ class ReplaceFileController
                 ->setHref($this->returnUrl)
                 ->setTitle($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.goBack'))
                 ->setShowLabelText(true)
-                ->setIcon($this->iconFactory->getIcon('actions-view-go-back', Icon::SIZE_SMALL));
+                ->setIcon($this->iconFactory->getIcon('actions-view-go-back', IconSize::SMALL));
             $buttonBar->addButton($returnButton);
         }
         $this->view->assignMultiple($assigns);

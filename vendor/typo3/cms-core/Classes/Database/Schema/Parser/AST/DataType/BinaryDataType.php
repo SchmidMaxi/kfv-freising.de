@@ -19,14 +19,18 @@ namespace TYPO3\CMS\Core\Database\Schema\Parser\AST\DataType;
 
 /**
  * Node representing the BINARY SQL column type
+ *
+ * @internal
  */
-class BinaryDataType extends AbstractDataType
+final class BinaryDataType extends AbstractDataType
 {
-    /**
-     * BinaryDataType constructor.
-     */
     public function __construct(int $length)
     {
+        /**
+         * BINARY is "fixed type". Setting it here instructs Doctrine DBAL to use this type instead of
+         * the "variable type" when being transformed within the {@see TableBuilder::addColumn()} method.
+         */
+        $this->fixed = true;
         $this->length = $length;
     }
 }

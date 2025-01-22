@@ -17,14 +17,13 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Backend\Form\Element;
 
+use TYPO3\CMS\Backend\CodeEditor\CodeEditor;
+use TYPO3\CMS\Backend\CodeEditor\Registry\AddonRegistry;
+use TYPO3\CMS\Backend\CodeEditor\Registry\ModeRegistry;
 use TYPO3\CMS\Core\Page\JavaScriptModuleInstruction;
-use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\MathUtility;
 use TYPO3\CMS\Core\Utility\StringUtility;
-use TYPO3\CMS\T3editor\Registry\AddonRegistry;
-use TYPO3\CMS\T3editor\Registry\ModeRegistry;
-use TYPO3\CMS\T3editor\T3editor;
 
 /**
  * Handles type=json elements.
@@ -70,14 +69,12 @@ class JsonElement extends AbstractFormElement
     public function render(): array
     {
         $resultArray = $this->initializeResultArray();
-        // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-        $resultArray['labelHasBeenHandled'] = true;
 
         $parameterArray = $this->data['parameterArray'];
         $config = $parameterArray['fieldConf']['config'];
         $readOnly = (bool)($config['readOnly'] ?? false);
         $placeholder = trim((string)($config['placeholder'] ?? ''));
-        $enableCodeEditor = ($config['enableCodeEditor'] ?? true) && ExtensionManagementUtility::isLoaded('t3editor');
+        $enableCodeEditor = $config['enableCodeEditor'] ?? true;
 
         $itemValue = '';
         if (!empty($parameterArray['itemFormElValue'])) {
@@ -110,14 +107,13 @@ class JsonElement extends AbstractFormElement
         $fieldInformationHtml = $fieldInformationResult['html'];
         $resultArray = $this->mergeChildReturnIntoExistingResult($resultArray, $fieldInformationResult, false);
 
-        // Early return readonly display in case t3editor is not available
         if ($readOnly && !$enableCodeEditor) {
             $html = [];
             $html[] = $this->renderLabel($fieldId);
             $html[] = '<div class="formengine-field-item t3js-formengine-field-item">';
             $html[] =   $fieldInformationHtml;
             $html[] =   '<div class="form-wizards-wrap">';
-            $html[] =       '<div class="form-wizards-element">';
+            $html[] =       '<div class="form-wizards-item-element">';
             $html[] =           '<div class="form-control-wrap"' . ($width ? ' style="max-width: ' . $width . 'px">' : '>');
             $html[] =               '<textarea class="form-control font-monospace" id="' . htmlspecialchars($fieldId) . '" rows="' . $rows . '" disabled>';
             $html[] =                   htmlspecialchars($itemValue);
@@ -150,8 +146,8 @@ class JsonElement extends AbstractFormElement
 
         // Use CodeMirror if available
         if ($enableCodeEditor) {
-            // Compile and register t3editor configuration
-            GeneralUtility::makeInstance(T3editor::class)->registerConfiguration();
+            // Compile and register code editor configuration
+            GeneralUtility::makeInstance(CodeEditor::class)->registerConfiguration();
 
             $modeRegistry = GeneralUtility::makeInstance(ModeRegistry::class);
             $mode = $modeRegistry->isRegistered('json')
@@ -188,7 +184,7 @@ class JsonElement extends AbstractFormElement
                 $codeMirrorConfig['keymaps'] = GeneralUtility::jsonEncodeForHtmlAttribute($keymaps, false);
             }
 
-            $resultArray['javaScriptModules'][] = JavaScriptModuleInstruction::create('@typo3/t3editor/element/code-mirror-element.js');
+            $resultArray['javaScriptModules'][] = JavaScriptModuleInstruction::create('@typo3/backend/code-editor/element/code-mirror-element.js');
             $editorHtml = '
                 <typo3-t3editor-codemirror ' . GeneralUtility::implodeAttributes($codeMirrorConfig, true, true) . '>
                     <textarea ' . GeneralUtility::implodeAttributes($attributes, true, true) . '>' . htmlspecialchars($itemValue) . '</textarea>
@@ -211,7 +207,7 @@ class JsonElement extends AbstractFormElement
             $resultArray = $this->mergeChildReturnIntoExistingResult($resultArray, $fieldControlResult, false);
 
             if (!empty($fieldControlHtml)) {
-                $additionalHtml[] = '<div class="form-wizards-items-aside form-wizards-items-aside--field-control">';
+                $additionalHtml[] = '<div class="form-wizards-item-aside form-wizards-item-aside--field-control">';
                 $additionalHtml[] =     '<div class="btn-group">';
                 $additionalHtml[] =         $fieldControlHtml;
                 $additionalHtml[] =     '</div>';
@@ -223,7 +219,7 @@ class JsonElement extends AbstractFormElement
             $resultArray = $this->mergeChildReturnIntoExistingResult($resultArray, $fieldWizardResult, false);
 
             if (!empty($fieldWizardHtml)) {
-                $additionalHtml[] = '<div class="form-wizards-items-bottom">';
+                $additionalHtml[] = '<div class="form-wizards-item-bottom">';
                 $additionalHtml[] =     $fieldWizardHtml;
                 $additionalHtml[] = '</div>';
             }
@@ -234,7 +230,7 @@ class JsonElement extends AbstractFormElement
         $html[] =   $fieldInformationHtml;
         $html[] =   '<div class="form-control-wrap"' . ($width ? ' style="max-width: ' . $width . 'px">' : '>');
         $html[] =       '<div class="form-wizards-wrap">';
-        $html[] =           '<div class="form-wizards-element">';
+        $html[] =           '<div class="form-wizards-item-element">';
         $html[] =               $editorHtml;
         $html[] =           '</div>';
         $html[] =           implode(LF, $additionalHtml);

@@ -30,8 +30,8 @@ use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\Restriction\HiddenRestriction;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\SysLog\Action\Database as SystemLogDatabaseAction;
 use TYPO3\CMS\Core\SysLog\Error as SystemLogErrorClassification;
@@ -45,9 +45,9 @@ use TYPO3\CMS\Scheduler\Domain\Repository\SchedulerTaskRepository;
 use TYPO3\CMS\Scheduler\Exception\InvalidDateException;
 use TYPO3\CMS\Scheduler\Exception\InvalidTaskException;
 use TYPO3\CMS\Scheduler\Scheduler;
+use TYPO3\CMS\Scheduler\SchedulerManagementAction;
 use TYPO3\CMS\Scheduler\Service\TaskService;
 use TYPO3\CMS\Scheduler\Task\AbstractTask;
-use TYPO3\CMS\Scheduler\Task\Enumeration\Action;
 use TYPO3\CMS\Scheduler\Task\TaskSerializer;
 use TYPO3\CMS\Scheduler\Validation\Validator\TaskValidator;
 
@@ -57,9 +57,9 @@ use TYPO3\CMS\Scheduler\Validation\Validator\TaskValidator;
  * @internal This class is a specific Backend controller implementation and is not considered part of the Public TYPO3 API.
  */
 #[BackendController]
-class SchedulerModuleController
+final class SchedulerModuleController
 {
-    protected Action $currentAction;
+    protected SchedulerManagementAction $currentAction;
 
     public function __construct(
         protected readonly Scheduler $scheduler,
@@ -92,7 +92,6 @@ class SchedulerModuleController
             'time' => $GLOBALS['TYPO3_CONF_VARS']['SYS']['hhmm'] ?? 'H:i',
         ]);
 
-        $backendUser = $this->getBackendUser();
         $moduleData = $request->getAttribute('moduleData');
 
         // Simple actions from list view.
@@ -134,7 +133,9 @@ class SchedulerModuleController
             return $this->renderListTasksView($view, $moduleData);
         }
 
-        if (($parsedBody['action'] ?? '') === Action::ADD
+        $parsedAction = SchedulerManagementAction::tryFrom($parsedBody['action'] ?? '') ?? SchedulerManagementAction::LIST;
+
+        if ($parsedAction === SchedulerManagementAction::ADD
             && in_array($parsedBody['CMD'] ?? '', ['save', 'saveclose', 'close'], true)
         ) {
             // Received data for adding a new task - validate, persist, render requested 'next' action.
@@ -154,7 +155,7 @@ class SchedulerModuleController
             }
         }
 
-        if (($parsedBody['action'] ?? '') === Action::EDIT
+        if ($parsedAction === SchedulerManagementAction::EDIT
             && in_array($parsedBody['CMD'] ?? '', ['save', 'close', 'saveclose', 'new'], true)
         ) {
             // Received data for updating existing task - validate, persist, render requested 'next' action.
@@ -177,11 +178,12 @@ class SchedulerModuleController
             }
         }
 
+        $queryAction = SchedulerManagementAction::tryFrom($queryParams['action'] ?? '') ?? SchedulerManagementAction::LIST;
         // Add new task form / edit existing task form.
-        if (($queryParams['action'] ?? '') === Action::ADD) {
+        if ($queryAction === SchedulerManagementAction::ADD) {
             return $this->renderAddTaskFormView($view, $request);
         }
-        if (($queryParams['action'] ?? '') === Action::EDIT) {
+        if ($queryAction === SchedulerManagementAction::EDIT) {
             return $this->renderEditTaskFormView($view, $request);
         }
 
@@ -192,7 +194,7 @@ class SchedulerModuleController
     /**
      * This is (unfortunately) used by additional field providers to distinct between "create new task" and "edit task".
      */
-    public function getCurrentAction(): Action
+    public function getCurrentAction(): SchedulerManagementAction
     {
         return $this->currentAction;
     }
@@ -350,7 +352,7 @@ class SchedulerModuleController
         ksort($groupedClasses);
 
         // Additional field provider access $this->getCurrentAction() - Init it for them
-        $this->currentAction = new Action(Action::ADD);
+        $this->currentAction = SchedulerManagementAction::ADD;
         // Get the extra fields to display for each task that needs some.
         $additionalFields = [];
         foreach ($registeredClasses as $class => $registrationInfo) {
@@ -453,7 +455,7 @@ class SchedulerModuleController
         ];
 
         // Additional field provider access $this->getCurrentAction() - Init it for them
-        $this->currentAction = new Action(Action::EDIT);
+        $this->currentAction = SchedulerManagementAction::EDIT;
         $additionalFields = [];
         if (!empty($registeredClasses[$class]['provider'])) {
             $providerObject = GeneralUtility::makeInstance($registeredClasses[$class]['provider']);
@@ -807,7 +809,7 @@ class SchedulerModuleController
         $buttonBar = $moduleTemplate->getDocHeaderComponent()->getButtonBar();
         $reloadButton = $buttonBar->makeLinkButton()
             ->setTitle($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.reload'))
-            ->setIcon($this->iconFactory->getIcon('actions-refresh', Icon::SIZE_SMALL))
+            ->setIcon($this->iconFactory->getIcon('actions-refresh', IconSize::SMALL))
             ->setHref((string)$this->uriBuilder->buildUriFromRoute('scheduler_manage'));
         $buttonBar->addButton($reloadButton, ButtonBar::BUTTON_POSITION_RIGHT, 1);
     }
@@ -819,7 +821,7 @@ class SchedulerModuleController
         $addButton = $buttonBar->makeLinkButton()
             ->setTitle($languageService->sL('LLL:EXT:scheduler/Resources/Private/Language/locallang.xlf:function.add'))
             ->setShowLabelText(true)
-            ->setIcon($this->iconFactory->getIcon('actions-plus', Icon::SIZE_SMALL))
+            ->setIcon($this->iconFactory->getIcon('actions-plus', IconSize::SMALL))
             ->setHref((string)$this->uriBuilder->buildUriFromRoute('scheduler_manage', ['action' => 'add']));
         $buttonBar->addButton($addButton, ButtonBar::BUTTON_POSITION_LEFT, 2);
     }
@@ -831,7 +833,7 @@ class SchedulerModuleController
         $addButton = $buttonBar->makeInputButton()
             ->setTitle($languageService->sL('LLL:EXT:scheduler/Resources/Private/Language/locallang.xlf:function.group.add'))
             ->setShowLabelText(true)
-            ->setIcon($this->iconFactory->getIcon('actions-plus', Icon::SIZE_SMALL))
+            ->setIcon($this->iconFactory->getIcon('actions-plus', IconSize::SMALL))
             ->setName('createSchedulerGroup')
             ->setValue('1')
             ->setClasses('t3js-create-group');
@@ -844,7 +846,7 @@ class SchedulerModuleController
         $buttonBar = $moduleTemplate->getDocHeaderComponent()->getButtonBar();
         $closeButton = $buttonBar->makeLinkButton()
             ->setTitle($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_common.xlf:close'))
-            ->setIcon($this->iconFactory->getIcon('actions-close', Icon::SIZE_SMALL))
+            ->setIcon($this->iconFactory->getIcon('actions-close', IconSize::SMALL))
             ->setShowLabelText(true)
             ->setHref((string)$this->uriBuilder->buildUriFromRoute('scheduler_manage'))
             ->setClasses('t3js-scheduler-close');
@@ -853,7 +855,7 @@ class SchedulerModuleController
             ->setName('CMD')
             ->setValue('save')
             ->setForm('tx_scheduler_form')
-            ->setIcon($this->iconFactory->getIcon('actions-document-save', Icon::SIZE_SMALL))
+            ->setIcon($this->iconFactory->getIcon('actions-document-save', IconSize::SMALL))
             ->setTitle($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_common.xlf:save'))
             ->setShowLabelText(true);
         $buttonBar->addButton($saveButton, ButtonBar::BUTTON_POSITION_LEFT, 4);
@@ -867,7 +869,7 @@ class SchedulerModuleController
             ->setName('CMD')
             ->setValue('new')
             ->setForm('tx_scheduler_form')
-            ->setIcon($this->iconFactory->getIcon('actions-document-new', Icon::SIZE_SMALL))
+            ->setIcon($this->iconFactory->getIcon('actions-document-new', IconSize::SMALL))
             ->setTitle($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_common.xlf:new'))
             ->setShowLabelText(true);
         $buttonBar->addButton($newButton, ButtonBar::BUTTON_POSITION_LEFT, 5);
@@ -888,8 +890,8 @@ class SchedulerModuleController
                 'data-button-close-text' => $languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_common.xlf:cancel'),
                 'data-bs-content' => $languageService->sL('LLL:EXT:scheduler/Resources/Private/Language/locallang.xlf:msg.delete'),
             ])
-            ->setIcon($this->iconFactory->getIcon('actions-edit-delete', Icon::SIZE_SMALL))
-            ->setLabel($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_common.xlf:delete'))
+            ->setIcon($this->iconFactory->getIcon('actions-edit-delete', IconSize::SMALL))
+            ->setLabel($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_common.xlf:delete'))
             ->setShowLabelText(true);
         $buttonBar->addButton($deleteButton, ButtonBar::BUTTON_POSITION_LEFT, 6);
     }

@@ -21,14 +21,12 @@ use Psr\EventDispatcher\EventDispatcherInterface;
 use TYPO3\CMS\Backend\Form\Event\ModifyFileReferenceControlsEvent;
 use TYPO3\CMS\Backend\Form\Event\ModifyFileReferenceEnabledControlsEvent;
 use TYPO3\CMS\Backend\Form\InlineStackProcessor;
-use TYPO3\CMS\Backend\Form\NodeFactory;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
-use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Imaging\ImageManipulation\CropVariantCollection;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Resource\Exception\InvalidUidException;
@@ -50,8 +48,6 @@ use TYPO3\CMS\Core\Utility\MathUtility;
  */
 class FileReferenceContainer extends AbstractContainer
 {
-    public const NODE_TYPE_IDENTIFIER = 'fileReferenceContainer';
-
     private const FILE_REFERENCE_TABLE = 'sys_file_reference';
     private const FOREIGN_SELECTOR = 'uid_local';
 
@@ -60,27 +56,24 @@ class FileReferenceContainer extends AbstractContainer
      */
     protected array $fileReferenceData = [];
 
-    protected InlineStackProcessor $inlineStackProcessor;
-    protected IconFactory $iconFactory;
-    protected EventDispatcherInterface $eventDispatcher;
-
-    public function __construct(NodeFactory $nodeFactory, array $data)
-    {
-        parent::__construct($nodeFactory, $data);
-        $this->iconFactory = GeneralUtility::makeInstance(IconFactory::class);
-        $this->inlineStackProcessor = GeneralUtility::makeInstance(InlineStackProcessor::class);
-        $this->eventDispatcher = GeneralUtility::makeInstance(EventDispatcherInterface::class);
-    }
+    public function __construct(
+        private readonly IconFactory $iconFactory,
+        private readonly InlineStackProcessor $inlineStackProcessor,
+        private readonly EventDispatcherInterface $eventDispatcher,
+        private readonly ResourceFactory $resourceFactory,
+        private readonly ConnectionPool $connectionPool,
+        private readonly UriBuilder $uriBuilder,
+        private readonly MetaDataRepository $metaDataRepository,
+    ) {}
 
     public function render(): array
     {
-        $inlineStackProcessor = $this->inlineStackProcessor;
-        $inlineStackProcessor->initializeByGivenStructure($this->data['inlineStructure']);
+        $this->inlineStackProcessor->initializeByGivenStructure($this->data['inlineStructure']);
 
         // Send a mapping information to the browser via JSON:
         // e.g. data[<curTable>][<curId>][<curField>] => data-<pid>-<parentTable>-<parentId>-<parentField>-<curTable>-<curId>-<curField>
-        $formPrefix = $inlineStackProcessor->getCurrentStructureFormPrefix();
-        $domObjectId = $inlineStackProcessor->getCurrentStructureDomObjectIdPrefix($this->data['inlineFirstPid']);
+        $formPrefix = $this->inlineStackProcessor->getCurrentStructureFormPrefix();
+        $domObjectId = $this->inlineStackProcessor->getCurrentStructureDomObjectIdPrefix($this->data['inlineFirstPid']);
 
         $this->fileReferenceData = $this->data['inlineData'];
         $this->fileReferenceData['map'][$formPrefix] = $domObjectId;
@@ -232,7 +225,7 @@ class FileReferenceContainer extends AbstractContainer
             $fileUid = $databaseRow[self::FOREIGN_SELECTOR][0]['uid'] ?? null;
             if (!empty($fileUid)) {
                 try {
-                    $fileObject = GeneralUtility::makeInstance(ResourceFactory::class)->getFileObject($fileUid);
+                    $fileObject = $this->resourceFactory->getFileObject($fileUid);
                     if ($fileObject->isMissing()) {
                         $thumbnail = '
                             <span class="badge badge-danger">'
@@ -276,7 +269,7 @@ class FileReferenceContainer extends AbstractContainer
             $headerImage = '
                 <div class="form-irre-header-icon" id="' . $objectId . '_iconcontainer">
                     ' . $this->iconFactory
-                        ->getIconForRecord(self::FILE_REFERENCE_TABLE, $databaseRow, Icon::SIZE_SMALL)
+                        ->getIconForRecord(self::FILE_REFERENCE_TABLE, $databaseRow, IconSize::SMALL)
                         ->setTitle($altText)
                         ->render() . '
                 </div>';
@@ -321,7 +314,7 @@ class FileReferenceContainer extends AbstractContainer
         );
         if ($this->data['isInlineDefaultLanguageRecordInLocalizedParentContext']) {
             $controls['localize'] = $this->iconFactory
-                ->getIcon('actions-edit-localize-status-low', Icon::SIZE_SMALL)
+                ->getIcon('actions-edit-localize-status-low', IconSize::SMALL)
                 ->setTitle($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_misc.xlf:localize.isLocalizable'))
                 ->render();
         }
@@ -329,12 +322,12 @@ class FileReferenceContainer extends AbstractContainer
             if ($isNewItem) {
                 $controls['info'] = '
                     <span class="btn btn-default disabled">
-                        ' . $this->iconFactory->getIcon('empty-empty', Icon::SIZE_SMALL)->render() . '
+                        ' . $this->iconFactory->getIcon('empty-empty', IconSize::SMALL)->render() . '
                     </span>';
             } else {
                 $controls['info'] = '
                     <button type="button" class="btn btn-default" data-action="infowindow" data-info-table="' . htmlspecialchars('_FILE') . '" data-info-uid="' . (int)$databaseRow['uid_local'][0]['uid'] . '" title="' . htmlspecialchars($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_mod_web_list.xlf:showInfo')) . '">
-                        ' . $this->iconFactory->getIcon('actions-document-info', Icon::SIZE_SMALL)->render() . '
+                        ' . $this->iconFactory->getIcon('actions-document-info', IconSize::SMALL)->render() . '
                     </button>';
             }
         }
@@ -352,7 +345,7 @@ class FileReferenceContainer extends AbstractContainer
                 }
                 $controls['sort.up'] = '
                     <button type="button" class="btn btn-default' . $class . '" data-action="sort" data-direction="up" title="' . htmlspecialchars($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_mod_web_list.xlf:moveUp')) . '">
-                        ' . $this->iconFactory->getIcon($icon, Icon::SIZE_SMALL)->render() . '
+                        ' . $this->iconFactory->getIcon($icon, IconSize::SMALL)->render() . '
                     </button>';
 
                 $icon = 'actions-move-down';
@@ -363,7 +356,7 @@ class FileReferenceContainer extends AbstractContainer
                 }
                 $controls['sort.down'] = '
                     <button type="button" class="btn btn-default' . $class . '" data-action="sort" data-direction="down" title="' . htmlspecialchars($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_mod_web_list.xlf:moveDown')) . '">
-                        ' . $this->iconFactory->getIcon($icon, Icon::SIZE_SMALL)->render() . '
+                        ' . $this->iconFactory->getIcon($icon, IconSize::SMALL)->render() . '
                     </button>';
             }
             if (!$isNewItem
@@ -374,8 +367,7 @@ class FileReferenceContainer extends AbstractContainer
                 $languageId = (int)(is_array($databaseRow[$languageField] ?? null)
                     ? ($databaseRow[$languageField][0] ?? 0)
                     : ($databaseRow[$languageField] ?? 0));
-                $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
-                    ->getQueryBuilderForTable('sys_file_metadata');
+                $queryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file_metadata');
                 $metadataRecord = $queryBuilder
                     ->select('uid')
                     ->from('sys_file_metadata')
@@ -393,14 +385,13 @@ class FileReferenceContainer extends AbstractContainer
                     ->executeQuery()
                     ->fetchAssociative();
                 if (!empty($metadataRecord)) {
-                    $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
-                    $url = (string)$uriBuilder->buildUriFromRoute('record_edit', [
+                    $url = (string)$this->uriBuilder->buildUriFromRoute('record_edit', [
                         'edit[sys_file_metadata][' . (int)$metadataRecord['uid'] . ']' => 'edit',
                         'returnUrl' => $this->data['returnUrl'],
                     ]);
                     $controls['edit'] = '
                         <a class="btn btn-default" href="' . htmlspecialchars($url) . '" title="' . htmlspecialchars($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:cm.editMetadata')) . '">
-                            ' . $this->iconFactory->getIcon('actions-open', Icon::SIZE_SMALL)->render() . '
+                            ' . $this->iconFactory->getIcon('actions-open', IconSize::SMALL)->render() . '
                         </a>';
                 }
             }
@@ -411,7 +402,7 @@ class FileReferenceContainer extends AbstractContainer
                 }
                 $controls['delete'] = '
                     <button type="button" class="btn btn-default t3js-editform-delete-file-reference" data-record-info="' . htmlspecialchars(trim($recordInfo)) . '" title="' . htmlspecialchars($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_mod_web_list.xlf:delete')) . '">
-                        ' . $this->iconFactory->getIcon('actions-edit-delete', Icon::SIZE_SMALL)->render() . '
+                        ' . $this->iconFactory->getIcon('actions-edit-delete', IconSize::SMALL)->render() . '
                     </button>';
             }
             if (($hiddenField = (string)($fileReferenceTableTca['ctrl']['enablecolumns']['disabled'] ?? '')) !== ''
@@ -425,19 +416,19 @@ class FileReferenceContainer extends AbstractContainer
                 if ($databaseRow[$hiddenField] ?? false) {
                     $controls['hide'] = '
                         <button type="button" class="btn btn-default t3js-toggle-visibility-button" data-hidden-field="' . htmlspecialchars($hiddenField) . '" title="' . htmlspecialchars($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_mod_web_list.xlf:unHide')) . '">
-                            ' . $this->iconFactory->getIcon('actions-edit-unhide', Icon::SIZE_SMALL)->render() . '
+                            ' . $this->iconFactory->getIcon('actions-edit-unhide', IconSize::SMALL)->render() . '
                         </button>';
                 } else {
                     $controls['hide'] = '
                         <button type="button" class="btn btn-default t3js-toggle-visibility-button" data-hidden-field="' . htmlspecialchars($hiddenField) . '" title="' . htmlspecialchars($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_mod_web_list.xlf:hide')) . '">
-                            ' . $this->iconFactory->getIcon('actions-edit-hide', Icon::SIZE_SMALL)->render() . '
+                            ' . $this->iconFactory->getIcon('actions-edit-hide', IconSize::SMALL)->render() . '
                         </button>';
                 }
             }
             if (($parentConfig['appearance']['useSortable'] ?? false) && $event->isControlEnabled('dragdrop')) {
                 $controls['dragdrop'] = '
                     <span class="btn btn-default sortableHandle" data-id="' . (int)$databaseRow['uid'] . '" title="' . htmlspecialchars($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.move')) . '">
-                        ' . $this->iconFactory->getIcon('actions-move-move', Icon::SIZE_SMALL)->render() . '
+                        ' . $this->iconFactory->getIcon('actions-move-move', IconSize::SMALL)->render() . '
                     </span>';
             }
         } elseif (($this->data['isInlineDefaultLanguageRecordInLocalizedParentContext'] ?? false)
@@ -446,13 +437,13 @@ class FileReferenceContainer extends AbstractContainer
         ) {
             $controls['localize'] = '
                 <button type="button" class="btn btn-default t3js-synchronizelocalize-button" data-type="' . htmlspecialchars((string)$databaseRow['uid']) . '" title="' . htmlspecialchars($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_misc.xlf:localize')) . '">
-                    ' . $this->iconFactory->getIcon('actions-document-localize', Icon::SIZE_SMALL)->render() . '
+                    ' . $this->iconFactory->getIcon('actions-document-localize', IconSize::SMALL)->render() . '
                 </button>';
         }
         if ($lockInfo = BackendUtility::isRecordLocked(self::FILE_REFERENCE_TABLE, $databaseRow['uid'])) {
             $controls['locked'] = '
 				<button type="button" class="btn btn-default" title="' . htmlspecialchars($lockInfo['msg']) . '">
-					' . $this->iconFactory->getIcon('status-user-backend', Icon::SIZE_SMALL, 'overlay-edit')->render() . '
+					' . $this->iconFactory->getIcon('status-user-backend', IconSize::SMALL, 'overlay-edit')->render() . '
 				</button>';
         }
 
@@ -518,7 +509,7 @@ class FileReferenceContainer extends AbstractContainer
 
         // In debug mode, add the table name to the record title
         if ($this->getBackendUserAuthentication()->shallDisplayDebugInformation()) {
-            $title .= '<div class="col"><code class="m-0">[' . self::FILE_REFERENCE_TABLE . ']</code></div>';
+            $title .= '<div class="col"><code>[' . self::FILE_REFERENCE_TABLE . ']</code></div>';
         }
 
         return '<dl class="row row-cols-auto gx-2">' . $title . '</dl>';
@@ -531,8 +522,7 @@ class FileReferenceContainer extends AbstractContainer
             $fullTitle = $databaseRow['title'];
         } elseif ($fileRecord['uid'] ?? false) {
             try {
-                $metaDataRepository = GeneralUtility::makeInstance(MetaDataRepository::class);
-                $metaData = $metaDataRepository->findByFileUid($fileRecord['uid']);
+                $metaData = $this->metaDataRepository->findByFileUid($fileRecord['uid']);
                 $fullTitle = $metaData['title'] ?? '';
             } catch (InvalidUidException $e) {
             }
@@ -556,11 +546,6 @@ class FileReferenceContainer extends AbstractContainer
         }
 
         return $value;
-    }
-
-    protected function getBackendUserAuthentication(): BackendUserAuthentication
-    {
-        return $GLOBALS['BE_USER'];
     }
 
     protected function getLanguageService(): LanguageService

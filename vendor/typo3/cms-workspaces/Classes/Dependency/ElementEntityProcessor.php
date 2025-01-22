@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -15,50 +17,45 @@
 
 namespace TYPO3\CMS\Workspaces\Dependency;
 
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
+use TYPO3\CMS\Core\Schema\TcaSchemaFactory;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Versioning\VersionState;
 
 /**
  * Processor having generic callback methods for element entities
+ *
+ * @internal
  */
+#[Autoconfigure(public: true, shared: false)]
 class ElementEntityProcessor
 {
-    /**
-     * @var int
-     */
-    protected $workspace;
+    protected int $workspace;
+    protected ?DataHandler $dataHandler;
 
-    /**
-     * @var DataHandler|null
-     */
-    protected $dataHandler;
+    public function __construct(
+        protected readonly TcaSchemaFactory $tcaSchemaFactory
+    ) {}
 
     /**
      * Sets the current workspace.
-     *
-     * @param int $workspace
      */
-    public function setWorkspace($workspace)
+    public function setWorkspace(int $workspace): void
     {
-        $this->workspace = (int)$workspace;
+        $this->workspace = $workspace;
     }
 
     /**
      * Gets the current workspace.
-     *
-     * @return int
      */
-    public function getWorkspace()
+    public function getWorkspace(): int
     {
         return $this->workspace;
     }
 
-    /**
-     * @return DataHandler
-     */
-    public function getDataHandler()
+    public function getDataHandler(): DataHandler
     {
         if (!isset($this->dataHandler)) {
             $this->dataHandler = GeneralUtility::makeInstance(DataHandler::class);
@@ -69,13 +66,11 @@ class ElementEntityProcessor
     /**
      * Transforms dependent elements to use the liveId as array key.
      *
-     * @param array|ElementEntity[] $elements
-     * @return array
+     * @param ElementEntity[] $elements
      */
-    public function transformDependentElementsToUseLiveId(array $elements)
+    public function transformDependentElementsToUseLiveId(array $elements): array
     {
         $transformedElements = [];
-        /** @var ElementEntity $element */
         foreach ($elements as $element) {
             $elementName = ElementEntity::getIdentifier($element->getTable(), $element->getDataValue('liveId'));
             $transformedElements[$elementName] = $element;
@@ -86,16 +81,16 @@ class ElementEntityProcessor
     /**
      * Callback to determine whether a new child reference shall be considered in the dependency resolver utility.
      *
-     * @param string $eventName
      * @return string|null Skip response (if required)
      */
-    public function createNewDependentElementChildReferenceCallback(array $callerArguments, array $targetArgument, ElementEntity $caller, $eventName)
+    public function createNewDependentElementChildReferenceCallback(array $callerArguments, array $targetArgument, ElementEntity $caller, string $eventName): ?string
     {
         // skip children in case ancestor is invalid
         if ($caller->isInvalid()) {
             return ElementEntity::RESPONSE_Skip;
         }
-        $fieldConfiguration = BackendUtility::getTcaFieldConfiguration($caller->getTable(), $callerArguments['field']);
+        $schema = $this->tcaSchemaFactory->get($caller->getTable());
+        $fieldConfiguration = $schema->getField($callerArguments['field'])->getConfiguration();
         $inlineFieldType = $this->getDataHandler()->getRelationFieldType($fieldConfiguration);
         if (!$fieldConfiguration || ($fieldConfiguration['type'] !== 'flex' && $inlineFieldType !== 'field' && $inlineFieldType !== 'list')) {
             return ElementEntity::RESPONSE_Skip;
@@ -106,12 +101,12 @@ class ElementEntityProcessor
     /**
      * Callback to determine whether a new parent reference shall be considered in the dependency resolver utility.
      *
-     * @param string $eventName
      * @return string|null Skip response (if required)
      */
-    public function createNewDependentElementParentReferenceCallback(array $callerArguments, array $targetArgument, ElementEntity $caller, $eventName)
+    public function createNewDependentElementParentReferenceCallback(array $callerArguments, array $targetArgument, ElementEntity $caller, string $eventName): ?string
     {
-        $fieldConfiguration = BackendUtility::getTcaFieldConfiguration($callerArguments['table'], $callerArguments['field']);
+        $schema = $this->tcaSchemaFactory->get($callerArguments['table']);
+        $fieldConfiguration = $schema->getField($callerArguments['field'])->getConfiguration();
         $inlineFieldType = $this->getDataHandler()->getRelationFieldType($fieldConfiguration);
         if (!$fieldConfiguration || ($fieldConfiguration['type'] !== 'flex' && $inlineFieldType !== 'field' && $inlineFieldType !== 'list')) {
             return ElementEntity::RESPONSE_Skip;
@@ -123,15 +118,14 @@ class ElementEntityProcessor
      * Callback to determine whether a new child reference shall be considered in the dependency resolver utility.
      * Only elements that are a delete placeholder are considered.
      *
-     * @param string $eventName
      * @return string|null Skip response (if required)
      */
-    public function createClearDependentElementChildReferenceCallback(array $callerArguments, array $targetArgument, ElementEntity $caller, $eventName)
+    public function createClearDependentElementChildReferenceCallback(array $callerArguments, array $targetArgument, ElementEntity $caller, string $eventName): ?string
     {
         $response = $this->createNewDependentElementChildReferenceCallback($callerArguments, $targetArgument, $caller, $eventName);
         if (empty($response)) {
             $record = BackendUtility::getRecord($callerArguments['table'], $callerArguments['id']);
-            if (!VersionState::cast($record['t3ver_state'] ?? 0)->equals(VersionState::DELETE_PLACEHOLDER)) {
+            if (VersionState::tryFrom($record['t3ver_state'] ?? 0) !== VersionState::DELETE_PLACEHOLDER->value) {
                 $response = ElementEntity::RESPONSE_Skip;
             }
         }
@@ -142,15 +136,14 @@ class ElementEntityProcessor
      * Callback to determine whether a new parent reference shall be considered in the dependency resolver utility.
      * Only elements that are a delete placeholder are considered.
      *
-     * @param string $eventName
      * @return string|null Skip response (if required)
      */
-    public function createClearDependentElementParentReferenceCallback(array $callerArguments, array $targetArgument, ElementEntity $caller, $eventName)
+    public function createClearDependentElementParentReferenceCallback(array $callerArguments, array $targetArgument, ElementEntity $caller, string $eventName): ?string
     {
         $response = $this->createNewDependentElementParentReferenceCallback($callerArguments, $targetArgument, $caller, $eventName);
         if (empty($response)) {
             $record = BackendUtility::getRecord($callerArguments['table'], $callerArguments['id']);
-            if (!VersionState::cast($record['t3ver_state'] ?? 0)->equals(VersionState::DELETE_PLACEHOLDER)) {
+            if (VersionState::tryFrom($record['t3ver_state'] ?? 0) !== VersionState::DELETE_PLACEHOLDER->value) {
                 $response = ElementEntity::RESPONSE_Skip;
             }
         }
@@ -159,11 +152,8 @@ class ElementEntityProcessor
 
     /**
      * Callback to add additional data to new elements created in the dependency resolver utility.
-     *
-     * @throws \RuntimeException
-     * @param string $eventName
      */
-    public function createNewDependentElementCallback(array $callerArguments, array $targetArgument, ElementEntity $caller, $eventName)
+    public function createNewDependentElementCallback(array $callerArguments, array $targetArgument, ElementEntity $caller, string $eventName): void
     {
         if (!BackendUtility::isTableWorkspaceEnabled($caller->getTable())) {
             $caller->setInvalid(true);

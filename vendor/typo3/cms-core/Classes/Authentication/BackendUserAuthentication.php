@@ -17,7 +17,6 @@ namespace TYPO3\CMS\Core\Authentication;
 
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ServerRequestInterface;
-use TYPO3\CMS\Backend\Module\ModuleProvider;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Authentication\Event\AfterUserLoggedInEvent;
 use TYPO3\CMS\Core\Cache\CacheManager;
@@ -33,25 +32,22 @@ use TYPO3\CMS\Core\Database\Query\Restriction\WorkspaceRestriction;
 use TYPO3\CMS\Core\FormProtection\FormProtectionFactory;
 use TYPO3\CMS\Core\Http\ImmediateResponseException;
 use TYPO3\CMS\Core\Http\RedirectResponse;
-use TYPO3\CMS\Core\Resource\Exception;
+use TYPO3\CMS\Core\Package\PackageManager;
 use TYPO3\CMS\Core\Resource\Filter\FileNameFilter;
-use TYPO3\CMS\Core\Resource\Folder;
-use TYPO3\CMS\Core\Resource\ResourceFactory;
-use TYPO3\CMS\Core\Resource\ResourceStorage;
 use TYPO3\CMS\Core\Resource\StorageRepository;
 use TYPO3\CMS\Core\Routing\BackendEntryPointResolver;
+use TYPO3\CMS\Core\Site\Entity\SiteLanguage;
 use TYPO3\CMS\Core\SysLog\Action as SystemLogGenericAction;
 use TYPO3\CMS\Core\SysLog\Error as SystemLogErrorClassification;
 use TYPO3\CMS\Core\SysLog\Type;
 use TYPO3\CMS\Core\SysLog\Type as SystemLogType;
 use TYPO3\CMS\Core\Type\Bitmask\BackendGroupMountOption;
-use TYPO3\CMS\Core\Type\Bitmask\JsConfirmation;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
-use TYPO3\CMS\Core\Type\Exception\InvalidEnumerationValueException;
 use TYPO3\CMS\Core\TypoScript\UserTsConfig;
 use TYPO3\CMS\Core\TypoScript\UserTsConfigFactory;
 use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Core\Utility\MathUtility;
 use TYPO3\CMS\Core\Utility\StringUtility;
 use TYPO3\CMS\Install\Service\SessionService;
 
@@ -189,21 +185,21 @@ class BackendUserAuthentication extends AbstractUserAuthentication
     /**
      * Form field with login-name
      * @var string
-     * @internal since TYPO3 v12. This is not considered public API anymore, as this property should be defined in another place in the future.
+     * @internal
      */
     protected $formfield_uname = 'username';
 
     /**
      * Form field with password
      * @var string
-     * @internal since TYPO3 v12. This is not considered public API anymore, as this property should be defined in another place in the future.
+     * @internal
      */
     protected $formfield_uident = 'userident';
 
     /**
      * Form field with status: *'login', 'logout'
      * @var string
-     * @internal since TYPO3 v12. This is not considered public API anymore, as this property should be defined in another place in the future.
+     * @internal
      */
     protected $formfield_status = 'login_status';
 
@@ -275,13 +271,10 @@ class BackendUserAuthentication extends AbstractUserAuthentication
      * $groupId must be set. $this->userGroupsUID must contain groups
      * Will return TRUE also if the user is a member of a group through subgroups.
      *
-     * @param int $groupId Group ID to look for in $this->userGroupsUID
-     * @return bool
      * @internal should only be used from within TYPO3 Core, use Context API for quicker access
      */
-    public function isMemberOfGroup($groupId)
+    protected function isMemberOfGroup(int $groupId): bool
     {
-        $groupId = (int)$groupId;
         if (!empty($this->userGroupsUID) && $groupId) {
             return in_array($groupId, $this->userGroupsUID, true);
         }
@@ -379,54 +372,6 @@ class BackendUserAuthentication extends AbstractUserAuthentication
     }
 
     /**
-     * Checks access to a backend module
-     *
-     * @param array $conf module configuration
-     * @throws \RuntimeException
-     * @return bool Will return TRUE if $MCONF['access'] is not set at all, if the BE_USER is admin or if the module is enabled in the be_users/be_groups records of the user (specifically enabled). Will return FALSE if the module name is not even registered
-     * @deprecated no longer in use. Will be removed in v13. Use the ModuleProvider API instead.
-     */
-    public function modAccess($conf)
-    {
-        trigger_error(
-            'BackendUserAuthentication->modAccess() will be removed in TYPO3 v13.0. Use the ModuleProvider API instead.',
-            E_USER_DEPRECATED
-        );
-
-        $moduleName = $conf['name'] ?? '';
-        if (!GeneralUtility::makeInstance(ModuleProvider::class)->isModuleRegistered($moduleName)) {
-            throw new \RuntimeException('Fatal Error: This module "' . $moduleName . '" is not registered.', 1294586446);
-        }
-        // Workspaces check:
-        if (
-            !empty($conf['workspaces'])
-            && ExtensionManagementUtility::isLoaded('workspaces')
-            && ($this->workspace !== 0 || !GeneralUtility::inList($conf['workspaces'], 'online'))
-            && ($this->workspace <= 0 || !GeneralUtility::inList($conf['workspaces'], 'custom'))
-        ) {
-            throw new \RuntimeException('Workspace Error: This module "' . $moduleName . '" is not available under the current workspace', 1294586447);
-        }
-        // Throws exception if conf[access] is set to system maintainer and the user is no system maintainer
-        if (str_contains($conf['access'] ?? '', self::ROLE_SYSTEMMAINTAINER) && !$this->isSystemMaintainer()) {
-            throw new \RuntimeException('This module "' . $moduleName . '" is only available as system maintainer', 1504804727);
-        }
-        // Returns TRUE if conf[access] is not set at all or if the user is admin
-        if (!($conf['access'] ?? false) || $this->isAdmin()) {
-            return true;
-        }
-        // If $conf['access'] is set but not with 'admin' then we return TRUE, if the module is found in the modList
-        $acs = false;
-        if ($moduleName && !str_contains($conf['access'] ?? '', 'admin')) {
-            $acs = GeneralUtility::makeInstance(ModuleProvider::class)->accessGranted($moduleName, $this);
-        }
-        if (!$acs) {
-            throw new \RuntimeException('Access Error: You don\'t have access to this module.', 1294586448);
-        }
-        // User has access (Otherwise an exception would haven been thrown)
-        return true;
-    }
-
-    /**
      * Checks if the user is in the valid list of allowed system maintainers. if the list is not set,
      * then all admins are system maintainers. If the list is empty, no one is system maintainer (good for production
      * systems). If the currently logged in user is in "switch user" mode, this method will return false.
@@ -446,7 +391,7 @@ class BackendUserAuthentication extends AbstractUserAuthentication
             return true;
         }
         $systemMaintainers = $GLOBALS['TYPO3_CONF_VARS']['SYS']['systemMaintainers'] ?? [];
-        $systemMaintainers = array_map('intval', $systemMaintainers);
+        $systemMaintainers = array_map(intval(...), $systemMaintainers);
         if (!empty($systemMaintainers)) {
             return in_array((int)$this->user['uid'], $systemMaintainers, true);
         }
@@ -562,7 +507,7 @@ class BackendUserAuthentication extends AbstractUserAuthentication
             if ($this->user['uid'] == $row['perms_userid']) {
                 $out |= $row['perms_user'];
             }
-            if ($this->isMemberOfGroup($row['perms_groupid'])) {
+            if ($this->isMemberOfGroup((int)$row['perms_groupid'])) {
                 $out |= $row['perms_group'];
             }
             $out |= $row['perms_everybody'];
@@ -633,18 +578,23 @@ class BackendUserAuthentication extends AbstractUserAuthentication
     /**
      * Checking if a language value (-1, 0 and >0) is allowed to be edited by the user.
      *
-     * @param int $langValue Language value to evaluate
+     * @param int|SiteLanguage|string $langValue Language value to evaluate
      * @return bool Returns TRUE if the language value is allowed, otherwise FALSE.
      */
     public function checkLanguageAccess($langValue)
     {
         // The users language list must be non-blank - otherwise all languages are allowed.
-        if (trim($this->groupData['allowed_languages']) !== '') {
+        if (trim($this->groupData['allowed_languages']) === '') {
+            return true;
+        }
+        if ($langValue instanceof SiteLanguage) {
+            $langValue = $langValue->getLanguageId();
+        } else {
             $langValue = (int)$langValue;
-            // Language must either be explicitly allowed OR the lang Value be "-1" (all languages)
-            if ($langValue != -1 && !$this->check('allowed_languages', (string)$langValue)) {
-                return false;
-            }
+        }
+        // Language must either be explicitly allowed OR the lang Value be "-1" (all languages)
+        if ($langValue !== -1 && !$this->check('allowed_languages', (string)$langValue)) {
+            return false;
         }
         return true;
     }
@@ -913,41 +863,6 @@ class BackendUserAuthentication extends AbstractUserAuthentication
     }
 
     /**
-     * Returns TRUE if the user has access to publish content from the workspace ID given.
-     * Admin-users are always granted access to do this
-     * If the workspace ID is 0 (live) all users have access also
-     * For custom workspaces it depends on whether the user is owner OR like with
-     * draft workspace if the user has access to Live workspace.
-     *
-     * @param int $wsid Workspace UID; 0,1+
-     * @return bool Returns TRUE if the user has access to publish content from the workspace ID given.
-     * @internal this method will be moved to EXT:workspaces
-     */
-    public function workspacePublishAccess($wsid)
-    {
-        if ($this->isAdmin()) {
-            return true;
-        }
-        $wsAccess = $this->checkWorkspace($wsid);
-        // If no access to workspace, of course you cannot publish!
-        if ($wsAccess === false) {
-            return false;
-        }
-        if ((int)$wsAccess['uid'] === 0) {
-            // If access to Live workspace, no problem.
-            return true;
-        }
-        // Custom workspaces
-        // 1. Owners can always publish
-        if ($wsAccess['_ACCESS'] === 'owner') {
-            return true;
-        }
-        // 2. User has access to online workspace which is OK as well as long as publishing
-        // access is not limited by workspace option.
-        return $this->checkWorkspace(0) && !($wsAccess['publish_access'] & 2);
-    }
-
-    /**
      * Returns full parsed user TSconfig array, merged with TSconfig from groups.
      *
      * Example:
@@ -983,9 +898,11 @@ class BackendUserAuthentication extends AbstractUserAuthentication
      * Webmounts permissions are checked in fetchGroupData()
      *
      * @return list<numeric-string> of web mounts uids (may include '0')
+     * @deprecated will be removed in TYPO3 v14, use getWebmounts() instead.
      */
     public function returnWebmounts()
     {
+        trigger_error('BackendUserAuthentication::returnWebmounts() will be removed in TYPO3 v14. Use getWebmounts() instead.', E_USER_DEPRECATED);
         $webMounts = $this->groupData['webmounts'] ?? null;
         return is_string($webMounts) && $webMounts !== ''
             ? explode(',', $webMounts)
@@ -993,7 +910,7 @@ class BackendUserAuthentication extends AbstractUserAuthentication
     }
 
     /**
-     * Returns an array with the webmounts.
+     * Returns an unique array with the webmounts.
      * If no webmounts, and empty array is returned.
      * Webmounts permissions are checked in fetchGroupData()
      *
@@ -1003,7 +920,7 @@ class BackendUserAuthentication extends AbstractUserAuthentication
     {
         $webMounts = $this->groupData['webmounts'] ?? null;
         return is_string($webMounts) && $webMounts !== ''
-            ? GeneralUtility::intExplode(',', $webMounts)
+            ? array_unique(GeneralUtility::intExplode(',', $webMounts))
             : [];
     }
 
@@ -1057,20 +974,18 @@ class BackendUserAuthentication extends AbstractUserAuthentication
      * Returns TRUE or FALSE, depending if an alert popup (a javascript confirmation) should be shown
      * call like $GLOBALS['BE_USER']->jsConfirmation($BITMASK).
      *
-     * @param int $bitmask Bitmask, one of \TYPO3\CMS\Core\Type\Bitmask\JsConfirmation
+     * @param int $bitmask Bitmask, one of \TYPO3\CMS\Core\Authentication\JsConfirmation
      * @return bool TRUE if the confirmation should be shown
      * @see JsConfirmation
      */
-    public function jsConfirmation($bitmask)
+    public function jsConfirmation(int $bitmask): bool
     {
-        try {
-            $alertPopupsSetting = trim((string)($this->getTSConfig()['options.']['alertPopups'] ?? ''));
-            $alertPopup = JsConfirmation::cast($alertPopupsSetting === '' ? null : (int)$alertPopupsSetting);
-        } catch (InvalidEnumerationValueException $e) {
-            $alertPopup = new JsConfirmation();
-        }
+        $alertPopupsSetting = trim((string)($this->getTSConfig()['options.']['alertPopups'] ?? ''));
+        $alertPopupsSetting = MathUtility::canBeInterpretedAsInteger($alertPopupsSetting)
+            ? MathUtility::forceIntegerInRange((int)$alertPopupsSetting, 0, JsConfirmation::ALL)
+            : JsConfirmation::ALL;
 
-        return JsConfirmation::cast($bitmask)->matches($alertPopup);
+        return (new JsConfirmation($alertPopupsSetting))->get($bitmask);
     }
 
     /**
@@ -1547,12 +1462,10 @@ class BackendUserAuthentication extends AbstractUserAuthentication
      *
      * Please note that these permissions only apply, if the storage has the
      * capabilities (browseable, writable), and if the driver allows for writing etc
-     *
-     * @return array
      */
-    public function getFilePermissions()
+    public function getFilePermissions(): array
     {
-        if (!isset($this->filePermissions)) {
+        if ($this->filePermissions === null) {
             $filePermissions = [
                 // File permissions
                 'addFile' => false,
@@ -1573,12 +1486,12 @@ class BackendUserAuthentication extends AbstractUserAuthentication
                 'recursivedeleteFolder' => false,
             ];
             if ($this->isAdmin()) {
-                $filePermissions = array_map('is_bool', $filePermissions);
+                $filePermissions = array_map(is_bool(...), $filePermissions);
             } else {
                 $userGroupRecordPermissions = GeneralUtility::trimExplode(',', $this->groupData['file_permissions'] ?? '', true);
                 array_walk(
                     $userGroupRecordPermissions,
-                    static function ($permission) use (&$filePermissions) {
+                    static function (string $permission) use (&$filePermissions): void {
                         $filePermissions[$permission] = true;
                     }
                 );
@@ -1588,7 +1501,7 @@ class BackendUserAuthentication extends AbstractUserAuthentication
                 if (!empty($permissionsTsConfig)) {
                     array_walk(
                         $permissionsTsConfig,
-                        static function ($value, $permission) use (&$filePermissions) {
+                        static function (string $value, string $permission) use (&$filePermissions): void {
                             $filePermissions[$permission] = (bool)$value;
                         }
                     );
@@ -1600,148 +1513,12 @@ class BackendUserAuthentication extends AbstractUserAuthentication
     }
 
     /**
-     * Gets the file permissions for a storage
-     * by merging any storage-specific permissions for a
-     * storage with the default settings.
-     * Admin users will always get the default settings.
-     *
-     * @return array
-     */
-    public function getFilePermissionsForStorage(ResourceStorage $storageObject)
-    {
-        $finalUserPermissions = $this->getFilePermissions();
-        if (!$this->isAdmin()) {
-            $storageFilePermissions = $this->getTSConfig()['permissions.']['file.']['storage.'][$storageObject->getUid() . '.'] ?? [];
-            if (!empty($storageFilePermissions)) {
-                array_walk(
-                    $storageFilePermissions,
-                    static function ($value, $permission) use (&$finalUserPermissions) {
-                        $finalUserPermissions[$permission] = (bool)$value;
-                    }
-                );
-            }
-        }
-        return $finalUserPermissions;
-    }
-
-    /**
-     * Returns a \TYPO3\CMS\Core\Resource\Folder object that is used for uploading
-     * files by default.
-     * This is used for RTE and its magic images, as well as uploads
-     * in the FormEngine fields.
-     *
-     * The default upload folder for a user is the defaultFolder on the first
-     * filestorage/filemount that the user can access and to which files are allowed to be added
-     * however, you can set the users' upload folder like this:
-     *
-     * options.defaultUploadFolder = 3:myfolder/yourfolder/
-     *
-     * @param int $pid PageUid
-     * @param string $table Table name
-     * @param string $field Field name
-     * @return \TYPO3\CMS\Core\Resource\Folder|bool The default upload folder for this user
-     * @internal use DefaultUploadFolderResolver instead.
-     */
-    public function getDefaultUploadFolder($pid = null, $table = null, $field = null)
-    {
-        $uploadFolder = $this->getTSConfig()['options.']['defaultUploadFolder'] ?? '';
-        if ($uploadFolder) {
-            try {
-                $uploadFolder = GeneralUtility::makeInstance(ResourceFactory::class)->getFolderObjectFromCombinedIdentifier($uploadFolder);
-            } catch (Exception\FolderDoesNotExistException $e) {
-                $uploadFolder = null;
-            }
-        }
-        if (empty($uploadFolder)) {
-            foreach ($this->getFileStorages() as $storage) {
-                if ($storage->isDefault() && $storage->isWritable()) {
-                    try {
-                        $uploadFolder = $storage->getDefaultFolder();
-                        if ($uploadFolder->checkActionPermission('write')) {
-                            break;
-                        }
-                        $uploadFolder = null;
-                    } catch (Exception $folderAccessException) {
-                        // If the folder is not accessible (no permissions / does not exist) we skip this one.
-                    }
-                    break;
-                }
-            }
-            if (!$uploadFolder instanceof Folder) {
-                foreach ($this->getFileStorages() as $storage) {
-                    if ($storage->isWritable()) {
-                        try {
-                            $uploadFolder = $storage->getDefaultFolder();
-                            if ($uploadFolder->checkActionPermission('write')) {
-                                break;
-                            }
-                            $uploadFolder = null;
-                        } catch (Exception $folderAccessException) {
-                            // If the folder is not accessible (no permissions / does not exist) try the next one.
-                        }
-                    }
-                }
-            }
-        }
-
-        // @deprecated HOOK: getDefaultUploadFolder
-        if (!empty($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_userauthgroup.php']['getDefaultUploadFolder'] ?? [])) {
-            trigger_error('The hook $GLOBALS[\'TYPO3_CONF_VARS\'][\'SC_OPTIONS\'][\'t3lib/class.t3lib_userauthgroup.php\'][\'getDefaultUploadFolder\'] will be removed in TYPO3 v13.0. Use the PSR-14 AfterDefaultUploadFolderWasResolvedEvent instead.', E_USER_DEPRECATED);
-        }
-        foreach ($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_userauthgroup.php']['getDefaultUploadFolder'] ?? [] as $_funcRef) {
-            $_params = [
-                'uploadFolder' => $uploadFolder,
-                'pid' => $pid,
-                'table' => $table,
-                'field' => $field,
-            ];
-            $uploadFolder = GeneralUtility::callUserFunction($_funcRef, $_params, $this);
-        }
-
-        if ($uploadFolder instanceof Folder) {
-            return $uploadFolder;
-        }
-        return false;
-    }
-
-    /**
-     * Returns a \TYPO3\CMS\Core\Resource\Folder object that could be used for uploading
-     * temporary files in user context. The folder _temp_ below the default upload folder
-     * of the user is used.
-     *
-     * @return \TYPO3\CMS\Core\Resource\Folder|null
-     * @see \TYPO3\CMS\Core\Authentication\BackendUserAuthentication::getDefaultUploadFolder()
-     * @internal use DefaultUploadFolderResolver instead.
-     */
-    public function getDefaultUploadTemporaryFolder()
-    {
-        $defaultTemporaryFolder = null;
-        $defaultFolder = $this->getDefaultUploadFolder();
-
-        if ($defaultFolder !== false) {
-            $tempFolderName = '_temp_';
-            $createFolder = !$defaultFolder->hasFolder($tempFolderName);
-            if ($createFolder === true) {
-                try {
-                    $defaultTemporaryFolder = $defaultFolder->createFolder($tempFolderName);
-                } catch (Exception $folderAccessException) {
-                }
-            } else {
-                $defaultTemporaryFolder = $defaultFolder->getSubfolder($tempFolderName);
-            }
-        }
-
-        return $defaultTemporaryFolder;
-    }
-
-    /**
-     * Initializing workspace.
-     * Called from within this function, see fetchGroupData()
+     * Initializing workspace settings after all TSconfig has been parsed.
+     * Called from within fetchGroupData()
      *
      * @see fetchGroupData()
-     * @internal should only be used from within TYPO3 Core
      */
-    public function workspaceInit()
+    protected function workspaceInit(): void
     {
         // Initializing workspace by evaluating and setting the workspace, possibly updating it in the user record!
         $this->setWorkspace($this->user['workspace_id']);
@@ -1754,7 +1531,7 @@ class BackendUserAuthentication extends AbstractUserAuthentication
     }
 
     /**
-     * Limiting the DB mountpoints if there any selected in the workspace record
+     * Limiting the DB mountpoints if there are any selected in the workspace record
      */
     protected function initializeDbMountpointsInWorkspace()
     {
@@ -1778,7 +1555,7 @@ class BackendUserAuthentication extends AbstractUserAuthentication
             $entryPointRootLineUids = [];
             foreach ($webMountsOfUser as $webMountPageId) {
                 $rootLine = BackendUtility::BEgetRootLine($webMountPageId, '', true);
-                $entryPointRootLineUids[$webMountPageId] = array_map('intval', array_column($rootLine, 'uid'));
+                $entryPointRootLineUids[$webMountPageId] = array_map(intval(...), array_column($rootLine, 'uid'));
             }
             foreach ($entryPointRootLineUids as $webMountOfUser => $uidsOfRootLine) {
                 // Remove the DB mounts of the user if the DB mount is not in the list of
@@ -1881,11 +1658,10 @@ class BackendUserAuthentication extends AbstractUserAuthentication
      * Uses checkWorkspace() to check if current workspace is available for user.
      * This function caches the result and so can be called many times with no performance loss.
      *
-     * @return array See checkWorkspace()
      * @see checkWorkspace()
      * @internal should only be used from within TYPO3 Core
      */
-    public function checkWorkspaceCurrent()
+    protected function checkWorkspaceCurrent(): false|array|null
     {
         if (!isset($this->checkWorkspaceCurrent_cache)) {
             $this->checkWorkspaceCurrent_cache = $this->checkWorkspace($this->workspace);
@@ -1942,9 +1718,9 @@ class BackendUserAuthentication extends AbstractUserAuthentication
      * Sets the default workspace in the context of the current backend user.
      * @internal should only be used from within TYPO3 Core
      */
-    public function setDefaultWorkspace()
+    protected function setDefaultWorkspace(): void
     {
-        $this->workspace = (int)$this->getDefaultWorkspace();
+        $this->workspace = $this->getDefaultWorkspace();
         $this->workspaceRec = $this->checkWorkspace($this->workspace);
     }
 
@@ -1956,7 +1732,7 @@ class BackendUserAuthentication extends AbstractUserAuthentication
      * @return int Default workspace id.
      * @internal should only be used from within TYPO3 Core
      */
-    public function getDefaultWorkspace()
+    protected function getDefaultWorkspace(): int
     {
         if (!ExtensionManagementUtility::isLoaded('workspaces')) {
             return 0;
@@ -1965,8 +1741,6 @@ class BackendUserAuthentication extends AbstractUserAuthentication
         if ($this->checkWorkspace(0)) {
             return 0;
         }
-        // Otherwise -99 is the fallback
-        $defaultWorkspace = -99;
         // Traverse all workspaces
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('sys_workspace');
         $queryBuilder->getRestrictions()->add(GeneralUtility::makeInstance(RootLevelRestriction::class));
@@ -1976,11 +1750,11 @@ class BackendUserAuthentication extends AbstractUserAuthentication
             ->executeQuery();
         while ($workspaceRecord = $result->fetchAssociative()) {
             if ($this->checkWorkspace($workspaceRecord)) {
-                $defaultWorkspace = (int)$workspaceRecord['uid'];
-                break;
+                return (int)$workspaceRecord['uid'];
             }
         }
-        return $defaultWorkspace;
+        // Otherwise -99 is the fallback
+        return -99;
     }
 
     /**
@@ -2060,7 +1834,7 @@ class BackendUserAuthentication extends AbstractUserAuthentication
             ]
         );
 
-        return (int)$connection->lastInsertId('sys_log');
+        return (int)$connection->lastInsertId();
     }
 
     /**
@@ -2133,19 +1907,6 @@ class BackendUserAuthentication extends AbstractUserAuthentication
 
         $event = new AfterUserLoggedInEvent($this, $request);
         GeneralUtility::makeInstance(EventDispatcherInterface::class)->dispatch($event);
-
-        // Process hooks
-        $hooks = $GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_userauthgroup.php']['backendUserLogin'] ?? [];
-        if (!empty($hooks)) {
-            trigger_error(
-                '$GLOBALS[\'TYPO3_CONF_VARS\'][\'SC_OPTIONS\'][\'t3lib/class.t3lib_userauthgroup.php\'][\'backendUserLogin\'] will be removed in TYPO3 v13.0. Use the PSR-14 "AfterUserLoggedInEvent" instead.',
-                E_USER_DEPRECATED
-            );
-        }
-        foreach ($hooks as $_funcRef) {
-            $_params = ['user' => $this->user];
-            GeneralUtility::callUserFunction($_funcRef, $_params, $this);
-        }
     }
 
     /**
@@ -2252,9 +2013,19 @@ class BackendUserAuthentication extends AbstractUserAuthentication
             $this->releaseLockedRecords((int)$GLOBALS['BE_USER']->user['uid']);
 
             if ($this->isSystemMaintainer()) {
-                // If user is system maintainer, destroy its possibly valid install tool session.
-                $session = new SessionService();
-                $session->destroySession($GLOBALS['TYPO3_REQUEST'] ?? null);
+                // @todo: This should be turned into a dispatched event EXT:install can listen on.
+                //        This might be useful for others as well. The reasons this has not been
+                //        implemented yet, is, that the method should be refactored to at least
+                //        receive Request and probably be-user object correctly, instead of
+                //        fetching it from globals, before creating API with an event.
+                $packageManager = GeneralUtility::makeInstance(PackageManager::class);
+                if ($packageManager->isPackageActive('install')) {
+                    // If user is system maintainer, destroy its possibly valid install tool session.
+                    $session = GeneralUtility::makeInstance(SessionService::class);
+                    // @todo: It's kinda fishy installSessionHandler() is called here. We should be able to skip this.
+                    $session->installSessionHandler();
+                    $session->destroySession($GLOBALS['TYPO3_REQUEST'] ?? null);
+                }
             }
         }
         parent::logoff();

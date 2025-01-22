@@ -15,9 +15,8 @@
 
 namespace TYPO3\CMS\Backend\Form\Container;
 
-use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Page\JavaScriptModuleInstruction;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -33,14 +32,17 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  */
 class FlexFormSectionContainer extends AbstractContainer
 {
+    public function __construct(
+        private readonly IconFactory $iconFactory,
+    ) {}
+
     /**
      * Entry method
      *
      * @return array As defined in initializeResultArray() of AbstractNode
      */
-    public function render()
+    public function render(): array
     {
-        $iconFactory = GeneralUtility::makeInstance(IconFactory::class);
         $languageService = $this->getLanguageService();
 
         $flexFormDataStructureIdentifier = $this->data['flexFormDataStructureIdentifier'];
@@ -56,7 +58,6 @@ class FlexFormSectionContainer extends AbstractContainer
         // Render each existing container
         foreach ($flexFormDataStructureArray['children'] as $flexFormContainerIdentifier => $containerDataStructure) {
             $existingContainerData = $flexFormRowData[$flexFormContainerIdentifier];
-            // @todo: This relies on the fact that "_TOGGLE" is *below* the real data in the saved xml structure
             $existingSectionContainerDataStructureType = key($existingContainerData);
             $existingContainerData = $existingContainerData[$existingSectionContainerDataStructureType];
             $options = $this->data;
@@ -65,7 +66,6 @@ class FlexFormSectionContainer extends AbstractContainer
             $options['flexFormFormPrefix'] = $this->data['flexFormFormPrefix'] . '[' . $flexFormFieldName . '][el]';
             $options['flexFormContainerName'] = $existingSectionContainerDataStructureType;
             $options['flexFormContainerIdentifier'] = $flexFormContainerIdentifier;
-            $options['flexFormContainerElementCollapsed'] = (bool)($flexFormRowData[$flexFormContainerIdentifier]['_TOGGLE'] ?? false);
             $options['renderType'] = 'flexFormContainerContainer';
             $flexFormContainerContainerResult = $this->nodeFactory->create($options)->render();
             $resultArray = $this->mergeChildReturnIntoExistingResult($resultArray, $flexFormContainerContainerResult);
@@ -99,7 +99,7 @@ class FlexFormSectionContainer extends AbstractContainer
             $containerTemplateHtml[] =     'data-flexformcontainername="' . htmlspecialchars($flexFormContainerName) . '"';
             $containerTemplateHtml[] =     'data-target="#' . htmlspecialchars($hashedSectionContainerId) . '"';
             $containerTemplateHtml[] = '>';
-            $containerTemplateHtml[] =    $iconFactory->getIcon('actions-document-new', Icon::SIZE_SMALL)->render();
+            $containerTemplateHtml[] =    $this->iconFactory->getIcon('actions-document-new', IconSize::SMALL)->render();
             $containerTemplateHtml[] =    htmlspecialchars(GeneralUtility::fixed_lgd_cs($containerTitle, 30));
             $containerTemplateHtml[] = '</a>';
             $containerTemplatesHtml[] = implode(LF, $containerTemplateHtml);
@@ -122,28 +122,26 @@ class FlexFormSectionContainer extends AbstractContainer
         // Wrap child stuff
         $toggleAll = htmlspecialchars($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.toggleall'));
         $html = [];
-        $html[] = '<div class="panel panel-tab">';
-        $html[] =     '<div class="panel-body">';
-        $html[] =         '<div class="t3-form-field-container t3-form-flex" id="' . htmlspecialchars($containerId) . '" data-section="#' . htmlspecialchars($hashedSectionContainerId) . '">';
-        $html[] =             '<div class="t3-form-field-label-flexsection">';
-        $html[] =                 '<h4>';
-        $html[] =                     htmlspecialchars($sectionTitle);
-        $html[] =                 '</h4>';
-        $html[] =             '</div>';
-        $html[] =             '<div class="form-group">';
-        $html[] =                 '<button class="btn btn-default t3-form-flexsection-toggle" type="button" title="' . $toggleAll . '" data-expand-all="false">';
-        $html[] =                     $iconFactory->getIcon('actions-move-right', Icon::SIZE_SMALL)->render() . $toggleAll;
-        $html[] =                 '</button>';
-        $html[] =             '</div>';
-        $html[] =             '<div';
-        $html[] =                 'id="' . htmlspecialchars($hashedSectionContainerId) . '"';
-        $html[] =                 'class="panel-group panel-hover t3-form-field-container-flexsection t3-flex-container"';
-        $html[] =                 'data-t3-flex-allow-restructure="' . ($userHasAccessToDefaultLanguage ? '1' : '0') . '"';
-        $html[] =             '>';
-        $html[] =                 $resultArray['html'];
-        $html[] =             '</div>';
-        $html[] =             implode(LF, $createElementsHtml);
-        $html[] =         '</div>';
+        $html[] = '<div class="form-section">';
+        $html[] =     '<div class="t3-form-field-container t3-form-flex" id="' . htmlspecialchars($containerId) . '" data-section="#' . htmlspecialchars($hashedSectionContainerId) . '">';
+        $html[] =       '<fieldset>';
+        $html[] =           '<legend class="form-label t3js-formengine-label">';
+        $html[] =                 htmlspecialchars($sectionTitle);
+        $html[] =           '</legend>';
+        $html[] =           '<div class="form-group">';
+        $html[] =               '<button class="btn btn-default t3-form-flexsection-toggle" type="button" title="' . $toggleAll . '" data-expand-all="false">';
+        $html[] =                   $this->iconFactory->getIcon('actions-move-right', IconSize::SMALL)->render() . $toggleAll;
+        $html[] =               '</button>';
+        $html[] =           '</div>';
+        $html[] =           '<div';
+        $html[] =               'id="' . htmlspecialchars($hashedSectionContainerId) . '"';
+        $html[] =               'class="panel-group panel-hover t3-form-field-container-flexsection t3-flex-container"';
+        $html[] =               'data-t3-flex-allow-restructure="' . ($userHasAccessToDefaultLanguage ? '1' : '0') . '"';
+        $html[] =           '>';
+        $html[] =               $resultArray['html'];
+        $html[] =           '</div>';
+        $html[] =           implode(LF, $createElementsHtml);
+        $html[] =       '</fieldset>';
         $html[] =     '</div>';
         $html[] = '</div>';
 
@@ -153,11 +151,6 @@ class FlexFormSectionContainer extends AbstractContainer
         )->instance($containerId);
 
         return $resultArray;
-    }
-
-    protected function getBackendUserAuthentication(): BackendUserAuthentication
-    {
-        return $GLOBALS['BE_USER'];
     }
 
     protected function getLanguageService(): LanguageService

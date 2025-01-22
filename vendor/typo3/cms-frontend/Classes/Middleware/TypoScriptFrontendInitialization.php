@@ -21,94 +21,108 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use Psr\Log\LoggerInterface;
 use TYPO3\CMS\Core\Context\Context;
+use TYPO3\CMS\Core\Http\NormalizedParams;
 use TYPO3\CMS\Core\Routing\PageArguments;
-use TYPO3\CMS\Core\Site\Entity\Site;
-use TYPO3\CMS\Core\Type\Bitmask\Permission;
+use TYPO3\CMS\Core\TimeTracker\TimeTracker;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Frontend\Authentication\FrontendUserAuthentication;
+use TYPO3\CMS\Frontend\Aspect\PreviewAspect;
+use TYPO3\CMS\Frontend\Cache\CacheInstruction;
 use TYPO3\CMS\Frontend\Controller\ErrorController;
 use TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController;
 use TYPO3\CMS\Frontend\Page\PageAccessFailureReasons;
+use TYPO3\CMS\Frontend\Page\PageInformationCreationFailedException;
+use TYPO3\CMS\Frontend\Page\PageInformationFactory;
 
 /**
- * Creates an instance of TypoScriptFrontendController and makes this globally available
- * via $GLOBALS['TSFE'].
+ * Create and fill PageInformation object and attach as
+ * 'frontend.page.information' Request attribute.
  *
- * In addition, determineId builds up the rootline based on a valid frontend-user authentication and
- * Backend permissions if previewing.
+ * This middleware does all main access checks to the target page, resolves shortcut
+ * pages and languages and workspace overlays. When all goes well, it dispatches to
+ * other middleware below. In case of failed access checks or other errors, it returns
+ * an early response before dispatching to main page rendering below.
  *
- * @internal this middleware might get removed later.
+ * @internal
  */
-final class TypoScriptFrontendInitialization implements MiddlewareInterface
+final readonly class TypoScriptFrontendInitialization implements MiddlewareInterface
 {
     public function __construct(
-        private readonly Context $context
+        private Context $context,
+        private TimeTracker $timeTracker,
+        private PageInformationFactory $pageInformationFactory,
+        private LoggerInterface $logger,
+        private ErrorController $errorController,
     ) {}
 
-    /**
-     * Creates an instance of TSFE and sets it as a global variable.
-     */
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        $GLOBALS['TYPO3_REQUEST'] = $request;
-        /** @var Site $site */
-        $site = $request->getAttribute('site', null);
-        $pageArguments = $request->getAttribute('routing', null);
-        if (!$pageArguments instanceof PageArguments) {
-            // Page Arguments must be set in order to validate. This middleware only works if PageArguments
-            // is available, and is usually combined with the Page Resolver middleware
-            return GeneralUtility::makeInstance(ErrorController::class)->pageNotFoundAction(
-                $request,
-                'Page Arguments could not be resolved',
-                ['code' => PageAccessFailureReasons::INVALID_PAGE_ARGUMENTS]
-            );
+        // Make sure frontend.preview aspect is given from now on.
+        if (!$this->context->hasAspect('frontend.preview')) {
+            $this->context->setAspect('frontend.preview', new PreviewAspect());
         }
-        $frontendUser = $request->getAttribute('frontend.user');
-        if (!$frontendUser instanceof FrontendUserAuthentication) {
-            throw new \RuntimeException('The PSR-7 Request attribute "frontend.user" needs to be available as FrontendUserAuthentication object (as created by the FrontendUserAuthenticator middleware).', 1590740612);
-        }
-
-        $controller = GeneralUtility::makeInstance(
-            TypoScriptFrontendController::class,
-            $this->context,
-            $site,
-            $request->getAttribute('language', $site->getDefaultLanguage()),
-            $pageArguments,
-            $frontendUser
-        );
-        if ($pageArguments->getArguments()['no_cache'] ?? $request->getParsedBody()['no_cache'] ?? false) {
-            $controller->set_no_cache('&no_cache=1 has been supplied, so caching is disabled! URL: "' . (string)$request->getUri() . '"');
-        }
-        // Usually only set by the PageArgumentValidator
-        if ($request->getAttribute('noCache', false)) {
-            $controller->no_cache = true;
-        }
-        // If the frontend is showing a preview, caching MUST be disabled.
+        // Cache instruction attribute may have been set by previous middlewares.
+        $cacheInstruction = $request->getAttribute('frontend.cache.instruction', new CacheInstruction());
         if ($this->context->getPropertyFromAspect('frontend.preview', 'isPreview', false)) {
-            $controller->set_no_cache('Preview active', true);
+            // If the frontend is showing a preview, caching MUST be disabled.
+            $cacheInstruction->disableCache('EXT:frontend: Disabled cache due to enabled frontend.preview aspect isPreview.');
         }
-        $directResponse = $controller->determineId($request);
-        if ($directResponse) {
-            return $directResponse;
-        }
-        // Check if backend user has read access to this page.
-        if ($this->context->getPropertyFromAspect('backend.user', 'isLoggedIn', false)
-            && $this->context->getPropertyFromAspect('frontend.preview', 'isPreview', false)
-            && !$GLOBALS['BE_USER']->doesUserHaveAccess($controller->page, Permission::PAGE_SHOW)
+        // Make sure cache instruction attribute is always set from now on.
+        $request = $request->withAttribute('frontend.cache.instruction', $cacheInstruction);
+
+        if (!$request->getAttribute('routing') instanceof PageArguments
+            || !$request->getAttribute('normalizedParams') instanceof NormalizedParams
         ) {
-            return GeneralUtility::makeInstance(ErrorController::class)->accessDeniedAction(
-                $request,
-                'ID was not an accessible page',
-                $controller->getPageAccessFailureReasons(PageAccessFailureReasons::ACCESS_DENIED_PAGE_NOT_RESOLVED)
+            // Ensure some crucial attributes exist at this point.
+            throw new \RuntimeException(
+                'Request attribute "routing" or "normalizedParams" not found. Error in previous middleware.',
+                1703150865
             );
         }
 
+        try {
+            $this->timeTracker->push('Create PageInformation');
+            $pageInformation = $this->pageInformationFactory->create($request);
+        } catch (PageInformationCreationFailedException $exception) {
+            return $exception->getResponse();
+        } finally {
+            $this->timeTracker->pull();
+        }
+        $site = $request->getAttribute('site');
+        if (!$site->isTypoScriptRoot() && $pageInformation->getSysTemplateRows() === []) {
+            // Early exception if there is no typoscript definition in current site and no sys_template at all.
+            // @todo improve message?
+            $message = 'No TypoScript record found!';
+            $this->logger->error($message);
+            $response = $this->errorController->internalErrorAction(
+                $request,
+                $message,
+                ['code' => PageAccessFailureReasons::RENDERING_INSTRUCTIONS_NOT_FOUND]
+            );
+            throw new PageInformationCreationFailedException($response, 1705656657);
+        }
+        $request = $request->withAttribute('frontend.page.information', $pageInformation);
+
+        $controller = GeneralUtility::makeInstance(TypoScriptFrontendController::class);
+        $controller->initializePageRenderer($request);
+        $controller->initializeLanguageService($request);
+        $controller->id = $pageInformation->getId();
+        $controller->page = $pageInformation->getPageRecord();
+        $controller->contentPid = $pageInformation->getContentFromPid();
+        $controller->rootLine = $pageInformation->getRootLine();
+        $controller->config['rootLine'] = $pageInformation->getLocalRootLine();
+        // Update SYS_LASTCHANGED at the very last, when page record was finally resolved.
+        // Is also called when a translated page is in use, so the register reflects
+        // the state of the translated page, not the page in the default language.
+        $controller->register['SYS_LASTCHANGED'] = (int)$pageInformation->getPageRecord()['tstamp'];
+        if ($controller->register['SYS_LASTCHANGED'] < (int)$pageInformation->getPageRecord()['SYS_LASTCHANGED']) {
+            $controller->register['SYS_LASTCHANGED'] = (int)$pageInformation->getPageRecord()['SYS_LASTCHANGED'];
+        }
         $request = $request->withAttribute('frontend.controller', $controller);
-        // Make TSFE globally available
-        // @todo deprecate $GLOBALS['TSFE'] once TSFE is retrieved from the
-        //       PSR-7 request attribute frontend.controller throughout TYPO3 core
+        $GLOBALS['TYPO3_REQUEST'] = $request;
         $GLOBALS['TSFE'] = $controller;
+
         return $handler->handle($request);
     }
 }

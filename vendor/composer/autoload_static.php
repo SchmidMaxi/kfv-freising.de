@@ -11,8 +11,8 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         '0e6d7bf4a5811bfa5cf40c5ccd6fae6a' => __DIR__ . '/..' . '/symfony/polyfill-mbstring/bootstrap.php',
         'e69f7f6ee287b969198c3c9d6777bd38' => __DIR__ . '/..' . '/symfony/polyfill-intl-normalizer/bootstrap.php',
         '320cde22f66dd4f5d3fd621d3e88b98f' => __DIR__ . '/..' . '/symfony/polyfill-ctype/bootstrap.php',
-        'f598d06aa772fa33d905e87be6398fb1' => __DIR__ . '/..' . '/symfony/polyfill-intl-idn/bootstrap.php',
         '662a729f963d39afe703c9d9b7ab4a8c' => __DIR__ . '/..' . '/symfony/polyfill-php83/bootstrap.php',
+        'f598d06aa772fa33d905e87be6398fb1' => __DIR__ . '/..' . '/symfony/polyfill-intl-idn/bootstrap.php',
         '7b11c4dc42b3b3023073cb14e519683c' => __DIR__ . '/..' . '/ralouphie/getallheaders/src/getallheaders.php',
         '2203a247e6fda86070a5e4e07aed533a' => __DIR__ . '/..' . '/symfony/clock/Resources/now.php',
         '8825ede83f2f289127722d4e842cf7e8' => __DIR__ . '/..' . '/symfony/polyfill-intl-grapheme/bootstrap.php',
@@ -20,7 +20,6 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         '09f6b20656683369174dd6fa83b7e5fb' => __DIR__ . '/..' . '/symfony/polyfill-uuid/bootstrap.php',
         '37a3dc5111fe8f707ab4c132ef1dbc62' => __DIR__ . '/..' . '/guzzlehttp/guzzle/src/functions_include.php',
         '8a197a13b1f213f3a2178168511a1b5d' => __DIR__ . '/..' . '/typo3/cms-core/Resources/PHP/GlobalDebugFunctions.php',
-        '667aeda72477189d0494fecd327c3641' => __DIR__ . '/..' . '/symfony/var-dumper/Resources/functions/dump.php',
         '5b605db66a033b182db922f98a2a7f95' => __DIR__ . '/..' . '/typo3/alias-loader-include.php',
         '2c273be442ca0325e9f786d50b1e2e6b' => __DIR__ . '/..' . '/typo3/autoload-include.php',
     );
@@ -41,17 +40,16 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         'W' => 
         array (
             'Webmozart\\Assert\\' => 17,
+            'WapplerSystems\\WsScss\\' => 22,
         ),
         'T' => 
         array (
-            'Trion\\ScssCompiler\\' => 19,
             'TYPO3\\HtmlSanitizer\\' => 20,
             'TYPO3\\ClassAliasLoader\\' => 23,
             'TYPO3\\CMS\\Workspaces\\' => 21,
             'TYPO3\\CMS\\Webhooks\\' => 19,
             'TYPO3\\CMS\\Viewpage\\' => 19,
             'TYPO3\\CMS\\Tstemplate\\' => 21,
-            'TYPO3\\CMS\\T3editor\\' => 19,
             'TYPO3\\CMS\\SysNote\\' => 18,
             'TYPO3\\CMS\\Setup\\' => 16,
             'TYPO3\\CMS\\Seo\\' => 14,
@@ -100,7 +98,6 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
             'Symfony\\Contracts\\Cache\\' => 24,
             'Symfony\\Component\\Yaml\\' => 23,
             'Symfony\\Component\\VarExporter\\' => 30,
-            'Symfony\\Component\\VarDumper\\' => 28,
             'Symfony\\Component\\Uid\\' => 22,
             'Symfony\\Component\\TypeInfo\\' => 27,
             'Symfony\\Component\\String\\' => 25,
@@ -108,6 +105,7 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
             'Symfony\\Component\\RateLimiter\\' => 30,
             'Symfony\\Component\\PropertyInfo\\' => 31,
             'Symfony\\Component\\PropertyAccess\\' => 33,
+            'Symfony\\Component\\Process\\' => 26,
             'Symfony\\Component\\OptionsResolver\\' => 34,
             'Symfony\\Component\\Mime\\' => 23,
             'Symfony\\Component\\Messenger\\Bridge\\Doctrine\\' => 44,
@@ -124,6 +122,7 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
             'Symfony\\Component\\Clock\\' => 24,
             'Symfony\\Component\\Cache\\' => 24,
             'ScssPhp\\ScssPhp\\' => 16,
+            'Schmid\\KfvTemplate\\' => 19,
         ),
         'P' => 
         array (
@@ -140,7 +139,6 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         ),
         'M' => 
         array (
-            'MaxiSchmid\\KfvTemplate\\' => 23,
             'Masterminds\\' => 12,
         ),
         'G' => 
@@ -164,7 +162,6 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
             'Doctrine\\Deprecations\\' => 22,
             'Doctrine\\DBAL\\' => 14,
             'Doctrine\\Common\\Lexer\\' => 22,
-            'Doctrine\\Common\\Cache\\' => 22,
             'Doctrine\\Common\\Annotations\\' => 28,
             'Doctrine\\Common\\' => 16,
             'DASPRiD\\Enum\\' => 13,
@@ -195,9 +192,9 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         array (
             0 => __DIR__ . '/..' . '/webmozart/assert/src',
         ),
-        'Trion\\ScssCompiler\\' => 
+        'WapplerSystems\\WsScss\\' => 
         array (
-            0 => __DIR__ . '/..' . '/trion/scss-compiler/Classes',
+            0 => __DIR__ . '/..' . '/wapplersystems/ws-scss/Classes',
         ),
         'TYPO3\\HtmlSanitizer\\' => 
         array (
@@ -222,10 +219,6 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         'TYPO3\\CMS\\Tstemplate\\' => 
         array (
             0 => __DIR__ . '/..' . '/typo3/cms-tstemplate/Classes',
-        ),
-        'TYPO3\\CMS\\T3editor\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/typo3/cms-t3editor/Classes',
         ),
         'TYPO3\\CMS\\SysNote\\' => 
         array (
@@ -333,7 +326,7 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         ),
         'TYPO3\\CMS\\ContentBlocks\\' => 
         array (
-            0 => __DIR__ . '/..' . '/contentblocks/content-blocks/Classes',
+            0 => __DIR__ . '/..' . '/friendsoftypo3/content-blocks/Classes',
         ),
         'TYPO3\\CMS\\Composer\\' => 
         array (
@@ -407,10 +400,6 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         array (
             0 => __DIR__ . '/..' . '/symfony/var-exporter',
         ),
-        'Symfony\\Component\\VarDumper\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/symfony/var-dumper',
-        ),
         'Symfony\\Component\\Uid\\' => 
         array (
             0 => __DIR__ . '/..' . '/symfony/uid',
@@ -438,6 +427,10 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         'Symfony\\Component\\PropertyAccess\\' => 
         array (
             0 => __DIR__ . '/..' . '/symfony/property-access',
+        ),
+        'Symfony\\Component\\Process\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/symfony/process',
         ),
         'Symfony\\Component\\OptionsResolver\\' => 
         array (
@@ -503,6 +496,10 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         array (
             0 => __DIR__ . '/..' . '/scssphp/scssphp/src',
         ),
+        'Schmid\\KfvTemplate\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/schmid/kfv-template/Classes',
+        ),
         'Psr\\Log\\' => 
         array (
             0 => __DIR__ . '/..' . '/psr/log/src',
@@ -545,10 +542,6 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         array (
             0 => __DIR__ . '/..' . '/phpstan/phpdoc-parser/src',
         ),
-        'MaxiSchmid\\KfvTemplate\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/maxi-schmid/kfv-template/Classes',
-        ),
         'Masterminds\\' => 
         array (
             0 => __DIR__ . '/..' . '/masterminds/html5/src',
@@ -583,7 +576,7 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         ),
         'Doctrine\\Deprecations\\' => 
         array (
-            0 => __DIR__ . '/..' . '/doctrine/deprecations/lib/Doctrine/Deprecations',
+            0 => __DIR__ . '/..' . '/doctrine/deprecations/src',
         ),
         'Doctrine\\DBAL\\' => 
         array (
@@ -592,10 +585,6 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         'Doctrine\\Common\\Lexer\\' => 
         array (
             0 => __DIR__ . '/..' . '/doctrine/lexer/src',
-        ),
-        'Doctrine\\Common\\Cache\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/doctrine/cache/lib/Doctrine/Common/Cache',
         ),
         'Doctrine\\Common\\Annotations\\' => 
         array (
@@ -620,7 +609,6 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
     );
 
     public static $classMap = array (
-        'Composer\\Autoload\\ClassMapGenerator' => __DIR__ . '/..' . '/typo3/cms-core/Resources/PHP/ClassMapGenerator.php',
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
         'DateError' => __DIR__ . '/..' . '/symfony/polyfill-php83/Resources/stubs/DateError.php',
         'DateException' => __DIR__ . '/..' . '/symfony/polyfill-php83/Resources/stubs/DateException.php',

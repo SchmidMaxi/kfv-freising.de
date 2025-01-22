@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -15,40 +17,62 @@
 
 namespace TYPO3\CMS\Core\Resource\Processing;
 
+use TYPO3\CMS\Core\Utility\GeneralUtility;
+
 /**
  * A task that takes care of cropping, scaling and/or masking an image.
  */
-class ImageCropScaleMaskTask extends AbstractGraphicalTask
+class ImageCropScaleMaskTask extends AbstractTask
 {
-    /**
-     * @var string
-     */
-    protected $type = 'Image';
+    protected ?string $targetFileExtension;
 
-    /**
-     * @var string
-     */
-    protected $name = 'CropScaleMask';
-
-    /**
-     * @return string
-     */
-    public function getTargetFileName()
+    public function getType(): string
     {
-        return 'csm_' . parent::getTargetFilename();
+        return 'Image';
+    }
+
+    public function getName(): string
+    {
+        return 'CropScaleMask';
     }
 
     /**
-     * Checks if the given configuration is sensible for this task, i.e. if all required parameters
-     * are given, within the boundaries and don't conflict with each other.
+     * Determines the file extension the processed file
+     * should have in the filesystem.
      */
-    protected function isValidConfiguration(array $configuration): bool
+    public function getTargetFileExtension(): string
     {
-        return true;
+        if (!isset($this->targetFileExtension)) {
+            $this->targetFileExtension = $this->determineTargetFileExtension();
+        }
+        return $this->targetFileExtension;
     }
 
-    public function fileNeedsProcessing(): bool
+    /**
+     * Gets the file extension the processed file should
+     * have in the filesystem by either using the configuration
+     * setting, or the extension of the original file.
+     */
+    protected function determineTargetFileExtension(): string
     {
-        return false;
+        if (!empty($this->configuration['fileExtension'])) {
+            $targetFileExtension = $this->configuration['fileExtension'];
+        } elseif (in_array($this->getSourceFile()->getExtension(), ['jpg', 'jpeg', 'png', 'gif', 'svg'], true)) {
+            $targetFileExtension = $this->getSourceFile()->getExtension();
+        } elseif ($this->getSourceFile()->getExtension() === 'webp' && GeneralUtility::inList($GLOBALS['TYPO3_CONF_VARS']['GFX']['imagefile_ext'] ?? '', 'webp')) {
+            $targetFileExtension = $this->getSourceFile()->getExtension();
+        } else {
+            // Thumbnails from non-processable files will be converted to 'png'
+            $targetFileExtension = 'png';
+        }
+        return $targetFileExtension;
+    }
+
+    public function getTargetFileName(): string
+    {
+        return 'csm_'
+            . $this->getSourceFile()->getNameWithoutExtension()
+            . '_' . $this->getConfigurationChecksum()
+            . '.' . $this->getTargetFileExtension();
     }
 }

@@ -19,6 +19,9 @@ namespace TYPO3\CMS\Backend\Controller;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Backend\Attribute\AsController;
+use TYPO3\CMS\Backend\Dto\Tree\SelectTreeItem;
+use TYPO3\CMS\Backend\Dto\Tree\TreeItem;
 use TYPO3\CMS\Backend\Form\FormDataCompiler;
 use TYPO3\CMS\Backend\Form\FormDataGroup\TcaSelectTreeAjaxFieldData;
 use TYPO3\CMS\Core\Configuration\FlexForm\FlexFormTools;
@@ -28,8 +31,14 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 /**
  * Backend controller for selectTree ajax operations
  */
+#[AsController]
 class FormSelectTreeAjaxController
 {
+    public function __construct(
+        private readonly FormDataCompiler $formDataCompiler,
+        private readonly FlexFormTools $flexFormTools,
+    ) {}
+
     /**
      * Returns json representing category tree
      *
@@ -81,8 +90,7 @@ class FormSelectTreeAjaxController
             $flexFormContainerFieldName = $request->getQueryParams()['flexFormContainerFieldName'];
             $flexFormSectionContainerIsNew = (bool)$request->getQueryParams()['flexFormSectionContainerIsNew'];
 
-            $flexFormTools = GeneralUtility::makeInstance(FlexFormTools::class);
-            $dataStructure = $flexFormTools->parseDataStructureByIdentifier($dataStructureIdentifier);
+            $dataStructure = $this->flexFormTools->parseDataStructureByIdentifier($dataStructureIdentifier);
 
             // Reduce given data structure down to the relevant element only
             if (empty($flexFormContainerFieldName)) {
@@ -151,7 +159,6 @@ class FormSelectTreeAjaxController
             $processedTca['columns'][$fieldName]['config']['dataStructureIdentifier'] = $dataStructureIdentifier;
         }
 
-        $formDataCompiler = GeneralUtility::makeInstance(FormDataCompiler::class);
         $formDataCompilerInput = [
             'request' => $request,
             'tableName' => $tableName,
@@ -168,7 +175,7 @@ class FormSelectTreeAjaxController
         if (!empty($request->getQueryParams()['defaultValues'])) {
             $formDataCompilerInput['defaultValues'] = json_decode($request->getQueryParams()['defaultValues'], true);
         }
-        $formData = $formDataCompiler->compile($formDataCompilerInput, GeneralUtility::makeInstance(TcaSelectTreeAjaxFieldData::class));
+        $formData = $this->formDataCompiler->compile($formDataCompilerInput, GeneralUtility::makeInstance(TcaSelectTreeAjaxFieldData::class));
 
         if ($formData['processedTca']['columns'][$fieldName]['config']['type'] === 'flex') {
             if (empty($flexFormContainerFieldName)) {
@@ -185,6 +192,32 @@ class FormSelectTreeAjaxController
         } else {
             $treeData = $formData['processedTca']['columns'][$fieldName]['config']['items'];
         }
-        return new JsonResponse($treeData ?? []);
+
+        $data = [];
+        foreach ($treeData ?? [] as $item) {
+            $treeItem = new SelectTreeItem(
+                item: new TreeItem(
+                    identifier: (string)$item['identifier'],
+                    parentIdentifier: (string)($item['parentIdentifier'] ?? ''),
+                    recordType: (string)($item['recordType'] ?? ''),
+                    name: (string)($item['name'] ?? ''),
+                    prefix: (string)($item['prefix'] ?? ''),
+                    suffix: (string)($item['suffix'] ?? ''),
+                    tooltip: (string)($item['tooltip'] ?? ''),
+                    depth: (int)($item['depth'] ?? 0),
+                    hasChildren: (bool)($item['hasChildren'] ?? false),
+                    loaded: true,
+                    icon: (string)($item['icon'] ?? ''),
+                    overlayIcon: (string)($item['overlayIcon'] ?? ''),
+                    statusInformation: (array)($item['statusInformation'] ?? []),
+                    labels: (array)($item['labels'] ?? []),
+                ),
+                checked: (bool)($item['checked'] ?? false),
+                selectable: (bool)($item['selectable'] ?? false),
+            );
+            $data[] = $treeItem;
+        }
+
+        return new JsonResponse($data);
     }
 }

@@ -19,12 +19,18 @@ namespace TYPO3\CMS\Core\Package;
 
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerAwareInterface;
+use Symfony\Component\Finder\Finder;
 use TYPO3\CMS\Core\DependencyInjection\ServiceProviderInterface;
 use TYPO3\CMS\Core\Log\LogManager;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\MutationCollection;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\MutationOrigin;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\MutationOriginType;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Scope;
+use TYPO3\CMS\Core\Site\Set\InvalidSettingsDefinitionsException;
+use TYPO3\CMS\Core\Site\Set\InvalidSettingsException;
+use TYPO3\CMS\Core\Site\Set\SetCollector;
+use TYPO3\CMS\Core\Site\Set\SetError;
+use TYPO3\CMS\Core\Site\Set\YamlSetDefinitionProvider;
 use TYPO3\CMS\Core\Type\Map;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -54,11 +60,10 @@ abstract class AbstractServiceProvider implements ServiceProviderInterface
         return [
             'middlewares' => [ static::class, 'configureMiddlewares' ],
             'backend.routes' => [ static::class, 'configureBackendRoutes' ],
-            // @deprecated since v12, will be removed with v13 together with class PageTsConfigLoader.
-            'globalPageTsConfig' => [ static::class, 'configureGlobalPageTsConfig' ],
             'backend.modules' => [ static::class, 'configureBackendModules' ],
             'content.security.policies' => [ static::class, 'configureContentSecurityPolicies' ],
             'icons' => [ static::class, 'configureIcons' ],
+            SetCollector::class => [ static::class, 'configureSetCollector' ],
         ];
     }
 
@@ -90,7 +95,7 @@ abstract class AbstractServiceProvider implements ServiceProviderInterface
         if (file_exists($routesFileNameForPackage)) {
             $definedRoutesInPackage = self::requireFile($routesFileNameForPackage);
             if (is_array($definedRoutesInPackage)) {
-                array_walk($definedRoutesInPackage, static function (&$options) use ($packageName, $path) {
+                array_walk($definedRoutesInPackage, static function (array &$options) use ($packageName, $path): void {
                     // Add packageName and absolutePackagePath to all routes
                     $options['packageName'] = $packageName;
                     $options['absolutePackagePath'] = $path;
@@ -117,27 +122,6 @@ abstract class AbstractServiceProvider implements ServiceProviderInterface
     }
 
     /**
-     * @deprecated since v12, will be removed with v13 together with class PageTsConfigLoader.
-     */
-    public static function configureGlobalPageTsConfig(ContainerInterface $container, \ArrayObject $tsConfigFiles, ?string $path = null): \ArrayObject
-    {
-        $path = $path ?? static::getPackagePath();
-        $tsConfigFile = null;
-        if (file_exists($path . 'Configuration/page.tsconfig')) {
-            $tsConfigFile = $path . 'Configuration/page.tsconfig';
-        } elseif (file_exists($path . 'Configuration/Page.tsconfig')) {
-            $tsConfigFile = $path . 'Configuration/Page.tsconfig';
-        }
-        if ($tsConfigFile) {
-            $tsConfigContents = @file_get_contents($tsConfigFile);
-            if (!empty($tsConfigContents)) {
-                $tsConfigFiles->exchangeArray(array_merge($tsConfigFiles->getArrayCopy(), [$tsConfigContents]));
-            }
-        }
-        return $tsConfigFiles;
-    }
-
-    /**
      * @param string|null $path supplied when invoked internally through PseudoServiceProvider
      * @param string|null $packageName supplied when invoked internally through PseudoServiceProvider
      */
@@ -149,7 +133,7 @@ abstract class AbstractServiceProvider implements ServiceProviderInterface
         if (file_exists($modulesFileNameForPackage)) {
             $definedModulesInPackage = self::requireFile($modulesFileNameForPackage);
             if (is_array($definedModulesInPackage)) {
-                array_walk($definedModulesInPackage, static function (&$module) use ($packageName, $path) {
+                array_walk($definedModulesInPackage, static function (array &$module) use ($packageName, $path): void {
                     // Add packageName and absolutePackagePath to all modules
                     $module['packageName'] = $packageName;
                     $module['absolutePackagePath'] = $path;
@@ -194,6 +178,63 @@ abstract class AbstractServiceProvider implements ServiceProviderInterface
             }
         }
         return $icons;
+    }
+
+    public static function configureSetCollector(ContainerInterface $container, SetCollector $setCollector, ?string $path = null): SetCollector
+    {
+        $path = $path ?? static::getPackagePath();
+        $setPath = $path . 'Configuration/Sets';
+
+        try {
+            $finder = Finder::create()
+                ->files()
+                ->sortByName()
+                ->depth(1)
+                ->name('config.yaml')
+                ->in($setPath);
+        } catch (\InvalidArgumentException) {
+            // No such directory in this package
+            return $setCollector;
+        }
+
+        $setProvider = $container->get(YamlSetDefinitionProvider::class);
+        foreach ($finder as $fileInfo) {
+            try {
+                $setCollector->add($setProvider->get($fileInfo));
+            } catch (InvalidSettingsDefinitionsException $e) {
+                $setCollector->addError(
+                    SetError::invalidSettingsDefinitions,
+                    $e->getSetName(),
+                    $e->getMessage(),
+                );
+                $logger = $container->get(LogManager::class)->getLogger(self::class);
+                $logger->error('Set {setName} invalidated {file} because of invalid settings.definitions.yaml: {reason}', [
+                    'file' => $fileInfo->getPathname(),
+                    'reason' => $e->getMessage(),
+                    'setName' => $e->getSetName(),
+                ]);
+            } catch (InvalidSettingsException $e) {
+                $setCollector->addError(
+                    SetError::invalidSettings,
+                    $e->getSetName(),
+                    $e->getMessage(),
+                );
+                $logger = $container->get(LogManager::class)->getLogger(self::class);
+                $logger->error('Set {setName} invalidated {file} because of invalid settings.yaml: {reason}', [
+                    'file' => $fileInfo->getPathname(),
+                    'reason' => $e->getMessage(),
+                    'setName' => $e->getSetName(),
+                ]);
+            } catch (\RuntimeException $e) {
+                $logger = $container->get(LogManager::class)->getLogger(self::class);
+                $logger->error('Invalid set in {file}: {reason}', [
+                    'file' => $fileInfo->getPathname(),
+                    'reason' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $setCollector;
     }
 
     /**

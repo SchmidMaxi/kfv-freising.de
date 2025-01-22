@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Redirects\Command;
 
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -26,23 +27,17 @@ use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
 use TYPO3\CMS\Redirects\Repository\Demand;
 use TYPO3\CMS\Redirects\Repository\RedirectRepository;
 
+#[AsCommand('redirects:cleanup', 'Cleanup old redirects periodically for given constraints like days, hit count or domains.')]
 class CleanupRedirectsCommand extends Command
 {
-    /**
-     * @var RedirectRepository
-     */
-    protected $redirectRepository;
+    protected LanguageService $languageService;
 
-    /**
-     * @var LanguageService
-     */
-    protected $languageService;
-
-    public function __construct(RedirectRepository $redirectRepository, LanguageServiceFactory $languageServiceFactory)
-    {
-        $this->redirectRepository = $redirectRepository;
+    public function __construct(
+        protected readonly RedirectRepository $redirectRepository,
+        protected readonly LanguageServiceFactory $languageServiceFactory
+    ) {
         $this->languageService = $languageServiceFactory->create('default');
-        parent::__construct(null);
+        parent::__construct();
     }
 
     protected function configure(): void
@@ -88,6 +83,13 @@ class CleanupRedirectsCommand extends Command
                 't',
                 InputOption::VALUE_OPTIONAL,
                 $this->languageService->sL('LLL:EXT:redirects/Resources/Private/Language/locallang.xlf:cleanupRedirectsCommand.label.creationType'),
+                null
+            )
+            ->addOption(
+                'integrityStatus',
+                'i',
+                InputOption::VALUE_OPTIONAL,
+                $this->languageService->sL('LLL:EXT:redirects/Resources/Private/Language/locallang.xlf:cleanupRedirectsCommand.label.integrityStatus'),
                 null
             )
         ;

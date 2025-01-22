@@ -17,7 +17,6 @@
       <path value="$PROJECT_DIR$/vendor/doctrine/dbal" />
       <path value="$PROJECT_DIR$/vendor/doctrine/lexer" />
       <path value="$PROJECT_DIR$/vendor/doctrine/event-manager" />
-      <path value="$PROJECT_DIR$/vendor/doctrine/cache" />
       <path value="$PROJECT_DIR$/vendor/doctrine/instantiator" />
       <path value="$PROJECT_DIR$/vendor/firebase/php-jwt" />
       <path value="$PROJECT_DIR$/vendor/enshrined/svg-sanitize" />
@@ -72,7 +71,6 @@
       <path value="$PROJECT_DIR$/vendor/typo3/cms-tstemplate" />
       <path value="$PROJECT_DIR$/vendor/typo3/class-alias-loader" />
       <path value="$PROJECT_DIR$/vendor/typo3/cms-setup" />
-      <path value="$PROJECT_DIR$/vendor/typo3/cms-t3editor" />
       <path value="$PROJECT_DIR$/vendor/typo3/cms-dashboard" />
       <path value="$PROJECT_DIR$/vendor/typo3/cms-form" />
       <path value="$PROJECT_DIR$/vendor/typo3/cms-composer-installers" />
@@ -99,7 +97,6 @@
       <path value="$PROJECT_DIR$/vendor/symfony/var-exporter" />
       <path value="$PROJECT_DIR$/vendor/symfony/expression-language" />
       <path value="$PROJECT_DIR$/vendor/symfony/polyfill-php83" />
-      <path value="$PROJECT_DIR$/vendor/symfony/var-dumper" />
       <path value="$PROJECT_DIR$/vendor/symfony/doctrine-messenger" />
       <path value="$PROJECT_DIR$/vendor/symfony/type-info" />
       <path value="$PROJECT_DIR$/vendor/symfony/mime" />
@@ -128,7 +125,10 @@
       <path value="$PROJECT_DIR$/vendor/symfony/polyfill-mbstring" />
       <path value="$PROJECT_DIR$/vendor/symfony/filesystem" />
       <path value="$PROJECT_DIR$/vendor/georgringer/news" />
-      <path value="$PROJECT_DIR$/vendor/contentblocks/content-blocks" />
+      <path value="$PROJECT_DIR$/vendor/symfony/process" />
+      <path value="$PROJECT_DIR$/vendor/wapplersystems/ws-scss" />
+      <path value="$PROJECT_DIR$/vendor/friendsoftypo3/content-blocks" />
+      <path value="$PROJECT_DIR$/vendor/schmid/kfv-template" />
     </include_path>
   </component>
   <component name="PhpProjectSharedConfiguration" php_language_level="8.2">

@@ -17,22 +17,16 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Backend\Form\Element;
 
-use TYPO3\CMS\Backend\Form\NodeFactory;
-use TYPO3\CMS\Core\Imaging\Icon;
+use TYPO3\CMS\Core\Imaging\IconFactory;
 use TYPO3\CMS\Core\Imaging\IconRegistry;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Utility\StringUtility;
 
 /**
- * Generation of TCEform elements of the type "check"
+ * Render elements of type="check".
  */
 class CheckboxElement extends AbstractFormElement
 {
-    /**
-     * @var IconRegistry
-     */
-    private $iconRegistry;
-
     /**
      * Default field information enabled for this element.
      *
@@ -67,11 +61,10 @@ class CheckboxElement extends AbstractFormElement
         ],
     ];
 
-    public function __construct(NodeFactory $nodeFactory, array $data)
-    {
-        parent::__construct($nodeFactory, $data);
-        $this->iconRegistry = GeneralUtility::makeInstance(IconRegistry::class);
-    }
+    public function __construct(
+        private readonly IconFactory $iconFactory,
+        private readonly IconRegistry $iconRegistry,
+    ) {}
 
     /**
      * This will render a checkbox or an array of checkboxes
@@ -81,8 +74,6 @@ class CheckboxElement extends AbstractFormElement
     public function render(): array
     {
         $resultArray = $this->initializeResultArray();
-        // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-        $resultArray['labelHasBeenHandled'] = true;
 
         $elementHtml = '';
         $disabled = false;
@@ -142,11 +133,11 @@ class CheckboxElement extends AbstractFormElement
         $html[] = '<div class="formengine-field-item t3js-formengine-field-item">';
         $html[] = $fieldInformationHtml;
         $html[] =   '<div class="form-wizards-wrap">';
-        $html[] =       '<div class="form-wizards-element">';
+        $html[] =       '<div class="form-wizards-item-element">';
         $html[] =           $elementHtml;
         $html[] =       '</div>';
         if (!$disabled && !empty($fieldWizardHtml)) {
-            $html[] =   '<div class="form-wizards-items-bottom">';
+            $html[] =   '<div class="form-wizards-item-bottom">';
             $html[] =       $fieldWizardHtml;
             $html[] =   '</div>';
         }
@@ -181,8 +172,7 @@ class CheckboxElement extends AbstractFormElement
             $additionalInformation['fieldChangeFunc'] ?? [],
             $invert
         );
-        $uniqueId = StringUtility::getUniqueId('_');
-        $checkboxId = $additionalInformation['itemFormElID'] . '_' . $itemCounter . $uniqueId;
+        $checkboxId = htmlspecialchars(StringUtility::getUniqueId('formengine-check-') . '-' . $itemCounter);
 
         $iconIdentifierChecked = !empty($config['items'][$itemCounter]['iconIdentifierChecked']) ? $config['items'][$itemCounter]['iconIdentifierChecked'] : 'actions-check';
         if (!$this->iconRegistry->isRegistered($iconIdentifierChecked)) {
@@ -192,8 +182,8 @@ class CheckboxElement extends AbstractFormElement
         if (!$this->iconRegistry->isRegistered($iconIdentifierUnchecked)) {
             $iconIdentifierUnchecked = 'empty-empty';
         }
-        $iconChecked = $this->iconFactory->getIcon($iconIdentifierChecked, Icon::SIZE_SMALL)->render('inline');
-        $iconUnchecked = $this->iconFactory->getIcon($iconIdentifierUnchecked, Icon::SIZE_SMALL)->render('inline');
+        $iconChecked = $this->iconFactory->getIcon($iconIdentifierChecked, IconSize::SMALL)->render('inline');
+        $iconUnchecked = $this->iconFactory->getIcon($iconIdentifierUnchecked, IconSize::SMALL)->render('inline');
 
         return '
             <div class="form-check form-check-type-icon-toggle' . ($inline ? ' form-check-inline' : '') . (!$disabled ? '' : ' disabled') . '">

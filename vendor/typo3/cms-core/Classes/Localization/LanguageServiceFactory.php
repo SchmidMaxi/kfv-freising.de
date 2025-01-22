@@ -23,19 +23,11 @@ use TYPO3\CMS\Core\Site\Entity\SiteLanguage;
 
 class LanguageServiceFactory
 {
-    protected Locales $locales;
-    protected LocalizationFactory $localizationFactory;
-    protected FrontendInterface $runtimeCache;
-
     public function __construct(
-        Locales $locales,
-        LocalizationFactory $localizationFactory,
-        FrontendInterface $runtimeCache
-    ) {
-        $this->locales = $locales;
-        $this->localizationFactory = $localizationFactory;
-        $this->runtimeCache = $runtimeCache;
-    }
+        protected readonly Locales $locales,
+        protected readonly LocalizationFactory $localizationFactory,
+        protected readonly FrontendInterface $runtimeCache
+    ) {}
 
     /**
      * Factory method to create a language service object.
@@ -59,10 +51,6 @@ class LanguageServiceFactory
         // createLocale from a string takes care of resolving the automatic dependencies of e.g. "de_AT" to also check for "de"
         // and also validates if TYPO3 supports the original language (at least in TYPO3 v12, there is a fixed list of
         // allowed language keys)
-        $languageService = $this->create((string)$language->getLocale());
-        // Always disable debugging for frontend
-        // @deprecated since TYPO3 v12.4. will be removed in TYPO3 v13.0. Remove together with code in LanguageService
-        $languageService->debugKey = false;
-        return $languageService;
+        return $this->create((string)$language->getLocale());
     }
 }

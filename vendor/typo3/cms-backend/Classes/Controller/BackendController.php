@@ -45,6 +45,7 @@ use TYPO3\CMS\Core\Messaging\FlashMessageQueue;
 use TYPO3\CMS\Core\Messaging\FlashMessageService;
 use TYPO3\CMS\Core\Page\JavaScriptModuleInstruction;
 use TYPO3\CMS\Core\Page\PageRenderer;
+use TYPO3\CMS\Core\Routing\BackendEntryPointResolver;
 use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
 use TYPO3\CMS\Core\Type\File\ImageInfo;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -76,6 +77,7 @@ class BackendController
         protected readonly BackendViewFactory $viewFactory,
         protected readonly EventDispatcherInterface $eventDispatcher,
         protected readonly FlashMessageService $flashMessageService,
+        protected readonly BackendEntryPointResolver $backendEntryPointResolver,
     ) {
         $this->modules = $this->moduleProvider->getModulesForModuleMenu($this->getBackendUser());
     }
@@ -108,6 +110,12 @@ class BackendController
         );
         $javaScriptRenderer->addJavaScriptModuleInstruction(
             JavaScriptModuleInstruction::create('@typo3/backend/broadcast-service.js')->invoke('listen')
+        );
+        $javaScriptRenderer->addJavaScriptModuleInstruction(
+            JavaScriptModuleInstruction::create('@typo3/backend/hotkeys.js')
+        );
+        $javaScriptRenderer->addJavaScriptModuleInstruction(
+            JavaScriptModuleInstruction::create('@typo3/backend/user-settings-manager.js')
         );
         // load the storage API and fill the UC into the PersistentStorage, so no additional AJAX call is needed
         $javaScriptRenderer->addJavaScriptModuleInstruction(
@@ -146,7 +154,7 @@ class BackendController
         $formatter = new DateFormatter();
         $dateFormat = [];
         $dateFormat[0] = $formatter->convertPhpFormatToLuxon($GLOBALS['TYPO3_CONF_VARS']['SYS']['ddmmyy'] ?? 'Y-m-d');
-        $dateFormat[1] = $formatter->convertPhpFormatToLuxon($GLOBALS['TYPO3_CONF_VARS']['SYS']['hhmm'] ?? 'H:i') . ' ' . $dateFormat[0];
+        $dateFormat[1] = $dateFormat[0] . ' ' . $formatter->convertPhpFormatToLuxon($GLOBALS['TYPO3_CONF_VARS']['SYS']['hhmm'] ?? 'H:i');
         $pageRenderer->addInlineSetting('DateTimePicker', 'DateFormat', $dateFormat);
 
         $typo3Version = 'TYPO3 CMS ' . $this->typo3Version->getVersion();
@@ -160,6 +168,10 @@ class BackendController
             'modulesCollapsed' => $this->getCollapseStateOfMenu(),
             'modulesInformation' => GeneralUtility::jsonEncodeForHtmlAttribute($this->getModulesInformation(), false),
             'startupModule' => $this->getStartupModule($request),
+            'entryPoint' => $this->backendEntryPointResolver->getPathFromRequest($request),
+            // /typo3/install.php is currently physically and statically installed to typo3/install.php
+            // so we must not use BackendEntryPointResolver which is targeted towards virtual backend paths.
+            'installToolPath' => $request->getAttribute('normalizedParams')->getSitePath() . 'typo3/install.php',
             'stateTracker' => (string)$this->uriBuilder->buildUriFromRoute('state-tracker'),
             'sitename' => $title,
             'sitenameFirstInBackendTitle' => ($backendUser->uc['backendTitleFormat'] ?? '') === 'sitenameFirst',
@@ -242,14 +254,14 @@ class BackendController
      */
     protected function getToolbarItems(ServerRequestInterface $request): array
     {
-        return array_map(static function (ToolbarItemInterface $toolbarItem) use ($request) {
+        return array_map(static function (ToolbarItemInterface $toolbarItem) use ($request): ToolbarItemInterface {
             if ($toolbarItem instanceof RequestAwareToolbarItemInterface) {
                 $toolbarItem->setRequest($request);
             }
             return $toolbarItem;
         }, array_filter(
             $this->toolbarItemsRegistry->getToolbarItems(),
-            static fn(ToolbarItemInterface $toolbarItem) => $toolbarItem->checkAccess()
+            static fn(ToolbarItemInterface $toolbarItem): bool => $toolbarItem->checkAccess()
         ));
     }
 
@@ -268,8 +280,8 @@ class BackendController
                 // Only redirect to existing non-ajax routes with no restriction to a specific method
                 $router = GeneralUtility::makeInstance(Router::class);
                 $redirect->resolve($router);
-                $module = $router->getRoute($redirect->getName())->getOption('module');
-                if ($this->isSpecialNoModuleRoute($redirect->getName())
+                $module = $router->getRoute($redirect->getName())?->getOption('module');
+                if ($module instanceof ModuleInterface === false
                     || $this->moduleProvider->accessGranted($module->getIdentifier(), $this->getBackendUser())
                 ) {
                     // Only add start module from request in case user has access or it's a no module route,
@@ -381,14 +393,6 @@ class BackendController
                     true
                 )
             );
-    }
-
-    /**
-     * Check if given route identifier is a special "no module" route
-     */
-    protected function isSpecialNoModuleRoute(string $routeIdentifier): bool
-    {
-        return in_array($routeIdentifier, ['record_edit', 'file_edit'], true);
     }
 
     protected function getBackendUser(): BackendUserAuthentication

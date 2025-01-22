@@ -16,6 +16,7 @@
 namespace TYPO3\CMS\Backend\Template\Components\Buttons\DropDown;
 
 use TYPO3\CMS\Core\Imaging\Icon;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 abstract class AbstractDropDownItem implements \Stringable
@@ -29,7 +30,7 @@ abstract class AbstractDropDownItem implements \Stringable
     protected bool $active = false;
     public function setTag(string $tag): self
     {
-        $this->$tag = htmlspecialchars(trim($tag));
+        $this->tag = htmlspecialchars(trim($tag));
         return $this;
     }
 
@@ -45,7 +46,7 @@ abstract class AbstractDropDownItem implements \Stringable
 
     public function setIcon(?Icon $icon): self
     {
-        $icon?->setSize(Icon::SIZE_SMALL);
+        $icon?->setSize(IconSize::SMALL);
         $this->icon = $icon;
         return $this;
     }
@@ -89,6 +90,16 @@ abstract class AbstractDropDownItem implements \Stringable
     public function setAttributes(array $attributes): self
     {
         $this->attributes = $attributes;
+        return $this;
+    }
+
+    /**
+     * @param string $name
+     * @param string $value
+     */
+    public function setAttribute(string $name, string $value): self
+    {
+        $this->attributes[$name] = $value;
         return $this;
     }
 

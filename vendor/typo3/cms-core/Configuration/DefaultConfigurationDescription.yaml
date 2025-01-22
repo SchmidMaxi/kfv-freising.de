@@ -5,21 +5,9 @@ GFX:
         thumbnails:
             type: bool
             description: 'Enables the use of thumbnails in the backend interface.'
-        thumbnails_png:
-            type: bool
-            description: 'If disabled, thumbnails from non-image files will be converted to ''gif'', otherwise ''png'' (default).'
-        gif_compress:
-            type: bool
-            description: 'Enables the use of the <code>\TYPO3\CMS\Core\Imaging\GraphicalFunctions::gifCompress()</code> workaround function for compressing .gif files made with GD or IM, which probably use only RLE or no compression at all.'
         imagefile_ext:
             type: list
             description: 'Commalist of file extensions perceived as images by TYPO3. List should be set to ''gif,png,jpeg,jpg'' if IM is not available. Lowercase and no spaces between!'
-        gdlib:
-            type: bool
-            description: 'Enables the use of GD.'
-        gdlib_png:
-            type: bool
-            description: 'Enables the use of GD, with PNG only. This means that all items normally generated as gif-files will be png-files instead!'
         processor_enabled:
             type: bool
             description: 'Enables the use of Image- or GraphicsMagick.'
@@ -42,9 +30,6 @@ GFX:
         processor_allowFrameSelection:
             type: bool
             description: 'If set, the [x] frame selector is appended to input filenames in stdgraphic. This speeds up image processing for PDF files considerably. Disable if your image processor or environment can''t cope with the frame selection.'
-        processor_allowTemporaryMasksAsPng:
-            type: bool
-            description: 'This should be set if your processor supports using PNGs as masks as this is usually faster.'
         processor_stripColorProfileByDefault:
             type: bool
             description: 'If set, the processor_stripColorProfileParameters is used with all processor image operations by default. See tsRef for setting this parameter explicitly for IMAGE generation.'
@@ -53,13 +38,19 @@ GFX:
             description: 'Comma separated list of parameters: Specify the parameters to strip the profile information, which can reduce thumbnail size up to 60KB. Command can differ in IM/GM, IM also know the -strip command. See <a href="http://www.imagemagick.org/Usage/thumbnails/#profiles" target="_blank" rel="noreferrer">imagemagick.org</a> for details'
         processor_colorspace:
             type: text
-            description: 'String: Specify the colorspace to use. Some ImageMagick versions (like 6.7.0 and above) use the sRGB colorspace, so all images are darker then the original. <br />Possible Values: CMY, CMYK, Gray, HCL, HSB, HSL, HWB, Lab, LCH, LMS, Log, Luv, OHTA, Rec601Luma, Rec601YCbCr, Rec709Luma, Rec709YCbCr, RGB, sRGB, Transparent, XYZ, YCbCr, YCC, YIQ, YCbCr, YUV'
+            description: 'String: Specify the colorspace to use. Defaults to "RGB" when using GraphicsMagick as processor and "sRGB" when using ImageMagick. Images would be rendered darker than the original when using ImageMagick in combination with "RGB". <br />Possible Values: CMY, CMYK, Gray, HCL, HSB, HSL, HWB, Lab, LCH, LMS, Log, Luv, OHTA, Rec601Luma, Rec601YCbCr, Rec709Luma, Rec709YCbCr, RGB, sRGB, Transparent, XYZ, YCbCr, YCC, YIQ, YCbCr, YUV'
         processor_interlace:
             type: text
             description: 'String: Specify the interlace option to use. The result differs in different GM / IM versions. See manual of GraphicsMagick or ImageMagick for right option. <br />Possible values: None, Line, Plane, Partition'
         jpg_quality:
             type: int
             description: 'Integer: Default JPEG generation quality'
+        webp_quality:
+            type: int
+            description: 'Integer: Default WebP generation quality'
+        avif_quality:
+            type: int
+            description: 'Integer: Default AVIF generation quality'
 SYS:
     type: container
     description: 'System'
@@ -174,6 +165,9 @@ SYS:
         belogErrorReporting:
             type: errors
             description: 'Configures which PHP errors should be logged to the "syslog" database table (extension: belog). If set to "0" no PHP errors are logged to the sys_log table. Default is 30711 = <code>E_ALL & ~(E_STRICT | E_NOTICE)</code> (see <a href="https://php.net/manual/en/errorfunc.constants.php" target="_blank" rel="noreferrer">PHP documentation</a>).'
+        allowedPhpDisableFunctions:
+          type: array
+          description: 'A list of function names, which will not trigger an error but only a warning, if they can be found in your php.ini setting "disable_functions".'
         generateApacheHtaccess:
             type: bool
             description: 'TYPO3 can create <em>.htaccess</em> files which are used by Apache Webserver. They are useful for access protection or performance improvements. Currently <em>.htaccess</em> files in the following directories are created, if they do not exist: <ul><li>typo3temp/compressor/</li></ul>You want to disable this feature, if you are not running Apache or want to use own rulesets.'
@@ -191,6 +185,9 @@ SYS:
             type: container
             description: 'New features of TYPO3 that are activated on new installations but upgrading installations can still use the old behaviour'
             items:
+              frontend.cache.autoTagging:
+                type: bool
+                description: 'If on, frontend caches are automatically tagged to identify used records, and affected caches will be evicted when changing records.'
               redirects.hitCount:
                 type: bool
                 description: 'If on, and if extension "redirects" is loaded, each performed redirect is counted and last hit time is logged to the database.'
@@ -202,9 +199,6 @@ SYS:
                 description: 'If on, HTTP referrer headers are enforced for backend and install tool requests to mitigate
                   potential same-site request forgery attacks. The behavior can be disabled in case HTTP proxies filter
                   required `Referer` header. As this is a potential security risk, it is recommended to enable this option.'
-              security.backend.enforceContentSecurityPolicy:
-                type: bool
-                description: 'If on, HTTP Content-Security-Policy header will be applied for each HTTP backend request.'
               security.frontend.enforceContentSecurityPolicy:
                 type: bool
                 description: 'If on, HTTP Content-Security-Policy header will be applied for each HTTP frontend request. This can be overruled using a csp.yaml site configuration.'
@@ -217,11 +211,6 @@ SYS:
               security.frontend.allowInsecureSiteResolutionByQueryParameters:
                 type: bool
                 description: 'If on, site resolution can be overwritten by `&id=...&L=...` parameters, URI path & host are just used as default.'
-              security.usePasswordPolicyForFrontendUsers:
-                type: bool
-                description: 'If on, the configured password policy in `$GLOBALS[TYPO3_CONF_VARS][FE][passwordPolicy]`
-                  will be used for frontend user password validation. This applies to the new password in the password
-                  recovery function and the password field in `fe_users` table. It is recommended to enable this option.'
         availablePasswordHashAlgorithms:
             type: array
             description: 'A list of available password hash mechanisms. Extensions may register additional mechanisms here. This is usually not extended in system/settings.php.'
@@ -243,15 +232,18 @@ BE:
     type: container
     description: 'Backend'
     items:
-        languageDebug:
-            type: bool
-            description: 'If enabled, language labels will be shown with additional debug information.'
+        entryPoint:
+            type: text
+            description: 'URL slug for the TYPO3 backend. Defaults to "typo3".'
         fileadminDir:
             type: text
             description: 'Path to the primary directory of files for editors. This is relative to the public web dir, DefaultStorage will be created with that configuration, do not access manually but via <code>\TYPO3\CMS\Core\Resource\ResourceFactory::getDefaultStorage().</code>'
         lockRootPath:
             type: array
             description: 'List of absolute root path prefixes to be allowed for file operations (including FAL storages). The project root path is allowed in any case and does not need to be defined here. Ending slashes are enforced!'
+        lockBackendFile:
+            type: text
+            description: 'Optional file location to check whether the backend shall be locked. When not specified, uses the former default locations (legacy: "typo3conf/LOCK_BACKEND", composer "var/lock/LOCK_BACKEND"). Directory must be relative to the project root and must include the file name. The file must be writable for the PHP user and should be stored in a location that does not change between TYPO3 deployments (shared directory).'
         userHomePath:
             type: text
             description: 'Combined folder identifier of the directory where TYPO3 backend-users have their home-dirs. A combined folder identifier looks like this: [storageUid]:[folderIdentifier]. Eg. <code>2:users/</code>. A home for backend user 2 would be: <code>2:users/2/</code>. Ending slash required!'
@@ -370,12 +362,6 @@ BE:
         compressionLevel:
             type: text
             description: 'Determines output compression of BE output. Makes output smaller but slows down the page generation depending on the compression level. Requires a) zlib in your PHP installation and b) special rewrite rules for .css.gz and .js.gz (please see <code>_.htaccess</code> for an example). Range 1-9, where 1 is least compression and 9 is greatest compression. ''true'' as value will set the compression based on the PHP default settings (usually 5). Suggested and most optimal value is 5.'
-        checkStoredRecords:
-            type: bool
-            description: 'If set, values of the record are validated after saving in DataHandler. Disable only if using a database in strict mode.'
-        checkStoredRecordsLoose:
-            type: bool
-            description: 'If set, make a loose comparison ('''' equals 0) when validating record values after saving in DataHandler.'
         contentSecurityPolicyReportingUrl:
             type: text
             description: 'Content-Security-Policy reporting HTTP endpoint, if empty system default will be used'
@@ -383,9 +369,6 @@ BE:
             type: text
             readonly: true
             description: 'A perl-compatible and JavaScript-compatible regular expression (without delimiters "/"!) that - if it matches a filename - will deny the file upload/rename or whatever. For security reasons, files with multiple extensions have to be denied on an Apache environment with mod_alias, if the filename contains a valid php handler in an arbitrary position. Also, ".htaccess" files have to be denied. Matching is done case-insensitive. Default value is stored in PHP constant FILE_DENY_PATTERN_DEFAULT'
-        flexformForceCDATA:
-            type: bool
-            description: 'If set, will add CDATA to Flexform XML. Some versions of libxml have a bug that causes HTML entities to be stripped from any XML content and this setting will avoid the bug by adding CDATA.'
         versionNumberInFilename:
             type: bool
             description: |
@@ -429,9 +412,6 @@ FE:
         pageUnavailable_force:
             type: bool
             description: 'If TRUE, every frontend page is shown as "unavailable". If the client matches <a href="#SYS-devIPmask">[SYS][devIPmask]</a>, the page is shown as normal. This is useful during temporary site maintenance.'
-        addRootLineFields:
-            type: list
-            description: 'Comma-list of fields from the ''pages''-table. These fields are added to the select query for fields in the rootline.'
         checkFeUserPid:
             type: bool
             description: 'If set, the pid of fe_user logins must be sent in the form as the field ''pid'' and then the user must be located in the pid. If you unset this, you should change the fe_users.username eval-flag ''uniqueInPid'' to ''unique'' in $TCA. This will do: <code>$TCA[''fe_users''][''columns''][''username''][''config''][''eval'']= ''nospace,lower,required,unique'';</code>'

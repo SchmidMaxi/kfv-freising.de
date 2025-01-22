@@ -17,15 +17,17 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Extbase\Mvc\View;
 
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
+use TYPO3\CMS\Core\View\ViewInterface;
 use TYPO3\CMS\Extbase\Persistence\ObjectStorage;
 use TYPO3\CMS\Extbase\Persistence\PersistenceManagerInterface;
 use TYPO3\CMS\Extbase\Reflection\ObjectAccess;
-use TYPO3Fluid\Fluid\View\AbstractView;
 
 /**
  * A JSON view
  */
-class JsonView extends AbstractView
+#[Autoconfigure(public: true, shared: false)]
+class JsonView implements ViewInterface
 {
     /**
      * Definition for the class name exposure configuration,
@@ -48,12 +50,9 @@ class JsonView extends AbstractView
      *
      * @var string[]
      */
-    protected $variablesToRender = ['value'];
+    protected array $variablesToRender = ['value'];
 
-    /**
-     * @var string
-     */
-    protected $currentVariable = '';
+    protected string $currentVariable = '';
 
     /**
      * The rendering configuration for this JSON view which
@@ -96,7 +95,7 @@ class JsonView extends AbstractView
      * include all its properties (of the next level).
      *
      * The configuration of each property in "_descend" has the same syntax
-     * like at the top level. Therefore - theoretically - infinitely nested
+     * as the top level. Therefore - theoretically - infinitely nested
      * structures can be configured.
      *
      * To export indexed arrays the "_descendAll" section can be used to
@@ -150,23 +149,15 @@ class JsonView extends AbstractView
      * without the namespace, for example (summarized):
      * {"customer":{"firstName":"John","__class":"Customer"}}
      * This might be of interest to not provide information about the package or domain structure behind.
-     *
-     * @var array
      */
-    protected $configuration = [];
+    protected array $configuration = [];
 
-    /**
-     * @var PersistenceManagerInterface
-     */
-    protected $persistenceManager;
+    protected PersistenceManagerInterface $persistenceManager;
 
     /**
      * View variables and their values
-     *
-     * @var array
-     * @see assign()
      */
-    protected $variables = [];
+    protected array $variables = [];
 
     /**
      * @internal
@@ -184,7 +175,7 @@ class JsonView extends AbstractView
      * @param mixed $value Value of object
      * @return self an instance of $this, to enable chaining
      */
-    public function assign($key, $value)
+    public function assign(string $key, mixed $value): ViewInterface
     {
         $this->variables[$key] = $value;
         return $this;
@@ -196,7 +187,7 @@ class JsonView extends AbstractView
      * @param array $values array in the format array(key1 => value1, key2 => value2).
      * @return self an instance of $this, to enable chaining
      */
-    public function assignMultiple(array $values)
+    public function assignMultiple(array $values): ViewInterface
     {
         foreach ($values as $key => $value) {
             $this->assign($key, $value);
@@ -207,6 +198,8 @@ class JsonView extends AbstractView
     /**
      * Specifies which variables this JsonView should render
      * By default only the variable 'value' will be rendered
+     *
+     * @param string[] $variablesToRender
      */
     public function setVariablesToRender(array $variablesToRender): void
     {
@@ -221,15 +214,28 @@ class JsonView extends AbstractView
         $this->configuration = $configuration;
     }
 
+    /**
+     * @deprecated Will be removed in TYPO3 v14.0.
+     */
     public function renderSection($sectionName, array $variables = [], $ignoreUnknown = false)
     {
+        trigger_error(
+            __CLASS__ . '->' . __METHOD__ . ' is deprecated and will be removed in TYPO3 v14.',
+            E_USER_DEPRECATED
+        );
         // No-op: renderSection does not make sense for this view
         return '';
     }
 
+    /**
+     * @deprecated Will be removed in TYPO3 v14.0.
+     */
     public function renderPartial($partialName, $sectionName, array $variables, $ignoreUnknown = false)
     {
-        // No-op: renderPartial does not make sense for this view
+        trigger_error(
+            __CLASS__ . '->' . __METHOD__ . ' is deprecated and will be removed in TYPO3 v14.',
+            E_USER_DEPRECATED
+        );
         return '';
     }
 
@@ -240,19 +246,16 @@ class JsonView extends AbstractView
      *
      * @return string The JSON encoded variables
      */
-    public function render(): string
+    public function render(string $templateFileName = ''): string
     {
         $propertiesToRender = $this->renderArray();
         return json_encode($propertiesToRender, JSON_UNESCAPED_UNICODE);
     }
 
     /**
-     * Loads the configuration and transforms the value to a serializable
-     * array.
-     *
-     * @return mixed
+     * Loads the configuration and transforms the value to a serializable array.
      */
-    protected function renderArray()
+    protected function renderArray(): mixed
     {
         if (count($this->variablesToRender) === 1) {
             $firstLevel = false;
@@ -277,10 +280,9 @@ class JsonView extends AbstractView
      *
      * @param mixed $value The value to transform
      * @param array $configuration Configuration for transforming the value
-     * @param bool $firstLevel
      * @return mixed The transformed value
      */
-    protected function transformValue($value, array $configuration, $firstLevel = false)
+    protected function transformValue(mixed $value, array $configuration, bool $firstLevel = false): mixed
     {
         // ObjectStorage returns $key as string, which causes the resulting JSON to be an object instead of the expected array
         if ($value instanceof ObjectStorage) {
@@ -313,20 +315,18 @@ class JsonView extends AbstractView
     }
 
     /**
-     * Traverses the given object structure in order to transform it into an
-     * array structure.
+     * Traverses the given object structure in order to transform it into an array structure.
      *
      * @param object $object Object to traverse
      * @param array $configuration Configuration for transforming the given object or NULL
      * @return array|string Object structure as an array or as a rendered string (for a DateTime instance)
      */
-    protected function transformObject(object $object, array $configuration)
+    protected function transformObject(object $object, array $configuration): array|string
     {
         if ($object instanceof \DateTimeInterface) {
             return $object->format(\DateTimeInterface::ATOM);
         }
         $propertyNames = ObjectAccess::getGettablePropertyNames($object);
-
         $propertiesToRender = [];
         foreach ($propertyNames as $propertyName) {
             if (isset($configuration['_only']) && is_array($configuration['_only']) && !in_array($propertyName, $configuration['_only'], true)) {
@@ -335,9 +335,7 @@ class JsonView extends AbstractView
             if (isset($configuration['_exclude']) && is_array($configuration['_exclude']) && in_array($propertyName, $configuration['_exclude'], true)) {
                 continue;
             }
-
             $propertyValue = ObjectAccess::getProperty($object, $propertyName);
-
             if (!is_array($propertyValue) && !is_object($propertyValue)) {
                 $propertiesToRender[$propertyName] = $propertyValue;
             } elseif (isset($configuration['_descend']) && array_key_exists($propertyName, $configuration['_descend'])) {
@@ -359,7 +357,6 @@ class JsonView extends AbstractView
             $classNameParts = explode('\\', $className);
             $propertiesToRender['__class'] = ($configuration['_exposeClassName'] === self::EXPOSE_CLASSNAME_FULLY_QUALIFIED ? $className : array_pop($classNameParts));
         }
-
         return $propertiesToRender;
     }
 }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file belongs to the package "TYPO3 Fluid".
  * See LICENSE.txt that was shipped with this package.
@@ -7,13 +9,11 @@
 
 namespace TYPO3Fluid\Fluid\View;
 
-use TYPO3Fluid\Fluid\Core\Cache\FluidCacheInterface;
 use TYPO3Fluid\Fluid\Core\Parser\ParsedTemplateInterface;
 use TYPO3Fluid\Fluid\Core\Parser\PassthroughSourceException;
 use TYPO3Fluid\Fluid\Core\Parser\SyntaxTree\ViewHelperNode;
 use TYPO3Fluid\Fluid\Core\Rendering\RenderingContext;
 use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
-use TYPO3Fluid\Fluid\Core\ViewHelper\ViewHelperResolver;
 use TYPO3Fluid\Fluid\View\Exception\InvalidSectionException;
 use TYPO3Fluid\Fluid\View\Exception\InvalidTemplateResourceException;
 use TYPO3Fluid\Fluid\ViewHelpers\SectionViewHelper;
@@ -22,15 +22,17 @@ use TYPO3Fluid\Fluid\ViewHelpers\SectionViewHelper;
  * Abstract Fluid Template View.
  *
  * Contains the fundamental methods which any Fluid based template view needs.
+ *
+ * @todo add return types with Fluid v5
  */
 abstract class AbstractTemplateView extends AbstractView implements TemplateAwareViewInterface
 {
     /**
      * Constants defining possible rendering types
      */
-    public const RENDERING_TEMPLATE = 1;
-    public const RENDERING_PARTIAL = 2;
-    public const RENDERING_LAYOUT = 3;
+    protected const RENDERING_TEMPLATE = 1;
+    protected const RENDERING_PARTIAL = 2;
+    protected const RENDERING_LAYOUT = 3;
 
     /**
      * The initial rendering context for this template view.
@@ -65,51 +67,6 @@ abstract class AbstractTemplateView extends AbstractView implements TemplateAwar
     }
 
     /**
-     * Initialize the RenderingContext. This method can be overridden in your
-     * View implementation to manipulate the rendering context *before* it is
-     * passed during rendering.
-     *
-     * @deprecated Will be removed in v4. Migration path is to call the rendering context directly via self::getRenderingContext()->getViewHelperVariableContainer()->setView()
-     */
-    public function initializeRenderingContext()
-    {
-        $this->baseRenderingContext->getViewHelperVariableContainer()->setView($this);
-    }
-
-    /**
-     * Sets the cache to use in RenderingContext.
-     *
-     * @param FluidCacheInterface $cache
-     * @deprecated Will be removed in v4. Migration path is to call the rendering context directly via self::getRenderingContext()->setCache()
-     */
-    public function setCache(FluidCacheInterface $cache)
-    {
-        $this->baseRenderingContext->setCache($cache);
-    }
-
-    /**
-     * Gets the TemplatePaths instance from RenderingContext
-     *
-     * @return TemplatePaths
-     * @deprecated Will be removed in v4. Migration path is to call the rendering context directly via self::getRenderingContext()->getTemplatePaths()
-     */
-    public function getTemplatePaths()
-    {
-        return $this->baseRenderingContext->getTemplatePaths();
-    }
-
-    /**
-     * Gets the ViewHelperResolver instance from RenderingContext
-     *
-     * @return ViewHelperResolver
-     * @deprecated Will be removed in v4. Migration path is to call the rendering context directly via self::getRenderingContext()->getViewHelperResolver()
-     */
-    public function getViewHelperResolver()
-    {
-        return $this->baseRenderingContext->getViewHelperResolver();
-    }
-
-    /**
      * Gets the RenderingContext used by the View
      *
      * @return RenderingContextInterface
@@ -138,7 +95,7 @@ abstract class AbstractTemplateView extends AbstractView implements TemplateAwar
      * @return $this
      * @api
      */
-    public function assign($key, $value)
+    public function assign(string $key, mixed $value)
     {
         $this->baseRenderingContext->getVariableProvider()->add($key, $value);
         return $this;
@@ -166,7 +123,7 @@ abstract class AbstractTemplateView extends AbstractView implements TemplateAwar
      * If "layoutName" is set in a PostParseFacet callback, it will render the file with the given layout.
      *
      * @param string|null $actionName If set, this action's template will be rendered instead of the one defined in the context.
-     * @return string Rendered Template
+     * @return mixed Rendered Template
      * @api
      */
     public function render($actionName = null)
@@ -189,7 +146,7 @@ abstract class AbstractTemplateView extends AbstractView implements TemplateAwar
             $output = $parsedTemplate->render($this->baseRenderingContext);
             $this->stopRendering();
         } else {
-            $layoutName = $parsedTemplate->getLayoutName($this->baseRenderingContext);
+            $layoutName = (string)$parsedTemplate->getLayoutName($this->baseRenderingContext);
             try {
                 $parsedLayout = $templateParser->getOrParseAndStoreTemplate(
                     $templatePaths->getLayoutIdentifier($layoutName),

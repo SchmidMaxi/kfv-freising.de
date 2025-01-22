@@ -16,8 +16,8 @@
 namespace TYPO3\CMS\Backend\Form\FormDataProvider;
 
 use TYPO3\CMS\Backend\Form\FormDataProviderInterface;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Tree\TableConfiguration\ArrayTreeRenderer;
 use TYPO3\CMS\Core\Tree\TableConfiguration\TableConfigurationTree;
 use TYPO3\CMS\Core\Tree\TableConfiguration\TreeDataProviderFactory;
@@ -37,6 +37,8 @@ use TYPO3\CMS\Core\Utility\MathUtility;
  */
 class TcaSelectTreeItems extends AbstractItemProvider implements FormDataProviderInterface
 {
+    public function __construct(private readonly IconFactory $iconFactory) {}
+
     /**
      * Sanitize config options and resolve select items if requested.
      *
@@ -100,11 +102,10 @@ class TcaSelectTreeItems extends AbstractItemProvider implements FormDataProvide
                 // List of additional items defined by page ts config "addItems"
                 $itemsFromPageTsConfig = $this->addItemsFromPageTsConfig($result, $fieldName, []);
                 // Resolve pageTsConfig item icons to markup
-                $iconFactory = GeneralUtility::makeInstance(IconFactory::class);
                 $finalPageTsConfigItems = [];
                 foreach ($itemsFromPageTsConfig as $item) {
                     if ($item['icon'] !== null) {
-                        $item['icon'] = $iconFactory->getIcon($item['icon'], Icon::SIZE_SMALL)->getMarkup('inline');
+                        $item['icon'] = $this->iconFactory->getIcon($item['icon'], IconSize::SMALL)->getMarkup('inline');
                     }
                     $finalPageTsConfigItems[] = $item;
                 }
@@ -201,6 +202,6 @@ class TcaSelectTreeItems extends AbstractItemProvider implements FormDataProvide
      */
     protected function isTargetRenderType(array $fieldConfig)
     {
-        return $fieldConfig['config']['renderType'] === 'selectTree';
+        return ($fieldConfig['config']['renderType'] ?? '') === 'selectTree';
     }
 }

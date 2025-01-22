@@ -19,16 +19,9 @@ namespace {
     die('Access denied');
 }
 
-namespace TYPO3\CMS\Frontend\Service {
+namespace TYPO3\CMS\Backend {
     /**
-     * @deprecated since TYPO3 v12, will be removed in TYPO3 v13
+     * @deprecated since TYPO3 v13, will be removed in TYPO3 v14
      */
-    class TypoLinkCodecService extends \TYPO3\CMS\Core\LinkHandling\TypoLinkCodecService {}
-}
-
-namespace TYPO3\CMS\Frontend\Typolink {
-    /**
-     * @deprecated since TYPO3 v12, will be removed in TYPO3 v13
-     */
-    class LinkResultFactory extends \TYPO3\CMS\Frontend\Typolink\LinkFactory {}
+    class FrontendBackendUserAuthentication extends \TYPO3\CMS\Frontend\Authentication\FrontendBackendUserAuthentication {}
 }

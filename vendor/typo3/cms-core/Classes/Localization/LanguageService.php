@@ -15,6 +15,7 @@
 
 namespace TYPO3\CMS\Core\Localization;
 
+use Symfony\Component\DependencyInjection\Attribute\Exclude;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 use TYPO3\CMS\Core\Utility\ArrayUtility;
 use TYPO3\CMS\Core\Utility\PathUtility;
@@ -42,6 +43,7 @@ use TYPO3\CMS\Core\Utility\PathUtility;
  *     ->createFromUserPreferences($GLOBALS['BE_USER']);
  * ```
  */
+#[Exclude]
 class LanguageService
 {
     /**
@@ -50,13 +52,6 @@ class LanguageService
     public string $lang = 'default';
 
     protected ?Locale $locale = null;
-
-    /**
-     * If true, will show the key/location of labels in the backend.
-     *
-     * @deprecated since TYPO3 v12.4. will be removed in TYPO3 v13.0.
-     */
-    public bool $debugKey = false;
 
     /**
      * @var string[][]
@@ -68,26 +63,14 @@ class LanguageService
      */
     protected array $overrideLabels = [];
 
-    protected Locales $locales;
-    protected LocalizationFactory $localizationFactory;
-    protected FrontendInterface $runtimeCache;
-
     /**
      * @internal use LanguageServiceFactory instead
      */
-    public function __construct(Locales $locales, LocalizationFactory $localizationFactory, FrontendInterface $runtimeCache)
-    {
-        $this->locales = $locales;
-        $this->localizationFactory = $localizationFactory;
-        $this->runtimeCache = $runtimeCache;
-        // @deprecated since TYPO3 v12.4. will be removed in TYPO3 v13.0.
-        //             Remove together with code in LanguageServiceFactory, clean up
-        //             DefaultConfiguration and DefaultConfigurationDescription.yaml,
-        //             remove debugLL below, clean up SilentConfigurationUpgradeService
-        //             to remove option, remove migrateLangDebug(), use some different
-        //             toggle in SettingsCest.
-        $this->debugKey = (bool)$GLOBALS['TYPO3_CONF_VARS']['BE']['languageDebug'];
-    }
+    public function __construct(
+        protected Locales $locales,
+        protected readonly LocalizationFactory $localizationFactory,
+        protected readonly FrontendInterface $runtimeCache
+    ) {}
 
     /**
      * Initializes the language to fetch XLF labels for.
@@ -112,31 +95,6 @@ class LanguageService
     }
 
     /**
-     * Debugs the localization key.
-     *
-     * @param string $labelIdentifier to be shown next to the value
-     * @deprecated since TYPO3 v12.4. will be removed in TYPO3 v13.0.
-     */
-    protected function debugLL(string $labelIdentifier): string
-    {
-        return $this->debugKey ? '[' . $labelIdentifier . ']' : '';
-    }
-
-    /**
-     * Returns the label with key $index from the globally loaded $LOCAL_LANG array.
-     * Mostly used from modules with only one LOCAL_LANG file loaded into the global space.
-     *
-     * @param string $index Label key
-     * @return string
-     * @deprecated will be removed in TYPO3 v13.0. Use sL() instead.
-     */
-    public function getLL($index)
-    {
-        trigger_error('Calling LanguageService->getLL() will be removed in TYPO3 v13.0. Use LanguageService->sL() instead.', E_USER_DEPRECATED);
-        return $this->getLLL($index, $this->labels);
-    }
-
-    /**
      * Returns the label with key $index from the $LOCAL_LANG array used as the second argument
      *
      * @param string $index Label key
@@ -156,8 +114,7 @@ class LanguageService
         } else {
             $value = '';
         }
-        // @deprecated since TYPO3 v12.4. will be removed in TYPO3 v13.0. Skip calling debugLL().
-        return $value . $this->debugLL($index);
+        return $value;
     }
 
     /**
@@ -171,7 +128,42 @@ class LanguageService
      *
      * This looks up the given .xlf file path in the 'core' extension for label labels.depth_0
      *
+     * Only the plain string contents of a language key, like "Record title: %s" are returned.
+     * Placeholder interpolation must be performed separately, for example via `sprintf()`, like
+     * `LocalizationUtility::translate()` does internally (which should only be used in Extbase
+     * context)
+     *
+     * Example:
+     * Label is defined in `EXT:my_ext/Resources/Private/Language/locallang.xlf` as:
+     *
+     * ```
+     * <trans-unit id="downloaded_times">
+     *     <source>downloaded %d times from %s locations</source>
+     * </trans-unit>
+     * ```
+     *
+     * The following code example assumes `$this->request` to hold the current request object.
+     * There are several ways to create the LanguageService using the Factory, depending on the
+     * context. Please adjust this example to your use case:
+     *
+     * ```
+     * $language = $this->request->getAttribute('language');
+     * $languageService =
+     *   GeneralUtility::makeInstance(LanguageServiceFactory::class)
+     *   ->createFromSiteLanguage($language);
+     * $label = sprintf(
+     *      $languageService->sL(
+     *          'LLL:EXT:my_ext/Resources/Private/Language/locallang.xlf:downloaded_times'
+     *      ),
+     *      27,
+     *      'several'
+     * );
+     * ```
+     *
+     * This will result in `$label` to contain `'downloaded 27 times from several locations'`.
+     *
      * @param string $input Label key/reference
+     * @see LocalizationUtility::translate()
      */
     public function sL($input): string
     {
@@ -185,8 +177,7 @@ class LanguageService
             return $input;
         }
 
-        // @deprecated since TYPO3 v12.4. will be removed in TYPO3 v13.0. Remove $this->debugKey handling.
-        $cacheIdentifier = 'labels_' . (string)$this->locale . '_' . md5($input . '_' . (int)$this->debugKey);
+        $cacheIdentifier = 'labels_' . (string)$this->locale . '_' . md5($input);
         $cacheEntry = $this->runtimeCache->get($cacheIdentifier);
         if ($cacheEntry !== false) {
             return $cacheEntry;
@@ -206,8 +197,6 @@ class LanguageService
             $labelsFromFile = array_replace_recursive($labelsFromFile, $this->overrideLabels[$parts[0]]);
         }
         $output = $this->getLLL($parts[1] ?? '', $labelsFromFile);
-        // @deprecated since TYPO3 v12.4. will be removed in TYPO3 v13.0. Remove line.
-        $output .= $this->debugLL($input);
         $this->runtimeCache->set($cacheIdentifier, $output);
         return $output;
     }

@@ -1,4 +1,4 @@
-.. include:: /Includes.rst.txt
+
 
 Every array key must match to the related finisher option name.
 For example, the - :ref:`"[Redirect] finisher"<prototypes.prototypeIdentifier.finishersdefinition.redirect>` has the option - :ref:`"pageUid"<prototypes.prototypeIdentifier.finishersdefinition.redirect.options.pageuid>`.

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
 <xliff version="1.0">
-    <file source-language="en" datatype="plaintext" original="messages" date="2024-09-16UTC13:18:080">
+    <file source-language="en" datatype="plaintext" original="messages" date="2025-01-15UTC19:21:080">
         <header>
             <authorName>Maximilian Schmid</authorName>
             <authorEmail>kontakt@maxischmid.de</authorEmail>
@@ -9,8 +9,14 @@
             <trans-unit id="backend_layout.default">
                 <source>Default</source>
             </trans-unit>
+            <trans-unit id="backend_layout.column.stage">
+                <source>Stage</source>
+            </trans-unit>
             <trans-unit id="backend_layout.column.normal">
                 <source>Normal</source>
+            </trans-unit>
+            <trans-unit id="backend_layout.column.right">
+                <source>Right</source>
             </trans-unit>
         </body>
     </file>

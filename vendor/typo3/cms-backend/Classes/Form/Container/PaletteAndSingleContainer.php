@@ -17,7 +17,6 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Backend\Form\Container;
 
-use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -34,17 +33,15 @@ class PaletteAndSingleContainer extends AbstractContainer
 {
     /**
      * Final result array accumulating results from children and final HTML
-     *
-     * @var array
      */
-    protected $resultArray = [];
+    protected array $resultArray = [];
 
     /**
      * Entry method
      *
      * @return array As defined in initializeResultArray() of AbstractNode
      */
-    public function render()
+    public function render(): array
     {
         $languageService = $this->getLanguageService();
 
@@ -64,8 +61,6 @@ class PaletteAndSingleContainer extends AbstractContainer
                     0 => [
                         'type' => 'single',
                         'fieldName' => 'paletteName',
-                        // @deprecated: fieldLabel can be removed in v13 when all elements take care of label/legend
-                        'fieldLabel' => 'element1',
                         'fieldHtml' => 'element1',
                     ),
                     1 => [
@@ -74,8 +69,6 @@ class PaletteAndSingleContainer extends AbstractContainer
                     2 => [
                         'type' => 'single',
                         'fieldName' => 'paletteName',
-                        // @deprecated: fieldLabel can be removed in v13 when all elements take care of label/legend
-                        'fieldLabel' => 'element2',
                         'fieldHtml' => 'element2',
                     ],
                 ],
@@ -83,8 +76,6 @@ class PaletteAndSingleContainer extends AbstractContainer
             1 => [
                 'type' => 'single',
                 'fieldName' => 'element3',
-                // @deprecated: fieldLabel can be removed in v13 when all elements take care of label/legend
-                'fieldLabel' => 'element3',
                 'fieldHtml' => 'element3',
             ],
             2 => [
@@ -96,8 +87,6 @@ class PaletteAndSingleContainer extends AbstractContainer
                     0 => [
                         'type' => 'single',
                         'fieldName' => 'element4',
-                        // @deprecated: fieldLabel can be removed in v13 when all elements take care of label/legend
-                        'fieldLabel' => 'element4',
                         'fieldHtml' => 'element4',
                     ],
                     1 => [
@@ -106,8 +95,6 @@ class PaletteAndSingleContainer extends AbstractContainer
                     2 => [
                         'type' => 'single',
                         'fieldName' => 'element5',
-                        // @deprecated: fieldLabel can be removed in v13 when all elements take care of label/legend
-                        'fieldLabel' => 'element5',
                         'fieldHtml' => 'element5',
                     ],
                 ],
@@ -153,18 +140,10 @@ class PaletteAndSingleContainer extends AbstractContainer
                 $childResultArray = $this->nodeFactory->create($options)->render();
                 if (!empty($childResultArray['html'])) {
                     $mainStructureCounter++;
-                    $fieldLabel = '';
-                    if (!empty($this->data['processedTca']['columns'][$fieldName]['label'])) {
-                        $fieldLabel = $this->data['processedTca']['columns'][$fieldName]['label'];
-                    }
                     $targetStructure[$mainStructureCounter] = [
                         'type' => 'single',
                         'fieldName' => $fieldConfiguration['fieldName'],
-                        // @deprecated: fieldLabel can be removed in v13 when all elements take care of label/legend
-                        'fieldLabel' => $fieldLabel,
                         'fieldHtml' => $childResultArray['html'],
-                        // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-                        'labelHasBeenHandled' => $childResultArray['labelHasBeenHandled'] ?? false,
                     ];
                 }
                 $this->resultArray = $this->mergeChildReturnIntoExistingResult($this->resultArray, $childResultArray, false);
@@ -191,7 +170,9 @@ class PaletteAndSingleContainer extends AbstractContainer
             } else {
                 $html = [];
                 $html[] = '<fieldset class="form-section">';
-                $html[] = $this->wrapSingleFieldContentWithLabelAndOuterDiv($element);
+                $html[] =     '<div class="form-group t3js-formengine-validation-marker t3js-formengine-palette-field">';
+                $html[] =         $element['fieldHtml'];
+                $html[] =     '</div>';
                 $html[] = '</fieldset>';
                 $content[] = implode(LF, $html);
             }
@@ -233,17 +214,10 @@ class PaletteAndSingleContainer extends AbstractContainer
                 $singleFieldContentArray = $this->nodeFactory->create($options)->render();
                 if (!empty($singleFieldContentArray['html'])) {
                     $foundRealElement = true;
-                    $fieldLabel = '';
-                    if (!empty($this->data['processedTca']['columns'][$fieldName]['label'])) {
-                        $fieldLabel = $this->data['processedTca']['columns'][$fieldName]['label'];
-                    }
                     $resultStructure[] = [
                         'type' => 'single',
                         'fieldName' => $fieldName,
-                        'fieldLabel' => $fieldLabel,
                         'fieldHtml' => $singleFieldContentArray['html'],
-                        // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-                        'labelHasBeenHandled' => $singleFieldContentArray['labelHasBeenHandled'] ?? false,
                     ];
                 }
                 $this->resultArray = $this->mergeChildReturnIntoExistingResult($this->resultArray, $singleFieldContentArray, false);
@@ -322,8 +296,9 @@ class PaletteAndSingleContainer extends AbstractContainer
                         $result[] = '<div class="clearfix"></div>';
                     }
                 } else {
-                    $result[] = $this->wrapSingleFieldContentWithLabelAndOuterDiv($element, [$colClass]);
-
+                    $result[] = '<div class="form-group t3js-formengine-validation-marker t3js-formengine-palette-field ' . $colClass . '">';
+                    $result[] =     $element['fieldHtml'];
+                    $result[] = '</div>';
                     // Breakpoints
                     if ($counter + 1 < $numberOfItems && !empty($colClear)) {
                         foreach ($colClear as $rowBreakAfter => $clearClass) {
@@ -338,40 +313,8 @@ class PaletteAndSingleContainer extends AbstractContainer
         return implode(LF, $result);
     }
 
-    /**
-     * Wrap a single element
-     *
-     * @param array $element Given element as documented above
-     * @param array $additionalPaletteClasses Additional classes to be added to HTML
-     * @return string Wrapped element
-     */
-    protected function wrapSingleFieldContentWithLabelAndOuterDiv(array $element, array $additionalPaletteClasses = []): string
-    {
-        $paletteFieldClasses = array_merge(['form-group', 't3js-formengine-validation-marker', 't3js-formengine-palette-field'], $additionalPaletteClasses);
-        $content = [];
-        $content[] = '<div class="' . implode(' ', $paletteFieldClasses) . '">';
-        if (!$element['labelHasBeenHandled']) {
-            // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-            $label = htmlspecialchars($element['fieldLabel']);
-            if ($this->getBackendUser()->shallDisplayDebugInformation()) {
-                $label .= ' <code>[' . htmlspecialchars($element['fieldName']) . ']</code>';
-            }
-            $content[] = '<label class="form-label t3js-formengine-label">';
-            $content[] =     $label;
-            $content[] = '</label>';
-        }
-        $content[] = $element['fieldHtml'];
-        $content[] = '</div>';
-        return implode(LF, $content);
-    }
-
     protected function getLanguageService(): LanguageService
     {
         return $GLOBALS['LANG'];
-    }
-
-    protected function getBackendUser(): BackendUserAuthentication
-    {
-        return $GLOBALS['BE_USER'];
     }
 }

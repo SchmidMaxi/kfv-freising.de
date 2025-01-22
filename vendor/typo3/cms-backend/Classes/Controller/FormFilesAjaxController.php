@@ -22,12 +22,12 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use TYPO3\CMS\Backend\Attribute\AsController;
-use TYPO3\CMS\Backend\Form\Container\FileReferenceContainer;
 use TYPO3\CMS\Backend\Form\FormDataCompiler;
 use TYPO3\CMS\Backend\Form\FormDataGroup\TcaDatabaseRecord;
 use TYPO3\CMS\Backend\Form\InlineStackProcessor;
 use TYPO3\CMS\Backend\Form\NodeFactory;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
 use TYPO3\CMS\Core\Messaging\FlashMessageService;
 use TYPO3\CMS\Core\Page\JavaScriptItems;
@@ -46,7 +46,10 @@ class FormFilesAjaxController extends AbstractFormEngineAjaxController
 
     public function __construct(
         private readonly ResponseFactoryInterface $responseFactory,
-        private readonly StreamFactoryInterface $streamFactory
+        private readonly StreamFactoryInterface $streamFactory,
+        private readonly FormDataCompiler $formDataCompiler,
+        private readonly HashService $hashService,
+        private readonly NodeFactory $nodeFactory,
     ) {}
 
     /**
@@ -72,7 +75,7 @@ class FormFilesAjaxController extends AbstractFormEngineAjaxController
 
         $inlineStackProcessor = GeneralUtility::makeInstance(InlineStackProcessor::class);
         $inlineStackProcessor->initializeByParsingDomObjectIdString($domObjectId);
-        $inlineStackProcessor->injectAjaxConfiguration($parentConfig);
+        $inlineStackProcessor->setAjaxConfiguration($parentConfig);
         $inlineTopMostParent = $inlineStackProcessor->getStructureLevel(0);
 
         $parent = $inlineStackProcessor->getStructureLevel(-1);
@@ -106,26 +109,24 @@ class FormFilesAjaxController extends AbstractFormEngineAjaxController
             $formDataCompilerInput['inlineChildChildUid'] = $fileId;
         }
 
-        $fileReferenceData = GeneralUtility::makeInstance(FormDataCompiler::class)
-            ->compile($formDataCompilerInput, GeneralUtility::makeInstance(TcaDatabaseRecord::class));
+        $fileReferenceData = $this->formDataCompiler->compile($formDataCompilerInput, GeneralUtility::makeInstance(TcaDatabaseRecord::class));
 
         $fileReferenceData['inlineParentUid'] = $parent['uid'];
-        $fileReferenceData['renderType'] = FileReferenceContainer::NODE_TYPE_IDENTIFIER;
+        $fileReferenceData['renderType'] = 'fileReferenceContainer';
 
         return $this->jsonResponse(
             $this->mergeFileReferenceResultIntoJsonResult(
                 [
                     'data' => '',
                     'stylesheetFiles' => [],
-                    'scriptItems' => GeneralUtility::makeInstance(JavaScriptItems::class),
-                    'scriptCall' => [],
+                    'scriptItems' => new JavaScriptItems(),
                     'compilerInput' => [
                         'uid' => $fileReferenceData['databaseRow']['uid'],
                         'childChildUid' => $fileId,
                         'parentConfig' => $parentConfig,
                     ],
                 ],
-                GeneralUtility::makeInstance(NodeFactory::class)->create($fileReferenceData)->render()
+                $this->nodeFactory->create($fileReferenceData)->render()
             )
         );
     }
@@ -143,7 +144,7 @@ class FormFilesAjaxController extends AbstractFormEngineAjaxController
 
         $inlineStackProcessor = GeneralUtility::makeInstance(InlineStackProcessor::class);
         $inlineStackProcessor->initializeByParsingDomObjectIdString($domObjectId);
-        $inlineStackProcessor->injectAjaxConfiguration($parentConfig);
+        $inlineStackProcessor->setAjaxConfiguration($parentConfig);
 
         $parent = $inlineStackProcessor->getStructureLevel(-1);
         $parentFieldName = $parent['field'];
@@ -175,17 +176,16 @@ class FormFilesAjaxController extends AbstractFormEngineAjaxController
             $inlineStackProcessor->getStructure()
         );
         $fileReferenceData['inlineParentUid'] = (int)$parent['uid'];
-        $fileReferenceData['renderType'] = FileReferenceContainer::NODE_TYPE_IDENTIFIER;
+        $fileReferenceData['renderType'] = 'fileReferenceContainer';
 
         return $this->jsonResponse(
             $this->mergeFileReferenceResultIntoJsonResult(
                 [
                     'data' => '',
                     'stylesheetFiles' => [],
-                    'scriptItems' => GeneralUtility::makeInstance(JavaScriptItems::class),
-                    'scriptCall' => [],
+                    'scriptItems' => new JavaScriptItems(),
                 ],
-                GeneralUtility::makeInstance(NodeFactory::class)->create($fileReferenceData)->render()
+                $this->nodeFactory->create($fileReferenceData)->render()
             )
         );
     }
@@ -203,13 +203,13 @@ class FormFilesAjaxController extends AbstractFormEngineAjaxController
 
         $inlineStackProcessor = GeneralUtility::makeInstance(InlineStackProcessor::class);
         $inlineStackProcessor->initializeByParsingDomObjectIdString($domObjectId);
-        $inlineStackProcessor->injectAjaxConfiguration($parentConfig);
+        $inlineStackProcessor->setAjaxConfiguration($parentConfig);
         $inlineFirstPid = $this->getInlineFirstPidFromDomObjectId($domObjectId);
 
         $jsonArray = [
             'data' => '',
             'stylesheetFiles' => [],
-            'scriptItems' => GeneralUtility::makeInstance(JavaScriptItems::class),
+            'scriptItems' => new JavaScriptItems(),
             'compilerInput' => [
                 'localize' => [],
             ],
@@ -238,8 +238,7 @@ class FormFilesAjaxController extends AbstractFormEngineAjaxController
                 'inlineCompileExistingChildren' => false,
             ];
             // Full TcaDatabaseRecord is required here to have the list of connected uids $oldItemList
-            $parentData = GeneralUtility::makeInstance(FormDataCompiler::class)
-                ->compile($formDataCompilerInputForParent, GeneralUtility::makeInstance(TcaDatabaseRecord::class));
+            $parentData = $this->formDataCompiler->compile($formDataCompilerInputForParent, GeneralUtility::makeInstance(TcaDatabaseRecord::class));
             $parentLanguageField = $parentData['processedTca']['ctrl']['languageField'];
             $parentLanguage = $parentData['databaseRow'][$parentLanguageField];
             $oldItemList = $parentData['databaseRow'][$parentFieldName];
@@ -300,11 +299,11 @@ class FormFilesAjaxController extends AbstractFormEngineAjaxController
             foreach ($localizedItems as $i => $localizedFileReferenceUid) {
                 $fileReferenceData = $this->compileFileReference($request, $parentData, $parentFieldName, (int)$localizedFileReferenceUid, $inlineStackProcessor->getStructure());
                 $fileReferenceData['inlineParentUid'] = (int)$parent['uid'];
-                $fileReferenceData['renderType'] = FileReferenceContainer::NODE_TYPE_IDENTIFIER;
+                $fileReferenceData['renderType'] = 'fileReferenceContainer';
 
                 $jsonArray = $this->mergeFileReferenceResultIntoJsonResult(
                     $jsonArray,
-                    GeneralUtility::makeInstance(NodeFactory::class)->create($fileReferenceData)->render()
+                    $this->nodeFactory->create($fileReferenceData)->render()
                 );
 
                 // Get the name of the field used as foreign selector (if any):
@@ -379,7 +378,7 @@ class FormFilesAjaxController extends AbstractFormEngineAjaxController
         $inlineStackProcessor->initializeByGivenStructure($inlineStructure);
         $inlineTopMostParent = $inlineStackProcessor->getStructureLevel(0);
 
-        return GeneralUtility::makeInstance(FormDataCompiler::class)
+        return $this->formDataCompiler
             ->compile(
                 [
                     'request' => $request,
@@ -419,10 +418,6 @@ class FormFilesAjaxController extends AbstractFormEngineAjaxController
         if (!empty($fileReferenceData['inlineData'])) {
             $jsonResult['inlineData'] = $fileReferenceData['inlineData'];
         }
-        // @todo deprecate with TYPO3 v12.0
-        foreach ($fileReferenceData['additionalJavaScriptPost'] as $singleAdditionalJavaScriptPost) {
-            $jsonResult['scriptCall'][] = $singleAdditionalJavaScriptPost;
-        }
         if (!empty($fileReferenceData['additionalInlineLanguageLabelFiles'])) {
             $labels = [];
             foreach ($fileReferenceData['additionalInlineLanguageLabelFiles'] as $additionalInlineLanguageLabelFile) {
@@ -434,8 +429,6 @@ class FormFilesAjaxController extends AbstractFormEngineAjaxController
             $scriptItems->addGlobalAssignment(['TYPO3' => ['lang' => $labels]]);
         }
         $this->addJavaScriptModulesToJavaScriptItems($fileReferenceData['javaScriptModules'] ?? [], $scriptItems);
-        /** @deprecated will be removed in TYPO3 v13.0 */
-        $this->addJavaScriptModulesToJavaScriptItems($fileReferenceData['requireJsModules'] ?? [], $scriptItems, true);
 
         return $jsonResult;
     }
@@ -513,7 +506,7 @@ class FormFilesAjaxController extends AbstractFormEngineAjaxController
         if (empty($context['config'])) {
             throw new \RuntimeException('Empty context config section given', 1664486790);
         }
-        if (!hash_equals(GeneralUtility::hmac((string)$context['config'], 'FilesContext'), (string)$context['hmac'])) {
+        if (!hash_equals($this->hashService->hmac((string)$context['config'], 'FilesContext'), (string)$context['hmac'])) {
             throw new \RuntimeException('Hash does not validate', 1664486791);
         }
         return json_decode($context['config'], true);

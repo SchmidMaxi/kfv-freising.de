@@ -120,7 +120,7 @@ class Typo3DatabaseBackend extends AbstractBackend implements TaggableBackendInt
             }
             GeneralUtility::makeInstance(ConnectionPool::class)
                 ->getConnectionForTable($this->tagsTable)
-                ->bulkInsert($this->tagsTable, $tagRows, ['identifier', 'tag']);
+                ->bulkInsert($this->tagsTable, $tagRows, ['identifier', 'tag'], ['identifier' => Connection::PARAM_STR, 'tag' => Connection::PARAM_STR]);
         }
     }
 
@@ -201,13 +201,15 @@ class Typo3DatabaseBackend extends AbstractBackend implements TaggableBackendInt
             ->getConnectionForTable($this->cacheTable)
             ->delete(
                 $this->cacheTable,
-                ['identifier' => $entryIdentifier]
+                ['identifier' => $entryIdentifier],
+                ['identifier' => Connection::PARAM_STR]
             );
         GeneralUtility::makeInstance(ConnectionPool::class)
             ->getConnectionForTable($this->tagsTable)
             ->delete(
                 $this->tagsTable,
-                ['identifier' => $entryIdentifier]
+                ['identifier' => $entryIdentifier],
+                ['identifier' => Connection::PARAM_STR]
             );
         return (bool)$numberOfRowsRemoved;
     }
@@ -216,9 +218,8 @@ class Typo3DatabaseBackend extends AbstractBackend implements TaggableBackendInt
      * Finds and returns all cache entries which are tagged by the specified tag.
      *
      * @param string $tag The tag to search for
-     * @return array An array with identifiers of all matching entries. An empty array if no entries matched
      */
-    public function findIdentifiersByTag($tag)
+    public function findIdentifiersByTag($tag): array
     {
         $this->throwExceptionIfFrontendDoesNotExist();
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
@@ -277,13 +278,13 @@ class Typo3DatabaseBackend extends AbstractBackend implements TaggableBackendInt
         // maximum SQL query limits.
         if (count($tags) > 100) {
             $chunks = array_chunk($tags, 100);
-            array_walk($chunks, [$this, 'flushByTags']);
+            array_walk($chunks, $this->flushByTags(...));
             return;
         }
         // VERY simple quoting of tags is sufficient here for performance. Tags are already
         // validated to not contain any bad characters, e.g. they are automatically generated
         // inside this class and suffixed with a pure integer enforced by DB.
-        $quotedTagList = array_map(static function ($value) {
+        $quotedTagList = array_map(static function (string $value): string {
             return '\'' . $value . '\'';
         }, $tags);
 
@@ -389,6 +390,7 @@ class Typo3DatabaseBackend extends AbstractBackend implements TaggableBackendInt
         $tagsEntryIdentifiers = $result->fetchFirstColumn();
 
         if (!empty($tagsEntryIdentifiers)) {
+            $queryBuilder = $connection->createQueryBuilder();
             $quotedIdentifiers = $queryBuilder->createNamedParameter($tagsEntryIdentifiers, Connection::PARAM_STR_ARRAY);
             $queryBuilder->delete($this->tagsTable)
                 ->where($queryBuilder->expr()->in('identifier', $quotedIdentifiers))
@@ -440,16 +442,6 @@ class Typo3DatabaseBackend extends AbstractBackend implements TaggableBackendInt
         if ($compressionLevel >= -1 && $compressionLevel <= 9) {
             $this->compressionLevel = $compressionLevel;
         }
-    }
-
-    /**
-     * This database backend uses some optimized queries for mysql
-     * to get maximum performance.
-     */
-    protected function isConnectionMysql(Connection $connection): bool
-    {
-        $serverVersion = $connection->getServerVersion();
-        return str_starts_with($serverVersion, 'MySQL');
     }
 
     /**

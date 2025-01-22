@@ -7,12 +7,9 @@ RSS feed
 Displaying a RSS feed is the same as a normal list view, just with a different template.
 Therefore you won't need any different configuration to e.g. excluded categories or configure the single view page.
 
-.. only:: html
 
-.. contents::
-        :local:
-        :depth: 3
-
+..  contents::
+    :depth: 3
 
 The template for the RSS feed can be found in the file Resources/Private/Templates/News/List.xml.
 The "magic" which uses the List.xml template instead of the List.html is the following configuration:
@@ -204,6 +201,26 @@ To be able to render a link in the header section of the normal page which point
     <n:headerData>
         <link rel="alternate" type="application/rss+xml" title="RSS 2.0" href="{f:uri.page(pageType: settings.list.rss.channel.typeNum)}" />
     </n:headerData>
+
+RSS feed site configuration
+"""""""""""""""""""""""""""
+
+Don't forget to add the typeNum 9818 mapping to the PageType enhancer in the
+sites configuration. We prefer using `feed.xml`:
+
+.. code-block:: yaml
+
+   routeEnhancers:
+     PageTypeSuffix:
+       type: PageType
+       default: .html
+       map:
+         calendar.ical: 9819
+         feed.xml: 9818
+         sitemap.xml: 1533906435
+
+Please also have a look at our :ref:`Routing <routing>` section, where you
+will find a section for a default configuration that takes this into account.
 
 Troubleshooting
 ^^^^^^^^^^^^^^^

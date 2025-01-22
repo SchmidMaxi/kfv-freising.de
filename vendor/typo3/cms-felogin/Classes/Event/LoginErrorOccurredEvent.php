@@ -22,7 +22,7 @@ use Psr\Http\Message\ServerRequestInterface;
 /**
  * A notification if something went wrong while trying to log in a user.
  */
-final class LoginErrorOccurredEvent
+final readonly class LoginErrorOccurredEvent
 {
     public function __construct(
         protected ServerRequestInterface $request

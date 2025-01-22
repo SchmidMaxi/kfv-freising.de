@@ -25,14 +25,13 @@ use TYPO3\CMS\Adminpanel\Controller\MainController;
 use TYPO3\CMS\Adminpanel\Utility\StateUtility;
 use TYPO3\CMS\Core\Http\Stream;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController;
 
 /**
  * Render the admin panel via PSR-15 middleware
  *
  * @internal
  */
-class AdminPanelRenderer implements MiddlewareInterface
+readonly class AdminPanelRenderer implements MiddlewareInterface
 {
     /**
      * Render the admin panel if activated
@@ -40,10 +39,9 @@ class AdminPanelRenderer implements MiddlewareInterface
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         $response = $handler->handle($request);
-        if (
-            $GLOBALS['TSFE'] instanceof TypoScriptFrontendController
-            && StateUtility::isActivatedForUser()
-            && StateUtility::isActivatedInTypoScript()
+        $typoScriptConfig = $request->getAttribute('frontend.typoscript')->getConfigArray();
+        if (StateUtility::isActivatedForUser()
+            && ($typoScriptConfig['admPanel'] ?? false)
             && !StateUtility::isHiddenForUser()
         ) {
             $mainController = GeneralUtility::makeInstance(MainController::class);

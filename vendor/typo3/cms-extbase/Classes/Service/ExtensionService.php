@@ -32,14 +32,13 @@ use TYPO3\CMS\Extbase\Exception;
  */
 class ExtensionService implements SingletonInterface
 {
-    /**
-     * @var ConfigurationManagerInterface
-     */
-    protected $configurationManager;
+    protected ConfigurationManagerInterface $configurationManager;
 
     /**
      * Cache of result for getTargetPidByPlugin()
      * @var array
+     * @todo: Fishy. This should be at least a runtime cache or something
+     *        if it can't be refactored away.
      */
     protected $targetPidPluginCache = [];
 
@@ -60,8 +59,8 @@ class ExtensionService implements SingletonInterface
     public function getPluginNamespace(?string $extensionName, ?string $pluginName): string
     {
         // todo: with $extensionName and $pluginName being null, tx__ will be returned here which is questionable.
-        // todo: find out, if and why this case could happen and maybe avoid this methods being called with null
-        // todo: arguments afterwards.
+        //       find out, if and why this case could happen and maybe avoid this methods being called with null
+        //       arguments afterwards.
         $pluginSignature = strtolower($extensionName . '_' . $pluginName);
         $defaultPluginNamespace = 'tx_' . $pluginSignature;
         $frameworkConfiguration = $this->configurationManager->getConfiguration(ConfigurationManagerInterface::CONFIGURATION_TYPE_FRAMEWORK, $extensionName, $pluginName);
@@ -81,8 +80,8 @@ class ExtensionService implements SingletonInterface
      * @param string $extensionName name of the target extension (UpperCamelCase)
      * @param string $controllerName name of the target controller (UpperCamelCase)
      * @param string|null $actionName name of the target action (lowerCamelCase)
-     * @throws \TYPO3\CMS\Extbase\Exception
      * @return string|null name of the target plugin (UpperCamelCase) or NULL if no matching plugin configuration was found
+     * @throws Exception
      */
     public function getPluginNameByAction(string $extensionName, string $controllerName, ?string $actionName): ?string
     {
@@ -148,14 +147,14 @@ class ExtensionService implements SingletonInterface
     /**
      * Determines the target page of the specified plugin.
      * If plugin.tx_$pluginSignature.view.defaultPid is set, this value is used as target page id
-     * If defaultPid is set to "auto", a the target pid is determined by loading the tt_content record that contains this plugin
+     * If defaultPid is set to "auto", the target pid is determined by loading the tt_content record that contains this plugin
      * If the page could not be determined, NULL is returned
      * If defaultPid is "auto" and more than one page contains the specified plugin, an Exception is thrown
      *
      * @param string $extensionName name of the extension to retrieve the target PID for
      * @param string $pluginName name of the plugin to retrieve the target PID for
-     * @throws \TYPO3\CMS\Extbase\Exception
      * @return int|null uid of the target page or NULL if target page could not be determined
+     * @throws Exception
      */
     public function getTargetPidByPlugin(string $extensionName, string $pluginName): ?int
     {
@@ -175,13 +174,23 @@ class ExtensionService implements SingletonInterface
                     ->select('pid')
                     ->from('tt_content')
                     ->where(
-                        $queryBuilder->expr()->eq(
-                            'list_type',
-                            $queryBuilder->createNamedParameter($pluginSignature)
-                        ),
-                        $queryBuilder->expr()->eq(
-                            'CType',
-                            $queryBuilder->createNamedParameter('list')
+                        $queryBuilder->expr()->or(
+                            // Either CType=list and list_type=XXX (pre v14) ...
+                            $queryBuilder->expr()->and(
+                                $queryBuilder->expr()->eq(
+                                    'list_type',
+                                    $queryBuilder->createNamedParameter($pluginSignature)
+                                ),
+                                $queryBuilder->expr()->eq(
+                                    'CType',
+                                    $queryBuilder->createNamedParameter('list')
+                                ),
+                            ),
+                            // ... or CType=XXX (v14 and upwards only use this)
+                            $queryBuilder->expr()->eq(
+                                'CType',
+                                $queryBuilder->createNamedParameter($pluginSignature)
+                            ),
                         ),
                         $queryBuilder->expr()->eq(
                             'sys_language_uid',

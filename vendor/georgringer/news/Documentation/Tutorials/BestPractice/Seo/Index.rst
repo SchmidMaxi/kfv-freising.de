@@ -8,14 +8,11 @@ This chapters covers all configurations which are relevant for search engine opt
 regarding the news extension.
 
 .. note::
-   All settings described require TYPO3 9 and the the system extension "seo" installed.
+   All settings described require system extension :composer:`typo3/cms-seo` installed.
 
-
-.. only:: html
-
-.. contents::
-        :local:
-        :depth: 2
+..  contents::
+    :local:
+    :depth: 2
 
 Page title for single news
 --------------------------
@@ -241,13 +238,13 @@ If no translation exists, the property `available` is set to `false` - just as i
 
 .. code-block:: typoscript
 
-   10 = TYPO3\CMS\Frontend\DataProcessing\LanguageMenuProcessor
+   10 = language-menu
    10 {
       as = languageMenu
       addQueryString = 1
    }
 
-   11 = GeorgRinger\News\DataProcessing\DisableLanguageMenuProcessor
+   11 = disable-language-menu
    # comma separated list of language menu names
    11.menus = languageMenu
 

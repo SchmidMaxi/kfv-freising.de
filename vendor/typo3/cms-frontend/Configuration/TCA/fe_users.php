@@ -50,6 +50,7 @@ return [
                 'foreign_table' => 'fe_groups',
                 'size' => 6,
                 'minitems' => 1,
+                'dbFieldLength' => 512,
             ],
         ],
         'name' => [
@@ -99,6 +100,7 @@ return [
                 'type' => 'text',
                 'cols' => 20,
                 'rows' => 3,
+                'default' => '',
             ],
         ],
         'telephone' => [
@@ -198,59 +200,6 @@ return [
                 'maxitems' => 6,
             ],
         ],
-        'disable' => [
-            'exclude' => true,
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.enabled',
-            'config' => [
-                'type' => 'check',
-                'renderType' => 'checkboxToggle',
-                'items' => [
-                    [
-                        'label' => '',
-                        'invertStateDisplay' => true,
-                    ],
-                ],
-            ],
-        ],
-        'starttime' => [
-            'exclude' => true,
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.starttime',
-            'config' => [
-                'type' => 'datetime',
-                'default' => 0,
-            ],
-        ],
-        'endtime' => [
-            'exclude' => true,
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.endtime',
-            'config' => [
-                'type' => 'datetime',
-                'default' => 0,
-                'range' => [
-                    'upper' => mktime(0, 0, 0, 1, 1, 2038),
-                ],
-            ],
-        ],
-        'description' => [
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.description',
-            'config' => [
-                'type' => 'text',
-                'rows' => 5,
-                'cols' => 48,
-            ],
-        ],
-        // @deprecated since v12, remove in v13 together with API in FrontendUserAuthentication, also remove in 'types' array below
-        'TSconfig' => [
-            'exclude' => true,
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:TSconfig',
-            'config' => [
-                'type' => 'text',
-                'cols' => 40,
-                'rows' => 10,
-                'enableTabulator' => true,
-                'fixedFont' => true,
-            ],
-        ],
         'lastlogin' => [
             'exclude' => true,
             'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.lastlogin',
@@ -268,8 +217,6 @@ return [
                     username,password,usergroup,lastlogin,
                 --div--;LLL:EXT:frontend/Resources/Private/Language/locallang_tca.xlf:fe_users.tabs.personalData,
                     company, title, name, --palette--;;2, address, zip, city, country, telephone, fax, email, www, image,
-                --div--;LLL:EXT:frontend/Resources/Private/Language/locallang_tca.xlf:fe_users.tabs.options,
-                    TSconfig,
                 --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:access,
                     disable,--palette--;;timeRestriction,
                 --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:notes,

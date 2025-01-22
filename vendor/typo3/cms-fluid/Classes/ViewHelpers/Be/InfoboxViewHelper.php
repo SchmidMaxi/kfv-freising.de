@@ -17,14 +17,12 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Fluid\ViewHelpers\Be;
 
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\MathUtility;
-use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
-use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithContentArgumentAndRenderStatic;
 
 /**
  * ViewHelper for rendering a styled content infobox markup.
@@ -59,12 +57,10 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithContentArgumentAndRenderS
  *
  * All options::
  *
- *    <f:be.infobox title="Message title" message="your box content" state="-2" iconName="check" disableIcon="true" />
+ *    <f:be.infobox title="Message title" message="your box content" state="{f:constant(name: 'TYPO3\CMS\Fluid\ViewHelpers\Be\InfoboxViewHelper::STATE_NOTICE')}" iconName="check" disableIcon="true" />
  */
 final class InfoboxViewHelper extends AbstractViewHelper
 {
-    use CompileWithContentArgumentAndRenderStatic;
-
     public const STATE_NOTICE = -2;
     public const STATE_INFO = -1;
     public const STATE_OK = 0;
@@ -87,26 +83,25 @@ final class InfoboxViewHelper extends AbstractViewHelper
         $this->registerArgument('disableIcon', 'bool', 'If set to TRUE, the icon is not rendered.', false, false);
     }
 
-    public static function renderStatic(array $arguments, \Closure $renderChildrenClosure, RenderingContextInterface $renderingContext): string
+    public function render(): string
     {
         $iconFactory = GeneralUtility::makeInstance(IconFactory::class);
-        $title = $arguments['title'];
-        $message = $renderChildrenClosure();
-        $state = $arguments['state'];
+        $title = (string)$this->arguments['title'];
+        $message = (string)$this->renderChildren();
+        $state = $this->arguments['state'];
         $isInRange = MathUtility::isIntegerInRange($state, -2, 2);
         if (!$isInRange) {
             $state = -2;
         }
-
         $severity = ContextualFeedbackSeverity::from($state);
-        $disableIcon = $arguments['disableIcon'];
-        $icon = $arguments['iconName'] ?? $severity->getIconIdentifier();
+        $disableIcon = $this->arguments['disableIcon'];
+        $icon = $this->arguments['iconName'] ?? $severity->getIconIdentifier();
         $iconTemplate = '';
         if (!$disableIcon) {
             $iconTemplate = '' .
-                '<div class="media-left">' .
+                '<div class="callout-icon">' .
                     '<span class="icon-emphasized">' .
-                        $iconFactory->getIcon($icon, Icon::SIZE_SMALL)->render() .
+                        $iconFactory->getIcon($icon, IconSize::SMALL)->render() .
                     '</span>' .
                 '</div>';
         }
@@ -115,12 +110,10 @@ final class InfoboxViewHelper extends AbstractViewHelper
             $titleTemplate = '<div class="callout-title">' . htmlspecialchars($title) . '</div>';
         }
         return '<div class="callout callout-' . htmlspecialchars($severity->getCssClass()) . '">' .
-                '<div class="media">' .
-                    $iconTemplate .
-                    '<div class="media-body">' .
-                        $titleTemplate .
-                        '<div class="callout-body">' . $message . '</div>' .
-                    '</div>' .
+                $iconTemplate .
+                '<div class="callout-content">' .
+                    $titleTemplate .
+                    '<div class="callout-body">' . $message . '</div>' .
                 '</div>' .
             '</div>';
     }
@@ -128,7 +121,7 @@ final class InfoboxViewHelper extends AbstractViewHelper
     /**
      * Explicitly set argument name to be used as content.
      */
-    public function resolveContentArgumentName(): string
+    public function getContentArgumentName(): string
     {
         return 'message';
     }

@@ -17,10 +17,13 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Extbase\Persistence\Generic\Mapper;
 
-use TYPO3\CMS\Core\Database\Query\QueryHelper;
 use TYPO3\CMS\Core\DataHandling\TableColumnType;
+use TYPO3\CMS\Core\Schema\Field\DateTimeFieldType;
+use TYPO3\CMS\Core\Schema\Field\FieldTypeInterface;
+use TYPO3\CMS\Core\Schema\Field\FolderFieldType;
+use TYPO3\CMS\Core\Schema\Field\RelationalFieldTypeInterface;
+use TYPO3\CMS\Core\Schema\RelationshipType;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Extbase\Persistence\Generic\Exception\UnsupportedRelationException;
 use TYPO3\CMS\Extbase\Persistence\Generic\Mapper\ColumnMap\Relation;
 use TYPO3\CMS\Extbase\Reflection\ClassSchema\Exception\NoPropertyTypesException;
 use TYPO3\CMS\Extbase\Reflection\ClassSchema\Exception\NoSuchPropertyException;
@@ -29,15 +32,15 @@ use TYPO3\CMS\Extbase\Reflection\ReflectionService;
 /**
  * @internal only to be used within Extbase, not part of TYPO3 Core API.
  */
-class ColumnMapFactory
+readonly class ColumnMapFactory
 {
     public function __construct(
-        private readonly ReflectionService $reflectionService
+        private ReflectionService $reflectionService
     ) {}
 
-    public function create(string $columnName, array $columnDefinition, string $propertyName, string $className): ColumnMap
+    public function create(FieldTypeInterface $field, string $propertyName, string $className): ColumnMap
     {
-        $columnMap = GeneralUtility::makeInstance(ColumnMap::class, $columnName);
+        $columnMap = GeneralUtility::makeInstance(ColumnMap::class, $field->getName());
         try {
             $property = $this->reflectionService->getClassSchema($className)->getProperty($propertyName);
             $nonProxyPropertyTypes = $property->getFilteredTypes([$property, 'filterLazyLoadingProxyAndLazyObjectStorage']);
@@ -59,106 +62,79 @@ class ColumnMapFactory
         } catch (NoSuchPropertyException|NoPropertyTypesException $e) {
             [$type, $elementType] = [null, null];
         }
-        $columnMap = $this->setType($columnMap, $columnDefinition['config']);
-        $columnMap = $this->setRelations($columnMap, $columnDefinition['config'], $type, $elementType);
-        return $this->setDateTimeStorageFormat($columnMap, $columnDefinition['config']);
-    }
-
-    /**
-     * Set the table column type
-     */
-    protected function setType(ColumnMap $columnMap, array $columnConfiguration): ColumnMap
-    {
-        // todo: this method should only be called with proper arguments which means that the TCA integrity check should
-        // todo: take place outside this method.
-
-        $tableColumnType = $columnConfiguration['type'] ?? null;
-        $columnMap->setType(TableColumnType::tryFrom($tableColumnType) ?? TableColumnType::INPUT);
+        // @todo Why type "input" - shouldn't we better throw an exception here?
+        $columnMap->setType(TableColumnType::tryFrom($field->getType()) ?? TableColumnType::INPUT);
+        if ($field instanceof DateTimeFieldType) {
+            $columnMap->setDateTimeStorageFormat($field->getPersistenceType());
+        }
+        $columnMap = $this->setRelations($columnMap, $field, $type, $elementType);
         return $columnMap;
     }
 
     /**
-     * This method tries to determine the type of type of relation to other tables and sets it based on
+     * This method tries to determine the type of relation to other tables and sets it based on
      * the $TCA column configuration
-     *
-     * @param ColumnMap $columnMap The column map
-     * @param array|null $columnConfiguration The column configuration from $TCA
      */
-    protected function setRelations(ColumnMap $columnMap, ?array $columnConfiguration, ?string $type, ?string $elementType): ColumnMap
+    protected function setRelations(ColumnMap $columnMap, FieldTypeInterface $field, ?string $type, ?string $elementType): ColumnMap
     {
-        if (!isset($columnConfiguration)) {
-            return $columnMap;
-        }
+        $columnConfiguration = $field->getConfiguration();
 
-        if (isset($columnConfiguration['MM'])) {
-            return $this->setManyToManyRelation($columnMap, $columnConfiguration);
+        if (($field instanceof RelationalFieldTypeInterface) && $field->getRelationshipType() === RelationshipType::ManyToMany) {
+            return $this->setManyToManyRelation($columnMap, $field);
         }
 
         if ($elementType !== null) {
-            return $this->setOneToManyRelation($columnMap, $columnConfiguration);
+            // The field might not be a RelationFieldType, e.g. for TCA type "passthrough" or type "select"
+            // without items. However, the model defines a relation and therefore overrules the TCA schema lookup.
+            // IMPORTANT: This also overrules any "maxitems" or "renderType" configuration!
+            return $this->setOneToManyRelation($columnMap, $field);
         }
 
         if ($type !== null && strpbrk($type, '_\\') !== false) {
             // @todo: check the strpbrk function call. Seems to be a check for Tx_Foo_Bar style class names
-            return $this->setOneToOneRelation($columnMap, $columnConfiguration);
+            return $this->setOneToOneRelation($columnMap, $field);
         }
 
-        if (
-            isset($columnConfiguration['type'], $columnConfiguration['renderType'])
-            && $columnConfiguration['type'] === 'select'
+        if ($field instanceof FolderFieldType) {
+            // Folder is a special case which always has a relation to one or many "folders".
+            // In case "maxitems" is set to > 1 and relationship is not explicitly set to "*toOne"
+            // it's HAS_MANY, in all other cases it's HAS_ONE. It can never belong to many.
+            // @todo  we should get rid of the "maxitems" and rely purely on the evaluated relationship type
+            if (!in_array((string)($columnConfiguration['relationship'] ?? ''), ['oneToOne', 'manyToOne'], true)
+                && (!isset($columnConfiguration['maxitems']) || $columnConfiguration['maxitems'] > 1)
+            ) {
+                $columnMap->setTypeOfRelation(Relation::HAS_MANY);
+            } else {
+                $columnMap->setTypeOfRelation(Relation::HAS_ONE);
+            }
+            return $columnMap;
+        }
+
+        // @todo we should get rid of the "maxitems" and "renderType" cases here and rely purely on
+        //       the evaluated relationship type -> to be consistent with all non extbase components.
+        if ($field instanceof RelationalFieldTypeInterface
+            && $field->getRelationshipType()->hasMany()
             && (
-                $columnConfiguration['renderType'] !== 'selectSingle'
-                || (isset($columnConfiguration['maxitems']) && $columnConfiguration['maxitems'] > 1)
+                !$field->isType(TableColumnType::GROUP, TableColumnType::SELECT)
+                || ($field->isType(TableColumnType::GROUP) && (!isset($columnConfiguration['maxitems']) || $columnConfiguration['maxitems'] > 1))
+                || ($field->isType(TableColumnType::SELECT) && (($columnConfiguration['renderType'] ?? '') !== 'selectSingle' || (int)($columnConfiguration['maxitems'] ?? 0) > 1))
             )
         ) {
             $columnMap->setTypeOfRelation(Relation::HAS_MANY);
             return $columnMap;
         }
 
-        if (
-            isset($columnConfiguration['type']) && ($columnConfiguration['type'] === 'group' || $columnConfiguration['type'] === 'folder')
-            && (!isset($columnConfiguration['maxitems']) || $columnConfiguration['maxitems'] > 1)
-        ) {
-            $columnMap->setTypeOfRelation(Relation::HAS_MANY);
-            return $columnMap;
-        }
-
         return $columnMap;
     }
 
     /**
-     * Sets datetime storage format based on $TCA column configuration.
-     *
-     * @param ColumnMap $columnMap The column map
-     * @param array|null $columnConfiguration The column configuration from $TCA
+     * This method sets the configuration for a 1:1 relation based on the $TCA column configuration
      */
-    protected function setDateTimeStorageFormat(ColumnMap $columnMap, ?array $columnConfiguration = null): ColumnMap
+    protected function setOneToOneRelation(ColumnMap $columnMap, FieldTypeInterface $field): ColumnMap
     {
-        // todo: this method should only be called with proper arguments which means that the TCA integrity check should
-        // todo: take place outside this method.
-
-        if ($columnMap->getType() === TableColumnType::DATETIME
-            && in_array($columnConfiguration['dbType'] ?? '', QueryHelper::getDateTimeTypes(), true)
-        ) {
-            $columnMap->setDateTimeStorageFormat($columnConfiguration['dbType']);
-        }
-
-        return $columnMap;
-    }
-
-    /**
-     * This method sets the configuration for a 1:1 relation based on
-     * the $TCA column configuration
-     *
-     * @param ColumnMap $columnMap The column map
-     * @param array|null $columnConfiguration The column configuration from $TCA
-     */
-    protected function setOneToOneRelation(ColumnMap $columnMap, ?array $columnConfiguration = null): ColumnMap
-    {
-        // todo: this method should only be called with proper arguments which means that the TCA integrity check should
-        // todo: take place outside this method.
-
+        $columnConfiguration = $field->getConfiguration();
         $columnMap->setTypeOfRelation(Relation::HAS_ONE);
+        // @todo "allowed" (type=group) is missing here -> can only be evaluated if single value
         // check if foreign_table is set, which usually won't be the case for type "group" fields
         if (!empty($columnConfiguration['foreign_table'])) {
             $columnMap->setChildTableName($columnConfiguration['foreign_table']);
@@ -177,17 +153,13 @@ class ColumnMapFactory
      * This method sets the configuration for a 1:n relation based on
      * the $TCA column configuration
      *
-     * @param ColumnMap $columnMap The column map
-     * @param array|null $columnConfiguration The column configuration from $TCA
-     *
      * @internal
      */
-    public function setOneToManyRelation(ColumnMap $columnMap, ?array $columnConfiguration = null): ColumnMap
+    public function setOneToManyRelation(ColumnMap $columnMap, FieldTypeInterface $field): ColumnMap
     {
-        // todo: this method should only be called with proper arguments which means that the TCA integrity check should
-        // todo: take place outside this method.
-
+        $columnConfiguration = $field->getConfiguration();
         $columnMap->setTypeOfRelation(Relation::HAS_MANY);
+        // @todo "allowed" (type=group) is missing here -> can only be evaluated if single value
         // check if foreign_table is set, which usually won't be the case for type "group" fields
         if (!empty($columnConfiguration['foreign_table'])) {
             $columnMap->setChildTableName($columnConfiguration['foreign_table']);
@@ -204,48 +176,31 @@ class ColumnMapFactory
     }
 
     /**
-     * This method sets the configuration for a m:n relation based on
-     * the $TCA column configuration
-     *
-     * @param ColumnMap $columnMap The column map
-     * @param array|null $columnConfiguration The column configuration from $TCA
-     * @throws \TYPO3\CMS\Extbase\Persistence\Generic\Exception\UnsupportedRelationException
+     * This method sets the configuration for a m:n relation based on the $TCA column configuration
      */
-    protected function setManyToManyRelation(ColumnMap $columnMap, ?array $columnConfiguration = null): ColumnMap
+    protected function setManyToManyRelation(ColumnMap $columnMap, FieldTypeInterface $field): ColumnMap
     {
-        // todo: this method should only be called with proper arguments which means that the TCA integrity check should
-        // todo: take place outside this method.
-
-        if (isset($columnConfiguration['MM'])) {
-            $columnMap->setTypeOfRelation(Relation::HAS_AND_BELONGS_TO_MANY);
-            // check if foreign_table is set, which usually won't be the case for type "group" fields
-            if (!empty($columnConfiguration['foreign_table'])) {
-                $columnMap->setChildTableName($columnConfiguration['foreign_table']);
-            }
-            // todo: don't update column map if value(s) isn't/aren't set.
-            $columnMap->setRelationTableName($columnConfiguration['MM']);
-            if (isset($columnConfiguration['MM_match_fields']) && is_array($columnConfiguration['MM_match_fields'])) {
-                $columnMap->setRelationTableMatchFields($columnConfiguration['MM_match_fields']);
-            }
-            // @deprecated since v12. Remove in v13 with other MM_insert_fields places.
-            if (isset($columnConfiguration['MM_insert_fields']) && is_array($columnConfiguration['MM_insert_fields'])) {
-                $columnMap->setRelationTableInsertFields($columnConfiguration['MM_insert_fields']);
-            }
-            // todo: don't update column map if value(s) isn't/aren't set.
-            if (!empty($columnConfiguration['MM_opposite_field'])) {
-                $columnMap->setParentKeyFieldName('uid_foreign');
-                $columnMap->setChildKeyFieldName('uid_local');
-                $columnMap->setChildSortByFieldName('sorting_foreign');
-            } else {
-                $columnMap->setParentKeyFieldName('uid_local');
-                $columnMap->setChildKeyFieldName('uid_foreign');
-                $columnMap->setChildSortByFieldName('sorting');
-            }
+        $columnConfiguration = $field->getConfiguration();
+        $columnMap->setTypeOfRelation(Relation::HAS_AND_BELONGS_TO_MANY);
+        // @todo "allowed" (type=group) is missing here -> can only be evaluated if single value
+        // check if foreign_table is set, which usually won't be the case for type "group" fields
+        if ($columnConfiguration['foreign_table'] ?? false) {
+            $columnMap->setChildTableName($columnConfiguration['foreign_table']);
+        }
+        // todo: don't update column map if value(s) isn't/aren't set.
+        $columnMap->setRelationTableName($columnConfiguration['MM']);
+        if (isset($columnConfiguration['MM_match_fields']) && is_array($columnConfiguration['MM_match_fields'])) {
+            $columnMap->setRelationTableMatchFields($columnConfiguration['MM_match_fields']);
+        }
+        // todo: don't update column map if value(s) isn't/aren't set.
+        if (!empty($columnConfiguration['MM_opposite_field'])) {
+            $columnMap->setParentKeyFieldName('uid_foreign');
+            $columnMap->setChildKeyFieldName('uid_local');
+            $columnMap->setChildSortByFieldName('sorting_foreign');
         } else {
-            // todo: this else part is actually superfluous because \TYPO3\CMS\Extbase\Persistence\Generic\Mapper\DataMapFactory::setRelations
-            // todo: only calls this method if $columnConfiguration['MM'] is set.
-
-            throw new UnsupportedRelationException('The given information to build a many-to-many-relation was not sufficient. Check your TCA definitions. mm-relations with IRRE must have at least a defined "MM" or "foreign_selector".', 1268817963);
+            $columnMap->setParentKeyFieldName('uid_local');
+            $columnMap->setChildKeyFieldName('uid_foreign');
+            $columnMap->setChildSortByFieldName('sorting');
         }
         return $columnMap;
     }

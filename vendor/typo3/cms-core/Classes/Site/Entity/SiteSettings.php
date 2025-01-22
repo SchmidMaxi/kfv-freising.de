@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Core\Site\Entity;
 
+use TYPO3\CMS\Core\Settings\Settings;
 use TYPO3\CMS\Core\Utility\ArrayUtility;
 
 /**
@@ -24,31 +25,46 @@ use TYPO3\CMS\Core\Utility\ArrayUtility;
  * with TypoScript settings / constants which happens in the TypoScript Parser
  * for a specific page.
  */
-final class SiteSettings implements \JsonSerializable
+final readonly class SiteSettings extends Settings implements \JsonSerializable
 {
     private array $flatSettings;
-    public function __construct(
-        private readonly array $settings
-    ) {
-        $this->flatSettings = $this->isEmpty() ? [] : ArrayUtility::flattenPlain($settings);
+    private array $settingsTree;
+
+    /**
+     * @param array $settings key-value map of defined settings
+     * @param array $settingsTree nested settings tree, included defined (settings.definitions.yaml) and anonymous settings (only set in settings.yaml)
+     * @param array $flatSettings key-value map of all settings (defined and anonymous settings)
+     *
+     * @internal to be constructed by create() or createFromSettingsTree()
+     */
+    public function __construct(array $settings, array $settingsTree, array $flatSettings)
+    {
+        parent::__construct($settings);
+        $this->settingsTree = $settingsTree;
+        $this->flatSettings = $flatSettings;
     }
 
     public function has(string $identifier): bool
     {
-        return isset($this->settings[$identifier]);
+        return isset($this->settings[$identifier]) || isset($this->settingsTree[$identifier]) || isset($this->flatSettings[$identifier]);
     }
 
     public function isEmpty(): bool
     {
-        return $this->settings === [];
+        return $this->settingsTree === [];
     }
 
     public function get(string $identifier, mixed $defaultValue = null): mixed
     {
-        return $this->settings[$identifier] ?? $this->flatSettings[$identifier] ?? $defaultValue;
+        return $this->settings[$identifier] ?? $this->settingsTree[$identifier] ?? $this->flatSettings[$identifier] ?? $defaultValue;
     }
 
     public function getAll(): array
+    {
+        return $this->settingsTree;
+    }
+
+    public function getMap(): array
     {
         return $this->settings;
     }
@@ -58,8 +74,37 @@ final class SiteSettings implements \JsonSerializable
         return $this->flatSettings;
     }
 
+    /**
+     * @todo Update jsonSerialize() to return settings map and settings tree values, or remove altogether.
+     */
     public function jsonSerialize(): mixed
     {
-        return json_encode($this->settings);
+        return json_encode($this->settingsTree);
+    }
+
+    /**
+     * @internal
+     */
+    public static function create(array $settingsMap, array $settingsTree): self
+    {
+        $flatSettings = $settingsTree === [] ? [] : ArrayUtility::flattenPlain($settingsTree);
+        return new self(
+            settings: $settingsMap,
+            settingsTree: $settingsTree,
+            flatSettings: $flatSettings,
+        );
+    }
+
+    /**
+     * @internal
+     */
+    public static function createFromSettingsTree(array $settingsTree): self
+    {
+        $flatSettings = $settingsTree === [] ? [] : ArrayUtility::flattenPlain($settingsTree);
+        return new self(
+            settings: [],
+            settingsTree: $settingsTree,
+            flatSettings: $flatSettings,
+        );
     }
 }

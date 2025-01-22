@@ -1,4 +1,5 @@
 <?php
+
 /*
 
 ### Configuration options
@@ -54,6 +55,7 @@ after('deploy', 'deploy:sentry');
 ```
 
  */
+
 namespace Deployer;
 
 use Closure;
@@ -90,7 +92,7 @@ task(
                 if (is_callable($value)) {
                     $value = $value($config);
                 }
-            }
+            },
         );
 
         if (
@@ -99,19 +101,19 @@ task(
         ) {
             throw new \RuntimeException(
                 <<<EXAMPLE
-Required data missing. Please configure sentry:
-set(
-    'sentry',
-    [
-        'organization' => 'exampleorg',
-        'projects' => [
-            'exampleproj',
-            'exampleproje2'
-        ],
-        'token' => 'd47828...',
-    ]
-);"
-EXAMPLE
+                    Required data missing. Please configure sentry:
+                    set(
+                        'sentry',
+                        [
+                            'organization' => 'exampleorg',
+                            'projects' => [
+                                'exampleproj',
+                                'exampleproje2'
+                            ],
+                            'token' => 'd47828...',
+                        ]
+                    );"
+                    EXAMPLE,
             );
         }
 
@@ -125,13 +127,14 @@ EXAMPLE
                 'dateReleased' => $config['date_released'],
                 'projects' => $config['projects'],
                 'previousCommit' => $config['previous_commit'],
-            ]
+            ],
         );
 
         $releasesApiUrl = $config['sentry_server'] . '/api/0/organizations/' . $config['organization'] . '/releases/';
         $response = Httpie::post(
-            $releasesApiUrl
+            $releasesApiUrl,
         )
+            ->setopt(CURLOPT_TIMEOUT, 10)
             ->header('Authorization', sprintf('Bearer %s', $config['token']))
             ->jsonBody($releaseData)
             ->getJson();
@@ -145,8 +148,8 @@ EXAMPLE
                 '<info>Sentry:</info> Release of version <comment>%s</comment> ' .
                 'for projects: <comment>%s</comment> created successfully.',
                 $response['version'],
-                implode(', ', array_column($response['projects'], 'slug'))
-            )
+                implode(', ', array_column($response['projects'], 'slug')),
+            ),
         );
 
         $deployData = array_filter(
@@ -156,12 +159,13 @@ EXAMPLE
                 'url' => $config['url'],
                 'dateStarted' => $config['date_deploy_started'],
                 'dateFinished' => $config['date_deploy_finished'],
-            ]
+            ],
         );
 
         $response = Httpie::post(
-            $releasesApiUrl . $response['version'] . '/deploys/'
+            $releasesApiUrl . $response['version'] . '/deploys/',
         )
+            ->setopt(CURLOPT_TIMEOUT, 10)
             ->header('Authorization', sprintf('Bearer %s', $config['token']))
             ->jsonBody($deployData)
             ->getJson();
@@ -175,10 +179,10 @@ EXAMPLE
                 '<info>Sentry:</info> Deployment <comment>%s</comment> ' .
                 'for environment <comment>%s</comment> created successfully',
                 $response['id'],
-                $response['environment']
-            )
+                $response['environment'],
+            ),
         );
-    }
+    },
 );
 
 function getPreviousReleaseRevision()
@@ -255,18 +259,17 @@ function getGitCommitsRefs(): Closure
         try {
             if (get('update_code_strategy') === 'archive') {
                 cd('{{deploy_path}}/.dep/repo');
-            }
-            else {
+            } else {
                 cd('{{release_path}}');
             }
 
             $result = run(sprintf('git rev-list --pretty="%s" %s', 'format:%H#%an#%ae#%at#%s', $commitRange));
             $lines = array_filter(
-            // limit number of commits for first release with many commits
+                // limit number of commits for first release with many commits
                 array_map('trim', array_slice(explode("\n", $result), 0, 200)),
                 static function (string $line): bool {
                     return !empty($line) && strpos($line, 'commit') !== 0;
-                }
+                },
             );
 
             return array_map(
@@ -281,7 +284,7 @@ function getGitCommitsRefs(): Closure
                         'timestamp' => date(\DateTime::ATOM, (int) $timestamp),
                     ];
                 },
-                $lines
+                $lines,
             );
 
         } catch (\Deployer\Exception\RunException $e) {

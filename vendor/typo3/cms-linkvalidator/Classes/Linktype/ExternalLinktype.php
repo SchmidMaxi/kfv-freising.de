@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -21,13 +23,21 @@ use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Exception\ServerException;
 use GuzzleHttp\Exception\TooManyRedirectsException;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Core\Http\RequestFactory;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\HttpUtility;
+use TYPO3\CMS\Linkvalidator\LinkAnalyzer;
 
 /**
- * This class provides Check External Links plugin implementation
+ * This class provides external links checking
+ * !!! There are some known issues with external link checking:
+ * - "false positives": Link targets considered broken which are not broken
+ * - no rate limiting when checking links on external sites (e.g. crawl delay)
+ * - no caching of results (except for a runtime cache during link checking which will be invalid on next run)
+ * see "Known Problems" in the linkvalidator documentation
  */
+#[Autoconfigure(public: true)]
 class ExternalLinktype extends AbstractLinktype
 {
     // HTTP status code was delivered (and can be found in $errorParams['errno'])
@@ -86,11 +96,6 @@ class ExternalLinktype extends AbstractLinktype
      */
     protected int $timeout = 0;
 
-    /**
-     * @var array
-     */
-    protected $errorParams = [];
-
     protected string $identifier = 'external';
 
     public function __construct(
@@ -141,7 +146,7 @@ class ExternalLinktype extends AbstractLinktype
      * @return bool TRUE on success or FALSE on error
      * @throws \InvalidArgumentException
      */
-    public function checkLink($origUrl, $softRefEntry, $reference)
+    public function checkLink(string $origUrl, array $softRefEntry, LinkAnalyzer $reference): bool
     {
         $isValidUrl = false;
         // use URL from cache, if available
@@ -242,9 +247,8 @@ class ExternalLinktype extends AbstractLinktype
      *
      * @param array $errorParams All parameters needed for the rendering of the error message
      * @return string Validation error message
-     * @todo change input parameter type to array in TYPO3 v13
      */
-    public function getErrorMessage($errorParams)
+    public function getErrorMessage(array $errorParams): string
     {
         $lang = $this->getLanguageService();
         $errorType = $errorParams['errorType'] ?? '';
@@ -336,9 +340,9 @@ class ExternalLinktype extends AbstractLinktype
      * @param string $key Validator hook name
      * @return string Fetched type
      */
-    public function fetchType($value, $type, $key)
+    public function fetchType(array $value, string $type, string $key): string
     {
-        preg_match_all('/((?:http|https))(?::\\/\\/)(?:[^\\s<>]+)/i', $value['tokenValue'] ?? '', $urls, PREG_PATTERN_ORDER);
+        preg_match_all('/((?:http|https))(?::\\/\\/)(?:[^\\s<>]+)/i', (string)$value['tokenValue'], $urls, PREG_PATTERN_ORDER);
         if (!empty($urls[0][0])) {
             $type = 'external';
         }

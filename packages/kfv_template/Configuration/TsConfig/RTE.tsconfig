@@ -1,0 +1,6 @@
+RTE {
+    default {
+        preset = kfv_template
+        buttons.link.options.removeItems = folder
+    }
+}

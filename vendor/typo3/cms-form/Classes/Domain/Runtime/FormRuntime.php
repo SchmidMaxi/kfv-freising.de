@@ -23,8 +23,11 @@ namespace TYPO3\CMS\Form\Domain\Runtime;
 
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Core\Context\Context;
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Error\Http\BadRequestException;
+use TYPO3\CMS\Core\Exception\Crypto\InvalidHashStringException;
 use TYPO3\CMS\Core\ExpressionLanguage\RequestWrapper;
 use TYPO3\CMS\Core\ExpressionLanguage\Resolver;
 use TYPO3\CMS\Core\Http\ApplicationType;
@@ -39,9 +42,6 @@ use TYPO3\CMS\Extbase\Error\Result;
 use TYPO3\CMS\Extbase\Mvc\ExtbaseRequestParameters;
 use TYPO3\CMS\Extbase\Mvc\RequestInterface;
 use TYPO3\CMS\Extbase\Property\Exception as PropertyException;
-use TYPO3\CMS\Extbase\Security\Cryptography\HashService;
-use TYPO3\CMS\Extbase\Security\Exception\InvalidArgumentForHashGenerationException;
-use TYPO3\CMS\Extbase\Security\Exception\InvalidHashException;
 use TYPO3\CMS\Extbase\Validation\ValidatorResolver;
 use TYPO3\CMS\Form\Domain\Exception\RenderingException;
 use TYPO3\CMS\Form\Domain\Finishers\FinisherContext;
@@ -58,9 +58,9 @@ use TYPO3\CMS\Form\Domain\Runtime\FormRuntime\FormSession;
 use TYPO3\CMS\Form\Domain\Runtime\FormRuntime\Lifecycle\AfterFormStateInitializedInterface;
 use TYPO3\CMS\Form\Exception as FormException;
 use TYPO3\CMS\Form\Mvc\Validation\EmptyValidator;
+use TYPO3\CMS\Form\Security\HashScope;
 use TYPO3\CMS\Frontend\Authentication\FrontendUserAuthentication;
 use TYPO3\CMS\Frontend\ContentObject\ContentObjectRenderer;
-use TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController;
 
 /**
  * This class implements the *runtime logic* of a form, i.e. deciding which
@@ -103,6 +103,7 @@ use TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController;
  * @internal High cohesion to FormDefinition, may change any time
  * @todo: Declare final in v12
  */
+#[Autoconfigure(public: true, shared: false)]
 class FormRuntime implements RootRenderableInterface, \ArrayAccess
 {
     public const HONEYPOT_NAME_SESSION_IDENTIFIER = 'tx_form_honeypot_name_';
@@ -163,6 +164,7 @@ class FormRuntime implements RootRenderableInterface, \ArrayAccess
         protected readonly ConfigurationManagerInterface $configurationManager,
         protected readonly HashService $hashService,
         protected readonly ValidatorResolver $validatorResolver,
+        private readonly Context $context,
     ) {
         $this->response = new Response();
     }
@@ -236,8 +238,8 @@ class FormRuntime implements RootRenderableInterface, \ArrayAccess
             $this->formState = GeneralUtility::makeInstance(FormState::class);
         } else {
             try {
-                $serializedFormState = $this->hashService->validateAndStripHmac($serializedFormStateWithHmac);
-            } catch (InvalidHashException | InvalidArgumentForHashGenerationException $e) {
+                $serializedFormState = $this->hashService->validateAndStripHmac($serializedFormStateWithHmac, HashScope::FormState->prefix());
+            } catch (InvalidHashStringException $e) {
                 throw new BadRequestException('The HMAC of the form state could not be validated.', 1581862823);
             }
             $this->formState = unserialize(base64_decode($serializedFormState));
@@ -354,7 +356,7 @@ class FormRuntime implements RootRenderableInterface, \ArrayAccess
             $honeypotNameFromSession = $this->getHoneypotNameFromSession($this->lastDisplayedPage);
             if ($honeypotNameFromSession) {
                 $honeypotElement = $this->lastDisplayedPage->createElement($honeypotNameFromSession, $renderingOptions['honeypot']['formElementToUse']);
-                $validator = $this->validatorResolver->createValidator(EmptyValidator::class);
+                $validator = $this->validatorResolver->createValidator(EmptyValidator::class, [], $this->request);
                 $honeypotElement->addValidator($validator);
             }
         }
@@ -398,7 +400,7 @@ class FormRuntime implements RootRenderableInterface, \ArrayAccess
 
             $referenceElement = $this->currentPage->getElements()[$randomElementNumber];
             $honeypotElement = $this->currentPage->createElement($honeypotName, $renderingOptions['honeypot']['formElementToUse']);
-            $validator = $this->validatorResolver->createValidator(EmptyValidator::class);
+            $validator = $this->validatorResolver->createValidator(EmptyValidator::class, [], $this->request);
 
             $honeypotElement->addValidator($validator);
             if (random_int(0, 1) === 1) {
@@ -447,20 +449,16 @@ class FormRuntime implements RootRenderableInterface, \ArrayAccess
     }
 
     /**
-     * Necessary to know if honeypot information should be stored in the user session info, or in the anonymous session
-     *
-     * @return bool true when a frontend user is logged, otherwise false
+     * Necessary to know if honeypot information should be stored in the user session info, or in the anonymous session.
      */
     protected function isFrontendUserAuthenticated(): bool
     {
-        return (bool)GeneralUtility::makeInstance(Context::class)
-            ->getPropertyFromAspect('frontend.user', 'isLoggedIn', false);
+        return (bool)$this->context->getPropertyFromAspect('frontend.user', 'isLoggedIn', false);
     }
 
-    protected function processVariants()
+    protected function processVariants(): void
     {
         $conditionResolver = $this->getConditionResolver();
-
         $renderables = array_merge([$this->formDefinition], $this->formDefinition->getRenderablesRecursively());
         foreach ($renderables as $renderable) {
             if ($renderable instanceof VariableRenderableInterface) {
@@ -864,7 +862,7 @@ class FormRuntime implements RootRenderableInterface, \ArrayAccess
     public function offsetExists(mixed $identifier): bool
     {
         $identifier = (string)$identifier;
-        if ($this->getElementValue((string)$identifier) !== null) {
+        if ($this->getElementValue($identifier) !== null) {
             return true;
         }
 
@@ -1008,7 +1006,7 @@ class FormRuntime implements RootRenderableInterface, \ArrayAccess
     }
 
     /**
-     * Override the the current site language configuration.
+     * Override the current site language configuration.
      *
      * This is typically not needed in production code, but it is very
      * helpful when displaying some kind of "preview" of the form (e.g. form editor).
@@ -1029,13 +1027,8 @@ class FormRuntime implements RootRenderableInterface, \ArrayAccess
         if ($this->request->getAttribute('language') instanceof SiteLanguage) {
             $this->currentSiteLanguage = $this->request->getAttribute('language');
         } else {
-            $pageId = 0;
-            $languageId = (int)GeneralUtility::makeInstance(Context::class)->getPropertyFromAspect('language', 'id', 0);
-
-            if ($this->getTypoScriptFrontendController() !== null) {
-                $pageId = $this->getTypoScriptFrontendController()->id;
-            }
-
+            $languageId = (int)$this->context->getPropertyFromAspect('language', 'id', 0);
+            $pageId = $this->request->getAttribute('frontend.page.information')?->getId() ?? 0;
             $fakeSiteConfiguration = [
                 'languages' => [
                     [
@@ -1047,7 +1040,6 @@ class FormRuntime implements RootRenderableInterface, \ArrayAccess
                     ],
                 ],
             ];
-
             $this->currentSiteLanguage = GeneralUtility::makeInstance(Site::class, 'form-dummy', $pageId, $fakeSiteConfiguration)
                 ->getLanguageById($languageId);
         }
@@ -1100,12 +1092,7 @@ class FormRuntime implements RootRenderableInterface, \ArrayAccess
 
     protected function getFrontendUser(): FrontendUserAuthentication
     {
-        return $this->getTypoScriptFrontendController()->fe_user;
-    }
-
-    protected function getTypoScriptFrontendController(): ?TypoScriptFrontendController
-    {
-        return $GLOBALS['TSFE'] ?? null;
+        return $this->request->getAttribute('frontend.user');
     }
 
     protected function isRenderableEnabled(RenderableInterface $renderable): bool

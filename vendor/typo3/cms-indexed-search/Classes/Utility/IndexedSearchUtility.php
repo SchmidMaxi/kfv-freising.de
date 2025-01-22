@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\IndexedSearch\Utility;
 
+use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
@@ -26,32 +27,6 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  */
 class IndexedSearchUtility
 {
-    /**
-     * Check if the tables provided are configured for usage. This becomes
-     * necessary for extensions that provide additional database functionality
-     * like indexed_search_mysql.
-     *
-     * @param string $tableName Table name to check
-     * @return bool True if the given table is used
-     */
-    public static function isTableUsed(string $tableName): bool
-    {
-        $tableList = $GLOBALS['TYPO3_CONF_VARS']['EXTCONF']['indexed_search']['use_tables'] ?? '';
-        return $tableList !== '' && GeneralUtility::inList($tableList, $tableName);
-    }
-
-    /**
-     * md5 integer hash
-     * Using 7 instead of 8 just because that makes the integers lower than 32 bit (28 bit) and so they do not interfere with UNSIGNED integers or PHP-versions which has varying output from the hexdec function.
-     *
-     * @param string $stringToHash String to hash
-     * @return int Integer interpretation of the md5 hash of input string.
-     */
-    public static function md5inthash(string $stringToHash): int
-    {
-        return (int)hexdec(substr(md5($stringToHash), 0, 7));
-    }
-
     /**
      * Takes a search-string (WITHOUT SLASHES or else it'll be a little spooky , NOW REMEMBER to unslash!!)
      * Sets up search words with operators.
@@ -67,7 +42,7 @@ class IndexedSearchUtility
             if (is_array($components)) {
                 $i = 0;
                 $lastoper = '';
-                foreach ($components as $key => $val) {
+                foreach ($components as $val) {
                     $operator = self::getOperator($val, $operatorTranslateTable);
                     if ($operator) {
                         $lastoper = $operator;
@@ -167,10 +142,12 @@ class IndexedSearchUtility
     }
 
     /**
-     * Gets the unixtime as milliseconds.
+     * If MySQL Fulltext feature is used, the DB tables "index_rel" and "index_words" are not in use
+     * and skipped in various places.
      */
-    public static function milliseconds(): int
+    public static function isMysqlFullTextEnabled(): bool
     {
-        return (int)round(microtime(true) * 1000);
+        $extConf = GeneralUtility::makeInstance(ExtensionConfiguration::class)->get('indexed_search');
+        return (bool)($extConf['useMysqlFulltext'] ?? false);
     }
 }

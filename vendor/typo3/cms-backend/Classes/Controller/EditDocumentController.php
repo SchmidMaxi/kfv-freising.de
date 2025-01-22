@@ -27,6 +27,7 @@ use TYPO3\CMS\Backend\Controller\Event\BeforeFormEnginePageInitializedEvent;
 use TYPO3\CMS\Backend\Form\Exception\AccessDeniedException;
 use TYPO3\CMS\Backend\Form\Exception\DatabaseRecordException;
 use TYPO3\CMS\Backend\Form\Exception\DatabaseRecordWorkspaceDeletePlaceholderException;
+use TYPO3\CMS\Backend\Form\Exception\NoFieldsToRenderException;
 use TYPO3\CMS\Backend\Form\FormDataCompiler;
 use TYPO3\CMS\Backend\Form\FormDataGroup\TcaDatabaseRecord;
 use TYPO3\CMS\Backend\Form\FormResultCompiler;
@@ -36,6 +37,7 @@ use TYPO3\CMS\Backend\Routing\Exception\ResourceNotFoundException;
 use TYPO3\CMS\Backend\Routing\PreviewUriBuilder;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\Components\ButtonBar;
+use TYPO3\CMS\Backend\Template\Components\Buttons\GenericButton;
 use TYPO3\CMS\Backend\Template\ModuleTemplate;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
@@ -49,8 +51,8 @@ use TYPO3\CMS\Core\Database\ReferenceIndex;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
 use TYPO3\CMS\Core\Domain\Repository\PageRepository;
 use TYPO3\CMS\Core\Http\RedirectResponse;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Messaging\FlashMessage;
 use TYPO3\CMS\Core\Messaging\FlashMessageQueue;
@@ -347,6 +349,8 @@ class EditDocumentController
         protected readonly ModuleTemplateFactory $moduleTemplateFactory,
         protected readonly BackendEntryPointResolver $backendEntryPointResolver,
         protected readonly ModuleProvider $moduleProvider,
+        private readonly FormDataCompiler $formDataCompiler,
+        private readonly NodeFactory $nodeFactory,
     ) {}
 
     /**
@@ -423,6 +427,10 @@ class EditDocumentController
         if (is_string($columnsOnly) && $columnsOnly !== '') {
             // @deprecated remove fallback in v14
             // Store given columns for the first table - only for b/w compatibility
+            trigger_error(
+                'Providing columnsOnly with no table context is deprecated and will be removed in v14. Define columnsOnly[table][]=field instead.',
+                E_USER_DEPRECATED
+            );
             $tables = array_keys($this->editconf);
             foreach ($tables as $table) {
                 $this->columnsOnly[$table] = GeneralUtility::trimExplode(',', $columnsOnly, true);
@@ -534,7 +542,7 @@ class EditDocumentController
         }
 
         // Set default values fetched previously from GET / POST vars
-        if (is_array($this->defVals) && $this->defVals !== [] && is_array($tce->defaultValues)) {
+        if (is_array($this->defVals) && $this->defVals !== []) {
             $tce->defaultValues = array_merge_recursive($this->defVals, $tce->defaultValues);
         }
 
@@ -631,17 +639,23 @@ class EditDocumentController
             // Find the current table
             reset($this->editconf);
             $nTable = (string)key($this->editconf);
-            // Finding the first id, getting the records pid+uid
+            // Determine insertion mode: 'top' is self-explaining,
+            // otherwise new elements are inserted after one using a negative uid
+            $insertRecordOnTop = ($this->getTsConfigOption($nTable, 'saveDocNew') === 'top');
+            // Fetching id's - might be a comma-separated list
             reset($this->editconf[$nTable]);
-            $nUid = (int)key($this->editconf[$nTable]);
+            $ids = GeneralUtility::trimExplode(',', (string)key($this->editconf[$nTable]), true);
+            // Depending on $insertRecordOnTop, retrieve either the first or last id to get the records' pid+uid
+            if ($insertRecordOnTop) {
+                $nUid = (int)reset($ids);
+            } else {
+                $nUid = (int)end($ids);
+            }
             $recordFields = 'pid,uid';
             if (BackendUtility::isTableWorkspaceEnabled($nTable)) {
                 $recordFields .= ',t3ver_oid';
             }
             $nRec = BackendUtility::getRecord($nTable, $nUid, $recordFields);
-            // Determine insertion mode: 'top' is self-explaining,
-            // otherwise new elements are inserted after one using a negative uid
-            $insertRecordOnTop = ($this->getTsConfigOption($nTable, 'saveDocNew') === 'top');
             // Setting a blank editconf array for a new record:
             $this->editconf = [];
             // Determine related page ID for regular live context
@@ -939,12 +953,12 @@ class EditDocumentController
         $previewPageId = 0;
         $table = ($this->previewData['table'] ?? '') ?: ($this->firstEl['table'] ?? '');
         $recordId = ($this->previewData['id'] ?? '') ?: ($this->firstEl['uid'] ?? '');
-        $pageId = $this->popViewId ?: $this->viewId;
+        $pageId = (int)($this->popViewId ?: $this->viewId);
 
         if ($table === 'pages') {
             $currentPageId = (int)$recordId;
         } else {
-            $currentPageId = MathUtility::convertToPositiveInteger($pageId);
+            $currentPageId = max(0, $pageId);
         }
 
         $previewConfiguration = BackendUtility::getPagesTSconfig($currentPageId)['TCEMAIN.']['preview.'][$table . '.'] ?? [];
@@ -992,7 +1006,6 @@ class EditDocumentController
         return !in_array((int)$currentPage['doktype'], [
             PageRepository::DOKTYPE_SPACER,
             PageRepository::DOKTYPE_SYSFOLDER,
-            PageRepository::DOKTYPE_RECYCLER,
         ], true);
     }
 
@@ -1118,9 +1131,6 @@ class EditDocumentController
                     }
 
                     try {
-                        $formDataCompiler = GeneralUtility::makeInstance(FormDataCompiler::class);
-                        $nodeFactory = GeneralUtility::makeInstance(NodeFactory::class);
-
                         // Reset viewId - it should hold data of last entry only
                         $this->viewId = 0;
 
@@ -1138,7 +1148,7 @@ class EditDocumentController
                             $formDataCompilerInput['defaultValues'] = $this->defVals;
                         }
 
-                        $formData = $formDataCompiler->compile($formDataCompilerInput, GeneralUtility::makeInstance(TcaDatabaseRecord::class));
+                        $formData = $this->formDataCompiler->compile($formDataCompilerInput, GeneralUtility::makeInstance(TcaDatabaseRecord::class));
 
                         // Set this->viewId if possible
                         if ($command === 'new'
@@ -1155,7 +1165,6 @@ class EditDocumentController
                         }
 
                         // Determine if delete button can be shown
-                        $deleteAccess = false;
                         $permission = new Permission($formData['userPermissionOnPage']);
                         if ($formData['tableName'] === 'pages') {
                             $deleteAccess = $permission->get(Permission::PAGE_DELETE);
@@ -1198,7 +1207,7 @@ class EditDocumentController
                         }
 
                         $formData['renderType'] = 'outerWrapContainer';
-                        $formResult = $nodeFactory->create($formData)->render();
+                        $formResult = $this->nodeFactory->create($formData)->render();
 
                         $html = $formResult['html'];
 
@@ -1220,6 +1229,12 @@ class EditDocumentController
                         }
 
                         $editForm .= $html;
+                    } catch (NoFieldsToRenderException $e) {
+                        $this->errorC++;
+                        $editForm .= $this->getInfobox(
+                            $this->getLanguageService()->sL('LLL:EXT:backend/Resources/Private/Language/locallang_alt_doc.xlf:noFieldsEditForm.message'),
+                            $this->getLanguageService()->sL('LLL:EXT:backend/Resources/Private/Language/locallang_alt_doc.xlf:noFieldsEditForm'),
+                        );
                     } catch (AccessDeniedException $e) {
                         $this->errorC++;
                         // Try to fetch error message from "recordInternals" be user object
@@ -1242,16 +1257,14 @@ class EditDocumentController
     protected function getInfobox(string $message, ?string $title = null): string
     {
         return '<div class="callout callout-danger">' .
-                '<div class="media">' .
-                    '<div class="media-left">' .
-                        '<span class="icon-emphasized">' .
-                            $this->iconFactory->getIcon('actions-close', Icon::SIZE_SMALL)->render() .
-                        '</span>' .
-                    '</div>' .
-                    '<div class="media-body">' .
-                        ($title ? '<div class="callout-title">' . htmlspecialchars($title) . '</div>' : '') .
-                        '<div class="callout-body">' . htmlspecialchars($message) . '</div>' .
-                    '</div>' .
+                '<div class="callout-icon">' .
+                    '<span class="icon-emphasized">' .
+                        $this->iconFactory->getIcon('actions-close', IconSize::SMALL)->render() .
+                    '</span>' .
+                '</div>' .
+                '<div class="callout-content">' .
+                    ($title ? '<div class="callout-title">' . htmlspecialchars($title) . '</div>' : '') .
+                    '<div class="callout-body">' . htmlspecialchars($message) . '</div>' .
                 '</div>' .
             '</div>';
     }
@@ -1315,8 +1328,9 @@ class EditDocumentController
             }
         }
 
-        $this->registerOpenInNewWindowButtonToButtonBar($buttonBar, ButtonBar::BUTTON_POSITION_RIGHT, 2, $request);
-        $this->registerShortcutButtonToButtonBar($buttonBar, ButtonBar::BUTTON_POSITION_RIGHT, 3, $request);
+        $this->registerInfoButtonToButtonBar($buttonBar, ButtonBar::BUTTON_POSITION_RIGHT, 2);
+        $this->registerOpenInNewWindowButtonToButtonBar($buttonBar, ButtonBar::BUTTON_POSITION_RIGHT, 3, $request);
+        $this->registerShortcutButtonToButtonBar($buttonBar, ButtonBar::BUTTON_POSITION_RIGHT, 4, $request);
     }
 
     /**
@@ -1388,7 +1402,7 @@ class EditDocumentController
             ->setClasses('t3js-editform-close')
             ->setTitle($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:rm.closeDoc'))
             ->setShowLabelText(true)
-            ->setIcon($this->iconFactory->getIcon('actions-close', Icon::SIZE_SMALL));
+            ->setIcon($this->iconFactory->getIcon('actions-close', IconSize::SMALL));
         $buttonBar->addButton($closeButton, $position, $group);
     }
 
@@ -1399,7 +1413,7 @@ class EditDocumentController
     {
         $saveButton = $buttonBar->makeInputButton()
             ->setForm('EditDocumentController')
-            ->setIcon($this->iconFactory->getIcon('actions-document-save', Icon::SIZE_SMALL))
+            ->setIcon($this->iconFactory->getIcon('actions-document-save', IconSize::SMALL))
             ->setName('_savedok')
             ->setShowLabelText(true)
             ->setTitle($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:rm.saveDoc'))
@@ -1422,9 +1436,8 @@ class EditDocumentController
             if (isset($pagesTSconfig['TCEMAIN.']['preview.']['disableButtonForDokType'])) {
                 $excludeDokTypes = GeneralUtility::intExplode(',', (string)$pagesTSconfig['TCEMAIN.']['preview.']['disableButtonForDokType'], true);
             } else {
-                // exclude sys-folders, spacers and recycler by default
+                // exclude sys-folders and spacers by default
                 $excludeDokTypes = [
-                    PageRepository::DOKTYPE_RECYCLER,
                     PageRepository::DOKTYPE_SYSFOLDER,
                     PageRepository::DOKTYPE_SPACER,
                 ];
@@ -1441,7 +1454,7 @@ class EditDocumentController
                 if ($previewUrl !== '') {
                     $viewButton = $buttonBar->makeLinkButton()
                         ->setHref($previewUrl)
-                        ->setIcon($this->iconFactory->getIcon('actions-view', Icon::SIZE_SMALL))
+                        ->setIcon($this->iconFactory->getIcon('actions-view', IconSize::SMALL))
                         ->setShowLabelText(true)
                         ->setTitle($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:rm.viewDoc'))
                         ->setClasses('t3js-editform-view');
@@ -1481,7 +1494,7 @@ class EditDocumentController
         ) {
             $newButton = $buttonBar->makeLinkButton()
                 ->setHref('#')
-                ->setIcon($this->iconFactory->getIcon('actions-plus', Icon::SIZE_SMALL))
+                ->setIcon($this->iconFactory->getIcon('actions-plus', IconSize::SMALL))
                 ->setShowLabelText(true)
                 ->setTitle($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:rm.newDoc'))
                 ->setClasses('t3js-editform-new');
@@ -1521,7 +1534,7 @@ class EditDocumentController
                 ->setHref('#')
                 ->setShowLabelText(true)
                 ->setTitle($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:rm.duplicateDoc'))
-                ->setIcon($this->iconFactory->getIcon('actions-document-duplicates-select', Icon::SIZE_SMALL))
+                ->setIcon($this->iconFactory->getIcon('actions-document-duplicates-select', IconSize::SMALL))
                 ->setClasses('t3js-editform-duplicate');
             if (!$this->isSavedRecord) {
                 $duplicateButton->setDataAttributes(['is-new' => '']);
@@ -1569,7 +1582,7 @@ class EditDocumentController
             );
             $referenceCountMessage = BackendUtility::referenceCount(
                 $this->firstEl['table'],
-                (string)(int)$this->firstEl['uid'],
+                (int)$this->firstEl['uid'],
                 $this->getLanguageService()->sL(
                     'LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.referencesToRecord'
                 ),
@@ -1609,10 +1622,31 @@ class EditDocumentController
                     'translation-count-message' => $translationCountMessage,
                 ])
                 ->setHref($deleteUrl)
-                ->setIcon($this->iconFactory->getIcon('actions-edit-delete', Icon::SIZE_SMALL))
+                ->setIcon($this->iconFactory->getIcon('actions-edit-delete', IconSize::SMALL))
                 ->setShowLabelText(true)
                 ->setTitle($this->getLanguageService()->sL('LLL:EXT:backend/Resources/Private/Language/locallang_alt_doc.xlf:deleteItem'));
             $buttonBar->addButton($deleteButton, $position, $group);
+        }
+    }
+
+    /**
+     * Register the info button to the button bar
+     */
+    protected function registerInfoButtonToButtonBar(ButtonBar $buttonBar, string $position, int $group): void
+    {
+        if ($this->isSingleRecordView()
+            && !empty($this->firstEl['table'])
+            && $this->isSavedRecord
+        ) {
+            $button = GeneralUtility::makeInstance(GenericButton::class);
+            $button->setLabel($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_mod_web_list.xlf:showInfo'));
+            $button->setAttributes([
+                'type' => 'button',
+                'data-dispatch-action' => 'TYPO3.InfoWindow.showItem',
+                'data-dispatch-args-list' => $this->firstEl['table'] . ',' . $this->firstEl['uid'],
+            ]);
+            $button->setIcon($this->iconFactory->getIcon('actions-document-info', IconSize::SMALL));
+            $buttonBar->addButton($button, $position, $group);
         }
     }
 
@@ -1621,9 +1655,10 @@ class EditDocumentController
      */
     protected function registerHistoryButtonToButtonBar(ButtonBar $buttonBar, string $position, int $group): void
     {
+        $userTsConfig = $this->getBackendUser()->getTSConfig();
         if ($this->isSingleRecordView()
             && !empty($this->firstEl['table'])
-            && $this->getTsConfigOption($this->firstEl['table'], 'showHistory')
+            && (bool)trim($userTsConfig['options.']['showHistory.'][$this->firstEl['table']] ?? $userTsConfig['options.']['showHistory'] ?? '1')
         ) {
             $historyUrl = (string)$this->uriBuilder->buildUriFromRoute('record_history', [
                 'element' => $this->firstEl['table'] . ':' . $this->firstEl['uid'],
@@ -1632,7 +1667,7 @@ class EditDocumentController
             $historyButton = $buttonBar->makeLinkButton()
                 ->setHref($historyUrl)
                 ->setTitle($this->getLanguageService()->sL('LLL:EXT:backend/Resources/Private/Language/locallang_alt_doc.xlf:recordHistory'))
-                ->setIcon($this->iconFactory->getIcon('actions-document-history-open', Icon::SIZE_SMALL));
+                ->setIcon($this->iconFactory->getIcon('actions-document-history-open', IconSize::SMALL));
             $buttonBar->addButton($historyButton, $position, $group);
         }
     }
@@ -1649,7 +1684,7 @@ class EditDocumentController
                 ->setHref($this->R_URI . '&columnsOnly=')
                 ->setTitle($this->getLanguageService()->sL('LLL:EXT:backend/Resources/Private/Language/locallang_alt_doc.xlf:editWholeRecord'))
                 ->setShowLabelText(true)
-                ->setIcon($this->iconFactory->getIcon('actions-open', Icon::SIZE_SMALL));
+                ->setIcon($this->iconFactory->getIcon('actions-open', IconSize::SMALL));
 
             $buttonBar->addButton($columnsOnlyButton, $position, $group);
         }
@@ -1670,7 +1705,7 @@ class EditDocumentController
                 ->makeLinkButton()
                 ->setHref('#')
                 ->setTitle($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.openInNewWindow'))
-                ->setIcon($this->iconFactory->getIcon('actions-window-open', Icon::SIZE_SMALL))
+                ->setIcon($this->iconFactory->getIcon('actions-window-open', IconSize::SMALL))
                 ->setDataAttributes([
                     'dispatch-action' => 'TYPO3.WindowManager.localOpen',
                     'dispatch-args' => GeneralUtility::jsonEncodeForHtmlAttribute([
@@ -1987,8 +2022,8 @@ class EditDocumentController
                             if ($backendUser->workspace !== 0 && BackendUtility::isTableWorkspaceEnabled($table)) {
                                 $workspaceVersion = BackendUtility::getWorkspaceVersionOfRecord($backendUser->workspace, $table, $row['uid'], 'uid,t3ver_state');
                                 if (!empty($workspaceVersion)) {
-                                    $versionState = VersionState::cast($workspaceVersion['t3ver_state']);
-                                    if ($versionState->equals(VersionState::DELETE_PLACEHOLDER)) {
+                                    $versionState = VersionState::tryFrom($workspaceVersion['t3ver_state'] ?? 0);
+                                    if ($versionState === VersionState::DELETE_PLACEHOLDER) {
                                         // If a workspace delete placeholder exists for this translation: Mark
                                         // this language as "don't add to selector" and continue with next row,
                                         // otherwise an edit link to a delete placeholder would be created, which
@@ -2158,7 +2193,7 @@ class EditDocumentController
         // Fetch the current translations of this page, to only show the ones where there is a page translation
         $allLanguages = array_filter(
             GeneralUtility::makeInstance(TranslationConfigurationProvider::class)->getSystemLanguages($pageId),
-            static fn($language) => (int)$language['uid'] !== -1
+            static fn(array $language): bool => (int)$language['uid'] !== -1
         );
         if ($table !== 'pages' && $id > 0) {
             $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('pages');
@@ -2253,7 +2288,7 @@ class EditDocumentController
                 // Check for versioning support of the table:
                 if ($tableSupportsVersioning) {
                     // If the record is already a version of "something" pass it by.
-                    if ($reqRecord['t3ver_oid'] > 0 || (int)($reqRecord['t3ver_state'] ?? 0) === VersionState::NEW_PLACEHOLDER) {
+                    if ($reqRecord['t3ver_oid'] > 0 || VersionState::tryFrom($reqRecord['t3ver_state'] ?? 0) === VersionState::NEW_PLACEHOLDER) {
                         // (If it turns out not to be a version of the current workspace there will be trouble, but
                         // that is handled inside DataHandler then and in the interface it would clearly be an error of
                         // links if the user accesses such a scenario)

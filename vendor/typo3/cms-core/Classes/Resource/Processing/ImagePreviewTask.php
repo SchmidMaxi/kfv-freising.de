@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -15,59 +17,94 @@
 
 namespace TYPO3\CMS\Core\Resource\Processing;
 
+use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Core\Utility\MathUtility;
+
 /**
  * A task for generating an image preview.
  */
-class ImagePreviewTask extends AbstractGraphicalTask
+class ImagePreviewTask extends AbstractTask
 {
-    /**
-     * @var string
-     */
-    protected $type = 'Image';
+    protected ?string $targetFileExtension;
 
-    /**
-     * @var string
-     */
-    protected $name = 'Preview';
-
-    /**
-     * Returns the target filename for this task.
-     *
-     * @return string
-     */
-    public function getTargetFileName()
+    public function getType(): string
     {
-        return 'preview_' . parent::getTargetFilename();
+        return 'Image';
+    }
+
+    public function getName(): string
+    {
+        return 'Preview';
     }
 
     /**
-     * Checks if the given configuration is sensible for this task, i.e. if all required parameters
-     * are given, within the boundaries and don't conflict with each other.
+     * Returns the name the processed file should have
+     * in the filesystem.
      */
-    protected function isValidConfiguration(array $configuration): bool
+    public function getTargetFilename(): string
     {
-        /**
-         * Checks to perform:
-         * - width and/or height given, integer values?
-         */
-        return true;
+        return 'preview_'
+            . $this->getSourceFile()->getNameWithoutExtension()
+            . '_' . $this->getConfigurationChecksum()
+            . '.' . $this->getTargetFileExtension();
     }
 
     /**
-     * Returns TRUE if the file has to be processed at all, such as e.g. the original file does.
-     *
-     * Note: This does not indicate if the concrete ProcessedFile attached to this task has to be (re)processed.
-     * This check is done in ProcessedFile::isOutdated().
-     * @todo isOutdated()/needsReprocessing()?
+     * Determines the file extension the processed file
+     * should have in the filesystem.
      */
-    public function fileNeedsProcessing(): bool
+    public function getTargetFileExtension(): string
     {
-        // @todo Implement fileNeedsProcessing() method.
+        if (!isset($this->targetFileExtension)) {
+            $this->targetFileExtension = $this->determineTargetFileExtension();
+        }
+        return $this->targetFileExtension;
+    }
 
-        /**
-         * Checks to perform:
-         * - width/height smaller than image, keeping aspect ratio?
-         */
-        return false;
+    /**
+     * Gets the file extension the processed file should
+     * have in the filesystem by either using the configuration
+     * setting, or the extension of the original file.
+     */
+    protected function determineTargetFileExtension(): string
+    {
+        if (!empty($this->configuration['fileExtension'])) {
+            $targetFileExtension = $this->configuration['fileExtension'];
+        } elseif (in_array($this->getSourceFile()->getExtension(), ['jpg', 'jpeg', 'png', 'gif', 'svg'], true)) {
+            $targetFileExtension = $this->getSourceFile()->getExtension();
+        } elseif ($this->getSourceFile()->getExtension() === 'webp' && GeneralUtility::inList($GLOBALS['TYPO3_CONF_VARS']['GFX']['imagefile_ext'] ?? '', 'webp')) {
+            $targetFileExtension = $this->getSourceFile()->getExtension();
+        } else {
+            // Thumbnails from non-processable files will be converted to 'png'
+            $targetFileExtension = 'png';
+        }
+        return $targetFileExtension;
+    }
+
+    /**
+     * Enforce default configuration for preview processing here,
+     * to be sure we find already processed files below,
+     * which we wouldn't if we would change the configuration later, as configuration is part of the lookup.
+     */
+    public function sanitizeConfiguration(): void
+    {
+        $configuration = array_replace(
+            [
+                'width' => 64,
+                'height' => 64,
+            ],
+            $this->configuration
+        );
+        $configuration['width'] = MathUtility::forceIntegerInRange($configuration['width'], 1, 1000);
+        $configuration['height'] = MathUtility::forceIntegerInRange($configuration['height'], 1, 1000);
+
+        $this->configuration = array_filter(
+            $configuration,
+            static function (string|int|bool|array|null $value, string $name): bool {
+                return !empty($value) && in_array($name, ['width', 'height'], true);
+            },
+            ARRAY_FILTER_USE_BOTH
+        );
+        parent::sanitizeConfiguration();
     }
 }

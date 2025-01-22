@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Core\Security\ContentSecurityPolicy;
 
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Configuration\DispositionConfiguration;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Configuration\DispositionMapFactory;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Reporting\ResolutionRepository;
@@ -39,6 +40,7 @@ final class MutationRepository
      *        (from DI, declared in `Configuration/ContentSecurityPolicies.php`)
      */
     public function __construct(
+        #[Autowire(service: 'content.security.policies')]
         private readonly Map $staticMutations,
         private readonly SiteFinder $siteFinder,
         private readonly ModelService $modelService,
@@ -112,7 +114,7 @@ final class MutationRepository
             $scopedTarget = $this->provideScopeInMap($scope, $this->resolvedMutations);
             // fetch site-specific `enforce` and/or `report` disposition configuration
             $dispositionMap = $this->dispositionMapFactory->buildDispositionMap(
-                $site->getConfiguration()['contentSecurityPolicies']
+                $site->getConfiguration()['contentSecurityPolicies'] ?? []
             );
             /**
              * @var Disposition $disposition

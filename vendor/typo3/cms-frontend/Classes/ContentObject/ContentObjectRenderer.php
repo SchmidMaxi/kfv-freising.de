@@ -18,17 +18,21 @@ namespace TYPO3\CMS\Frontend\ContentObject;
 use Doctrine\DBAL\Exception as DBALException;
 use Doctrine\DBAL\Result;
 use Psr\Container\ContainerInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use Psr\Log\LogLevel;
 use TYPO3\CMS\Core\Cache\CacheManager;
+use TYPO3\CMS\Core\Cache\CacheTag;
+use TYPO3\CMS\Core\Configuration\Features;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Context\LanguageAspect;
 use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Crypto\HashService;
+use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\Expression\ExpressionBuilder;
-use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Core\Database\Query\QueryHelper;
 use TYPO3\CMS\Core\Database\Query\Restriction\DocumentTypeExclusionRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\FrontendRestrictionContainer;
@@ -39,11 +43,13 @@ use TYPO3\CMS\Core\Html\SanitizerBuilderFactory;
 use TYPO3\CMS\Core\Html\SanitizerInitiator;
 use TYPO3\CMS\Core\Imaging\ImageManipulation\Area;
 use TYPO3\CMS\Core\Imaging\ImageManipulation\CropVariantCollection;
+use TYPO3\CMS\Core\Imaging\ImageResource;
 use TYPO3\CMS\Core\Localization\DateFormatter;
 use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
 use TYPO3\CMS\Core\Localization\Locales;
 use TYPO3\CMS\Core\Log\LogManager;
 use TYPO3\CMS\Core\Page\DefaultJavaScriptAssetTrait;
+use TYPO3\CMS\Core\Page\PageLayoutResolver;
 use TYPO3\CMS\Core\Page\PageRenderer;
 use TYPO3\CMS\Core\Resource\Exception;
 use TYPO3\CMS\Core\Resource\Exception\ResourceDoesNotExistException;
@@ -51,6 +57,7 @@ use TYPO3\CMS\Core\Resource\File;
 use TYPO3\CMS\Core\Resource\FileInterface;
 use TYPO3\CMS\Core\Resource\FileReference;
 use TYPO3\CMS\Core\Resource\Folder;
+use TYPO3\CMS\Core\Resource\FolderInterface;
 use TYPO3\CMS\Core\Resource\ProcessedFile;
 use TYPO3\CMS\Core\Resource\ResourceFactory;
 use TYPO3\CMS\Core\Service\FlexFormService;
@@ -62,21 +69,29 @@ use TYPO3\CMS\Core\Utility\ArrayUtility;
 use TYPO3\CMS\Core\Utility\DebugUtility;
 use TYPO3\CMS\Core\Utility\Exception\MissingArrayPathException;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Core\Utility\HttpUtility;
 use TYPO3\CMS\Core\Utility\MathUtility;
+use TYPO3\CMS\Core\Utility\PathUtility;
 use TYPO3\CMS\Core\Utility\StringUtility;
 use TYPO3\CMS\Core\Versioning\VersionState;
+use TYPO3\CMS\Frontend\Cache\CacheLifetimeCalculator;
+use TYPO3\CMS\Frontend\ContentObject\Event\AfterContentObjectRendererInitializedEvent;
+use TYPO3\CMS\Frontend\ContentObject\Event\AfterGetDataResolvedEvent;
+use TYPO3\CMS\Frontend\ContentObject\Event\AfterImageResourceResolvedEvent;
+use TYPO3\CMS\Frontend\ContentObject\Event\AfterStdWrapFunctionsExecutedEvent;
+use TYPO3\CMS\Frontend\ContentObject\Event\AfterStdWrapFunctionsInitializedEvent;
+use TYPO3\CMS\Frontend\ContentObject\Event\BeforeStdWrapContentStoredInCacheEvent;
+use TYPO3\CMS\Frontend\ContentObject\Event\BeforeStdWrapFunctionsExecutedEvent;
+use TYPO3\CMS\Frontend\ContentObject\Event\BeforeStdWrapFunctionsInitializedEvent;
 use TYPO3\CMS\Frontend\ContentObject\Exception\ContentRenderingException;
 use TYPO3\CMS\Frontend\ContentObject\Exception\ExceptionHandlerInterface;
 use TYPO3\CMS\Frontend\ContentObject\Exception\ProductionExceptionHandler;
 use TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController;
 use TYPO3\CMS\Frontend\Imaging\GifBuilder;
-use TYPO3\CMS\Frontend\Page\PageLayoutResolver;
 use TYPO3\CMS\Frontend\Resource\FilePathSanitizer;
-use TYPO3\CMS\Frontend\Typolink\EmailLinkBuilder;
 use TYPO3\CMS\Frontend\Typolink\LinkFactory;
 use TYPO3\CMS\Frontend\Typolink\LinkResult;
 use TYPO3\CMS\Frontend\Typolink\LinkResultInterface;
+use TYPO3\CMS\Frontend\Typolink\LinkVarsCalculator;
 use TYPO3\CMS\Frontend\Typolink\UnableToLinkException;
 use TYPO3\HtmlSanitizer\Builder\BuilderInterface;
 
@@ -104,10 +119,8 @@ class ContentObjectRenderer implements LoggerAwareInterface
      * @var string[]
      */
     public array $stdWrapOrder = [
-        'stdWrapPreProcess' => 'hook',
-        // this is a placeholder for the first Hook
-        'cacheRead' => 'hook',
-        // this is a placeholder for checking if the content is available in cache
+        BeforeStdWrapFunctionsInitializedEvent::class => 'event',
+        'cacheRead' => 'hook', // this is a placeholder for checking if the content is available in cache
         'setContentToCurrent' => 'boolean',
         'setContentToCurrent.' => 'array',
         'addPageCacheTags' => 'string',
@@ -125,8 +138,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
         'cObject.' => 'array',
         'numRows.' => 'array',
         'preUserFunc' => 'functionName',
-        'stdWrapOverride' => 'hook',
-        // this is a placeholder for the second Hook
+        AfterStdWrapFunctionsInitializedEvent::class => 'event',
         'override' => 'string',
         'override.' => 'array',
         'preIfEmptyListNum' => 'listNum',
@@ -144,8 +156,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
         'strPad.' => 'array',
         'stdWrap' => 'stdWrap',
         'stdWrap.' => 'array',
-        'stdWrapProcess' => 'hook',
-        // this is a placeholder for the third Hook
+        BeforeStdWrapFunctionsExecutedEvent::class => 'event',
         'required' => 'boolean',
         'required.' => 'array',
         'if.' => 'array',
@@ -246,10 +257,8 @@ class ContentObjectRenderer implements LoggerAwareInterface
         'prefixComment.' => 'array',
         'htmlSanitize' => 'boolean',
         'htmlSanitize.' => 'array',
-        'cacheStore' => 'hook',
-        // this is a placeholder for storing the content in cache
-        'stdWrapPostProcess' => 'hook',
-        // this is a placeholder for the last Hook
+        'cacheStore' => 'hook', // this is a placeholder for storing the content in cache
+        AfterStdWrapFunctionsExecutedEvent::class => 'event',
         'debug' => 'boolean',
         'debug.' => 'array',
         'debugFunc' => 'boolean',
@@ -316,50 +325,15 @@ class ContentObjectRenderer implements LoggerAwareInterface
     public $parentRecord = [];
 
     /**
-     * @var string|int
+     * @var string|int|null
+     * @internal this property might change and is not part of TYPO3 Core API anymore since TYPO3 v13.0. Use at your own risk
      */
-    public $checkPid_badDoktypeList = PageRepository::DOKTYPE_RECYCLER;
-
-    /**
-     * This will be set by typoLink() to the url of the most recent link created.
-     *
-     * @var string
-     * @deprecated will be removed in TYPO3 v13.0. Use $this->lastTypoLinkResult or call LinkFactory directly
-     */
-    public $lastTypoLinkUrl = '';
-
-    /**
-     * DO. link target.
-     *
-     * @var string
-     * @deprecated will be removed in TYPO3 v13.0. Use $this->lastTypoLinkResult or call LinkFactory directly
-     */
-    public $lastTypoLinkTarget = '';
-
-    /**
-     * @var array
-     * @deprecated will be removed in TYPO3 v13.0. Use $this->lastTypoLinkResult or call LinkFactory directly
-     */
-    public $lastTypoLinkLD = [];
+    public $checkPid_badDoktypeList;
 
     public ?LinkResultInterface $lastTypoLinkResult = null;
 
     /**
-     * Containing hook objects for stdWrap
-     *
-     * @var array
-     */
-    protected $stdWrapHookObjects = [];
-
-    /**
-     * Containing hook objects for getImgResource
-     *
-     * @var array
-     */
-    protected $getImgResourceHookObjects;
-
-    /**
-     * @var File|FileReference|Folder|string|null Current file objects (during iterations over files)
+     * @var File|FileReference|Folder|FolderInterface|FileInterface|string|null Current file objects (during iterations over files)
      */
     protected $currentFile;
 
@@ -416,7 +390,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
         $this->container = $container;
     }
 
-    public function setRequest(?ServerRequestInterface $request): void
+    public function setRequest(ServerRequestInterface $request): void
     {
         $this->request = $request;
     }
@@ -458,7 +432,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
                 if ($objectType === 'File') {
                     $this->currentFile = GeneralUtility::makeInstance(ResourceFactory::class)->retrieveFileOrFolderObject($identifier);
                 } elseif ($objectType === 'FileReference') {
-                    $this->currentFile = GeneralUtility::makeInstance(ResourceFactory::class)->getFileReferenceObject($identifier);
+                    $this->currentFile = GeneralUtility::makeInstance(ResourceFactory::class)->getFileReferenceObject((int)$identifier);
                 }
             } catch (ResourceDoesNotExistException $e) {
                 $this->currentFile = null;
@@ -479,36 +453,28 @@ class ContentObjectRenderer implements LoggerAwareInterface
      * @param array $data The record data that is rendered.
      * @param string $table The table that the data record is from.
      */
-    public function start($data, $table = '', ?ServerRequestInterface $request = null)
+    public function start($data, $table = '')
     {
-        if ($request !== null) {
-            // @deprecated since TYPO3 v12, will be removed with v13: Remove third method argument and remove if() with body.
-            trigger_error(
-                'Do not provide $request as third argument to start(). Call setRequest() before, instead.',
-                E_USER_DEPRECATED
-            );
-            $this->request = $request;
-        }
         $this->data = $data;
         $this->table = $table;
         $this->currentRecord = $table !== ''
             ? $table . ':' . ($this->data['uid'] ?? '')
             : '';
         $this->parameters = [];
-        $this->stdWrapHookObjects = [];
-        foreach ($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['tslib/class.tslib_content.php']['stdWrap'] ?? [] as $className) {
-            $hookObject = GeneralUtility::makeInstance($className);
-            if (!$hookObject instanceof ContentObjectStdWrapHookInterface) {
-                throw new \UnexpectedValueException($className . ' must implement interface ' . ContentObjectStdWrapHookInterface::class, 1195043965);
-            }
-            $this->stdWrapHookObjects[] = $hookObject;
-        }
-        foreach ($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['tslib/class.tslib_content.php']['postInit'] ?? [] as $className) {
-            $postInitializationProcessor = GeneralUtility::makeInstance($className);
-            if (!$postInitializationProcessor instanceof ContentObjectPostInitHookInterface) {
-                throw new \UnexpectedValueException($className . ' must implement interface ' . ContentObjectPostInitHookInterface::class, 1274563549);
-            }
-            $postInitializationProcessor->postProcessContentObjectInitialization($this);
+
+        GeneralUtility::makeInstance(EventDispatcherInterface::class)->dispatch(
+            new AfterContentObjectRendererInitializedEvent($this)
+        );
+
+        $autoTagging = GeneralUtility::makeInstance(Features::class)->isFeatureEnabled('frontend.cache.autoTagging');
+        if ($this->currentRecord !== '' && $autoTagging) {
+            $cacheLifetimeCalculator = GeneralUtility::makeInstance(CacheLifetimeCalculator::class);
+            $this->request?->getAttribute('frontend.cache.collector')?->addCacheTags(
+                new CacheTag(
+                    name: sprintf('%s_%s', $this->table, ($this->data['uid'] ?? 0)),
+                    lifetime: $cacheLifetimeCalculator->calculateLifetimeForRow($this->table, $this->data)
+                )
+            );
         }
     }
 
@@ -523,32 +489,11 @@ class ContentObjectRenderer implements LoggerAwareInterface
     }
 
     /**
-     * Gets the 'getImgResource' hook objects.
-     * The first call initializes the accordant objects.
-     *
-     * @return array The 'getImgResource' hook objects (if any)
-     */
-    protected function getGetImgResourceHookObjects()
-    {
-        if (!isset($this->getImgResourceHookObjects)) {
-            $this->getImgResourceHookObjects = [];
-            foreach ($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['tslib/class.tslib_content.php']['getImgResource'] ?? [] as $className) {
-                $hookObject = GeneralUtility::makeInstance($className);
-                if (!$hookObject instanceof ContentObjectGetImageResourceHookInterface) {
-                    throw new \UnexpectedValueException('$hookObject must implement interface ' . ContentObjectGetImageResourceHookInterface::class, 1218636383);
-                }
-                $this->getImgResourceHookObjects[] = $hookObject;
-            }
-        }
-        return $this->getImgResourceHookObjects;
-    }
-
-    /**
      * Sets the internal variable parentRecord with information about current record.
      * If the ContentObjectRender was started from CONTENT, RECORD or SEARCHRESULT cObject's this array has two keys, 'data' and 'currentRecord' which indicates the record and data for the parent cObj.
      *
      * @param array $data The record array
-     * @param string $currentRecord This is set to the [table]:[uid] of the record delivered in the $data-array, if the cObjects CONTENT or RECORD is in operation. Note that $GLOBALS['TSFE']->currentRecord is set to an equal value but always indicating the latest record rendered.
+     * @param string $currentRecord This is set to the [table]:[uid] of the record delivered in the $data-array, if the cObjects CONTENT or RECORD is in operation.
      * @internal
      */
     public function setParent($data, $currentRecord)
@@ -725,7 +670,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
         }
 
         // Store cache
-        if ($cacheConfiguration !== null && !$this->getTypoScriptFrontendController()->no_cache) {
+        if ($cacheConfiguration !== null && $this->getRequest()->getAttribute('frontend.cache.instruction')->isCachingAllowed()) {
             $key = $this->calculateCacheKey($cacheConfiguration);
             if (!empty($key)) {
                 $cacheFrontend = GeneralUtility::makeInstance(CacheManager::class)->getCache('hash');
@@ -736,7 +681,9 @@ class ContentObjectRenderer implements LoggerAwareInterface
                     'cacheTags' => $tags,
                 ];
                 $cacheFrontend->set($key, $cachedData, $tags, $lifetime);
-                $this->getTypoScriptFrontendController()->addCacheTags($tags);
+                $this->getRequest()->getAttribute('frontend.cache.collector')->addCacheTags(
+                    ...array_map(fn(string $tag) => new CacheTag($tag), $tags)
+                );
             }
         }
 
@@ -747,11 +694,9 @@ class ContentObjectRenderer implements LoggerAwareInterface
      * Creates the content object exception handler from local content object configuration
      * or, from global configuration if not explicitly disabled in local configuration
      *
-     * @param array $configuration
-     * @return ExceptionHandlerInterface|null
      * @throws ContentRenderingException
      */
-    protected function createExceptionHandler($configuration = [])
+    protected function createExceptionHandler(array $configuration): ?ExceptionHandlerInterface
     {
         $exceptionHandler = null;
         $exceptionHandlerClassName = $this->determineExceptionHandlerClassName($configuration);
@@ -762,57 +707,46 @@ class ContentObjectRenderer implements LoggerAwareInterface
             }
             $exceptionHandler->setConfiguration($this->mergeExceptionHandlerConfiguration($configuration));
         }
-
         return $exceptionHandler;
     }
 
     /**
      * Determine exception handler class name from global and content object configuration
-     *
-     * @param array $configuration
-     * @return string|null
      */
-    protected function determineExceptionHandlerClassName($configuration)
+    protected function determineExceptionHandlerClassName(array $configuration): ?string
     {
+        $typoScriptConfigArray = $this->getRequest()->getAttribute('frontend.typoscript')->getConfigArray();
         $exceptionHandlerClassName = null;
-        $tsfe = $this->getTypoScriptFrontendController();
-        if (!isset($tsfe->config['config']['contentObjectExceptionHandler'])) {
+        if (!isset($typoScriptConfigArray['contentObjectExceptionHandler'])) {
             if (Environment::getContext()->isProduction()) {
                 $exceptionHandlerClassName = '1';
             }
         } else {
-            $exceptionHandlerClassName = $tsfe->config['config']['contentObjectExceptionHandler'];
+            $exceptionHandlerClassName = $typoScriptConfigArray['contentObjectExceptionHandler'];
         }
-
         if (isset($configuration['exceptionHandler'])) {
             $exceptionHandlerClassName = $configuration['exceptionHandler'];
         }
-
         if ($exceptionHandlerClassName === '1') {
             $exceptionHandlerClassName = ProductionExceptionHandler::class;
         }
-
         return $exceptionHandlerClassName;
     }
 
     /**
      * Merges global exception handler configuration with the one from the content object
      * and returns the merged exception handler configuration
-     *
-     * @param array $configuration
-     * @return array
      */
-    protected function mergeExceptionHandlerConfiguration($configuration)
+    protected function mergeExceptionHandlerConfiguration(array $configuration): array
     {
         $exceptionHandlerConfiguration = [];
-        $tsfe = $this->getTypoScriptFrontendController();
-        if (!empty($tsfe->config['config']['contentObjectExceptionHandler.'])) {
-            $exceptionHandlerConfiguration = $tsfe->config['config']['contentObjectExceptionHandler.'];
+        $typoScriptConfigArray = $this->getRequest()->getAttribute('frontend.typoscript')->getConfigArray();
+        if (!empty($typoScriptConfigArray['contentObjectExceptionHandler.'])) {
+            $exceptionHandlerConfiguration = $typoScriptConfigArray['contentObjectExceptionHandler.'];
         }
         if (!empty($configuration['exceptionHandler.'])) {
             $exceptionHandlerConfiguration = array_replace_recursive($exceptionHandlerConfiguration, $configuration['exceptionHandler.']);
         }
-
         return $exceptionHandlerConfiguration;
     }
 
@@ -909,7 +843,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
      * @return string A list of PIDs
      * @internal
      */
-    public function getSlidePids($pidList, $pidConf)
+    public function getSlidePids($pidList, $pidConf): string
     {
         // todo: phpstan states that $pidConf always exists and is not nullable. At the moment, this is a false positive
         //       as null can be passed into this method via $pidConf. As soon as more strict types are used, this isset
@@ -918,16 +852,17 @@ class ContentObjectRenderer implements LoggerAwareInterface
         if ($pidList === '') {
             $pidList = 'this';
         }
-        $tsfe = $this->getTypoScriptFrontendController();
+        $pageRepository = $this->getPageRepository();
         $listArr = null;
         if (trim($pidList)) {
-            $listArr = GeneralUtility::intExplode(',', str_replace('this', (string)$tsfe->contentPid, $pidList));
+            $contentPid = $this->getRequest()->getAttribute('frontend.page.information')->getContentFromPid();
+            $listArr = GeneralUtility::intExplode(',', str_replace('this', (string)$contentPid, $pidList));
             $listArr = $this->checkPidArray($listArr);
         }
         $pidList = [];
         if (is_array($listArr) && !empty($listArr)) {
             foreach ($listArr as $uid) {
-                $page = $tsfe->sys_page->getPage($uid);
+                $page = $pageRepository->getPage((int)$uid);
                 if (!$page['is_siteroot']) {
                     $pidList[] = $page['pid'];
                 }
@@ -986,7 +921,8 @@ class ContentObjectRenderer implements LoggerAwareInterface
                 }
             }
             $parametersEncoded = base64_encode((string)json_encode($parameters));
-            $hmac = GeneralUtility::hmac(implode('|', [$file->getUid(), $parametersEncoded]));
+            $hashService = GeneralUtility::makeInstance(HashService::class);
+            $hmac = $hashService->hmac(implode('|', [$file->getUid(), $parametersEncoded]), 'tx_cms_showpic');
             $params = '&md5=' . $hmac;
             foreach (str_split($parametersEncoded, 64) as $index => $chunk) {
                 $params .= '&parameters' . rawurlencode('[') . $index . rawurlencode(']') . '=' . rawurlencode($chunk);
@@ -1017,6 +953,11 @@ class ContentObjectRenderer implements LoggerAwareInterface
                     $url = $altUrl . (($conf['JSwindow.']['altUrl_noDefaultParams'] ?? false) ? '' : '?file=' . rawurlencode((string)$imageFile) . $params);
                 }
 
+                if ($file instanceof ProcessedFile) {
+                    // TypoScript record delivered like 'file = fileadmin/something.jpg' which can result
+                    // in an already processed file. Process the original file with the proper config now.
+                    $file = $file->getOriginalFile();
+                }
                 $processedFile = $file->process(ProcessedFile::CONTEXT_IMAGECROPSCALEMASK, $conf);
                 $JSwindowExpand = $this->stdWrapValue('expand', $conf['JSwindow.'] ?? []);
                 $offset = GeneralUtility::intExplode(',', $JSwindowExpand . ',');
@@ -1047,12 +988,12 @@ class ContentObjectRenderer implements LoggerAwareInterface
                 }
                 $paramString = '';
                 foreach ($params as $paramKey => $paramValue) {
-                    $paramString .= htmlspecialchars((string)$paramKey) . '=' . htmlspecialchars((string)$paramValue) . ',';
+                    $paramString .= htmlspecialchars($paramKey) . '=' . htmlspecialchars((string)$paramValue) . ',';
                 }
 
                 $attrs = [
                     'href' => (string)$url,
-                    'data-window-url' => $this->getTypoScriptFrontendController()->baseUrlWrap($url, true),
+                    'data-window-url' => $url,
                     'data-window-target' => $newWindow ? md5((string)$url) : 'thePicture',
                     'data-window-features' => rtrim($paramString, ','),
                 ];
@@ -1060,13 +1001,14 @@ class ContentObjectRenderer implements LoggerAwareInterface
                     $attrs['target'] = $target;
                 }
 
+                $typoScriptConfigArray = $this->getRequest()->getAttribute('frontend.typoscript')->getConfigArray();
                 $a1 = sprintf(
                     '<a %s%s>',
                     GeneralUtility::implodeAttributes($attrs, true),
-                    trim($this->getTypoScriptFrontendController()->config['config']['ATagParams'] ?? '') ? ' ' . trim($this->getTypoScriptFrontendController()->config['config']['ATagParams']) : ''
+                    trim($typoScriptConfigArray['ATagParams'] ?? '') ? ' ' . trim($typoScriptConfigArray['ATagParams']) : ''
                 );
                 $a2 = '</a>';
-                $this->addDefaultFrontendJavaScript();
+                $this->addDefaultFrontendJavaScript($this->getRequest());
             } else {
                 $conf['linkParams.']['directImageLink'] = (bool)($conf['directImageLink'] ?? false);
                 $conf['linkParams.']['parameter'] = $url;
@@ -1097,31 +1039,6 @@ class ContentObjectRenderer implements LoggerAwareInterface
         }
     }
 
-    /**
-     * An abstraction method to add parameters to an A tag.
-     * Uses the ATagParams property, also includes the global TypoScript config.ATagParams
-     *
-     * @param array $conf TypoScript configuration properties
-     * @return string String containing the parameters to the A tag (if non empty, with a leading space)
-     * @see typoLink()
-     * @deprecated will be removed in TYPO3 v13.0. Use LinkFactory functionality directly, available since TYPO3 v12.0.
-     */
-    public function getATagParams($conf)
-    {
-        trigger_error('$cObj->getATagParams is deprecated in favor of the unified LinkFactory API for generating links. This method will be removed in TYPO3 v13.0.', E_USER_DEPRECATED);
-        $aTagParams = $this->stdWrapValue('ATagParams', $conf ?? []);
-        // Add the global config.ATagParams
-        $globalParams = $this->getTypoScriptFrontendController() ? trim($this->getTypoScriptFrontendController()->config['config']['ATagParams'] ?? '') : '';
-        $aTagParams = ' ' . trim($globalParams . ' ' . $aTagParams);
-        // Extend params
-        $aTagParams = trim($aTagParams);
-        if (!empty($aTagParams)) {
-            $aTagParams = ' ' . $aTagParams;
-        }
-
-        return $aTagParams;
-    }
-
     /***********************************************
      *
      * HTML template processing functions
@@ -1131,7 +1048,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
     /**
      * Sets the current file object during iterations over files.
      *
-     * @param File|FileReference|Folder|string|null $fileObject The file object.
+     * @param File|FileReference|Folder|FileInterface|FolderInterface|string|null $fileObject The file object.
      */
     public function setCurrentFile($fileObject)
     {
@@ -1141,7 +1058,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
     /**
      * Gets the current file object during iterations over files.
      *
-     * @return File|FileReference|Folder|string|null The current file object.
+     * @return File|FileReference|Folder|FileInterface|FolderInterface|string|null The current file object.
      */
     public function getCurrentFile()
     {
@@ -1165,18 +1082,17 @@ class ContentObjectRenderer implements LoggerAwareInterface
     public function stdWrap($content = '', $conf = [])
     {
         $content = (string)$content;
-        // If there is any hook object, activate all of the process and override functions.
-        // The hook interface ContentObjectStdWrapHookInterface takes care that all 4 methods exist.
-        if ($this->stdWrapHookObjects) {
-            $conf['stdWrapPreProcess'] = 1;
-            $conf['stdWrapOverride'] = 1;
-            $conf['stdWrapProcess'] = 1;
-            $conf['stdWrapPostProcess'] = 1;
-        }
-
         if (!is_array($conf) || !$conf) {
             return $content;
         }
+
+        // Activate the stdWrap PSR-14 Events - They will be executed
+        // as stdWrap functions, based on the defined "stdWrapOrder".
+        $conf[BeforeStdWrapFunctionsInitializedEvent::class] = 1;
+        $conf[AfterStdWrapFunctionsInitializedEvent::class] = 1;
+        $conf[BeforeStdWrapFunctionsExecutedEvent::class] = 1;
+        $conf[AfterStdWrapFunctionsExecutedEvent::class] = 1;
+        $eventDispatcher = GeneralUtility::makeInstance(EventDispatcherInterface::class);
 
         // Cache handling
         if (isset($conf['cache.']) && is_array($conf['cache.'])) {
@@ -1227,16 +1143,22 @@ class ContentObjectRenderer implements LoggerAwareInterface
                         $functionName => $conf[$functionName] ?? null,
                         $functionProperties => $conf[$functionProperties] ?? null,
                     ];
-                    // Hand over the whole $conf array to the stdWrapHookObjects
+                    // Hand over the whole $conf array to the hooks
                     if ($functionType === 'hook') {
                         $singleConf = $conf;
                     }
                     // Add both keys - with and without the dot - to the set of executed functions
                     $isExecuted[$functionName] = true;
                     $isExecuted[$functionProperties] = true;
-                    // Call the function with the prefix stdWrap_ to make sure nobody can execute functions just by adding their name to the TS Array
-                    $functionName = 'stdWrap_' . $functionName;
-                    $content = $this->{$functionName}($content, $singleConf);
+                    if ($functionType === 'event') {
+                        $content = $eventDispatcher->dispatch(
+                            new $functionName($content, $conf, $this)
+                        )->getContent();
+                    } else {
+                        // Call the function with the prefix stdWrap_ to make sure nobody can execute functions just by adding their name to the TS Array
+                        $functionName = 'stdWrap_' . $functionName;
+                        $content = $this->{$functionName}($content, $singleConf);
+                    }
                 } elseif ($functionType === 'boolean' && !($conf[$functionName] ?? null)) {
                     $isExecuted[$functionName] = true;
                     $isExecuted[$functionProperties] = true;
@@ -1274,24 +1196,6 @@ class ContentObjectRenderer implements LoggerAwareInterface
     }
 
     /**
-     * stdWrap pre process hook
-     * can be used by extensions authors to modify the behaviour of stdWrap functions to their needs
-     * this hook will execute functions before any other stdWrap function can modify anything
-     *
-     * @param string $content Input value undergoing processing in these functions.
-     * @param array $conf All stdWrap properties, not just the ones for a particular function.
-     * @return string The processed input value
-     */
-    public function stdWrap_stdWrapPreProcess($content = '', $conf = [])
-    {
-        foreach ($this->stdWrapHookObjects as $hookObject) {
-            /** @var ContentObjectStdWrapHookInterface $hookObject */
-            $content = $hookObject->stdWrapPreProcess($content, $conf, $this);
-        }
-        return $content;
-    }
-
-    /**
      * Check if content was cached before (depending on the given cache key)
      *
      * @param string $content Input value undergoing processing in these functions.
@@ -1319,7 +1223,9 @@ class ContentObjectRenderer implements LoggerAwareInterface
         $tags = (string)$this->stdWrapValue('addPageCacheTags', $conf ?? []);
         if (!empty($tags)) {
             $cacheTags = GeneralUtility::trimExplode(',', $tags, true);
-            $this->getTypoScriptFrontendController()->addCacheTags($cacheTags);
+            $this->getRequest()->getAttribute('frontend.cache.collector')->addCacheTags(
+                ...array_map(fn(string $tag) => new CacheTag($tag), $cacheTags)
+            );
         }
         return $content;
     }
@@ -1361,7 +1267,8 @@ class ContentObjectRenderer implements LoggerAwareInterface
      */
     public function stdWrap_lang($content = '', $conf = [])
     {
-        $siteLanguage = $this->getTypoScriptFrontendController()->getLanguage();
+        // @todo: Check when/if there are scenarios where attribute 'language' is not yet set in $request.
+        $siteLanguage = $this->getRequest()->getAttribute('language') ?? $this->getRequest()->getAttribute('site')->getDefaultLanguage();
         $currentLanguageCode = $siteLanguage->getTypo3Language();
         if (!$currentLanguageCode) {
             return $content;
@@ -1460,24 +1367,6 @@ class ContentObjectRenderer implements LoggerAwareInterface
     public function stdWrap_preUserFunc($content = '', $conf = [])
     {
         return $this->callUserFunction($conf['preUserFunc'], $conf['preUserFunc.'] ?? [], $content);
-    }
-
-    /**
-     * stdWrap override hook
-     * can be used by extensions authors to modify the behaviour of stdWrap functions to their needs
-     * this hook will execute functions on existing content but still before the content gets modified or replaced
-     *
-     * @param string $content Input value undergoing processing in these functions.
-     * @param array $conf All stdWrap properties, not just the ones for a particular function.
-     * @return string The processed input value
-     */
-    public function stdWrap_stdWrapOverride($content = '', $conf = [])
-    {
-        foreach ($this->stdWrapHookObjects as $hookObject) {
-            /** @var ContentObjectStdWrapHookInterface $hookObject */
-            $content = $hookObject->stdWrapOverride($content, $conf, $this);
-        }
-        return $content;
     }
 
     /**
@@ -1626,24 +1515,6 @@ class ContentObjectRenderer implements LoggerAwareInterface
     public function stdWrap_stdWrap($content = '', $conf = [])
     {
         return $this->stdWrap($content, $conf['stdWrap.']);
-    }
-
-    /**
-     * stdWrap process hook
-     * can be used by extensions authors to modify the behaviour of stdWrap functions to their needs
-     * this hook executes functions directly after the recursive stdWrap function call but still before the content gets modified
-     *
-     * @param string $content Input value undergoing processing in these functions.
-     * @param array $conf All stdWrap properties, not just the ones for a particular function.
-     * @return string The processed input value
-     */
-    public function stdWrap_stdWrapProcess($content = '', $conf = [])
-    {
-        foreach ($this->stdWrapHookObjects as $hookObject) {
-            /** @var ContentObjectStdWrapHookInterface $hookObject */
-            $content = $hookObject->stdWrapProcess($content, $conf, $this);
-        }
-        return $content;
     }
 
     /**
@@ -1946,15 +1817,17 @@ class ContentObjectRenderer implements LoggerAwareInterface
     public function stdWrap_formattedDate(string $content, array $conf): string
     {
         $pattern = $conf['formattedDate'] ?? 'LONG';
-        $locale = $conf['formattedDate.']['locale'] ?? $this->getTypoScriptFrontendController()->getLanguage()->getLocale();
+        // @todo: Check when/if there are scenarios where attribute 'language' is not yet set in $request.
+        $language = $this->getRequest()->getAttribute('language') ?? $this->getRequest()->getAttribute('site')->getDefaultLanguage();
+        $locale = $conf['formattedDate.']['locale'] ?? $language->getLocale();
 
         if ($content === '' || $content === '0') {
-            $content = $this->getTypoScriptFrontendController()->getContext()->getAspect('date')->getDateTime();
+            $content = GeneralUtility::makeInstance(Context::class)->getAspect('date')->getDateTime();
         } else {
             // format this to a timestamp now
             $content = strtotime((MathUtility::canBeInterpretedAsInteger($content) ? '@' : '') . $content);
             if ($content === false) {
-                $content = $this->getTypoScriptFrontendController()->getContext()->getAspect('date')->getDateTime();
+                $content = GeneralUtility::makeInstance(Context::class)->getAspect('date')->getDateTime();
             }
         }
         return (new DateFormatter())->format($content, $pattern, $locale);
@@ -2457,8 +2330,9 @@ class ContentObjectRenderer implements LoggerAwareInterface
      */
     public function stdWrap_prefixComment($content = '', $conf = [])
     {
+        $typoScriptConfigArray = $this->getRequest()->getAttribute('frontend.typoscript')->getConfigArray();
         if (
-            (!isset($this->getTypoScriptFrontendController()->config['config']['disablePrefixComment']) || !$this->getTypoScriptFrontendController()->config['config']['disablePrefixComment'])
+            (!isset($typoScriptConfigArray['disablePrefixComment']) || !$typoScriptConfigArray['disablePrefixComment'])
             && !empty($conf['prefixComment'])
         ) {
             $content = $this->prefixComment($conf['prefixComment'], [], $content);
@@ -2485,11 +2359,11 @@ class ContentObjectRenderer implements LoggerAwareInterface
     /**
      * Store content into cache
      *
-     * @param string $content Input value undergoing processing in these functions.
+     * @param string|null $content Input value undergoing processing in these functions.
      * @param array $conf All stdWrap properties, not just the ones for a particular function.
-     * @return string The processed input value
+     * @return string|null The processed input value
      */
-    public function stdWrap_cacheStore($content = '', $conf = [])
+    public function stdWrap_cacheStore($content = '', $conf = []): ?string
     {
         if (!isset($conf['cache.'])) {
             return $content;
@@ -2498,44 +2372,30 @@ class ContentObjectRenderer implements LoggerAwareInterface
         if (empty($key)) {
             return $content;
         }
-        $cacheFrontend = GeneralUtility::makeInstance(CacheManager::class)->getCache('hash');
-        $tags = $this->calculateCacheTags($conf['cache.']);
-        $lifetime = $this->calculateCacheLifetime($conf['cache.']);
-        foreach ($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['tslib/class.tslib_content.php']['stdWrap_cacheStore'] ?? [] as $_funcRef) {
-            $params = [
-                'key' => $key,
-                'content' => $content,
-                'lifetime' => $lifetime,
-                'tags' => $tags,
-            ];
-            $ref = $this; // introduced for phpstan to not lose type information when passing $this into callUserFunction
-            GeneralUtility::callUserFunction($_funcRef, $params, $ref);
-        }
-        $cachedData = [
-            'content' => $content,
-            'cacheTags' => $tags,
-        ];
-        $cacheFrontend->set($key, $cachedData, $tags, $lifetime);
-        $this->getTypoScriptFrontendController()->addCacheTags($tags);
-        return $content;
-    }
 
-    /**
-     * stdWrap post process hook
-     * can be used by extensions authors to modify the behaviour of stdWrap functions to their needs
-     * this hook executes functions at after the content has been modified by the rest of the stdWrap functions but still before debugging
-     *
-     * @param string $content Input value undergoing processing in these functions.
-     * @param array $conf All stdWrap properties, not just the ones for a particular function.
-     * @return string The processed input value
-     */
-    public function stdWrap_stdWrapPostProcess($content = '', $conf = [])
-    {
-        foreach ($this->stdWrapHookObjects as $hookObject) {
-            /** @var ContentObjectStdWrapHookInterface $hookObject */
-            $content = $hookObject->stdWrapPostProcess($content, $conf, $this);
-        }
-        return $content;
+        $event = GeneralUtility::makeInstance(EventDispatcherInterface::class)->dispatch(
+            new BeforeStdWrapContentStoredInCacheEvent(
+                content: $content,
+                tags: $this->calculateCacheTags($conf['cache.']),
+                key: (string)$key,
+                lifetime: $this->calculateCacheLifetime($conf['cache.']),
+                configuration: $conf,
+                contentObjectRenderer: $this
+            )
+        );
+
+        GeneralUtility::makeInstance(CacheManager::class)
+            ->getCache('hash')
+            ->set(
+                $event->getKey(),
+                ['content' => $event->getContent(), 'cacheTags' => $event->getTags()],
+                $event->getTags(),
+                $event->getLifetime()
+            );
+        $this->getRequest()->getAttribute('frontend.cache.collector')->addCacheTags(
+            ...array_map(fn(string $tag) => new CacheTag($tag, $event->getLifetime()), $event->getTags())
+        );
+        return $event->getContent();
     }
 
     /**
@@ -2609,7 +2469,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
             $delimeter = chr((int)$delimeter);
         }
         $temp = explode($delimeter, $content);
-        if (empty($temp)) {
+        if ($temp === ['']) {
             return '';
         }
         $last = '' . (count($temp) - 1);
@@ -2946,13 +2806,13 @@ class ContentObjectRenderer implements LoggerAwareInterface
         $valArr = explode($conf['token'], $value);
 
         // return value directly by returnKey. No further processing
-        if (!empty($valArr) && (MathUtility::canBeInterpretedAsInteger($conf['returnKey'] ?? null) || ($conf['returnKey.'] ?? false))) {
+        if ($valArr !== [''] && (MathUtility::canBeInterpretedAsInteger($conf['returnKey'] ?? null) || ($conf['returnKey.'] ?? false))) {
             $key = (int)$this->stdWrapValue('returnKey', $conf ?? []);
             return $valArr[$key] ?? '';
         }
 
         // return the amount of elements. No further processing
-        if (!empty($valArr) && (($conf['returnCount'] ?? false) || ($conf['returnCount.'] ?? false))) {
+        if ($valArr !== [''] && (($conf['returnCount'] ?? false) || ($conf['returnCount.'] ?? false))) {
             $returnCount = (bool)$this->stdWrapValue('returnCount', $conf ?? []);
             return $returnCount ? count($valArr) : 0;
         }
@@ -3049,7 +2909,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
                 }
                 if ($useOptionSplitReplace) {
                     // init for replacement
-                    $splitCount = preg_match_all($search, $content, $matches);
+                    $splitCount = preg_match_all($search, $content);
                     $typoScriptService = GeneralUtility::makeInstance(TypoScriptService::class);
                     $replaceArray = $typoScriptService->explodeConfigurationForOptionSplit([$replace], $splitCount);
                     $replaceCount = 0;
@@ -3067,7 +2927,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
                 $searchPreg = '#' . preg_quote($search, '#') . '#';
 
                 // init for replacement
-                $splitCount = preg_match_all($searchPreg, $content, $matches);
+                $splitCount = preg_match_all($searchPreg, $content);
                 $typoScriptService = GeneralUtility::makeInstance(TypoScriptService::class);
                 $replaceArray = $typoScriptService->explodeConfigurationForOptionSplit([$replace], $splitCount);
                 $replaceCount = 0;
@@ -3095,7 +2955,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
     protected function round($content, array $conf = [])
     {
         $decimals = (int)$this->stdWrapValue('decimals', $conf, 0);
-        $type = $this->stdWrapValue('roundType', $conf ?? []);
+        $type = $this->stdWrapValue('roundType', $conf);
         $floatVal = (float)$content;
         switch ($type) {
             case 'ceil':
@@ -3292,8 +3152,15 @@ class ContentObjectRenderer implements LoggerAwareInterface
         $stripNL = 0;
         $contentAccum = [];
         $contentAccumP = 0;
-        $allowTags = strtolower(str_replace(' ', '', $conf['allowTags'] ?? ''));
-        $denyTags = strtolower(str_replace(' ', '', $conf['denyTags'] ?? ''));
+
+        $allowTags = GeneralUtility::trimExplode(',', strtolower($conf['allowTags'] ?? ''), true);
+        if (in_array('*', $allowTags, true)) {
+            $allowTags = ['*'];
+        }
+        $denyTags = GeneralUtility::trimExplode(',', strtolower($conf['denyTags'] ?? ''), true);
+        if (in_array('*', $denyTags, true)) {
+            $denyTags = ['*'];
+        }
         $totalLen = strlen($theValue);
         do {
             if (!$inside) {
@@ -3315,79 +3182,54 @@ class ContentObjectRenderer implements LoggerAwareInterface
                 // $data is the content until the next <tag-start or end is detected.
                 // In case of a currentTag set, this would mean all data between the start- and end-tags
                 $data = substr($theValue, $pointer, $len);
-                if ($data !== false) {
-                    if ($stripNL) {
-                        // If the previous tag was set to strip NewLines in the beginning of the next data-chunk.
-                        $data = preg_replace('/^[ ]*' . CR . '?' . LF . '/', '', $data);
-                        if ($data === null) {
-                            $this->logger->debug('Stripping new lines failed for "{data}"', ['data' => $data]);
-                            $data = '';
-                        }
+                if ($stripNL) {
+                    // If the previous tag was set to strip NewLines in the beginning of the next data-chunk.
+                    $data = preg_replace('/^[ ]*' . CR . '?' . LF . '/', '', $data);
+                    if ($data === null) {
+                        $this->logger->debug('Stripping new lines failed for "{data}"', ['data' => $data]);
+                        $data = '';
                     }
-                    // These operations should only be performed on code outside the tags...
-                    if (!is_array($currentTag)) {
-                        // Constants
-                        $typoScriptSetupArray = [];
-                        $frontendTypoScript = $this->getRequest()->getAttribute('frontend.typoscript');
-                        if ($frontendTypoScript && $frontendTypoScript->hasSetup()) {
-                            $typoScriptSetupArray = $frontendTypoScript->getSetupArray();
-                        }
-                        $tmpConstants = $typoScriptSetupArray['constants.'] ?? null;
-                        if (!empty($conf['constants']) && is_array($tmpConstants)) {
-                            // @deprecated since v12, remove with v13: Entire if plus init code above
-                            trigger_error(
-                                'The TypoScript setup "constants" top-level-object and the parseFunc property "constants" have'
-                                . ' been deprecated in TYPO3 v12 and will be removed in v12. Use TypoScript constants / settings'
-                                . ' and access them in setup using "{$myConstant}" instead.',
-                                E_USER_DEPRECATED
-                            );
-                            foreach ($tmpConstants as $key => $val) {
-                                if (is_string($val)) {
-                                    $data = str_replace('###' . $key . '###', $val, $data);
-                                }
-                            }
-                        }
-                        // Short
-                        if (isset($conf['short.']) && is_array($conf['short.'])) {
-                            $shortWords = $conf['short.'];
-                            krsort($shortWords);
-                            foreach ($shortWords as $key => $val) {
-                                if (is_string($val)) {
-                                    $data = str_replace($key, $val, $data);
-                                }
-                            }
-                        }
-                        // stdWrap
-                        if (isset($conf['plainTextStdWrap.']) && is_array($conf['plainTextStdWrap.'])) {
-                            $data = $this->stdWrap($data, $conf['plainTextStdWrap.']);
-                        }
-                        // userFunc
-                        if ($conf['userFunc'] ?? false) {
-                            $data = $this->callUserFunction($conf['userFunc'], $conf['userFunc.'] ?? [], $data);
-                        }
-                    }
-                    // Search for tags to process in current data and
-                    // call this method recursively if found
-                    if (str_contains($data, '<') && isset($conf['tags.']) && is_array($conf['tags.'])) {
-                        // @todo probably use a DOM tree traversal for the whole stuff
-                        // This iterations basically re-processes the markup string, as
-                        // long as there are `<$tag ` or `<$tag>` "tags" found...
-                        foreach (array_keys($conf['tags.']) as $tag) {
-                            // only match tag `a` in `<a href"...">` but not in `<abbr>`
-                            if (preg_match('#<' . $tag . '[\s/>]#', $data)) {
-                                $data = $this->parseFuncInternal($data, $conf);
-                                break;
-                            }
-                        }
-                    }
-                    if (!is_array($currentTag) && ($conf['makelinks'] ?? false)) {
-                        $data = $this->http_makelinks($data, $conf['makelinks.']['http.'] ?? []);
-                        $data = $this->mailto_makelinks($data, $conf['makelinks.']['mailto.'] ?? []);
-                    }
-                    $contentAccum[$contentAccumP] = isset($contentAccum[$contentAccumP])
-                        ? $contentAccum[$contentAccumP] . $data
-                        : $data;
                 }
+                // These operations should only be performed on code outside the tags...
+                if (!is_array($currentTag)) {
+                    // Short
+                    if (isset($conf['short.']) && is_array($conf['short.'])) {
+                        $shortWords = $conf['short.'];
+                        krsort($shortWords);
+                        foreach ($shortWords as $key => $val) {
+                            if (is_string($val)) {
+                                $data = str_replace($key, $val, $data);
+                            }
+                        }
+                    }
+                    // stdWrap
+                    if (isset($conf['plainTextStdWrap.']) && is_array($conf['plainTextStdWrap.'])) {
+                        $data = $this->stdWrap($data, $conf['plainTextStdWrap.']);
+                    }
+                    // userFunc
+                    if ($conf['userFunc'] ?? false) {
+                        $data = $this->callUserFunction($conf['userFunc'], $conf['userFunc.'] ?? [], $data);
+                    }
+                }
+                // Search for tags to process in current data and
+                // call this method recursively if found
+                if (str_contains($data, '<') && isset($conf['tags.']) && is_array($conf['tags.'])) {
+                    // @todo probably use a DOM tree traversal for the whole stuff
+                    // This iterations basically re-processes the markup string, as
+                    // long as there are `<$tag ` or `<$tag>` "tags" found...
+                    foreach (array_keys($conf['tags.']) as $tag) {
+                        // only match tag `a` in `<a href"...">` but not in `<abbr>`
+                        if (preg_match('#<' . $tag . '[\s/>]#', $data)) {
+                            $data = $this->parseFuncInternal($data, $conf);
+                            break;
+                        }
+                    }
+                }
+                if (!is_array($currentTag) && ($conf['makelinks'] ?? false)) {
+                    $data = $this->http_makelinks($data, $conf['makelinks.']['http.'] ?? []);
+                    $data = $this->mailto_makelinks($data, $conf['makelinks.']['mailto.'] ?? []);
+                }
+                $contentAccum[$contentAccumP] = ($contentAccum[$contentAccumP] ?? '') . $data;
                 $inside = true;
             } else {
                 // tags
@@ -3431,11 +3273,9 @@ class ContentObjectRenderer implements LoggerAwareInterface
                         if (isset($currentTag[1])) {
                             // decode HTML entities in attributes, since they're processed
                             $params = GeneralUtility::get_tag_attributes((string)$currentTag[1], true);
-                            if (is_array($params)) {
-                                foreach ($params as $option => $val) {
-                                    // contains non-encoded values
-                                    $this->parameters[strtolower($option)] = $val;
-                                }
+                            foreach ($params as $option => $val) {
+                                // contains non-encoded values
+                                $this->parameters[strtolower($option)] = $val;
                             }
                             $this->parameters['allParams'] = trim((string)$currentTag[1]);
                         }
@@ -3469,17 +3309,22 @@ class ContentObjectRenderer implements LoggerAwareInterface
                         $contentAccum[$contentAccumP] .= $data;
                     }
                 } else {
+                    $contentAccum[$contentAccumP] = $contentAccum[$contentAccumP] ?? '';
                     // If a tag was not a typo tag, then it is just added to the content
                     $stripNL = false;
-                    if (GeneralUtility::inList($allowTags, (string)$tag[0]) ||
-                        ($denyTags !== '*' && !GeneralUtility::inList($denyTags, (string)$tag[0]))) {
-                        $contentAccum[$contentAccumP] = isset($contentAccum[$contentAccumP])
-                            ? $contentAccum[$contentAccumP] . $data
-                            : $data;
+                    if (
+                        // Neither allowTags or denyTags set, thus everything is allowed
+                        ($denyTags === [] && $allowTags === [])
+                        // Explicitly allowed
+                        || ($allowTags !== [] && in_array((string)$tag[0], $allowTags, true))
+                        // Explicitly denied or everything "denied" (except for the explicitly allowed)
+                        || ($denyTags !== [] && $denyTags !== ['*'] && !in_array((string)$tag[0], $denyTags))
+                        // All tags are allowed, but not in the denied list above, so this is OK
+                        || ($allowTags === ['*'] && !in_array((string)$tag[0], $denyTags))
+                    ) {
+                        $contentAccum[$contentAccumP] .= $data;
                     } else {
-                        $contentAccum[$contentAccumP] = isset($contentAccum[$contentAccumP])
-                            ? $contentAccum[$contentAccumP] . htmlspecialchars($data)
-                            : htmlspecialchars($data);
+                        $contentAccum[$contentAccumP] .= htmlspecialchars($data);
                     }
                 }
                 $inside = false;
@@ -3536,14 +3381,14 @@ class ContentObjectRenderer implements LoggerAwareInterface
             $attrib = [];
             $nonWrapped = false;
             $tagName = '';
-            if (isset($l[0]) && $l[0] === '<' && substr($l, -1) === '>') {
+            if (isset($l[0]) && $l[0] === '<' && str_ends_with($l, '>')) {
                 $fwParts = explode('>', substr($l, 1), 2);
                 [$tagName] = explode(' ', $fwParts[0], 2);
                 if (!$fwParts[1]) {
-                    if (substr($tagName, -1) === '/') {
+                    if (str_ends_with($tagName, '/')) {
                         $tagName = substr($tagName, 0, -1);
                     }
-                    if (substr($fwParts[0], -1) === '/') {
+                    if (str_ends_with($fwParts[0], '/')) {
                         $sameBeginEnd = true;
                         $emptyTag = true;
                         // decode HTML entities, they're encoded later again
@@ -3743,7 +3588,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
      *
      * @param string|File|FileReference $file A "imgResource" TypoScript data type. Either a TypoScript file resource, a file or a file reference object or the string GIFBUILDER. See description above.
      * @param array $fileArray TypoScript properties for the imgResource type
-     * @return array|null Returns info-array
+     * @return ImageResource|null
      * @see cImage()
      * @see \TYPO3\CMS\Frontend\Imaging\GifBuilder
      */
@@ -3759,15 +3604,9 @@ class ContentObjectRenderer implements LoggerAwareInterface
         }
         $imageResource = null;
         if ($file === 'GIFBUILDER') {
-            $gifCreator = GeneralUtility::makeInstance(GifBuilder::class);
-            if ($GLOBALS['TYPO3_CONF_VARS']['GFX']['gdlib']) {
-                $gifCreator->start($fileArray, $this->data);
-                $theImage = $gifCreator->gifBuild();
-                if ($theImage !== '') {
-                    $imageResource = $gifCreator->getImageDimensions(Environment::getPublicPath() . '/' . $theImage);
-                    $imageResource['origFile'] = $theImage;
-                }
-            }
+            $gifBuilder = GeneralUtility::makeInstance(GifBuilder::class);
+            $gifBuilder->start($fileArray, $this->data);
+            $imageResource = $gifBuilder->gifBuild();
         } else {
             if ($file instanceof File) {
                 $fileObject = $file;
@@ -3786,10 +3625,10 @@ class ContentObjectRenderer implements LoggerAwareInterface
                     if (MathUtility::canBeInterpretedAsInteger($file)) {
                         $treatIdAsReference = $this->stdWrapValue('treatIdAsReference', $fileArray);
                         if (!empty($treatIdAsReference)) {
-                            $fileReference = $this->getResourceFactory()->getFileReferenceObject($file);
+                            $fileReference = $this->getResourceFactory()->getFileReferenceObject((int)$file);
                             $fileObject = $fileReference->getOriginalFile();
                         } else {
-                            $fileObject = $this->getResourceFactory()->getFileObject($file);
+                            $fileObject = $this->getResourceFactory()->getFileObject((int)$file);
                         }
                     } elseif (preg_match('/^(0|[1-9][0-9]*):/', $file)) { // combined identifier
                         $fileObject = $this->getResourceFactory()->retrieveFileOrFolderObject($file);
@@ -3819,10 +3658,10 @@ class ContentObjectRenderer implements LoggerAwareInterface
                 $processingConfiguration['sample'] = (bool)$this->stdWrapValue('sample', $fileArray);
                 $processingConfiguration['additionalParameters'] = $this->stdWrapValue('params', $fileArray);
                 $processingConfiguration['frame'] = (int)$this->stdWrapValue('frame', $fileArray);
-                if ($fileReference instanceof FileReference) {
-                    $processingConfiguration['crop'] = $this->getCropAreaFromFileReference($fileReference, $fileArray);
-                } else {
+                if ($fileReference === null) {
                     $processingConfiguration['crop'] = $this->getCropAreaFromFromTypoScriptSettings($fileObject, $fileArray);
+                } else {
+                    $processingConfiguration['crop'] = $this->getCropAreaFromFileReference($fileReference, $fileArray);
                 }
 
                 // Possibility to cancel/force profile extraction
@@ -3836,53 +3675,24 @@ class ContentObjectRenderer implements LoggerAwareInterface
                     // Must render mask images and include in hash-calculating
                     // - otherwise we cannot be sure the filename is unique for the setup!
                     if (is_array($maskArray)) {
-                        $processingConfiguration['maskImages']['maskImage'] = $this->getImgResource($maskArray['mask'] ?? '', $maskArray['mask.'] ?? [])['processedFile'] ?? null;
-                        $processingConfiguration['maskImages']['backgroundImage'] = $this->getImgResource($maskArray['bgImg'] ?? '', $maskArray['bgImg.'] ?? [])['processedFile'] ?? null;
-                        $processingConfiguration['maskImages']['maskBottomImage'] = $this->getImgResource($maskArray['bottomImg'] ?? '', $maskArray['bottomImg.'] ?? [])['processedFile'] ?? null;
-                        $processingConfiguration['maskImages']['maskBottomImageMask'] = $this->getImgResource($maskArray['bottomImg_mask'] ?? '', $maskArray['bottomImg_mask.'] ?? [])['processedFile'] ?? null;
+                        $processingConfiguration['maskImages']['maskImage'] = $this->getImgResource($maskArray['mask'] ?? '', $maskArray['mask.'] ?? [])?->getProcessedFile();
+                        $processingConfiguration['maskImages']['backgroundImage'] = $this->getImgResource($maskArray['bgImg'] ?? '', $maskArray['bgImg.'] ?? [])?->getProcessedFile();
+                        $processingConfiguration['maskImages']['maskBottomImage'] = $this->getImgResource($maskArray['bottomImg'] ?? '', $maskArray['bottomImg.'] ?? [])?->getProcessedFile();
+                        $processingConfiguration['maskImages']['maskBottomImageMask'] = $this->getImgResource($maskArray['bottomImg_mask'] ?? '', $maskArray['bottomImg_mask.'] ?? [])?->getProcessedFile();
                     }
                     $processedFileObject = $fileObject->process(ProcessedFile::CONTEXT_IMAGECROPSCALEMASK, $processingConfiguration);
                     if ($processedFileObject->isProcessed()) {
-                        $imageResource = [
-                            0 => (int)$processedFileObject->getProperty('width'),
-                            1 => (int)$processedFileObject->getProperty('height'),
-                            2 => $processedFileObject->getExtension(),
-                            3 => Environment::getPublicPath() . '/' . $processedFileObject->getPublicUrl(),
-                            'origFile' => $fileObject->getPublicUrl(),
-                            'origFile_mtime' => $fileObject->getModificationTime(),
-                            // This is needed by \TYPO3\CMS\Frontend\Imaging\GifBuilder,
-                            // in order for the setup-array to create a unique filename hash.
-                            'originalFile' => $fileObject,
-                            'processedFile' => $processedFileObject,
-                        ];
+                        $imageResource = ImageResource::createFromProcessedFile($processedFileObject);
                     }
                 }
+            } elseif ($fileObject instanceof ProcessedFile) {
+                $imageResource = ImageResource::createFromProcessedFile($fileObject);
             }
         }
-        // Triggered when the resolved file object isn't considered as image, processing failed and likely other scenarios
-        // This code path dates back to pre FAL times and should be deprecated and removed eventually
-        if (!isset($imageResource) && is_string($file)) {
-            try {
-                $theImage = GeneralUtility::makeInstance(FilePathSanitizer::class)->sanitize($file);
-                $info = GeneralUtility::makeInstance(GifBuilder::class)->imageMagickConvert($theImage, 'WEB');
-                if ($info !== null) {
-                    $info['origFile'] = $theImage;
-                    // This is needed by \TYPO3\CMS\Frontend\Imaging\GifBuilder, ln 100ff in order for the setup-array to create a unique filename hash.
-                    $info['origFile_mtime'] = @filemtime(Environment::getPublicPath() . '/' . $theImage);
-                    $imageResource = $info;
-                }
-            } catch (Exception $e) {
-                // do nothing in case the file path is invalid
-            }
-        }
-        // Hook 'getImgResource': Post-processing of image resources
-        if (isset($imageResource)) {
-            /** @var ContentObjectGetImageResourceHookInterface $hookObject */
-            foreach ($this->getGetImgResourceHookObjects() as $hookObject) {
-                $imageResource = $hookObject->getImgResourcePostProcess($file, (array)$fileArray, $imageResource, $this);
-            }
-        }
-        return $imageResource;
+
+        return GeneralUtility::makeInstance(EventDispatcherInterface::class)->dispatch(
+            new AfterImageResourceResolvedEvent($file, $fileArray, $imageResource)
+        )->getImageResource();
     }
 
     /**
@@ -3991,30 +3801,32 @@ class ContentObjectRenderer implements LoggerAwareInterface
     }
 
     /**
-     * Implements the TypoScript data type "getText". This takes a string with parameters and based on those a value from somewhere in the system is returned.
+     * Implements the TypoScript data type "getText". This takes a string with parameters
+     * and based on those a value from somewhere in the system is returned.
      *
-     * @param string $string The parameter string, eg. "field : title" or "field : navtitle // field : title" (in the latter case and example of how the value is FIRST splitted by "//" is shown)
-     * @param array|null $fieldArray Alternative field array; If you set this to an array this variable will be used to look up values for the "field" key. Otherwise the current page record in $GLOBALS['TSFE']->page is used.
+     * @param string $string The parameter string, eg. "field : title" or "field : navtitle // field : title"
+     *                       In the latter case and example of how the value is FIRST split by "//" is shown
+     * @param array|null $fieldArray Alternative field array; If you set this to an array this variable will be used to
+     *                               look up values for the "field" key. Otherwise, the current page record is used.
      * @return string The value fetched
      * @see getFieldVal()
      */
     public function getData($string, $fieldArray = null)
     {
-        $tsfe = $this->getTypoScriptFrontendController();
         if (!is_array($fieldArray)) {
-            $fieldArray = $tsfe->page;
+            $fieldArray = $this->getRequest()->getAttribute('frontend.page.information')->getPageRecord();
         }
         $retVal = '';
         // @todo: getData should not be called with non-string as $string. example trigger:
         //        SecureHtmlRenderingTest htmlViewHelperAvoidsCrossSiteScripting set #07 PHP 8
         $sections = is_string($string) ? explode('//', $string) : [];
-        foreach ($sections as $secKey => $secVal) {
+        foreach ($sections as $secVal) {
             if ($retVal) {
                 break;
             }
             $parts = explode(':', $secVal, 2);
             $type = strtolower(trim($parts[0]));
-            $typesWithOutParameters = ['level', 'date', 'current', 'pagelayout'];
+            $typesWithOutParameters = ['level', 'date', 'current', 'pagelayout', 'applicationcontext'];
             $key = trim($parts[1] ?? '');
             if (($key != '') || in_array($type, $typesWithOutParameters)) {
                 switch ($type) {
@@ -4028,7 +3840,24 @@ class ContentObjectRenderer implements LoggerAwareInterface
                         $retVal = $this->getValueFromRecursiveData(GeneralUtility::trimExplode('|', $key), $this->getRequest());
                         break;
                     case 'tsfe':
-                        $retVal = $this->getValueFromRecursiveData(GeneralUtility::trimExplode('|', $key), $this->getTypoScriptFrontendController());
+                        // @todo: This needs a bigger cleanup / deprecation when TypoScriptFrontendController continues to remove properties.
+                        $valueParts = GeneralUtility::trimExplode('|', $key);
+                        if (($valueParts[0] ?? '') === 'fe_user') {
+                            $frontendUser = $this->getRequest()->getAttribute('frontend.user');
+                            array_shift($valueParts);
+                            $retVal = $this->getValueFromRecursiveData($valueParts, $frontendUser);
+                        } elseif (($valueParts[0] ?? '') === 'linkVars') {
+                            $typoScriptConfigArray = $this->getRequest()->getAttribute('frontend.typoscript')->getConfigArray();
+                            $typoScriptConfigLinkVars = (string)($typoScriptConfigArray['linkVars'] ?? '');
+                            $retVal = GeneralUtility::makeInstance(LinkVarsCalculator::class)
+                                ->getAllowedLinkVarsFromRequest(
+                                    $typoScriptConfigLinkVars,
+                                    $this->getRequest()->getQueryParams(),
+                                    GeneralUtility::makeInstance(Context::class)
+                                );
+                        } else {
+                            $retVal = $this->getValueFromRecursiveData($valueParts, $this->getTypoScriptFrontendController());
+                        }
                         break;
                     case 'getenv':
                         $retVal = getenv($key);
@@ -4042,56 +3871,67 @@ class ContentObjectRenderer implements LoggerAwareInterface
                     case 'file':
                         $retVal = $this->getFileDataKey($key);
                         break;
+                    case 'asset':
+                        $absoluteFilePath = GeneralUtility::getFileAbsFileName($key);
+                        if ($absoluteFilePath === '') {
+                            throw new \RuntimeException('Asset "' . $key . '" not found', 1670713983);
+                        }
+                        $retVal = GeneralUtility::createVersionNumberedFilename(PathUtility::getAbsoluteWebPath($absoluteFilePath));
+                        break;
                     case 'parameters':
                         $retVal = $this->parameters[$key] ?? null;
                         break;
                     case 'register':
+                        $tsfe = $this->getTypoScriptFrontendController();
                         $retVal = $tsfe->register[$key] ?? null;
                         break;
                     case 'global':
                         $retVal = $this->getGlobal($key);
                         break;
                     case 'level':
-                        $retVal = count($tsfe->config['rootLine'] ?? []) - 1;
+                        $localRootLine = $this->getRequest()->getAttribute('frontend.page.information')->getLocalRootLine();
+                        $retVal = count($localRootLine) - 1;
                         break;
                     case 'leveltitle':
                         $keyParts = GeneralUtility::trimExplode(',', $key);
                         $pointer = (int)($keyParts[0] ?? 0);
-                        $slide = (string)($keyParts[1] ?? '');
-
-                        $numericKey = $this->getKey($pointer, $tsfe->config['rootLine'] ?? []);
+                        $slide = $keyParts[1] ?? '';
+                        $localRootLine = $this->getRequest()->getAttribute('frontend.page.information')->getLocalRootLine();
+                        $numericKey = $this->getKey($pointer, $localRootLine);
                         $retVal = $this->rootLineValue($numericKey, 'title', strtolower($slide) === 'slide');
                         break;
                     case 'levelmedia':
                         $keyParts = GeneralUtility::trimExplode(',', $key);
                         $pointer = (int)($keyParts[0] ?? 0);
-                        $slide = (string)($keyParts[1] ?? '');
-
-                        $numericKey = $this->getKey($pointer, $tsfe->config['rootLine'] ?? []);
+                        $slide = $keyParts[1] ?? '';
+                        $localRootLine = $this->getRequest()->getAttribute('frontend.page.information')->getLocalRootLine();
+                        $numericKey = $this->getKey($pointer, $localRootLine);
                         $retVal = $this->rootLineValue($numericKey, 'media', strtolower($slide) === 'slide');
                         break;
                     case 'leveluid':
-                        $numericKey = $this->getKey((int)$key, $tsfe->config['rootLine'] ?? []);
+                        $localRootLine = $this->getRequest()->getAttribute('frontend.page.information')->getLocalRootLine();
+                        $numericKey = $this->getKey((int)$key, $localRootLine);
                         $retVal = $this->rootLineValue($numericKey, 'uid');
                         break;
                     case 'levelfield':
                         $keyParts = GeneralUtility::trimExplode(',', $key);
                         $pointer = (int)($keyParts[0] ?? 0);
-                        $field = (string)($keyParts[1] ?? '');
-                        $slide = (string)($keyParts[2] ?? '');
-
-                        $numericKey = $this->getKey($pointer, $tsfe->config['rootLine'] ?? []);
+                        $field = $keyParts[1] ?? '';
+                        $slide = $keyParts[2] ?? '';
+                        $localRootLine = $this->getRequest()->getAttribute('frontend.page.information')->getLocalRootLine();
+                        $numericKey = $this->getKey($pointer, $localRootLine);
                         $retVal = $this->rootLineValue($numericKey, $field, strtolower($slide) === 'slide');
                         break;
                     case 'fullrootline':
                         $keyParts = GeneralUtility::trimExplode(',', $key);
                         $pointer = (int)($keyParts[0] ?? 0);
-                        $field = (string)($keyParts[1] ?? '');
-                        $slide = (string)($keyParts[2] ?? '');
-
-                        $fullKey = (int)($pointer - count($tsfe->config['rootLine'] ?? []) + count($tsfe->rootLine));
+                        $field = $keyParts[1] ?? '';
+                        $slide = $keyParts[2] ?? '';
+                        $rootLine = $this->getRequest()->getAttribute('frontend.page.information')->getRootLine();
+                        $localRootLine = $this->getRequest()->getAttribute('frontend.page.information')->getLocalRootLine();
+                        $fullKey = $pointer - count($localRootLine) + count($rootLine);
                         if ($fullKey >= 0) {
-                            $retVal = $this->rootLineValue($fullKey, $field, stristr($slide, 'slide') !== false, $tsfe->rootLine);
+                            $retVal = $this->rootLineValue($fullKey, $field, stristr($slide, 'slide') !== false, $rootLine);
                         }
                         break;
                     case 'date':
@@ -4101,11 +3941,13 @@ class ContentObjectRenderer implements LoggerAwareInterface
                         $retVal = date($key, $GLOBALS['EXEC_TIME']);
                         break;
                     case 'page':
-                        $retVal = $tsfe->page[$key] ?? '';
+                        $pageRecord = $this->getRequest()->getAttribute('frontend.page.information')->getPageRecord();
+                        $retVal = $pageRecord[$key] ?? '';
                         break;
                     case 'pagelayout':
-                        $retVal = GeneralUtility::makeInstance(PageLayoutResolver::class)
-                            ->getLayoutForPage($tsfe->page, $tsfe->rootLine);
+                        $pageInformation = $this->getRequest()->getAttribute('frontend.page.information');
+                        $pageLayoutResolver = GeneralUtility::makeInstance(PageLayoutResolver::class);
+                        $retVal = $pageLayoutResolver->getLayoutIdentifierForPage($pageInformation->getPageRecord(), $pageInformation->getRootLine());
                         break;
                     case 'current':
                         $retVal = $this->data[$this->currentValKey] ?? null;
@@ -4115,19 +3957,22 @@ class ContentObjectRenderer implements LoggerAwareInterface
                         if (!isset($selectParts[1])) {
                             break;
                         }
-                        $dbRecord = $tsfe->sys_page->getRawRecord($selectParts[0], $selectParts[1]);
+                        $pageRepository = $this->getPageRepository();
+                        $dbRecord = $pageRepository->getRawRecord($selectParts[0], (int)$selectParts[1]);
                         if (is_array($dbRecord) && isset($selectParts[2])) {
                             $retVal = $dbRecord[$selectParts[2]] ?? '';
                         }
                         break;
                     case 'lll':
-                        $languageService = GeneralUtility::makeInstance(LanguageServiceFactory::class)->createFromSiteLanguage($this->getTypoScriptFrontendController()->getLanguage());
+                        // @todo: Check when/if there are scenarios where attribute 'language' is not yet set in $request.
+                        $language = $this->getRequest()->getAttribute('language') ?? $this->getRequest()->getAttribute('site')->getDefaultLanguage();
+                        $languageService = GeneralUtility::makeInstance(LanguageServiceFactory::class)->createFromSiteLanguage($language);
                         $retVal = $languageService->sL('LLL:' . $key);
                         break;
                     case 'path':
                         try {
                             $retVal = GeneralUtility::makeInstance(FilePathSanitizer::class)->sanitize($key);
-                        } catch (Exception $e) {
+                        } catch (Exception) {
                             // do nothing in case the file path is invalid
                             $retVal = null;
                         }
@@ -4142,19 +3987,20 @@ class ContentObjectRenderer implements LoggerAwareInterface
                     case 'debug':
                         switch ($key) {
                             case 'rootLine':
-                                $retVal = DebugUtility::viewArray($tsfe->config['rootLine'] ?? []);
+                                $retVal = DebugUtility::viewArray($this->getRequest()->getAttribute('frontend.page.information')->getLocalRootLine());
                                 break;
                             case 'fullRootLine':
-                                $retVal = DebugUtility::viewArray($tsfe->rootLine);
+                                $retVal = DebugUtility::viewArray($this->getRequest()->getAttribute('frontend.page.information')->getRootLine());
                                 break;
                             case 'data':
                                 $retVal = DebugUtility::viewArray($this->data);
                                 break;
                             case 'register':
+                                $tsfe = $this->getTypoScriptFrontendController();
                                 $retVal = DebugUtility::viewArray($tsfe->register);
                                 break;
                             case 'page':
-                                $retVal = DebugUtility::viewArray($tsfe->page);
+                                $retVal = DebugUtility::viewArray($this->getRequest()->getAttribute('frontend.page.information')->getPageRecord());
                                 break;
                         }
                         break;
@@ -4173,7 +4019,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
                     case 'session':
                         $keyParts = GeneralUtility::trimExplode('|', $key, true);
                         $sessionKey = array_shift($keyParts);
-                        $retVal = $this->getTypoScriptFrontendController()->fe_user->getSessionData($sessionKey);
+                        $retVal = $this->getRequest()->getAttribute('frontend.user')->getSessionData($sessionKey);
                         foreach ($keyParts as $keyPart) {
                             if (is_object($retVal)) {
                                 $retVal = $retVal->{$keyPart};
@@ -4200,7 +4046,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
                         }
                         break;
                     case 'site':
-                        $site = $this->getTypoScriptFrontendController()->getSite();
+                        $site = $this->getRequest()->getAttribute('site');
                         if ($key === 'identifier') {
                             $retVal = $site->getIdentifier();
                         } elseif ($key === 'base') {
@@ -4214,7 +4060,8 @@ class ContentObjectRenderer implements LoggerAwareInterface
                         }
                         break;
                     case 'sitelanguage':
-                        $siteLanguage = $this->getTypoScriptFrontendController()->getLanguage();
+                        // @todo: Check when/if there are scenarios where attribute 'language' is not yet set in $request.
+                        $siteLanguage = $this->getRequest()->getAttribute('language') ?? $this->getRequest()->getAttribute('site')->getDefaultLanguage();
                         if ($key === 'twoLetterIsoCode') {
                             $key = 'locale:languageCode';
                         }
@@ -4253,22 +4100,19 @@ class ContentObjectRenderer implements LoggerAwareInterface
                         }
                         break;
                     case 'sitesettings':
-                        $siteSettings = $this->getTypoScriptFrontendController()->getSite()->getSettings();
+                        $siteSettings = $this->getRequest()->getAttribute('site')->getSettings();
                         $retVal = $siteSettings->get($key, '');
+                        break;
+                    case 'applicationcontext':
+                        $retVal = Environment::getContext()->__toString();
                         break;
                 }
             }
-
-            foreach ($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['tslib/class.tslib_content.php']['getData'] ?? [] as $className) {
-                $hookObject = GeneralUtility::makeInstance($className);
-                if (!$hookObject instanceof ContentObjectGetDataHookInterface) {
-                    throw new \UnexpectedValueException('$hookObject must implement interface ' . ContentObjectGetDataHookInterface::class, 1195044480);
-                }
-                $ref = $this; // introduced for phpstan to not lose type information when passing $this into callUserFunction
-                $retVal = $hookObject->getDataExtension($string, $fieldArray, $secVal, $retVal, $ref);
-            }
         }
-        return $retVal;
+
+        return GeneralUtility::makeInstance(EventDispatcherInterface::class)->dispatch(
+            new AfterGetDataResolvedEvent($string, $fieldArray, $retVal, $this)
+        )->getResult();
     }
 
     /**
@@ -4288,7 +4132,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
                 $fileObject = $this->getCurrentFile();
             } elseif (MathUtility::canBeInterpretedAsInteger($fileUidOrCurrentKeyword)) {
                 $fileFactory = GeneralUtility::makeInstance(ResourceFactory::class);
-                $fileObject = $fileFactory->getFileObject($fileUidOrCurrentKeyword);
+                $fileObject = $fileFactory->getFileObject((int)$fileUidOrCurrentKeyword);
             } else {
                 $fileObject = null;
             }
@@ -4335,7 +4179,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
     }
 
     /**
-     * Returns a value from the current rootline (site) from $GLOBALS['TSFE']->config['rootLine'];
+     * Returns a value from the current rootline.
      *
      * @param int $key Which level in the root line
      * @param string $field The field in the rootline record to return (a field from the pages table)
@@ -4345,9 +4189,13 @@ class ContentObjectRenderer implements LoggerAwareInterface
      * @internal
      * @see getData()
      */
-    public function rootLineValue($key, $field, $slideBack = false, $altRootLine = '')
+    protected function rootLineValue($key, $field, $slideBack = false, $altRootLine = ''): string
     {
-        $rootLine = is_array($altRootLine) ? $altRootLine : ($this->getTypoScriptFrontendController()->config['rootLine'] ?? []);
+        if (is_array($altRootLine)) {
+            $rootLine = $altRootLine;
+        } else {
+            $rootLine = $this->getRequest()->getAttribute('frontend.page.information')->getLocalRootLine();
+        }
         if (!$slideBack) {
             return $rootLine[$key][$field] ?? '';
         }
@@ -4357,7 +4205,6 @@ class ContentObjectRenderer implements LoggerAwareInterface
                 return $val;
             }
         }
-
         return '';
     }
 
@@ -4484,7 +4331,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
                 return LinkResult::adapt($linkResult, LinkResult::STRING_CAST_JSON);
         }
 
-        $wrap = (string)$this->stdWrapValue('wrap', $conf ?? []);
+        $wrap = (string)$this->stdWrapValue('wrap', $conf);
         if ($conf['ATagBeforeWrap'] ?? false) {
             $linkResult = $linkResult->withLinkText($this->wrap((string)$linkResult->getLinkText(), $wrap));
             return LinkResult::adapt($linkResult)->getHtml();
@@ -4512,8 +4359,6 @@ class ContentObjectRenderer implements LoggerAwareInterface
      */
     public function createLink(string $linkText, array $conf): LinkResultInterface
     {
-        $this->lastTypoLinkUrl = '';
-        $this->lastTypoLinkTarget = '';
         $this->lastTypoLinkResult = null;
         try {
             $linkResult = GeneralUtility::makeInstance(LinkFactory::class)->create($linkText, $conf, $this);
@@ -4523,13 +4368,6 @@ class ContentObjectRenderer implements LoggerAwareInterface
         }
 
         $this->lastTypoLinkResult = $linkResult;
-        // Now populate all legacy values
-        // @deprecated can be removed in TYPO3 13.0.
-        $this->lastTypoLinkTarget = $linkResult->getTarget();
-        $this->lastTypoLinkUrl = $linkResult->getUrl();
-        $this->lastTypoLinkLD['target'] = htmlspecialchars($linkResult->getTarget());
-        $this->lastTypoLinkLD['totalUrl'] = $linkResult->getUrl();
-        $this->lastTypoLinkLD['type'] = $linkResult->getType();
         return $linkResult;
     }
 
@@ -4562,132 +4400,6 @@ class ContentObjectRenderer implements LoggerAwareInterface
     public function typoLink_URL($conf)
     {
         return $this->createUrl($conf ?? []);
-    }
-
-    /**
-     * Returns a linked string made from typoLink parameters.
-     *
-     * This function takes $label as a string, wraps it in a link-tag based on the $params string, which should contain data like that you would normally pass to the popular <LINK>-tag in the TSFE.
-     * Optionally you can supply $urlParameters which is an array with key/value pairs that are rawurlencoded and appended to the resulting url.
-     *
-     * @param string $label Text string being wrapped by the link.
-     * @param string $params Link parameter; eg. "123" for page id, "kasperYYYY@typo3.com" for email address, "http://...." for URL, "fileadmin/example.txt" for file.
-     * @param array|string $urlParameters As an array key/value pairs represent URL parameters to set. Values NOT URL-encoded yet, keys should be URL-encoded if needed. As a string the parameter is expected to be URL-encoded already.
-     * @param string $target Specific target set, if any. (Default is using the current)
-     * @return string The wrapped $label-text string
-     * @see getTypoLink_URL()
-     * @deprecated since TYPO3 v12.0. will be removed in TYPO3 v13.0, use LinkFactory or cObj->typoLink() instead.
-     */
-    public function getTypoLink($label, $params, $urlParameters = [], $target = '')
-    {
-        trigger_error('$cObj->getTypoLink() is deprecated in favor of the unified LinkFactory API for generating links. This method will be removed in TYPO3 v13.0.', E_USER_DEPRECATED);
-        $conf = [];
-        $conf['parameter'] = $params;
-        if ($target) {
-            $conf['target'] = $target;
-            $conf['extTarget'] = $target;
-            $conf['fileTarget'] = $target;
-        }
-        if (is_array($urlParameters)) {
-            if (!empty($urlParameters)) {
-                $conf['additionalParams'] = ($conf['additionalParams'] ?? '') . HttpUtility::buildQueryString($urlParameters, '&');
-            }
-        } else {
-            $conf['additionalParams'] = ($conf['additionalParams'] ?? '') . $urlParameters;
-        }
-        $out = $this->typoLink((string)$label, $conf);
-        return $out;
-    }
-
-    /**
-     * Returns the canonical URL to the current "location", which include the current page ID and type
-     * and optionally the query string
-     *
-     * @param bool $addQueryString Whether additional GET arguments in the query string should be included or not
-     * @return string
-     * @deprecated since TYPO3 v12.0. will be removed in TYPO3 v13.0, use LinkFactory or cObj->typoLink() instead.
-     */
-    public function getUrlToCurrentLocation($addQueryString = true)
-    {
-        trigger_error('$cObj->getUrlToCurrentLocation() is deprecated in favor of the unified LinkFactory API for generating links. This method will be removed in TYPO3 v13.0.', E_USER_DEPRECATED);
-        $conf = [];
-        $conf['parameter'] = $this->getTypoScriptFrontendController()->id . ',' . $this->getTypoScriptFrontendController()->getPageArguments()->getPageType();
-        if ($addQueryString) {
-            $conf['addQueryString'] = '1';
-            $linkVars = implode(',', array_keys(GeneralUtility::explodeUrl2Array($this->getTypoScriptFrontendController()->linkVars)));
-            $conf['addQueryString.'] = [
-                'exclude' => 'id,type,cHash' . ($linkVars ? ',' . $linkVars : ''),
-            ];
-        }
-
-        return $this->createUrl($conf);
-    }
-
-    /**
-     * Returns the URL of a "typolink" create from the input parameter string, url-parameters and target
-     *
-     * @param string $params Link parameter; eg. "123" for page id, "kasperYYYY@typo3.com" for email address, "http://...." for URL, "fileadmin/example.txt" for file.
-     * @param array|string $urlParameters As an array key/value pairs represent URL parameters to set. Values NOT URL-encoded yet, keys should be URL-encoded if needed. As a string the parameter is expected to be URL-encoded already.
-     * @param string $target Specific target set, if any. (Default is using the current)
-     * @return string The URL
-     * @see getTypoLink()
-     * @deprecated since TYPO3 v12.0, will be removed in TYPO3 v13.0. Use LinkFactory API directly.
-     */
-    public function getTypoLink_URL($params, $urlParameters = [], $target = '')
-    {
-        trigger_error('$cObj->getTypoLink_URL() is deprecated in favor of the unified LinkFactory API for generating links. This method will be removed in TYPO3 v13.0.', E_USER_DEPRECATED);
-        $conf = [
-            'parameter' => $params,
-        ];
-        if ($target) {
-            $conf['target'] = $target;
-            $conf['extTarget'] = $target;
-            $conf['fileTarget'] = $target;
-        }
-        if (is_array($urlParameters)) {
-            if (!empty($urlParameters)) {
-                $conf['additionalParams'] = HttpUtility::buildQueryString($urlParameters, '&');
-            }
-        } else {
-            $conf['additionalParams'] = $urlParameters;
-        }
-        return $this->createUrl($conf);
-    }
-
-    /**
-     * @param string $mailAddress Email address
-     * @param string $linktxt Link text, default will be the email address.
-     * @return array{0: string, 1: string, 2: array<string, string>} A numerical array with three items
-     * @deprecated will be removed in TYPO3 v13.0. Use EmailLinkBuilder->processEmailLink() instead.
-     */
-    public function getMailTo($mailAddress, $linktxt)
-    {
-        trigger_error('ContentObjectRenderer->getMailTo() will be removed in TYPO3 v13.0, Use EmailLinkBuilder->processEmailLink() instead.', E_USER_DEPRECATED);
-        $linkBuilder = GeneralUtility::makeInstance(EmailLinkBuilder::class, $this, $this->getTypoScriptFrontendController());
-        return $linkBuilder->processEmailLink((string)$mailAddress, (string)$linktxt);
-    }
-
-    /**
-     * Gets the query arguments and assembles them for URLs.
-     * Arguments may be removed or set, depending on configuration.
-     *
-     * @param array $conf Configuration
-     * @return string The URL query part (starting with a &)
-     * @deprecated will be removed in TYPO3 v13.0
-     */
-    public function getQueryArguments($conf)
-    {
-        trigger_error('Calling ContentObjectRenderer->getQueryArguments() will be removed in TYPO3 v13.0. Use LinkFactory directly to create links', E_USER_DEPRECATED);
-        $currentQueryArray = $this->getRequest()->getQueryParams();
-        if ($conf['exclude'] ?? false) {
-            $excludeString = str_replace(',', '&', $conf['exclude']);
-            $excludedQueryParts = [];
-            parse_str($excludeString, $excludedQueryParts);
-            $newQueryArray = ArrayUtility::arrayDiffKeyRecursive($currentQueryArray, $excludedQueryParts);
-        } else {
-            $newQueryArray = $currentQueryArray;
-        }
-        return HttpUtility::buildQueryString($newQueryArray, '&');
     }
 
     /***********************************************
@@ -4872,12 +4584,12 @@ class ContentObjectRenderer implements LoggerAwareInterface
      * Returns the 'age' of the tstamp $seconds
      *
      * @param int $seconds Seconds to return age for. Example: "70" => "1 min", "3601" => "1 hrs
-     * @param string $labels The labels of the individual units. Defaults to : ' min| hrs| days| yrs'
+     * @param string|int|null $labels The labels of the individual units. Defaults to : ' min| hrs| days| yrs'
      * @return string The formatted string
      */
-    public function calcAge($seconds, $labels)
+    public function calcAge($seconds, $labels = null)
     {
-        if (MathUtility::canBeInterpretedAsInteger($labels)) {
+        if ($labels === null || MathUtility::canBeInterpretedAsInteger($labels)) {
             $labels = ' min| hrs| days| yrs| min| hour| day| year';
         } else {
             $labels = str_replace('"', '', $labels);
@@ -4961,55 +4673,6 @@ class ContentObjectRenderer implements LoggerAwareInterface
      * Database functions, making of queries
      *
      ***********************************************/
-    /**
-     * Generates a list of Page-uid's from $id. List does not include $id itself
-     * (unless the id specified is negative in which case it does!)
-     * The only pages WHICH PREVENTS DECENDING in a branch are
-     * - deleted pages,
-     * - pages in a recycler (doktype = 255) or of the Backend User Section (doktpe = 6) type
-     * - pages that has the extendToSubpages set, WHERE start/endtime, hidden
-     * and fe_users would hide the records.
-     * Apart from that, pages with enable-fields excluding them, will also be
-     * removed. HOWEVER $dontCheckEnableFields set will allow
-     * enableFields-excluded pages to be included anyway - including
-     * extendToSubpages sections!
-     * Mount Pages are also descended but notice that these ID numbers are not
-     * useful for links unless the correct MPvar is set.
-     *
-     * @param int $id The id of the start page from which point in the page tree to descend. IF NEGATIVE the id itself is included in the end of the list (only if $begin is 0) AND the output does NOT contain a last comma. Recommended since it will resolve the input ID for mount pages correctly and also check if the start ID actually exists!
-     * @param int $depth The number of levels to descend. If you want to descend infinitely, just set this to 100 or so. Should be at least "1" since zero will just make the function return (no descend...)
-     * @param int $begin Is an optional integer that determines at which level in the tree to start collecting uid's. Zero means 'start right away', 1 = 'next level and out'
-     * @param bool $dontCheckEnableFields See function description
-     * @param string $addSelectFields Additional fields to select. Syntax: ",[fieldname],[fieldname],...
-     * @param string $moreWhereClauses Additional where clauses. Syntax: " AND [fieldname]=[value] AND ...
-     * @param array $prevId_array array of IDs from previous recursions. In order to prevent infinite loops with mount pages.
-     * @param int $recursionLevel Internal: Zero for the first recursion, incremented for each recursive call.
-     * @return string Returns the list of ids as a comma separated string
-     * @deprecated since TYPO3 v12.0, will be removed in TYPO3 v13.0. Use PageRepository->getDescendantPageIdsRecursive() or PageRepository->getPageIdsRecursive() instead.
-     */
-    public function getTreeList($id, $depth, $begin = 0, $dontCheckEnableFields = false, $addSelectFields = '', $moreWhereClauses = '', array $prevId_array = [], $recursionLevel = 0)
-    {
-        trigger_error('ContentObjectRenderer->getTreeList() will be removed in TYPO3 v13.0. Use PageRepository->getDescendantPageIdsRecursive() or PageRepository->getPageIdsRecursive() instead.', E_USER_DEPRECATED);
-        $addCurrentPageId = false;
-        $id = (int)$id;
-        if ($id < 0) {
-            $id = abs($id);
-            $addCurrentPageId = true;
-        }
-        $pageRepository = $this->getTypoScriptFrontendController()->sys_page;
-        if ($dontCheckEnableFields) {
-            $backupEnableFields = $pageRepository->where_hid_del;
-            $pageRepository->where_hid_del = '';
-        }
-        $result = $pageRepository->getDescendantPageIdsRecursive($id, (int)$depth, (int)$begin, [], (bool)$dontCheckEnableFields);
-        if ($dontCheckEnableFields) {
-            $pageRepository->where_hid_del = $backupEnableFields;
-        }
-        if ($addCurrentPageId) {
-            $result = array_merge([$id], $result);
-        }
-        return implode(',', $result);
-    }
 
     /**
      * Generates a search where clause based on the input search words (AND operation - all search words must be found in record.)
@@ -5070,8 +4733,8 @@ class ContentObjectRenderer implements LoggerAwareInterface
      */
     public function exec_getQuery($table, $conf)
     {
-        $statement = $this->getQuery($table, $conf);
         $connection = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable($table);
+        $statement = $this->getQuery($connection, $table, $conf);
 
         return $connection->executeQuery($statement);
     }
@@ -5091,14 +4754,14 @@ class ContentObjectRenderer implements LoggerAwareInterface
 
         $statement = $this->exec_getQuery($tableName, $queryConfiguration);
 
-        $tsfe = $this->getTypoScriptFrontendController();
+        $pageRepository = $this->getPageRepository();
         while ($row = $statement->fetchAssociative()) {
             // Versioning preview:
-            $tsfe->sys_page->versionOL($tableName, $row, true);
+            $pageRepository->versionOL($tableName, $row, true);
 
             // Language overlay:
             if (is_array($row)) {
-                $row = $tsfe->sys_page->getLanguageOverlay($tableName, $row);
+                $row = $pageRepository->getLanguageOverlay($tableName, $row);
             }
 
             // Might be unset in the language overlay
@@ -5107,26 +4770,34 @@ class ContentObjectRenderer implements LoggerAwareInterface
             }
         }
 
+        if (GeneralUtility::makeInstance(Features::class)->isFeatureEnabled('frontend.cache.autoTagging')) {
+            $cacheLifetimeCalculator = GeneralUtility::makeInstance(CacheLifetimeCalculator::class);
+            $cacheTags = array_map(fn(array $record) => new CacheTag(
+                name: sprintf('%s_%s', $tableName, ($record['uid'] ?? 0)),
+                lifetime: $cacheLifetimeCalculator->calculateLifetimeForRow($tableName, $record)
+            ), $records);
+            $this->getRequest()->getAttribute('frontend.cache.collector')?->addCacheTags(...$cacheTags);
+        }
+
         return $records;
     }
 
     /**
-     * Creates and returns a SELECT query for records from $table and with conditions based on the configuration in the $conf array
-     * Implements the "select" function in TypoScript
+     * Creates and returns a SELECT query for records from $table and with conditions
+     * based on the configuration in the $conf array.
+     * Implements the "select" function in TypoScript.
      *
      * @param string $table See ->exec_getQuery()
      * @param array $conf See ->exec_getQuery()
-     * @param bool $returnQueryArray If set, the function will return the query not as a string but array with the various parts. RECOMMENDED!
-     * @return mixed A SELECT query if $returnQueryArray is FALSE, otherwise the SELECT query in an array as parts.
+     * @return string A SELECT query
      * @throws \RuntimeException
      * @throws \InvalidArgumentException
      * @internal
      * @see numRows()
      */
-    public function getQuery($table, $conf, $returnQueryArray = false)
+    public function getQuery(Connection $connection, string $table, array $conf): string
     {
         // Resolve stdWrap in these properties first
-        $connection = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable($table);
         $properties = [
             'pidInList',
             'uidInList',
@@ -5159,7 +4830,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
             }
         }
         // Handle PDO-style named parameter markers first
-        $queryMarkers = $this->getQueryMarkers($table, $conf);
+        $queryMarkers = $this->getQueryMarkers($connection, $conf);
         // Replace the markers in the non-stdWrap properties
         foreach ($queryMarkers as $marker => $markerValue) {
             $properties = [
@@ -5189,10 +4860,11 @@ class ContentObjectRenderer implements LoggerAwareInterface
                 $pidList = GeneralUtility::trimExplode(',', $conf['pidInList'], true);
                 array_walk($pidList, function (&$storagePid) {
                     if ($storagePid === 'this') {
-                        $storagePid = $this->getTypoScriptFrontendController()->id;
+                        $storagePid = $this->getRequest()->getAttribute('frontend.page.information')->getId();
                     }
                 });
-                $expandedPidList = $this->getTypoScriptFrontendController()->sys_page->getPageIdsRecursive($pidList, $conf['recursive']);
+                $pageRepository = $this->getPageRepository();
+                $expandedPidList = $pageRepository->getPageIdsRecursive($pidList, $conf['recursive']);
                 $conf['pidInList'] = implode(',', $expandedPidList);
             }
         }
@@ -5200,7 +4872,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
             $conf['pidInList'] = 'this';
         }
 
-        $queryParts = $this->getQueryConstraints($table, $conf);
+        $queryParts = $this->getQueryConstraints($connection, $table, $conf);
 
         $queryBuilder = $connection->createQueryBuilder();
         // @todo Check against getQueryConstraints, can probably use FrontendRestrictions
@@ -5224,15 +4896,14 @@ class ContentObjectRenderer implements LoggerAwareInterface
 
         // Fields:
         if ($conf['selectFields'] ?? false) {
-            $queryBuilder->selectLiteral($this->sanitizeSelectPart($conf['selectFields'], $table));
+            $queryBuilder->selectLiteral($this->sanitizeSelectPart($connection, $conf['selectFields'], $table));
         }
 
         // Setting LIMIT:
-        $error = false;
         if (($conf['max'] ?? false) || ($conf['begin'] ?? false)) {
             // Finding the total number of records, if used:
             if (str_contains(strtolower(($conf['begin'] ?? '') . ($conf['max'] ?? '')), 'total')) {
-                $countQueryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($table);
+                $countQueryBuilder = $connection->createQueryBuilder();
                 $countQueryBuilder->getRestrictions()->removeAll();
                 $countQueryBuilder->count('*')
                     ->from($table)
@@ -5252,142 +4923,59 @@ class ContentObjectRenderer implements LoggerAwareInterface
                     }
                 } catch (DBALException $e) {
                     $this->getTimeTracker()->setTSlogMessage($e->getPrevious()->getMessage());
-                    $error = true;
+                    return '';
                 }
             }
 
-            if (!$error) {
-                if (isset($conf['begin']) && $conf['begin'] > 0) {
-                    $conf['begin'] = MathUtility::forceIntegerInRange((int)ceil($this->calc($conf['begin'])), 0);
-                    $queryBuilder->setFirstResult($conf['begin']);
-                }
-                if (isset($conf['max'])) {
-                    $conf['max'] = MathUtility::forceIntegerInRange((int)ceil($this->calc($conf['max'])), 0);
-                    $queryBuilder->setMaxResults($conf['max'] ?: 100000);
-                }
+            if (isset($conf['begin']) && $conf['begin'] > 0) {
+                $conf['begin'] = MathUtility::forceIntegerInRange((int)ceil($this->calc($conf['begin'])), 0);
+                $queryBuilder->setFirstResult($conf['begin']);
+            }
+            if (isset($conf['max'])) {
+                $conf['max'] = MathUtility::forceIntegerInRange((int)ceil($this->calc($conf['max'])), 0);
+                $queryBuilder->setMaxResults($conf['max'] ?: 100000);
             }
         }
 
-        if (!$error) {
-            // Setting up tablejoins:
-            if ($conf['join'] ?? false) {
-                $joinParts = QueryHelper::parseJoin($conf['join']);
-                $queryBuilder->join(
-                    $table,
-                    $joinParts['tableName'],
-                    $joinParts['tableAlias'],
-                    $joinParts['joinCondition']
-                );
-            } elseif ($conf['leftjoin'] ?? false) {
-                $joinParts = QueryHelper::parseJoin($conf['leftjoin']);
-                $queryBuilder->leftJoin(
-                    $table,
-                    $joinParts['tableName'],
-                    $joinParts['tableAlias'],
-                    $joinParts['joinCondition']
-                );
-            } elseif ($conf['rightjoin'] ?? false) {
-                $joinParts = QueryHelper::parseJoin($conf['rightjoin']);
-                $queryBuilder->rightJoin(
-                    $table,
-                    $joinParts['tableName'],
-                    $joinParts['tableAlias'],
-                    $joinParts['joinCondition']
-                );
-            }
-
-            // Convert the QueryBuilder object into a SQL statement.
-            $query = $queryBuilder->getSQL();
-
-            // Replace the markers in the queryParts to handle stdWrap enabled properties
-            foreach ($queryMarkers as $marker => $markerValue) {
-                // @todo Ugly hack that needs to be cleaned up, with the current architecture
-                // @todo for exec_Query / getQuery it's the best we can do.
-                $query = str_replace('###' . $marker . '###', $markerValue, $query);
-            }
-
-            return $returnQueryArray ? $this->getQueryArray($queryBuilder) : $query;
-        }
-
-        return '';
-    }
-
-    /**
-     * Helper to transform a QueryBuilder object into a queryParts array that can be used
-     * with exec_SELECT_queryArray
-     *
-     * @return array
-     * @throws \RuntimeException
-     */
-    protected function getQueryArray(QueryBuilder $queryBuilder)
-    {
-        $fromClauses = [];
-        $knownAliases = [];
-        $queryParts = [];
-
-        // Loop through all FROM clauses
-        foreach ($queryBuilder->getQueryPart('from') as $from) {
-            if ($from['alias'] === null) {
-                $tableSql = $from['table'];
-                $tableReference = $from['table'];
-            } else {
-                $tableSql = $from['table'] . ' ' . $from['alias'];
-                $tableReference = $from['alias'];
-            }
-
-            $knownAliases[$tableReference] = true;
-
-            $fromClauses[$tableReference] = $tableSql . $this->getQueryArrayJoinHelper(
-                $tableReference,
-                $queryBuilder->getQueryPart('join'),
-                $knownAliases
+        // Setting up tablejoins:
+        if ($conf['join'] ?? false) {
+            $joinParts = QueryHelper::parseJoin($conf['join']);
+            $queryBuilder->join(
+                $table,
+                $joinParts['tableName'],
+                $joinParts['tableAlias'],
+                $joinParts['joinCondition']
+            );
+        } elseif ($conf['leftjoin'] ?? false) {
+            $joinParts = QueryHelper::parseJoin($conf['leftjoin']);
+            $queryBuilder->leftJoin(
+                $table,
+                $joinParts['tableName'],
+                $joinParts['tableAlias'],
+                $joinParts['joinCondition']
+            );
+        } elseif ($conf['rightjoin'] ?? false) {
+            $joinParts = QueryHelper::parseJoin($conf['rightjoin']);
+            $queryBuilder->rightJoin(
+                $table,
+                $joinParts['tableName'],
+                $joinParts['tableAlias'],
+                $joinParts['joinCondition']
             );
         }
 
-        $queryParts['SELECT'] = implode(', ', $queryBuilder->getQueryPart('select'));
-        $queryParts['FROM'] = implode(', ', $fromClauses);
-        $queryParts['WHERE'] = (string)$queryBuilder->getQueryPart('where') ?: '';
-        $queryParts['GROUPBY'] = implode(', ', $queryBuilder->getQueryPart('groupBy'));
-        $queryParts['ORDERBY'] = implode(', ', $queryBuilder->getQueryPart('orderBy'));
-        if ($queryBuilder->getFirstResult() > 0) {
-            $queryParts['LIMIT'] = $queryBuilder->getFirstResult() . ',' . $queryBuilder->getMaxResults();
-        } elseif ($queryBuilder->getMaxResults() > 0) {
-            $queryParts['LIMIT'] = $queryBuilder->getMaxResults();
-        }
+        // Convert the QueryBuilder object into a SQL statement.
+        $query = $queryBuilder->getSQL();
 
-        return $queryParts;
+        // Replace the markers in the queryParts to handle stdWrap enabled properties
+        foreach ($queryMarkers as $marker => $markerValue) {
+            // @todo Ugly hack that needs to be cleaned up, with the current architecture
+            // @todo for exec_Query / getQuery it's the best we can do.
+            $query = str_replace('###' . $marker . '###', $markerValue, $query);
+        }
+        return $query;
     }
 
-    /**
-     * Helper to transform the QueryBuilder join part into a SQL fragment.
-     *
-     * @throws \RuntimeException
-     */
-    protected function getQueryArrayJoinHelper(string $fromAlias, array $joinParts, array &$knownAliases): string
-    {
-        $sql = '';
-
-        if (isset($joinParts['join'][$fromAlias])) {
-            foreach ($joinParts['join'][$fromAlias] as $join) {
-                if (array_key_exists($join['joinAlias'], $knownAliases)) {
-                    throw new \RuntimeException(
-                        'Non unique join alias: "' . $join['joinAlias'] . '" found.',
-                        1472748872
-                    );
-                }
-                $sql .= ' ' . strtoupper($join['joinType'])
-                    . ' JOIN ' . $join['joinTable'] . ' ' . $join['joinAlias']
-                    . ' ON ' . ((string)$join['joinCondition']);
-                $knownAliases[$join['joinAlias']] = true;
-            }
-
-            foreach ($joinParts['join'][$fromAlias] as $join) {
-                $sql .= $this->getQueryArrayJoinHelper($join['joinAlias'], $joinParts, $knownAliases);
-            }
-        }
-
-        return $sql;
-    }
     /**
      * Helper function for getQuery(), creating the WHERE clause of the SELECT query
      *
@@ -5397,12 +4985,12 @@ class ContentObjectRenderer implements LoggerAwareInterface
      * @throws \InvalidArgumentException
      * @see getQuery()
      */
-    protected function getQueryConstraints(string $table, array $conf): array
+    protected function getQueryConstraints(Connection $connection, string $table, array $conf): array
     {
-        // Init:
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($table);
+        $queryBuilder = $connection->createQueryBuilder();
         $expressionBuilder = $queryBuilder->expr();
-        $tsfe = $this->getTypoScriptFrontendController();
+        $request = $this->getRequest();
+        $contentPid = $request->getAttribute('frontend.page.information')->getContentFromPid();
         $constraints = [];
         $pid_uid_flag = 0;
         $enableFieldsIgnore = [];
@@ -5419,7 +5007,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
         );
 
         if (trim($conf['uidInList'] ?? '')) {
-            $listArr = GeneralUtility::intExplode(',', str_replace('this', (string)$tsfe->contentPid, $conf['uidInList']));
+            $listArr = GeneralUtility::intExplode(',', str_replace('this', (string)$contentPid, $conf['uidInList']));
 
             // If moved records shall be considered, select via t3ver_oid
             if ($considerMovePointers) {
@@ -5428,7 +5016,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
                     $expressionBuilder->and(
                         $expressionBuilder->eq(
                             $table . '.t3ver_state',
-                            (int)(string)VersionState::cast(VersionState::MOVE_POINTER)
+                            VersionState::MOVE_POINTER->value
                         ),
                         $expressionBuilder->in($table . '.t3ver_oid', $listArr)
                     )
@@ -5445,7 +5033,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
         }
 
         if (trim($conf['pidInList'])) {
-            $listArr = GeneralUtility::intExplode(',', str_replace('this', (string)$tsfe->contentPid, $conf['pidInList']));
+            $listArr = GeneralUtility::intExplode(',', str_replace('this', (string)$contentPid, $conf['pidInList']));
             // Removes all pages which are not visible for the user!
             $listArr = $this->checkPidArray($listArr);
             if (GeneralUtility::inList($conf['pidInList'], 'root')) {
@@ -5469,7 +5057,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
             $constraints[] = $expressionBuilder->eq($table . '.uid', 0);
         }
 
-        $where = trim((string)$this->stdWrapValue('where', $conf ?? []));
+        $where = trim((string)$this->stdWrapValue('where', $conf));
         if ($where) {
             $constraints[] = QueryHelper::stripLogicalOperatorPrefix($where);
         }
@@ -5481,25 +5069,25 @@ class ContentObjectRenderer implements LoggerAwareInterface
             $constraints[] = $languageConstraint;
         }
 
-        // Enablefields
-        $constraints[] = QueryHelper::stripLogicalOperatorPrefix($tsfe->sys_page->enableFields($table, -1, $enableFieldsIgnore));
-        // For pages, recyclers are also always excluded, as this is the default for fetching records in PageRepository
-        if ($table === 'pages') {
-            $constraints[] = GeneralUtility::makeInstance(DocumentTypeExclusionRestriction::class, [PageRepository::DOKTYPE_RECYCLER])->buildExpression([$table => $table], $expressionBuilder);
-        }
+        // default constraints from TCA
+        $pageRepository = $this->getPageRepository();
+        $constraints = array_merge(
+            $constraints,
+            array_values($pageRepository->getDefaultConstraints($table, $enableFieldsIgnore))
+        );
 
         // MAKE WHERE:
         if ($constraints !== []) {
             $queryParts['where'] = $expressionBuilder->and(...$constraints);
         }
         // GROUP BY
-        $groupBy = trim((string)$this->stdWrapValue('groupBy', $conf ?? []));
+        $groupBy = trim((string)$this->stdWrapValue('groupBy', $conf));
         if ($groupBy) {
             $queryParts['groupBy'] = QueryHelper::parseGroupBy($groupBy);
         }
 
         // ORDER BY
-        $orderByString = trim((string)$this->stdWrapValue('orderBy', $conf ?? []));
+        $orderByString = trim((string)$this->stdWrapValue('orderBy', $conf));
         if ($orderByString) {
             $queryParts['orderBy'] = QueryHelper::parseOrderBy($orderByString);
         }
@@ -5527,10 +5115,6 @@ class ContentObjectRenderer implements LoggerAwareInterface
      * If the language aspect has NO overlays enabled, it behaves as in "free mode" (= only fetch the records
      * for the current language.
      *
-     * @param ExpressionBuilder $expressionBuilder
-     * @param string $table
-     * @param array $conf
-     * @param Context $context
      * @return string|\TYPO3\CMS\Core\Database\Query\Expression\CompositeExpression|null
      * @throws \TYPO3\CMS\Core\Context\Exception\AspectNotFoundException
      */
@@ -5591,16 +5175,12 @@ class ContentObjectRenderer implements LoggerAwareInterface
      * This functions checks if the necessary fields are part of the select
      * and adds them if necessary.
      *
-     * @param string $selectPart Select part
-     * @param string $table Table to select from
      * @return string Sanitized select part
      * @internal
      * @see getQuery
      */
-    protected function sanitizeSelectPart($selectPart, $table)
+    protected function sanitizeSelectPart(Connection $connection, string $selectPart, string $table)
     {
-        $connection = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable($table);
-
         // Pattern matching parts
         $matchStart = '/(^\\s*|,\\s*|' . $table . '\\.)';
         $matchEnd = '(\\s*,|\\s*$)/';
@@ -5645,39 +5225,37 @@ class ContentObjectRenderer implements LoggerAwareInterface
             return [];
         }
 
-        $tsfe = $this->getTypoScriptFrontendController();
-        if ($pageIds === [$tsfe->id]) {
-            // The TypoScriptFrontendController already granted access to the current page (see getPageAndRootline())
-            // and made sure the current doktype is a doktype whose content should be rendered, so there is no need
-            // to check that again.
+        if ($pageIds === [$this->getRequest()->getAttribute('frontend.page.information')->getId()]) {
+            // Middlewares already checked access to the current page and made sure the current doktype
+            // is a doktype whose content should be rendered, so there is no need to check that again.
             return $pageIds;
         }
-
+        $pageRepository = $this->getPageRepository();
         $restrictionContainer = GeneralUtility::makeInstance(FrontendRestrictionContainer::class);
-        $restrictionContainer->add(GeneralUtility::makeInstance(
-            DocumentTypeExclusionRestriction::class,
-            GeneralUtility::intExplode(',', (string)$this->checkPid_badDoktypeList, true)
-        ));
-        return $tsfe->sys_page->filterAccessiblePageIds($pageIds, $restrictionContainer);
+        if ($this->checkPid_badDoktypeList) {
+            $restrictionContainer->add(GeneralUtility::makeInstance(
+                DocumentTypeExclusionRestriction::class,
+                // @todo this functionality should be streamlined with a default FrontendRestriction or a "LinkRestrictionContainer"
+                GeneralUtility::intExplode(',', (string)$this->checkPid_badDoktypeList, true)
+            ));
+        }
+        return $pageRepository->filterAccessiblePageIds($pageIds, $restrictionContainer);
     }
 
     /**
      * Builds list of marker values for handling PDO-like parameter markers in select parts.
      * Marker values support stdWrap functionality thus allowing a way to use stdWrap functionality in various properties of 'select' AND prevents SQL-injection problems by quoting and escaping of numeric values, strings, NULL values and comma separated lists.
      *
-     * @param string $table Table to select records from
      * @param array $conf Select part of CONTENT definition
      * @return array List of values to replace markers with
      * @internal
      * @see getQuery()
      */
-    public function getQueryMarkers($table, $conf)
+    public function getQueryMarkers(Connection $connection, $conf)
     {
         if (!isset($conf['markers.']) || !is_array($conf['markers.'])) {
             return [];
         }
-        // Parse markers and prepare their values
-        $connection = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable($table);
         $markerValues = [];
         foreach ($conf['markers.'] as $dottedMarker => $dummy) {
             $marker = rtrim($dottedMarker, '.');
@@ -5738,14 +5316,14 @@ class ContentObjectRenderer implements LoggerAwareInterface
         return $markerValues;
     }
 
-    /**
-     * Get instance of FAL resource factory
-     *
-     * @return ResourceFactory
-     */
-    protected function getResourceFactory()
+    protected function getResourceFactory(): ResourceFactory
     {
         return GeneralUtility::makeInstance(ResourceFactory::class);
+    }
+
+    protected function getPageRepository(): PageRepository
+    {
+        return GeneralUtility::makeInstance(PageRepository::class);
     }
 
     /**
@@ -5772,7 +5350,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
      */
     protected function getFromCache(array $configuration)
     {
-        if ($this->getTypoScriptFrontendController()->no_cache) {
+        if (!$this->getRequest()->getAttribute('frontend.cache.instruction')->isCachingAllowed()) {
             return false;
         }
         $cacheKey = $this->calculateCacheKey($configuration);
@@ -5785,12 +5363,9 @@ class ContentObjectRenderer implements LoggerAwareInterface
         if ($cachedData === false) {
             return false;
         }
-        if (is_string($cachedData)) {
-            // Legacy (from a previous patch release) cache data found.
-            // Handle gracefully as content without associated cache tags.
-            return $cachedData;
-        }
-        $this->getTypoScriptFrontendController()->addCacheTags($cachedData['cacheTags'] ?? []);
+        $this->getRequest()->getAttribute('frontend.cache.collector')->addCacheTags(
+            ...array_map(fn(string $tag) => new CacheTag($tag), $cachedData['cacheTags'])
+        );
         return $cachedData['content'] ?? false;
     }
 
@@ -5845,10 +5420,9 @@ class ContentObjectRenderer implements LoggerAwareInterface
     }
 
     /**
-     * @return TypoScriptFrontendController|null
      * @internal this is set to public so extensions such as EXT:solr can use the method in tests.
      */
-    public function getTypoScriptFrontendController()
+    public function getTypoScriptFrontendController(): ?TypoScriptFrontendController
     {
         return $this->typoScriptFrontendController ?: $GLOBALS['TSFE'] ?? null;
     }
@@ -5903,9 +5477,9 @@ class ContentObjectRenderer implements LoggerAwareInterface
 
     protected function shallDebug(): bool
     {
-        $tsfe = $this->getTypoScriptFrontendController();
-        if ($tsfe !== null && isset($tsfe->config['config']['debug'])) {
-            return (bool)($tsfe->config['config']['debug']);
+        $typoScriptConfigArray = $this->getRequest()->getAttribute('frontend.typoscript')->getConfigArray();
+        if (isset($typoScriptConfigArray['debug'])) {
+            return (bool)($typoScriptConfigArray['debug']);
         }
         return !empty($GLOBALS['TYPO3_CONF_VARS']['FE']['debug']);
     }

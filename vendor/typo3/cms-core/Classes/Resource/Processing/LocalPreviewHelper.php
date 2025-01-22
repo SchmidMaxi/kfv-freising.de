@@ -16,11 +16,11 @@
 namespace TYPO3\CMS\Core\Resource\Processing;
 
 use TYPO3\CMS\Core\Imaging\GraphicalFunctions;
-use TYPO3\CMS\Core\Imaging\ImageMagickFile;
 use TYPO3\CMS\Core\Resource\File;
-use TYPO3\CMS\Core\Utility\CommandUtility;
+use TYPO3\CMS\Core\Resource\FileType;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\MathUtility;
+use TYPO3\CMS\Frontend\Imaging\GifBuilder;
 
 /**
  * Helper for creating local image previews using TYPO3s image processing classes.
@@ -30,15 +30,17 @@ class LocalPreviewHelper
     /**
      * Default preview configuration
      *
-     * @var array
+     * @todo once preProcessConfiguration() is not needed anymore (or the whole class), this property can be removed
      */
-    protected static $defaultConfiguration = [
+    protected static array $defaultConfiguration = [
         'width' => 64,
         'height' => 64,
     ];
 
     /**
      * Enforce default configuration for preview processing
+     *
+     * @todo This method is not needed anymore and will be deprecated (once the whole class can be removed)
      */
     public static function preProcessConfiguration(array $configuration): array
     {
@@ -48,7 +50,7 @@ class LocalPreviewHelper
 
         return array_filter(
             $configuration,
-            static function ($value, $name) {
+            static function (string|int|bool|array|null $value, string $name): bool {
                 return !empty($value) && in_array($name, ['width', 'height'], true);
             },
             ARRAY_FILTER_USE_BOTH
@@ -77,7 +79,8 @@ class LocalPreviewHelper
     public function process(TaskInterface $task)
     {
         $sourceFile = $task->getSourceFile();
-        $configuration = static::preProcessConfiguration($task->getConfiguration());
+        $task->sanitizeConfiguration();
+        $configuration = $task->getConfiguration();
 
         // Do not scale up if the source file has a size and the target size is larger
         if ($sourceFile->getProperty('width') > 0 && $sourceFile->getProperty('height') > 0
@@ -119,9 +122,9 @@ class LocalPreviewHelper
     protected function generatePreviewFromFile(File $file, array $configuration, string $targetFilePath)
     {
         // Check file extension
-        if ($file->getType() !== File::FILETYPE_IMAGE && !$file->isImage()) {
+        if (!$file->isType(FileType::IMAGE) && !$file->isImage()) {
             // Create a default image
-            $graphicalFunctions = GeneralUtility::makeInstance(GraphicalFunctions::class);
+            $graphicalFunctions = GeneralUtility::makeInstance(GifBuilder::class);
             $graphicalFunctions->getTemporaryImageWithText(
                 $targetFilePath,
                 'Not imagefile!',
@@ -147,28 +150,19 @@ class LocalPreviewHelper
     protected function generatePreviewFromLocalFile(string $originalFileName, array $configuration, string $targetFilePath)
     {
         // Create the temporary file
-        if ($GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_enabled']) {
-            $arguments = CommandUtility::escapeShellArguments([
-                'width' => $configuration['width'],
-                'height' => $configuration['height'],
-            ]);
-            $parameters = '-sample ' . $arguments['width'] . 'x' . $arguments['height']
-                . ' ' . ImageMagickFile::fromFilePath($originalFileName, 0)
-                . ' ' . CommandUtility::escapeShellArgument($targetFilePath);
-
-            $cmd = CommandUtility::imageMagickCommand('convert', $parameters) . ' 2>&1';
-            CommandUtility::exec($cmd);
-
-            if (!file_exists($targetFilePath)) {
-                // Create an error gif
-                $graphicalFunctions = GeneralUtility::makeInstance(GraphicalFunctions::class);
-                $graphicalFunctions->getTemporaryImageWithText(
-                    $targetFilePath,
-                    'No thumb',
-                    'generated!',
-                    ''
-                );
-            }
+        $imageService = GeneralUtility::makeInstance(GraphicalFunctions::class);
+        $result = $imageService->resize($originalFileName, 'WEB', $configuration['width'], $configuration['height'], '', ['sample' => true]);
+        if ($result) {
+            $targetFilePath = $result->getRealPath();
+        }
+        if (!file_exists($targetFilePath)) {
+            // Create an error gif
+            $graphicalFunctions = GeneralUtility::makeInstance(GifBuilder::class);
+            $graphicalFunctions->getTemporaryImageWithText(
+                $targetFilePath,
+                'No thumb',
+                'generated!'
+            );
         }
 
         return [

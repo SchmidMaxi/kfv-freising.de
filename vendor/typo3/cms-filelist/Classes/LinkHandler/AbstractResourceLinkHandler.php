@@ -20,7 +20,6 @@ use TYPO3\CMS\Backend\Controller\AbstractLinkBrowserController;
 use TYPO3\CMS\Backend\LinkHandler\LinkHandlerInterface;
 use TYPO3\CMS\Backend\LinkHandler\LinkHandlerVariableProviderInterface;
 use TYPO3\CMS\Backend\LinkHandler\LinkHandlerViewProviderInterface;
-use TYPO3\CMS\Backend\Routing\Route;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\Components\Buttons\ButtonInterface;
 use TYPO3\CMS\Backend\Template\Components\Buttons\DropDown\DropDownDivider;
@@ -31,7 +30,6 @@ use TYPO3\CMS\Backend\Template\Components\Buttons\DropDownButton;
 use TYPO3\CMS\Backend\Tree\View\LinkParameterProviderInterface;
 use TYPO3\CMS\Backend\View\BackendViewFactory;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
-use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Imaging\IconFactory;
 use TYPO3\CMS\Core\LinkHandling\LinkService;
 use TYPO3\CMS\Core\Localization\LanguageService;
@@ -42,8 +40,6 @@ use TYPO3\CMS\Core\Resource\File;
 use TYPO3\CMS\Core\Resource\Folder;
 use TYPO3\CMS\Core\Resource\ResourceFactory;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Core\Utility\HttpUtility;
-use TYPO3\CMS\Core\Utility\PathUtility;
 use TYPO3\CMS\Core\View\ViewInterface;
 use TYPO3\CMS\Filelist\FileList;
 use TYPO3\CMS\Filelist\Matcher\Matcher;
@@ -57,11 +53,11 @@ abstract class AbstractResourceLinkHandler implements LinkHandlerInterface, Link
 {
     protected ?string $expandFolder = null;
     protected int $currentPage = 1;
-    protected string $moduleStorageIdentifier = 'file_list';
+    protected string $moduleStorageIdentifier = 'media_management';
 
     protected ?FileList $filelist = null;
-    protected ?string $viewMode = null;
-    protected ?string $displayThumbs = null;
+    protected ?ViewMode $viewMode = null;
+    protected bool $displayThumbs = true;
 
     protected ?Folder $selectedFolder = null;
     protected ?Matcher $resourceDisplayMatcher = null;
@@ -142,24 +138,27 @@ abstract class AbstractResourceLinkHandler implements LinkHandlerInterface, Link
 
         $this->currentPage = (int)($request->getParsedBody()['currentPage'] ?? $request->getQueryParams()['currentPage'] ?? 1);
 
-        $this->viewMode = $request->getParsedBody()['viewMode'] ?? $request->getQueryParams()['viewMode'] ?? null;
+        $this->viewMode = ViewMode::tryFrom($request->getParsedBody()['viewMode'] ?? $request->getQueryParams()['viewMode'] ?? '');
         if ($this->viewMode !== null) {
             $this->getBackendUser()->pushModuleData(
                 $this->moduleStorageIdentifier,
-                array_merge($this->getBackendUser()->getModuleData($this->moduleStorageIdentifier) ?? [], ['viewMode' => $this->viewMode])
+                array_merge($this->getBackendUser()->getModuleData($this->moduleStorageIdentifier) ?? [], ['viewMode' => $this->viewMode->value])
             );
         } else {
-            $this->viewMode = $this->getBackendUser()->getModuleData($this->moduleStorageIdentifier)['viewMode'] ?? ViewMode::TILES->value;
+            $this->viewMode = ViewMode::tryFrom($this->getBackendUser()->getModuleData($this->moduleStorageIdentifier)['viewMode'] ?? '')
+                ?? ViewMode::tryFrom($this->getBackendUser()->getTSConfig()['options.']['defaultResourcesViewMode'] ?? '')
+                ?? ViewMode::TILES;
         }
 
-        $this->displayThumbs = $request->getParsedBody()['displayThumbs'] ?? $request->getQueryParams()['displayThumbs'] ?? null;
-        if ($this->displayThumbs !== null) {
+        $displayThumbs = $request->getParsedBody()['displayThumbs'] ?? $request->getQueryParams()['displayThumbs'] ?? null;
+        if ($displayThumbs !== null) {
+            $this->displayThumbs = (bool)$displayThumbs;
             $this->getBackendUser()->pushModuleData(
                 $this->moduleStorageIdentifier,
                 array_merge($this->getBackendUser()->getModuleData($this->moduleStorageIdentifier) ?? [], ['displayThumbs' => $this->displayThumbs])
             );
         } else {
-            $this->displayThumbs = $this->getBackendUser()->getModuleData($this->moduleStorageIdentifier)['displayThumbs'] ?? true;
+            $this->displayThumbs = (bool)($this->getBackendUser()->getModuleData($this->moduleStorageIdentifier)['displayThumbs'] ?? true);
         }
 
         // Selected Folder folder
@@ -180,6 +179,10 @@ abstract class AbstractResourceLinkHandler implements LinkHandlerInterface, Link
                         }
                     }
                 }
+            } else {
+                // Look up in the user's session which folder was opened the last time
+                $moduleSessionData = $this->getBackendUser()->getModuleData('browse_links.php', 'ses');
+                $this->expandFolder = $moduleSessionData['expandFolder'] ?? null;
             }
         }
         if ($this->expandFolder) {
@@ -199,13 +202,8 @@ abstract class AbstractResourceLinkHandler implements LinkHandlerInterface, Link
         }
 
         $this->filelist = GeneralUtility::makeInstance(FileList::class, $request);
-        $this->filelist->viewMode = ViewMode::tryFrom($this->viewMode) ?? ViewMode::TILES;
+        $this->filelist->viewMode = $this->viewMode;
         $this->filelist->thumbs = ($GLOBALS['TYPO3_CONF_VARS']['GFX']['thumbnails'] ?? false) && $this->displayThumbs;
-    }
-
-    public function isCurrentlySelectedItem(array $values): bool
-    {
-        return false;
     }
 
     public function modifyLinkAttributes(array $fieldDefinitions): array
@@ -223,11 +221,6 @@ abstract class AbstractResourceLinkHandler implements LinkHandlerInterface, Link
             return false;
         }
         return true;
-    }
-
-    public function getScriptUrl(): string
-    {
-        return $this->linkBrowser->getScriptUrl();
     }
 
     /**
@@ -255,33 +248,26 @@ abstract class AbstractResourceLinkHandler implements LinkHandlerInterface, Link
 
     protected function createUri(ServerRequestInterface $request, array $parameters = []): string
     {
-        $parameters = $this->getUrlParameters($parameters);
-        if (($route = $request->getAttribute('route')) instanceof Route) {
-            $scriptUrl = (string)$this->uriBuilder->buildUriFromRoute($route->getOption('_identifier'), $parameters);
-        } else {
-            $scriptUrl = ($this->linkBrowser->getScriptUrl() ?: PathUtility::basename(Environment::getCurrentScript())) . HttpUtility::buildQueryString($parameters, '&');
-        }
-
-        return $scriptUrl;
+        return (string)$this->uriBuilder->buildUriFromRequest($request, $this->getUrlParameters($parameters));
     }
 
     protected function getViewModeButton(ServerRequestInterface $request): ButtonInterface
     {
         $viewModeItems = [];
         $viewModeItems[] = GeneralUtility::makeInstance(DropDownRadio::class)
-            ->setActive($this->viewMode === ViewMode::TILES->value)
+            ->setActive($this->viewMode === ViewMode::TILES)
             ->setHref($this->createUri($request, ['viewMode' => ViewMode::TILES->value]))
             ->setLabel($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.view.tiles'))
             ->setIcon($this->iconFactory->getIcon('actions-viewmode-tiles'));
         $viewModeItems[] = GeneralUtility::makeInstance(DropDownRadio::class)
-            ->setActive($this->viewMode === ViewMode::LIST->value)
+            ->setActive($this->viewMode === ViewMode::LIST)
             ->setHref($this->createUri($request, ['viewMode' => ViewMode::LIST->value]))
             ->setLabel($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.view.list'))
             ->setIcon($this->iconFactory->getIcon('actions-viewmode-list'));
         if (!($this->getBackendUser()->getTSConfig()['options.']['noThumbsInEB'] ?? false)) {
             $viewModeItems[] = GeneralUtility::makeInstance(DropdownDivider::class);
             $viewModeItems[] = GeneralUtility::makeInstance(DropDownToggle::class)
-                ->setActive((bool)$this->displayThumbs)
+                ->setActive($this->displayThumbs)
                 ->setHref($this->createUri($request, ['displayThumbs' => $this->displayThumbs ? 0 : 1]))
                 ->setLabel($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.view.showThumbnails'))
                 ->setIcon($this->iconFactory->getIcon('actions-image'));
@@ -297,13 +283,13 @@ abstract class AbstractResourceLinkHandler implements LinkHandlerInterface, Link
         return $viewModeButton;
     }
 
-    public function getUrlParameters(array $parameters): array
+    public function getUrlParameters(array $values): array
     {
-        $parameters = array_replace_recursive([
-            'expandFolder' => $parameters['identifier'] ?? $this->expandFolder,
-        ], $parameters);
+        $values = array_replace_recursive([
+            'expandFolder' => $values['identifier'] ?? $this->expandFolder,
+        ], $values);
 
-        return array_merge($this->linkBrowser->getUrlParameters($parameters), $parameters);
+        return array_merge($this->linkBrowser->getUrlParameters($values), $values);
     }
 
     protected function getLanguageService(): LanguageService

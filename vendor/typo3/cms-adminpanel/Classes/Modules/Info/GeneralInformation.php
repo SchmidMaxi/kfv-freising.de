@@ -18,31 +18,35 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Adminpanel\Modules\Info;
 
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Adminpanel\ModuleApi\AbstractSubModule;
 use TYPO3\CMS\Adminpanel\ModuleApi\DataProviderInterface;
 use TYPO3\CMS\Adminpanel\ModuleApi\ModuleData;
 use TYPO3\CMS\Core\Context\Context;
-use TYPO3\CMS\Core\Context\UserAspect;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Page\AssetCollector;
 use TYPO3\CMS\Core\TimeTracker\TimeTracker;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Fluid\View\StandaloneView;
-use TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController;
+use TYPO3\CMS\Core\View\ViewFactoryData;
+use TYPO3\CMS\Core\View\ViewFactoryInterface;
 
 /**
- * General information module displaying info about the current
- * request
+ * General information module displaying info about the current request
  *
  * @internal
  */
+#[Autoconfigure(public: true)]
 class GeneralInformation extends AbstractSubModule implements DataProviderInterface
 {
+    public function __construct(
+        private readonly TimeTracker $timeTracker,
+        private readonly Context $context,
+        private readonly ViewFactoryInterface $viewFactory,
+    ) {}
+
     public function getDataToStore(ServerRequestInterface $request): ModuleData
     {
-        /** @var UserAspect $frontendUserAspect */
-        $frontendUserAspect = GeneralUtility::makeInstance(Context::class)->getAspect('frontend.user');
-        $tsfe = $this->getTypoScriptFrontendController();
+        $frontendUserAspect = $this->context->getAspect('frontend.user');
         return new ModuleData(
             [
                 'post' => $request->getParsedBody(),
@@ -50,18 +54,19 @@ class GeneralInformation extends AbstractSubModule implements DataProviderInterf
                 'cookie' => $request->getCookieParams(),
                 'server' => $request->getServerParams(),
                 'info' => [
-                    'pageUid' => $tsfe->id,
-                    'pageType' => $tsfe->getPageArguments()->getPageType(),
+                    'pageUid' => $request->getAttribute('frontend.page.information')->getId(),
+                    'pageType' => $request->getAttribute('routing')->getPageType(),
                     'groupList' => implode(',', $frontendUserAspect->getGroupIds()),
-                    'noCache' => $this->isNoCacheEnabled(),
-                    'countUserInt' => count($tsfe->config['INTincScript'] ?? []),
-                    'totalParsetime' => $this->getTimeTracker()->getParseTime(),
+                    'noCache' => !$request->getAttribute('frontend.cache.instruction')->isCachingAllowed(),
+                    'noCacheReasons' => $request->getAttribute('frontend.cache.instruction')->getDisabledCacheReasons(),
+                    'countUserInt' => count($request->getAttribute('frontend.controller')->config['INTincScript'] ?? []),
+                    'totalParsetime' => $this->timeTracker->getParseTime(),
                     'feUser' => [
                         'uid' => $frontendUserAspect->get('id') ?: 0,
                         'username' => $frontendUserAspect->get('username') ?: '',
                     ],
-                    'imagesOnPage' => $this->collectImagesOnPage(),
-                    'documentSize' => $this->collectDocumentSize(),
+                    'imagesOnPage' => $this->collectImagesOnPage($request),
+                    'documentSize' => $this->collectDocumentSize($request),
                 ],
             ]
         );
@@ -69,27 +74,20 @@ class GeneralInformation extends AbstractSubModule implements DataProviderInterf
 
     /**
      * Creates the content for the "info" section ("module") of the Admin Panel
-     *
-     * @return string HTML content for the section. Consists of a string with table-rows with four columns.
-     * @see display()
      */
     public function getContent(ModuleData $data): string
     {
-        $view = GeneralUtility::makeInstance(StandaloneView::class);
-        $templateNameAndPath = 'EXT:adminpanel/Resources/Private/Templates/Modules/Info/General.html';
-        $view->setTemplatePathAndFilename(GeneralUtility::getFileAbsFileName($templateNameAndPath));
-        $view->setPartialRootPaths(['EXT:adminpanel/Resources/Private/Partials']);
-
+        $viewFactoryData = new ViewFactoryData(
+            templateRootPaths: ['EXT:adminpanel/Resources/Private/Templates'],
+            partialRootPaths: ['EXT:adminpanel/Resources/Private/Partials'],
+            layoutRootPaths: ['EXT:adminpanel/Resources/Private/Layouts'],
+        );
+        $view = $this->viewFactory->create($viewFactoryData);
         $view->assignMultiple($data->getArrayCopy());
         $view->assign('languageKey', $this->getBackendUser()->user['lang'] ?? null);
-
-        return $view->render();
+        return $view->render('Modules/Info/General');
     }
 
-    /**
-     * Identifier for this Sub-module,
-     * for example "preview" or "cache"
-     */
     public function getIdentifier(): string
     {
         return 'info_general';
@@ -106,7 +104,7 @@ class GeneralInformation extends AbstractSubModule implements DataProviderInterf
      * Collects images from TypoScriptFrontendController and calculates the total size.
      * Returns human-readable image sizes for fluid template output
      */
-    protected function collectImagesOnPage(): array
+    protected function collectImagesOnPage(ServerRequestInterface $request): array
     {
         $imagesOnPage = [
             'files' => [],
@@ -114,11 +112,9 @@ class GeneralInformation extends AbstractSubModule implements DataProviderInterf
             'totalSize' => 0,
             'totalSizeHuman' => GeneralUtility::formatSize(0),
         ];
-
-        if ($this->isNoCacheEnabled() === false) {
+        if ($request->getAttribute('frontend.cache.instruction')->isCachingAllowed()) {
             return $imagesOnPage;
         }
-
         $count = 0;
         $totalImageSize = 0;
         foreach (GeneralUtility::makeInstance(AssetCollector::class)->getMedia() as $file => $information) {
@@ -138,30 +134,15 @@ class GeneralInformation extends AbstractSubModule implements DataProviderInterf
     }
 
     /**
-     * Gets the document size from the current page in a human readable format
+     * Gets the document size from the current page in a human-readable format
      */
-    protected function collectDocumentSize(): string
+    protected function collectDocumentSize(ServerRequestInterface $request): string
     {
         $documentSize = 0;
-        if ($this->isNoCacheEnabled() === true) {
-            $documentSize = mb_strlen($this->getTypoScriptFrontendController()->content, 'UTF-8');
+        if (!$request->getAttribute('frontend.cache.instruction')->isCachingAllowed()) {
+            $tsfe = $request->getAttribute('frontend.controller');
+            $documentSize = mb_strlen($tsfe->content, 'UTF-8');
         }
-
         return GeneralUtility::formatSize($documentSize);
-    }
-
-    protected function isNoCacheEnabled(): bool
-    {
-        return (bool)$this->getTypoScriptFrontendController()->no_cache;
-    }
-
-    protected function getTypoScriptFrontendController(): TypoScriptFrontendController
-    {
-        return $GLOBALS['TSFE'];
-    }
-
-    protected function getTimeTracker(): TimeTracker
-    {
-        return GeneralUtility::makeInstance(TimeTracker::class);
     }
 }

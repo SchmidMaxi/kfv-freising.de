@@ -28,17 +28,11 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  *
  * Fetch "row" data from yml file and set as 'databaseRow'
  */
-class SiteDatabaseEditRow implements FormDataProviderInterface
+readonly class SiteDatabaseEditRow implements FormDataProviderInterface
 {
-    /**
-     * @var SiteConfiguration
-     */
-    protected $siteConfiguration;
-
-    public function __construct(SiteConfiguration $siteConfiguration)
-    {
-        $this->siteConfiguration = $siteConfiguration;
-    }
+    public function __construct(
+        private SiteFinder $siteFinder,
+    ) {}
 
     /**
      * First level of ['customData']['siteData'] to ['databaseRow']
@@ -52,16 +46,15 @@ class SiteDatabaseEditRow implements FormDataProviderInterface
         }
 
         $tableName = $result['tableName'];
-        $siteFinder = GeneralUtility::makeInstance(SiteFinder::class, $this->siteConfiguration);
         if ($tableName === 'site') {
             $rootPageId = (int)$result['vanillaUid'];
-            $rowData = $this->getRawConfigurationForSiteWithRootPageId($siteFinder, $rootPageId);
+            $rowData = $this->getRawConfigurationForSiteWithRootPageId($rootPageId);
             $result['databaseRow']['uid'] = $rowData['rootPageId'];
             $result['databaseRow']['identifier'] = $result['customData']['siteIdentifier'];
         } elseif (in_array($tableName, ['site_errorhandling', 'site_language', 'site_route', 'site_base_variant'], true)) {
             $rootPageId = (int)($result['inlineTopMostParentUid'] ?? $result['inlineParentUid']);
             try {
-                $rowData = $this->getRawConfigurationForSiteWithRootPageId($siteFinder, $rootPageId);
+                $rowData = $this->getRawConfigurationForSiteWithRootPageId($rootPageId);
                 $parentFieldName = $result['inlineParentFieldName'];
                 if (!isset($rowData[$parentFieldName])) {
                     throw new \RuntimeException('Field "' . $parentFieldName . '" not found', 1520886092);
@@ -86,10 +79,15 @@ class SiteDatabaseEditRow implements FormDataProviderInterface
         return $result;
     }
 
-    protected function getRawConfigurationForSiteWithRootPageId(SiteFinder $siteFinder, int $rootPageId): array
+    protected function getRawConfigurationForSiteWithRootPageId(int $rootPageId): array
     {
-        $site = $siteFinder->getSiteByRootPageId($rootPageId);
+        $site = $this->siteFinder->getSiteByRootPageId($rootPageId);
         // load config as it is stored on disk (without replacements)
-        return $this->siteConfiguration->load($site->getIdentifier());
+        $configuration = GeneralUtility::makeInstance(SiteConfiguration::class)->load($site->getIdentifier());
+        // @todo parse pseudo TCA and react on type==select and renderType==selectMultipleSideBySide
+        if (is_array($configuration['dependencies'] ?? null)) {
+            $configuration['dependencies'] = implode(',', $configuration['dependencies']);
+        }
+        return $configuration;
     }
 }

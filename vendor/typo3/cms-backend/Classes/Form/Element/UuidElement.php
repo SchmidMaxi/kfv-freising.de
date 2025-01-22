@@ -18,7 +18,8 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Backend\Form\Element;
 
 use Symfony\Component\Uid\Uuid;
-use TYPO3\CMS\Core\Imaging\Icon;
+use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Page\JavaScriptModuleInstruction;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\MathUtility;
@@ -40,11 +41,13 @@ class UuidElement extends AbstractFormElement
         ],
     ];
 
+    public function __construct(
+        private readonly IconFactory $iconFactory,
+    ) {}
+
     public function render(): array
     {
         $resultArray = $this->initializeResultArray();
-        // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-        $resultArray['labelHasBeenHandled'] = true;
         $parameterArray = $this->data['parameterArray'];
         $itemValue = htmlspecialchars((string)$parameterArray['itemFormElValue'], ENT_QUOTES);
         $config = $parameterArray['fieldConf']['config'];
@@ -97,7 +100,7 @@ class UuidElement extends AbstractFormElement
                         title="' . htmlspecialchars(sprintf($this->getLanguageService()->sL('LLL:EXT:backend/Resources/Private/Language/locallang_copytoclipboard.xlf:copyToClipboard.title'), 'UUID')) . '"
                         text="' . $itemValue . '"
                     >
-                        ' . $this->iconFactory->getIcon('actions-clipboard', Icon::SIZE_SMALL) . '
+                        ' . $this->iconFactory->getIcon('actions-clipboard', IconSize::SMALL) . '
                     </typo3-copy-to-clipboard>
                 </div>';
 
@@ -114,12 +117,12 @@ class UuidElement extends AbstractFormElement
         $html[] =     $fieldInformationHtml;
         $html[] =     '<div class="form-control-wrap" style="max-width: ' . $width . 'px">';
         $html[] =         '<div class="form-wizards-wrap">';
-        $html[] =             '<div class="form-wizards-element">';
+        $html[] =             '<div class="form-wizards-item-element">';
         $html[] =                 $uuidElement;
         $html[] =             '</div>';
 
         if (!empty($fieldControlHtml)) {
-            $html[] =      '<div class="form-wizards-items-aside form-wizards-items-aside--field-control">';
+            $html[] =      '<div class="form-wizards-item-aside form-wizards-item-aside--field-control">';
             $html[] =          '<div class="btn-group">';
             $html[] =              $fieldControlHtml;
             $html[] =          '</div>';

@@ -21,6 +21,7 @@ use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
+use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Form\FormResultCompiler;
 use TYPO3\CMS\Backend\Form\NodeFactory;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
@@ -29,12 +30,13 @@ use TYPO3\CMS\Backend\Template\ModuleTemplate;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Http\ResponseFactory;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Resource\Exception\InsufficientFileAccessPermissionsException;
 use TYPO3\CMS\Core\Resource\Exception\InvalidFileException;
 use TYPO3\CMS\Core\Resource\FileInterface;
+use TYPO3\CMS\Core\Resource\Folder;
 use TYPO3\CMS\Core\Resource\ResourceFactory;
 use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -45,6 +47,7 @@ use TYPO3\CMS\Filelist\Event\ModifyEditFileFormDataEvent;
  *
  * @internal This class is a specific Backend controller implementation and is not considered part of the Public TYPO3 API.
  */
+#[AsController]
 class EditFileController
 {
     protected array $dataColumnTca = [
@@ -101,6 +104,7 @@ class EditFileController
         protected readonly ResponseFactory $responseFactory,
         protected readonly StreamFactoryInterface $streamFactory,
         protected readonly EventDispatcherInterface $eventDispatcher,
+        protected readonly NodeFactory $nodeFactory,
     ) {}
 
     /**
@@ -123,11 +127,14 @@ class EditFileController
             throw new InsufficientFileAccessPermissionsException('You are not allowed to access files outside your storages', 1375889832);
         }
 
+        /** @var Folder $parentFolder */
+        $parentFolder = $file->getParentFolder();
+
         $returnUrl = GeneralUtility::sanitizeLocalUrl(
             $parsedBody['returnUrl']
             ?? $queryParams['returnUrl']
             ?? (string)$this->uriBuilder->buildUriFromRoute('media_management', [
-                'id' => $file->getParentFolder()->getCombinedIdentifier(),
+                'id' => $parentFolder->getCombinedIdentifier(),
             ])
         );
 
@@ -152,7 +159,7 @@ class EditFileController
             new ModifyEditFileFormDataEvent($formData, $file, $request)
         )->getFormData();
 
-        $resultArray = GeneralUtility::makeInstance(NodeFactory::class)->create($formData)->render();
+        $resultArray = $this->nodeFactory->create($formData)->render();
         $formResultCompiler = GeneralUtility::makeInstance(FormResultCompiler::class);
         $formResultCompiler->mergeResult($resultArray);
 
@@ -181,7 +188,7 @@ class EditFileController
             ->setForm('EditFileController')
             ->setShowLabelText(true)
             ->setTitle($languageService->sL('LLL:EXT:filelist/Resources/Private/Language/locallang.xlf:file_edit.php.submit'))
-            ->setIcon($this->iconFactory->getIcon('actions-document-save', Icon::SIZE_SMALL));
+            ->setIcon($this->iconFactory->getIcon('actions-document-save', IconSize::SMALL));
         $buttonBar->addButton($saveButton, ButtonBar::BUTTON_POSITION_LEFT, 20);
 
         // Cancel button
@@ -189,7 +196,7 @@ class EditFileController
             ->setShowLabelText(true)
             ->setHref($returnUrl)
             ->setTitle($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.cancel'))
-            ->setIcon($this->iconFactory->getIcon('actions-close', Icon::SIZE_SMALL));
+            ->setIcon($this->iconFactory->getIcon('actions-close', IconSize::SMALL));
         $buttonBar->addButton($closeButton, ButtonBar::BUTTON_POSITION_LEFT, 10);
     }
 

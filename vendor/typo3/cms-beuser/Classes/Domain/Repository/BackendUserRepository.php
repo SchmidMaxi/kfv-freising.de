@@ -35,13 +35,11 @@ class BackendUserRepository extends Repository
 {
     /**
      * Finds Backend Users on a given list of uids
-     *
-     * @return \TYPO3\CMS\Extbase\Persistence\Generic\QueryResult
      */
-    public function findByUidList(array $uidList)
+    public function findByUidList(array $uidList): QueryResult
     {
         $query = $this->createQuery();
-        $query->matching($query->in('uid', array_map('intval', $uidList)));
+        $query->matching($query->in('uid', array_map(intval(...), $uidList)));
         /** @var QueryResult $result */
         $result = $query->execute();
         return $result;
@@ -49,10 +47,8 @@ class BackendUserRepository extends Repository
 
     /**
      * Find Backend Users matching to Demand object properties
-     *
-     * @return \TYPO3\CMS\Extbase\Persistence\Generic\QueryResult
      */
-    public function findDemanded(Demand $demand)
+    public function findDemanded(Demand $demand): QueryResult
     {
         $constraints = [];
         $query = $this->createQuery();
@@ -72,7 +68,7 @@ class BackendUserRepository extends Repository
             }
             if (count($searchConstraints) === 1) {
                 $constraints[] = reset($searchConstraints);
-            } elseif (count($searchConstraints) >= 2) {
+            } else {
                 $constraints[] = $query->logicalOr(...$searchConstraints);
             }
         }
@@ -101,13 +97,12 @@ class BackendUserRepository extends Repository
             $constraints[] = $query->logicalNot($query->equals('lastlogin', 0));
         }
         // In backend user group
-        // @TODO: Refactor for real n:m relations
         if ($demand->getBackendUserGroup()) {
             $constraints[] = $query->logicalOr(
-                $query->equals('usergroup', (int)$demand->getBackendUserGroup()),
-                $query->like('usergroup', (int)$demand->getBackendUserGroup() . ',%'),
-                $query->like('usergroup', '%,' . (int)$demand->getBackendUserGroup()),
-                $query->like('usergroup', '%,' . (int)$demand->getBackendUserGroup() . ',%'),
+                $query->equals('usergroup', $demand->getBackendUserGroup()),
+                $query->like('usergroup', $demand->getBackendUserGroup() . ',%'),
+                $query->like('usergroup', '%,' . $demand->getBackendUserGroup()),
+                $query->like('usergroup', '%,' . $demand->getBackendUserGroup() . ',%'),
             );
         }
         $query->matching($query->logicalAnd(...$constraints));
@@ -119,10 +114,8 @@ class BackendUserRepository extends Repository
 
     /**
      * Find Backend Users currently online
-     *
-     * @return \TYPO3\CMS\Extbase\Persistence\Generic\QueryResult
      */
-    public function findOnline()
+    public function findOnline(): QueryResult
     {
         $uids = [];
         foreach ($this->getSessionBackend()->getAll() as $sessionRecord) {
@@ -140,10 +133,8 @@ class BackendUserRepository extends Repository
 
     /**
      * Overwrite createQuery to don't respect enable fields
-     *
-     * @return QueryInterface
      */
-    public function createQuery()
+    public function createQuery(): QueryInterface
     {
         $query = parent::createQuery();
         $query->getQuerySettings()->setIgnoreEnableFields(true);

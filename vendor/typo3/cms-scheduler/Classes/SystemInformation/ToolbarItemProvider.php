@@ -19,8 +19,9 @@ namespace TYPO3\CMS\Scheduler\SystemInformation;
 
 use TYPO3\CMS\Backend\Backend\Event\SystemInformationToolbarCollectorEvent;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
-use TYPO3\CMS\Backend\Toolbar\Enumeration\InformationStatus;
+use TYPO3\CMS\Backend\Toolbar\InformationStatus;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
+use TYPO3\CMS\Core\Attribute\AsEventListener;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Registry;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -44,6 +45,7 @@ final class ToolbarItemProvider
         $this->lastRunInformation = GeneralUtility::makeInstance(Registry::class)->get('tx_scheduler', 'lastRun', []);
     }
 
+    #[AsEventListener('scheduler/show-latest-errors')]
     public function getItem(SystemInformationToolbarCollectorEvent $event): void
     {
         $systemInformationToolbarItem = $event->getToolbarItem();
@@ -62,7 +64,7 @@ final class ToolbarItemProvider
                     $languageService->sL('LLL:EXT:scheduler/Resources/Private/Language/locallang.xlf:systemmessage.noLastRun'),
                     (string)$uriBuilder->buildUriFromRoute($moduleIdentifier)
                 ),
-                InformationStatus::STATUS_WARNING,
+                InformationStatus::WARNING,
                 1,
                 $moduleIdentifier,
             );
@@ -71,7 +73,7 @@ final class ToolbarItemProvider
             if (!$this->lastRunInfoExists()) {
                 // Show warning if the information of the last run is incomplete
                 $message = $languageService->sL('LLL:EXT:scheduler/Resources/Private/Language/locallang.xlf:msg.incompleteLastRun');
-                $severity = InformationStatus::STATUS_WARNING;
+                $severity = InformationStatus::WARNING;
             } else {
                 $startDate = date($GLOBALS['TYPO3_CONF_VARS']['SYS']['ddmmyy'], $this->lastRunInformation['start']);
                 $startTime = date($GLOBALS['TYPO3_CONF_VARS']['SYS']['hhmm'], $this->lastRunInformation['start']);
@@ -79,11 +81,11 @@ final class ToolbarItemProvider
                     $this->lastRunInformation['end'] - $this->lastRunInformation['start'],
                     $languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.minutesHoursDaysYears')
                 );
-                $severity = '';
+                $severity = InformationStatus::NOTICE;
                 $label = 'automatically';
                 if ($this->lastRunInformation['type'] === 'manual') {
                     $label = 'manually';
-                    $severity = InformationStatus::STATUS_INFO;
+                    $severity = InformationStatus::INFO;
                 }
                 $type = $languageService->sL('LLL:EXT:scheduler/Resources/Private/Language/locallang.xlf:label.' . $label);
                 $message = sprintf($languageService->sL('LLL:EXT:scheduler/Resources/Private/Language/locallang.xlf:systeminformation.lastRunValue'), $startDate, $startTime, $duration, $type);

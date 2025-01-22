@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Impexp\Command;
 
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -30,13 +31,11 @@ use TYPO3\CMS\Impexp\Export;
 /**
  * Command for exporting T3D/XML data files
  */
+#[AsCommand('impexp:export', 'Exports a T3D / XML file with content of a page tree')]
 class ExportCommand extends Command
 {
-    protected Export $export;
-
-    public function __construct(Export $export)
+    public function __construct(protected readonly Export $export)
     {
-        $this->export = $export;
         parent::__construct();
     }
 
@@ -72,13 +71,11 @@ class ExportCommand extends Command
                 sprintf(
                     'The depth of the exported page tree. ' .
                     '"%d": "Records on this page", ' .
-                    '"%d": "Expanded tree", ' .
                     '"0": "This page", ' .
                     '"1": "1 level down", ' .
                     '.. ' .
                     '"%d": "Infinite levels".',
                     Export::LEVELS_RECORDS_ON_THIS_PAGE,
-                    Export::LEVELS_EXPANDED_TREE,
                     Export::LEVELS_INFINITE
                 ),
                 $this->export->getLevels()

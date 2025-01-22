@@ -19,11 +19,11 @@ namespace TYPO3\CMS\Extensionmanager\Controller;
 
 use Psr\Http\Message\ResponseInterface;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
+use TYPO3\CMS\Core\Http\AllowedMethodsTrait;
 use TYPO3\CMS\Extbase\Mvc\View\JsonView;
 use TYPO3\CMS\Extensionmanager\Domain\Repository\ExtensionRepository;
 use TYPO3\CMS\Extensionmanager\Exception\ExtensionManagerException;
 use TYPO3\CMS\Extensionmanager\Remote\RemoteRegistry;
-use TYPO3\CMS\Extensionmanager\Utility\ListUtility;
 
 /**
  * Controller for actions relating to update of full extension list from TER
@@ -31,22 +31,22 @@ use TYPO3\CMS\Extensionmanager\Utility\ListUtility;
  */
 class UpdateFromTerController extends AbstractController
 {
-    /**
-     * @var string
-     */
-    protected $defaultViewObjectName = JsonView::class;
+    use AllowedMethodsTrait;
 
     public function __construct(
-        protected readonly RemoteRegistry $remoteRegistry,
-        protected readonly ListUtility $listUtility,
-        protected readonly ExtensionRepository $extensionRepository
-    ) {}
+        private readonly RemoteRegistry $remoteRegistry,
+        private readonly ExtensionRepository $extensionRepository
+    ) {
+        $this->defaultViewObjectName = JsonView::class;
+    }
 
     /**
      * Update extension list from TER
      */
     public function updateExtensionListFromTerAction(bool $forceUpdateCheck = false): ResponseInterface
     {
+        $this->assertAllowedHttpMethod($this->request, 'POST');
+
         $updated = false;
         $errorMessage = '';
         $lastUpdate = null;

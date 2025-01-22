@@ -20,6 +20,7 @@ namespace TYPO3\CMS\Core\Page;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Package\PackageInterface;
 use TYPO3\CMS\Core\Page\Event\ResolveJavaScriptImportEvent;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\ConsumableNonce;
@@ -40,6 +41,7 @@ class ImportMap
      * @param list<PackageInterface> $packages
      */
     public function __construct(
+        protected readonly HashService $hashService,
         protected readonly array $packages,
         protected readonly ?FrontendInterface $cache = null,
         protected readonly string $cacheIdentifier = '',
@@ -114,8 +116,7 @@ class ImportMap
 
     public function render(
         string $urlPrefix,
-        null|string|ConsumableNonce $nonce,
-        bool $includePolyfill = true
+        null|string|ConsumableNonce $nonce
     ): string {
         if (count($this->extensionsToLoad) === 0 || count($this->getImportMaps()) === 0) {
             return '';
@@ -130,19 +131,6 @@ class ImportMap
         );
         $nonceAttr = $nonce !== null ? ' nonce="' . htmlspecialchars((string)$nonce) . '"' : '';
         $html[] = sprintf('<script type="importmap"%s>%s</script>', $nonceAttr, $json);
-
-        if ($includePolyfill) {
-            $importmapPolyfill = $urlPrefix . PathUtility::getPublicResourceWebPath(
-                'EXT:core/Resources/Public/JavaScript/Contrib/es-module-shims.js',
-                false
-            );
-
-            $html[] = sprintf(
-                '<script src="%s"%s></script>',
-                htmlspecialchars($importmapPolyfill),
-                $nonceAttr
-            );
-        }
 
         return implode(PHP_EOL, $html) . PHP_EOL;
     }
@@ -199,8 +187,9 @@ class ImportMap
         if ($isDevelopment) {
             $bust = (string)$GLOBALS['EXEC_TIME'];
         } else {
-            $bust = GeneralUtility::hmac(
-                Environment::getProjectPath() . implode('|', $extensionVersions)
+            $bust = $this->hashService->hmac(
+                Environment::getProjectPath() . implode('|', $extensionVersions),
+                self::class
             );
         }
 

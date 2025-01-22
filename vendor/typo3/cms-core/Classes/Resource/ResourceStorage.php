@@ -18,8 +18,13 @@ namespace TYPO3\CMS\Core\Resource;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Message\UploadedFileInterface;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
+use TYPO3\CMS\Core\Cache\CacheTag;
+use TYPO3\CMS\Core\Cache\Event\AddCacheTagEvent;
+use TYPO3\CMS\Core\Configuration\Features;
 use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Http\ApplicationType;
 use TYPO3\CMS\Core\Http\FalDumpFileContentsDecoratorStream;
@@ -29,6 +34,7 @@ use TYPO3\CMS\Core\Log\LogManager;
 use TYPO3\CMS\Core\Registry;
 use TYPO3\CMS\Core\Resource\Driver\DriverInterface;
 use TYPO3\CMS\Core\Resource\Driver\StreamableDriverInterface;
+use TYPO3\CMS\Core\Resource\Enum\DuplicationBehavior;
 use TYPO3\CMS\Core\Resource\Event\AfterFileAddedEvent;
 use TYPO3\CMS\Core\Resource\Event\AfterFileContentsSetEvent;
 use TYPO3\CMS\Core\Resource\Event\AfterFileCopiedEvent;
@@ -178,11 +184,8 @@ class ResourceStorage implements ResourceStorageInterface
 
     /**
      * The capabilities of this storage as defined in the storage record.
-     * Also see the CAPABILITY_* constants below
-     *
-     * @var int
      */
-    protected $capabilities;
+    protected Capabilities $capabilities;
 
     /**
      * @var EventDispatcherInterface
@@ -233,6 +236,13 @@ class ResourceStorage implements ResourceStorageInterface
      */
     public function __construct(DriverInterface $driver, array $storageRecord, ?EventDispatcherInterface $eventDispatcher = null)
     {
+        if (!isset($storageRecord['uid'])) {
+            throw new \InvalidArgumentException(
+                '$storageRecord[\'uid\'] is unexpectedly not set',
+                1688920972
+            );
+        }
+
         $this->storageRecord = $storageRecord;
         $this->eventDispatcher = $eventDispatcher ?? GeneralUtility::makeInstance(EventDispatcherInterface::class);
         if (is_array($storageRecord['configuration'] ?? null)) {
@@ -242,15 +252,18 @@ class ResourceStorage implements ResourceStorageInterface
         } else {
             $this->configuration = [];
         }
-        $this->capabilities =
-            ($this->storageRecord['is_browsable'] ?? null ? self::CAPABILITY_BROWSABLE : 0) |
-            ($this->storageRecord['is_public'] ?? null ? self::CAPABILITY_PUBLIC : 0) |
-            ($this->storageRecord['is_writable'] ?? null ? self::CAPABILITY_WRITABLE : 0) |
-            // Always let the driver decide whether to set this capability
-            self::CAPABILITY_HIERARCHICAL_IDENTIFIERS;
+
+        $capabilityBits = 0;
+        $capabilityBits += ($this->storageRecord['is_browsable'] ?? null ? Capabilities::CAPABILITY_BROWSABLE : 0);
+        $capabilityBits += ($this->storageRecord['is_public'] ?? null ? Capabilities::CAPABILITY_PUBLIC : 0);
+        $capabilityBits += ($this->storageRecord['is_writable'] ?? null ? Capabilities::CAPABILITY_WRITABLE : 0);
+        // Always let the driver decide whether to set this capability
+        $capabilityBits += Capabilities::CAPABILITY_HIERARCHICAL_IDENTIFIERS;
+
+        $this->capabilities = new Capabilities($capabilityBits);
 
         $this->driver = $driver;
-        $this->driver->setStorageUid($storageRecord['uid'] ?? null);
+        $this->driver->setStorageUid((int)$storageRecord['uid']);
         $this->driver->mergeConfigurationCapabilities($this->capabilities);
         try {
             $this->driver->processConfiguration();
@@ -370,27 +383,20 @@ class ResourceStorage implements ResourceStorageInterface
      ********************************/
     /**
      * Returns the capabilities of this storage.
-     *
-     * @return int
-     * @see \TYPO3\CMS\Core\Resource\ResourceStorageInterface::CAPABILITY_BROWSABLE
-     * @see \TYPO3\CMS\Core\Resource\ResourceStorageInterface::CAPABILITY_PUBLIC
-     * @see \TYPO3\CMS\Core\Resource\ResourceStorageInterface::CAPABILITY_WRITABLE
-     * @see \TYPO3\CMS\Core\Resource\ResourceStorageInterface::CAPABILITY_HIERARCHICAL_IDENTIFIERS
      */
-    public function getCapabilities()
+    public function getCapabilities(): Capabilities
     {
-        return (int)$this->capabilities;
+        return $this->capabilities;
     }
 
     /**
      * Returns TRUE if this storage has the given capability.
      *
-     * @param int $capability A capability, as defined in a CAPABILITY_* constant
-     * @return bool
+     * @param Capabilities::CAPABILITY_* $capability
      */
-    protected function hasCapability($capability)
+    protected function hasCapability(int $capability): bool
     {
-        return ($this->capabilities & $capability) == $capability;
+        return $this->capabilities->hasCapability($capability);
     }
 
     /**
@@ -403,7 +409,7 @@ class ResourceStorage implements ResourceStorageInterface
      */
     public function isPublic()
     {
-        return $this->hasCapability(self::CAPABILITY_PUBLIC);
+        return $this->hasCapability(Capabilities::CAPABILITY_PUBLIC);
     }
 
     /**
@@ -414,7 +420,7 @@ class ResourceStorage implements ResourceStorageInterface
      */
     public function isWritable()
     {
-        return $this->hasCapability(self::CAPABILITY_WRITABLE);
+        return $this->hasCapability(Capabilities::CAPABILITY_WRITABLE);
     }
 
     /**
@@ -424,7 +430,7 @@ class ResourceStorage implements ResourceStorageInterface
      */
     public function isBrowsable()
     {
-        return $this->isOnline() && $this->hasCapability(self::CAPABILITY_BROWSABLE);
+        return $this->isOnline() && $this->hasCapability(Capabilities::CAPABILITY_BROWSABLE);
     }
 
     /**
@@ -432,7 +438,7 @@ class ResourceStorage implements ResourceStorageInterface
      */
     public function hasHierarchicalIdentifiers(): bool
     {
-        return $this->hasCapability(self::CAPABILITY_HIERARCHICAL_IDENTIFIERS);
+        return $this->hasCapability(Capabilities::CAPABILITY_HIERARCHICAL_IDENTIFIERS);
     }
 
     /**
@@ -1241,12 +1247,13 @@ class ResourceStorage implements ResourceStorageInterface
      * @param string $localFilePath The file on the server's hard disk to add
      * @param Folder $targetFolder The target folder where the file should be added
      * @param string $targetFileName The name of the file to be add, If not set, the local file name is used
-     * @param string $conflictMode a value of the DuplicationBehavior enumeration
+     * @param string|DuplicationBehavior $conflictMode
      * @param bool $removeOriginal if set the original file will be removed after successful operation
      *
      * @throws \InvalidArgumentException
      * @throws Exception\ExistingTargetFileNameException
-     * @return FileInterface
+     * @return File
+     * @todo change $conflictMode parameter type to DuplicationBehavior in TYPO3 v14.0
      */
     public function addFile($localFilePath, Folder $targetFolder, $targetFileName = '', $conflictMode = DuplicationBehavior::RENAME, $removeOriginal = true)
     {
@@ -1255,7 +1262,16 @@ class ResourceStorage implements ResourceStorageInterface
         if (!is_uploaded_file($localFilePath) && !file_exists($localFilePath)) {
             throw new \InvalidArgumentException('File "' . $localFilePath . '" does not exist.', 1319552745);
         }
-        $conflictMode = DuplicationBehavior::cast($conflictMode);
+
+        if (!$conflictMode instanceof DuplicationBehavior) {
+            trigger_error(
+                'Using the non-native enumeration TYPO3\CMS\Core\Resource\DuplicationBehavior in ResourceStorage->addFile()'
+                . ' will stop working in TYPO3 v14.0. Use native TYPO3\CMS\Core\Resource\Enum\DuplicationBehavior instead.',
+                E_USER_DEPRECATED
+            );
+            $conflictMode = DuplicationBehavior::tryFrom($conflictMode) ?? DuplicationBehavior::getDefaultDuplicationBehaviour();
+        }
+
         $targetFileName = $this->sanitizeFileName($targetFileName ?: PathUtility::basename($localFilePath), $targetFolder);
 
         $targetFileName = $this->eventDispatcher->dispatch(
@@ -1265,19 +1281,20 @@ class ResourceStorage implements ResourceStorageInterface
         $this->assureFileAddPermissions($targetFolder, $targetFileName);
 
         $replaceExisting = false;
-        if ($conflictMode->equals(DuplicationBehavior::CANCEL) && $this->driver->fileExistsInFolder($targetFileName, $targetFolder->getIdentifier())) {
+        if ($conflictMode === DuplicationBehavior::CANCEL && $this->driver->fileExistsInFolder($targetFileName, $targetFolder->getIdentifier())) {
             throw new ExistingTargetFileNameException('File "' . $targetFileName . '" already exists in folder ' . $targetFolder->getIdentifier(), 1322121068);
         }
-        if ($conflictMode->equals(DuplicationBehavior::RENAME)) {
+        if ($conflictMode === DuplicationBehavior::RENAME) {
             $targetFileName = $this->getUniqueName($targetFolder, $targetFileName);
-        } elseif ($conflictMode->equals(DuplicationBehavior::REPLACE) && $this->driver->fileExistsInFolder($targetFileName, $targetFolder->getIdentifier())) {
+        } elseif ($conflictMode === DuplicationBehavior::REPLACE && $this->driver->fileExistsInFolder($targetFileName, $targetFolder->getIdentifier())) {
             $replaceExisting = true;
         }
 
         $fileIdentifier = $this->driver->addFile($localFilePath, $targetFolder->getIdentifier(), $targetFileName, $removeOriginal);
+        /** @var File $file */
         $file = $this->getFileByIdentifier($fileIdentifier);
 
-        if ($replaceExisting && $file instanceof File) {
+        if ($replaceExisting) {
             $this->getIndexer()->updateIndexEntry($file);
         }
 
@@ -1364,7 +1381,7 @@ class ResourceStorage implements ResourceStorageInterface
      * @param ResourceInterface $resourceObject The file or folder object
      * @return string|null NULL if file is missing or deleted, the generated url otherwise
      */
-    public function getPublicUrl(ResourceInterface $resourceObject)
+    public function getPublicUrl(ResourceInterface $resourceObject): ?string
     {
         $publicUrl = null;
         if ($this->isOnline()) {
@@ -1381,7 +1398,7 @@ class ResourceStorage implements ResourceStorageInterface
 
             // If an event listener did not handle the URL generation, use the default way to determine public URL
             if ($publicUrl === null) {
-                if ($this->hasCapability(self::CAPABILITY_PUBLIC)) {
+                if ($this->hasCapability(Capabilities::CAPABILITY_PUBLIC)) {
                     $publicUrl = $this->driver->getPublicUrl($resourceObject->getIdentifier());
                 }
 
@@ -1395,9 +1412,29 @@ class ResourceStorage implements ResourceStorageInterface
                         $queryParameterArray['t'] = 'p';
                     }
 
-                    $queryParameterArray['token'] = GeneralUtility::hmac(implode('|', $queryParameterArray), 'resourceStorageDumpFile');
+                    $hashService = GeneralUtility::makeInstance(HashService::class);
+                    $queryParameterArray['token'] = $hashService->hmac(implode('|', $queryParameterArray), 'resourceStorageDumpFile');
                     $publicUrl = GeneralUtility::locationHeaderUrl(PathUtility::getAbsoluteWebPath(Environment::getPublicPath() . '/index.php'));
                     $publicUrl .= '?' . http_build_query($queryParameterArray, '', '&', PHP_QUERY_RFC3986);
+                }
+            }
+
+            if ($resourceObject instanceof AbstractFile
+                && GeneralUtility::makeInstance(Features::class)->isFeatureEnabled('frontend.cache.autoTagging')
+            ) {
+                $fileResourceObject = method_exists($resourceObject, 'getOriginalFile') ? $resourceObject->getOriginalFile() : $resourceObject;
+                $this->eventDispatcher->dispatch(
+                    new AddCacheTagEvent(
+                        new CacheTag(sprintf('sys_file_%s', $fileResourceObject->getUid()))
+                    )
+                );
+                $metaData = method_exists($fileResourceObject, 'getMetaData') ? $fileResourceObject->getMetaData()->get() : [];
+                if (array_key_exists('uid', $metaData)) {
+                    $this->eventDispatcher->dispatch(
+                        new AddCacheTagEvent(
+                            new CacheTag(sprintf('sys_file_metadata_%s', $metaData['uid']))
+                        )
+                    );
                 }
             }
         }
@@ -1406,21 +1443,13 @@ class ResourceStorage implements ResourceStorageInterface
 
     /**
      * Passes a file to the File Processing Services and returns the resulting ProcessedFile object.
-     *
-     * @param FileInterface $fileObject The file object
-     * @param string $context
-     *
-     * @return ProcessedFile
-     * @throws \InvalidArgumentException
      */
-    public function processFile(FileInterface $fileObject, $context, array $configuration)
+    public function processFile(File|FileReference $fileObject, string $context, array $configuration): ProcessedFile
     {
         if ($fileObject->getStorage() !== $this) {
             throw new \InvalidArgumentException('Cannot process files of foreign storage', 1353401835);
         }
-        $processedFile = $this->getFileProcessingService()->processFile($fileObject, $this, $context, $configuration);
-
-        return $processedFile;
+        return $this->getFileProcessingService()->processFile($fileObject, $context, $this->driver, $configuration);
     }
 
     /**
@@ -1443,6 +1472,7 @@ class ResourceStorage implements ResourceStorageInterface
      */
     public function getFile($identifier)
     {
+        // @todo not sure if this method is used with processed files too, if so, the return value is missing types
         $file = $this->getFileByIdentifier($identifier);
         if ($file instanceof File && !$this->driver->fileExists($identifier)) {
             $file->setMissing(true);
@@ -1455,7 +1485,7 @@ class ResourceStorage implements ResourceStorageInterface
      * If the file is outside of the process folder, it gets indexed and returned as file object afterwards
      * If the file is within processing folder, the file object will be directly returned
      *
-     * @return File|ProcessedFile|null
+     * @return File|ProcessedFile|null Returns ProcessedFile|null only if a processed file is requested, always File otherwise
      */
     public function getFileByIdentifier(string $fileIdentifier)
     {
@@ -1603,6 +1633,7 @@ class ResourceStorage implements ResourceStorageInterface
             if (isset($rows[$identifier])) {
                 $fileObject = $this->getFileFactory()->getFileObject($rows[$identifier]['uid'], $rows[$identifier]);
             } else {
+                // @todo check if processed files can be involved here, if so, return type is wrong
                 $fileObject = $this->getFileByIdentifier($identifier);
             }
             if ($fileObject instanceof FileInterface) {
@@ -1838,7 +1869,7 @@ class ResourceStorage implements ResourceStorageInterface
      *
      * @throws Exception\IllegalFileExtensionException
      * @throws Exception\InsufficientFolderWritePermissionsException
-     * @return FileInterface The file object
+     * @return File The file object
      */
     public function createFile($fileName, Folder $targetFolderObject)
     {
@@ -1907,15 +1938,23 @@ class ResourceStorage implements ResourceStorageInterface
      * folder, the latter has to be part of this storage
      *
      * @param string $targetFileName an optional destination fileName
-     * @param string $conflictMode a value of the DuplicationBehavior enumeration
+     * @param string|DuplicationBehavior $conflictMode
      *
      * @throws \Exception|Exception\AbstractFileOperationException
      * @throws Exception\ExistingTargetFileNameException
-     * @return FileInterface
+     * @return File
+     * @todo change $conflictMode parameter type to DuplicationBehavior in TYPO3 v14.0
      */
     public function copyFile(FileInterface $file, Folder $targetFolder, $targetFileName = null, $conflictMode = DuplicationBehavior::RENAME)
     {
-        $conflictMode = DuplicationBehavior::cast($conflictMode);
+        if (!$conflictMode instanceof DuplicationBehavior) {
+            trigger_error(
+                'Using the non-native enumeration TYPO3\CMS\Core\Resource\DuplicationBehavior in ResourceStorage->copyFile()'
+                . ' will stop working in TYPO3 v14.0. Use native TYPO3\CMS\Core\Resource\Enum\DuplicationBehavior instead.',
+                E_USER_DEPRECATED
+            );
+            $conflictMode = DuplicationBehavior::tryFrom($conflictMode) ?? DuplicationBehavior::getDefaultDuplicationBehaviour();
+        }
         if ($targetFileName === null) {
             $targetFileName = $file->getName();
         }
@@ -1927,11 +1966,11 @@ class ResourceStorage implements ResourceStorageInterface
         );
 
         // File exists and we should abort, let's abort
-        if ($conflictMode->equals(DuplicationBehavior::CANCEL) && $targetFolder->hasFile($sanitizedTargetFileName)) {
+        if ($conflictMode === DuplicationBehavior::CANCEL && $targetFolder->hasFile($sanitizedTargetFileName)) {
             throw new ExistingTargetFileNameException('The target file already exists.', 1320291064);
         }
         // File exists and we should find another name, let's find another one
-        if ($conflictMode->equals(DuplicationBehavior::RENAME) && $targetFolder->hasFile($sanitizedTargetFileName)) {
+        if ($conflictMode === DuplicationBehavior::RENAME && $targetFolder->hasFile($sanitizedTargetFileName)) {
             $sanitizedTargetFileName = $this->getUniqueName($targetFolder, $sanitizedTargetFileName);
         }
         $sourceStorage = $file->getStorage();
@@ -1943,10 +1982,11 @@ class ResourceStorage implements ResourceStorageInterface
             $tempPath = $file->getForLocalProcessing();
             $newFileObjectIdentifier = $this->driver->addFile($tempPath, $targetFolder->getIdentifier(), $sanitizedTargetFileName);
         }
+        /** @var File $newFileObject */
         $newFileObject = $this->getFileByIdentifier($newFileObjectIdentifier);
 
         // In case we deal with a file, also copy corresponding metadata
-        if ($file instanceof File && $newFileObject !== null) {
+        if ($file instanceof File) {
             $metaDataAspect = $newFileObject->getMetaData();
             // Add meta data of file while keeping existing properties like "file", "uid", etc.
             $metaDataAspect->add(array_replace($file->getMetaData()->get(), $metaDataAspect->get()));
@@ -1968,15 +2008,23 @@ class ResourceStorage implements ResourceStorageInterface
      * @param FileInterface $file
      * @param Folder $targetFolder
      * @param string $targetFileName an optional destination fileName
-     * @param string $conflictMode a value of the DuplicationBehavior enumeration
+     * @param string|DuplicationBehavior $conflictMode
      *
      * @throws Exception\ExistingTargetFileNameException
      * @throws \RuntimeException
      * @return FileInterface
+     * @todo change $conflictMode parameter type to DuplicationBehavior in TYPO3 v14.0
      */
     public function moveFile($file, $targetFolder, $targetFileName = null, $conflictMode = DuplicationBehavior::RENAME)
     {
-        $conflictMode = DuplicationBehavior::cast($conflictMode);
+        if (!$conflictMode instanceof DuplicationBehavior) {
+            trigger_error(
+                'Using the non-native enumeration TYPO3\CMS\Core\Resource\DuplicationBehavior in ResourceStorage->moveFile()'
+                . ' will not work in TYPO3 v14.0 anymore. Use native TYPO3\CMS\Core\Resource\Enum\DuplicationBehavior instead.',
+                E_USER_DEPRECATED
+            );
+            $conflictMode = DuplicationBehavior::tryFrom($conflictMode) ?? DuplicationBehavior::getDefaultDuplicationBehaviour();
+        }
         if ($targetFileName === null) {
             $targetFileName = $file->getName();
         }
@@ -1985,9 +2033,9 @@ class ResourceStorage implements ResourceStorageInterface
         $this->assureFileMovePermissions($file, $targetFolder, $sanitizedTargetFileName);
         if ($targetFolder->hasFile($sanitizedTargetFileName)) {
             // File exists and we should abort, let's abort
-            if ($conflictMode->equals(DuplicationBehavior::RENAME)) {
+            if ($conflictMode === DuplicationBehavior::RENAME) {
                 $sanitizedTargetFileName = $this->getUniqueName($targetFolder, $sanitizedTargetFileName);
-            } elseif ($conflictMode->equals(DuplicationBehavior::CANCEL)) {
+            } elseif ($conflictMode === DuplicationBehavior::CANCEL) {
                 throw new ExistingTargetFileNameException('The target file already exists', 1329850997);
             }
         }
@@ -2039,9 +2087,10 @@ class ResourceStorage implements ResourceStorageInterface
      *
      * @param FileInterface $file
      * @param string $targetFileName
-     * @param string $conflictMode
+     * @param string|DuplicationBehavior $conflictMode
      * @return FileInterface
      * @throws ExistingTargetFileNameException
+     * @todo change $conflictMode parameter type to DuplicationBehavior in TYPO3 v14.0
      */
     public function renameFile($file, $targetFileName, $conflictMode = DuplicationBehavior::RENAME)
     {
@@ -2055,7 +2104,14 @@ class ResourceStorage implements ResourceStorageInterface
             new BeforeFileRenamedEvent($file, $sanitizedTargetFileName)
         );
 
-        $conflictMode = DuplicationBehavior::cast($conflictMode);
+        if (!$conflictMode instanceof DuplicationBehavior) {
+            trigger_error(
+                'Using the non-native enumeration TYPO3\CMS\Core\Resource\DuplicationBehavior in ResourceStorage->renameFile()'
+                . ' will not work in TYPO3 v14.0 anymore. Use native TYPO3\CMS\Core\Resource\Enum\DuplicationBehavior instead.',
+                E_USER_DEPRECATED
+            );
+            $conflictMode = DuplicationBehavior::tryFrom($conflictMode) ?? DuplicationBehavior::getDefaultDuplicationBehaviour();
+        }
 
         // Call driver method to rename the file and update the index entry
         try {
@@ -2065,12 +2121,12 @@ class ResourceStorage implements ResourceStorageInterface
                 $this->getIndexer()->updateIndexEntry($file);
             }
         } catch (ExistingTargetFileNameException $exception) {
-            if ($conflictMode->equals(DuplicationBehavior::RENAME)) {
+            if ($conflictMode === DuplicationBehavior::RENAME) {
                 $newName = $this->getUniqueName($file->getParentFolder(), $sanitizedTargetFileName);
                 $file = $this->renameFile($file, $newName);
-            } elseif ($conflictMode->equals(DuplicationBehavior::CANCEL)) {
+            } elseif ($conflictMode === DuplicationBehavior::CANCEL) {
                 throw $exception;
-            } elseif ($conflictMode->equals(DuplicationBehavior::REPLACE)) {
+            } elseif ($conflictMode === DuplicationBehavior::REPLACE) {
                 $sourceFileIdentifier = substr($file->getCombinedIdentifier(), 0, (int)strrpos($file->getCombinedIdentifier(), '/') + 1) . $sanitizedTargetFileName;
                 $sourceFile = $this->getResourceFactoryInstance()->getFileObjectFromCombinedIdentifier($sourceFileIdentifier);
                 $file = $this->replaceFile($sourceFile, Environment::getPublicPath() . '/' . $file->getPublicUrl());
@@ -2117,21 +2173,38 @@ class ResourceStorage implements ResourceStorageInterface
     /**
      * Adds an uploaded file into the Storage. Previously in \TYPO3\CMS\Core\Utility\File\ExtendedFileUtility::file_upload()
      *
-     * @param array|UploadedFile $uploadedFileData contains information about the uploaded file given by $_FILES['file1']
+     * @param array|UploadedFileInterface $uploadedFileData Information about the uploaded file given by $_FILES['file1']
+     *                                                      or a PSR-7 UploadedFileInterface object
      * @param Folder|null $targetFolder the target folder
      * @param string|null $targetFileName the file name to be written
-     * @param string $conflictMode a value of the DuplicationBehavior enumeration
+     * @param string|DuplicationBehavior $conflictMode
      * @return FileInterface The file object
+     * @todo change $conflictMode parameter type to DuplicationBehavior in TYPO3 v14.0
      */
-    public function addUploadedFile(array|UploadedFile $uploadedFileData, ?Folder $targetFolder = null, $targetFileName = null, $conflictMode = DuplicationBehavior::CANCEL)
+    public function addUploadedFile(array|UploadedFileInterface $uploadedFileData, ?Folder $targetFolder = null, $targetFileName = null, $conflictMode = DuplicationBehavior::CANCEL)
     {
-        $conflictMode = DuplicationBehavior::cast($conflictMode);
-        if ($uploadedFileData instanceof UploadedFile) {
-            $localFilePath = $uploadedFileData->getTemporaryFileName();
-            if ($targetFileName === null) {
-                $targetFileName = $uploadedFileData->getClientFilename();
+        if (!$conflictMode instanceof DuplicationBehavior) {
+            trigger_error(
+                'Using the non-native enumeration TYPO3\CMS\Core\Resource\DuplicationBehavior in ResourceStorage->addUploadedFile()'
+                . ' will not work in TYPO3 v14.0 anymore. Use native TYPO3\CMS\Core\Resource\Enum\DuplicationBehavior instead.',
+                E_USER_DEPRECATED
+            );
+            $conflictMode = DuplicationBehavior::tryFrom($conflictMode) ?? DuplicationBehavior::getDefaultDuplicationBehaviour();
+        }
+        if ($uploadedFileData instanceof UploadedFileInterface) {
+            if ($uploadedFileData instanceof UploadedFile) {
+                $localFilePath = $uploadedFileData->getTemporaryFileName();
+                if ($targetFileName === null) {
+                    $targetFileName = $uploadedFileData->getClientFilename();
+                }
+                $size = $uploadedFileData->getSize();
+            } else {
+                // This throws if $uploadedFileData is UploadedFileInterface, but is not the TYPO3
+                // core implementation UploadedFile. It should be fair to throw here for now since
+                // getTemporaryFileName() is not part of PSR-7 UploadedFileInterface, but it
+                // could be eventually refactored away or streamlined?
+                throw new \InvalidArgumentException('Uploaded file with streams are not supported yet', 1736765655);
             }
-            $size = $uploadedFileData->getSize();
         } else {
             $localFilePath = $uploadedFileData['tmp_name'];
             if ($targetFileName === null) {
@@ -2146,11 +2219,11 @@ class ResourceStorage implements ResourceStorageInterface
         $targetFileName = $this->driver->sanitizeFileName($targetFileName);
 
         $this->assureFileUploadPermissions($localFilePath, $targetFolder, $targetFileName, $size);
-        if ($this->hasFileInFolder($targetFileName, $targetFolder) && $conflictMode->equals(DuplicationBehavior::REPLACE)) {
+        if ($this->hasFileInFolder($targetFileName, $targetFolder) && $conflictMode === DuplicationBehavior::REPLACE) {
             $file = $this->getFileInFolder($targetFileName, $targetFolder);
             $resultObject = $this->replaceFile($file, $localFilePath);
         } else {
-            $resultObject = $this->addFile($localFilePath, $targetFolder, $targetFileName, (string)$conflictMode);
+            $resultObject = $this->addFile($localFilePath, $targetFolder, $targetFileName, $conflictMode);
         }
         return $resultObject;
     }
@@ -2188,12 +2261,13 @@ class ResourceStorage implements ResourceStorageInterface
      * @param Folder $folderToMove The folder to move.
      * @param Folder $targetParentFolder The target parent folder
      * @param string $newFolderName
-     * @param string $conflictMode a value of the DuplicationBehavior enumeration
+     * @param string|DuplicationBehavior $conflictMode
      *
      * @throws \Exception|\TYPO3\CMS\Core\Exception
      * @throws \InvalidArgumentException
      * @throws InvalidTargetFolderException
      * @return Folder
+     * @todo change $conflictMode parameter type to DuplicationBehavior in TYPO3 v14.0
      */
     public function moveFolder(Folder $folderToMove, Folder $targetParentFolder, $newFolderName = null, $conflictMode = DuplicationBehavior::RENAME)
     {
@@ -2253,13 +2327,21 @@ class ResourceStorage implements ResourceStorageInterface
      * @param FolderInterface $folderToCopy The folder to copy
      * @param FolderInterface $targetParentFolder The target folder
      * @param string $newFolderName
-     * @param string $conflictMode a value of the DuplicationBehavior enumeration
+     * @param string|DuplicationBehavior $conflictMode
      * @return Folder The new (copied) folder object
      * @throws InvalidTargetFolderException
+     * @todo change $conflictMode parameter type to DuplicationBehavior in TYPO3 v14.0
      */
     public function copyFolder(FolderInterface $folderToCopy, FolderInterface $targetParentFolder, $newFolderName = null, $conflictMode = DuplicationBehavior::RENAME)
     {
-        $conflictMode = DuplicationBehavior::cast($conflictMode);
+        if (!$conflictMode instanceof DuplicationBehavior) {
+            trigger_error(
+                'Using the non-native enumeration TYPO3\CMS\Core\Resource\DuplicationBehavior in ResourceStorage->copyFolder()'
+                . ' will not work in TYPO3 v14.0 anymore. Use native TYPO3\CMS\Core\Resource\Enum\DuplicationBehavior instead.',
+                E_USER_DEPRECATED
+            );
+            $conflictMode = DuplicationBehavior::tryFrom($conflictMode) ?? DuplicationBehavior::getDefaultDuplicationBehaviour();
+        }
         $this->assureFolderCopyPermissions($folderToCopy, $targetParentFolder);
         $returnObject = null;
         $sanitizedNewFolderName = $this->driver->sanitizeFileName($newFolderName ?: $folderToCopy->getName());
@@ -2268,7 +2350,7 @@ class ResourceStorage implements ResourceStorageInterface
                 new BeforeFolderCopiedEvent($folderToCopy, $targetParentFolder, $sanitizedNewFolderName)
             );
         }
-        if ($conflictMode->equals(DuplicationBehavior::CANCEL) && ($targetParentFolder->hasFolder($sanitizedNewFolderName) || $targetParentFolder->hasFile($sanitizedNewFolderName))) {
+        if ($conflictMode === DuplicationBehavior::CANCEL && ($targetParentFolder->hasFolder($sanitizedNewFolderName) || $targetParentFolder->hasFile($sanitizedNewFolderName))) {
             throw new InvalidTargetFolderException(
                 sprintf(
                     'Cannot copy folder "%s" into target folder "%s", because there is already a folder or file with that name in the target folder!',
@@ -2279,7 +2361,7 @@ class ResourceStorage implements ResourceStorageInterface
             );
         }
         // Folder exists and we should find another name, let's find another one
-        if ($conflictMode->equals(DuplicationBehavior::RENAME) && ($targetParentFolder->hasFolder($sanitizedNewFolderName) || $targetParentFolder->hasFile($sanitizedNewFolderName))) {
+        if ($conflictMode === DuplicationBehavior::RENAME && ($targetParentFolder->hasFolder($sanitizedNewFolderName) || $targetParentFolder->hasFile($sanitizedNewFolderName))) {
             $sanitizedNewFolderName = $this->getUniqueName($targetParentFolder, $sanitizedNewFolderName);
         }
         $sourceStorage = $folderToCopy->getStorage();
@@ -2545,7 +2627,7 @@ class ResourceStorage implements ResourceStorageInterface
     public function getFolder($identifier, $returnInaccessibleFolderObject = false)
     {
         $data = $this->driver->getFolderInfoByIdentifier($identifier);
-        $folder = $this->createFolderObject($data['identifier'] ?? '', $data['name'] ?? '');
+        $folder = $this->createFolderObject($data['identifier'], $data['name']);
 
         try {
             $this->assureFolderReadPermission($folder);
@@ -2607,19 +2689,20 @@ class ResourceStorage implements ResourceStorageInterface
     }
 
     /**
-     * Returns the folders on the root level of the storage
+     * Returns the folder on the root level of the storage
      * or the first mount point of this storage for this user
      * if $respectFileMounts is set.
      *
-     * @param bool $respectFileMounts
-     * @return Folder
      * @todo: this is a bad method design, because the calling code can never fetch all filemounts nor traverse them.
      */
-    public function getRootLevelFolder($respectFileMounts = true)
+    public function getRootLevelFolder(bool $respectFileMounts = true): Folder
     {
         if ($respectFileMounts && !empty($this->fileMounts)) {
             $mount = reset($this->fileMounts);
-            return $mount['folder'];
+            $rootLevelFolder = $mount['folder'] ?? null;
+            if ($rootLevelFolder instanceof Folder) {
+                return $rootLevelFolder;
+            }
         }
         return $this->createFolderObject($this->driver->getRootLevelFolder(), '');
     }
@@ -2695,7 +2778,7 @@ class ResourceStorage implements ResourceStorageInterface
     protected function getFileProcessingService()
     {
         if (!$this->fileProcessingService) {
-            $this->fileProcessingService = GeneralUtility::makeInstance(FileProcessingService::class, $this, $this->driver, $this->eventDispatcher);
+            $this->fileProcessingService = GeneralUtility::makeInstance(FileProcessingService::class);
         }
         return $this->fileProcessingService;
     }

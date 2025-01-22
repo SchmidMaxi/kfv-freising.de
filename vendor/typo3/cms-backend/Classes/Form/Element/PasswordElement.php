@@ -17,7 +17,6 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Backend\Form\Element;
 
-use TYPO3\CMS\Core\Configuration\Features;
 use TYPO3\CMS\Core\Page\JavaScriptModuleInstruction;
 use TYPO3\CMS\Core\PasswordPolicy\PasswordPolicyAction;
 use TYPO3\CMS\Core\PasswordPolicy\PasswordPolicyValidator;
@@ -46,14 +45,12 @@ class PasswordElement extends AbstractFormElement
      *
      * @return array As defined in initializeResultArray() of AbstractNode
      */
-    public function render()
+    public function render(): array
     {
         $table = $this->data['tableName'];
         $fieldName = $this->data['fieldName'];
         $parameterArray = $this->data['parameterArray'];
         $resultArray = $this->initializeResultArray();
-        // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-        $resultArray['labelHasBeenHandled'] = true;
         $config = $parameterArray['fieldConf']['config'];
         $passwordPolicyValidator = null;
 
@@ -66,13 +63,6 @@ class PasswordElement extends AbstractFormElement
         $renderedLabel = $this->renderLabel($fieldId);
 
         $passwordPolicy = $config['passwordPolicy'] ?? null;
-
-        // Ignore password policy for frontend users, if "security.usePasswordPolicyForFrontendUsers" is disabled
-        $features = GeneralUtility::makeInstance(Features::class);
-        if ($table === 'fe_users' && !$features->isFeatureEnabled('security.usePasswordPolicyForFrontendUsers')) {
-            $passwordPolicy = null;
-        }
-
         if ($passwordPolicy) {
             // We always use PasswordPolicyAction::NEW_USER_PASSWORD here, since the password is not set by the user,
             // but either by an admin or an editor
@@ -93,7 +83,7 @@ class PasswordElement extends AbstractFormElement
             $html[] = '<div class="formengine-field-item t3js-formengine-field-item">';
             $html[] =   $fieldInformationHtml;
             $html[] =   '<div class="form-wizards-wrap">';
-            $html[] =       '<div class="form-wizards-element">';
+            $html[] =       '<div class="form-wizards-item-element">';
             $html[] =           '<div class="form-control-wrap" style="max-width: ' . $width . 'px">';
             $html[] =               '<input class="form-control" id="' . htmlspecialchars($fieldId) . '" name="' . htmlspecialchars($itemName) . '" value="' . htmlspecialchars($this->getObfuscatedSecretValue($itemValue)) . '" type="text" disabled>';
             $html[] =           '</div>';
@@ -146,19 +136,19 @@ class PasswordElement extends AbstractFormElement
         $mainFieldHtml = [];
         $mainFieldHtml[] = '<div class="form-control-wrap" style="max-width: ' . $width . 'px">';
         $mainFieldHtml[] =  '<div class="form-wizards-wrap">';
-        $mainFieldHtml[] =      '<div class="form-wizards-element">';
+        $mainFieldHtml[] =      '<div class="form-wizards-item-element">';
         $mainFieldHtml[] =          '<input type="password" ' . GeneralUtility::implodeAttributes($attributes, true) . ' />';
         $mainFieldHtml[] =          '<input type="hidden" disabled data-enable-on-modification="true" name="' . $itemName . '" value="' . htmlspecialchars($this->getObfuscatedSecretValue($itemValue)) . '" />';
         $mainFieldHtml[] =      '</div>';
         if (!empty($fieldControlHtml)) {
-            $mainFieldHtml[] =      '<div class="form-wizards-items-aside form-wizards-items-aside--field-control">';
+            $mainFieldHtml[] =      '<div class="form-wizards-item-aside form-wizards-item-aside--field-control">';
             $mainFieldHtml[] =          '<div class="btn-group">';
             $mainFieldHtml[] =              $fieldControlHtml;
             $mainFieldHtml[] =          '</div>';
             $mainFieldHtml[] =      '</div>';
         }
         if (!empty($fieldWizardHtml)) {
-            $mainFieldHtml[] = '<div class="form-wizards-items-bottom">';
+            $mainFieldHtml[] = '<div class="form-wizards-item-bottom">';
             $mainFieldHtml[] = $fieldWizardHtml;
             $mainFieldHtml[] = '</div>';
         }
@@ -265,11 +255,13 @@ class PasswordElement extends AbstractFormElement
         );
 
         $passwordPolicyElement[] = '<div id="password-policy-info-' . htmlspecialchars($fieldId) . '" class="mt-2 callout callout-secondary hidden">';
-        $passwordPolicyElement[] = '  <div class="callout-title">' . htmlspecialchars($calloutTitle) . '</div>';
-        $passwordPolicyElement[] = '  <div class="callout-body">';
-        $passwordPolicyElement[] = '    <ul>';
-        $passwordPolicyElement[] =        implode(LF, $requirements);
-        $passwordPolicyElement[] = '    </ul>';
+        $passwordPolicyElement[] = '  <div class="callout-content">';
+        $passwordPolicyElement[] = '    <div class="callout-title">' . htmlspecialchars($calloutTitle) . '</div>';
+        $passwordPolicyElement[] = '    <div class="callout-body">';
+        $passwordPolicyElement[] = '      <ul>';
+        $passwordPolicyElement[] =          implode(LF, $requirements);
+        $passwordPolicyElement[] = '      </ul>';
+        $passwordPolicyElement[] = '    </div>';
         $passwordPolicyElement[] = '  </div>';
         $passwordPolicyElement[] = '</div>';
 

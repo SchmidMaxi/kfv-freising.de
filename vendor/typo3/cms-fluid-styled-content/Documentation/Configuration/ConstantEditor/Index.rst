@@ -1,15 +1,24 @@
-.. include:: /Includes.rst.txt
+..  include:: /Includes.rst.txt
 
-.. _constant-editor:
+..  _constant-editor:
 
 ===============
 Constant Editor
 ===============
 
+..  versionchanged:: 13.1
+    :ref:`Site sets <site-sets>` have been introduced. The
+    :ref:`settings of the site set <site-set-fluid-styled-content-settings>`
+    superseded using TypoScript constants. Using TypoScript constants is
+    still possible for compatibility reasons.
 
-.. include:: /Images/AutomaticScreenshots/TypoScript/ConstantEditor.rst.txt
+..  tip::
+    If :ref:`Site sets <t3coreapi:site-sets>` are used, the constant editor might be disabled. You can then edit
+    the settings in the :ref:`settings-editor`.
 
-.. rst-class:: bignums-xxl
+..  include:: /Images/AutomaticScreenshots/TypoScript/ConstantEditor.rst.txt
+
+..  rst-class:: bignums-xxl
 
 1.  The :guilabel:`Constant Editor` can be found in the
     :guilabel:`Site Management > TypoScript` module.
@@ -29,7 +38,7 @@ Constant Editor
 6.  Do not forget to save the new values. The new values will be stored in the
     "Constants" field of the root template of your website.
 
-.. note::
+..  note::
     If you use the :guilabel:`Constant Editor` the configuration gets written
     to the database and cannot be kept under version control. You can cut all
     values from the constants field of the root TypoScript record and move them

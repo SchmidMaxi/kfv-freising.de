@@ -21,7 +21,6 @@ use TYPO3\CMS\Core\Messaging\Renderer\FlashMessageRendererInterface;
 use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Frontend\Authentication\FrontendUserAuthentication;
-use TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController;
 
 /**
  * A class which collects and renders flash messages.
@@ -84,12 +83,12 @@ class FlashMessageQueue extends \SplQueue implements \JsonSerializable
     /**
      * This method is empty, as it will not move any flash message (e.g. from the session)
      *
-     * @todo: Set return type to mixed in v13
+     * @phpstan-return null
      */
-    #[\ReturnTypeWillChange]
-    public function dequeue()
+    public function dequeue(): mixed
     {
         // deliberately empty
+        return null;
     }
 
     /**
@@ -106,17 +105,11 @@ class FlashMessageQueue extends \SplQueue implements \JsonSerializable
     /**
      * Returns all messages from the current PHP session and from the current request.
      *
-     * @param value-of<ContextualFeedbackSeverity>|ContextualFeedbackSeverity|null $severity the int values are deprecated
+     * @param ContextualFeedbackSeverity|null $severity
      * @return FlashMessage[]
-     *
-     * @todo: Change $severity to allow ContextualFeedbackSeverity|null only in v13
      */
-    public function getAllMessages(int|ContextualFeedbackSeverity|null $severity = null)
+    public function getAllMessages(?ContextualFeedbackSeverity $severity = null)
     {
-        if (is_int($severity)) {
-            // @deprecated int type for $severity deprecated in v12, will change to Severity only in v13.
-            $severity = ContextualFeedbackSeverity::transform($severity);
-        }
         // Get messages from user session
         $queuedFlashMessagesFromSession = $this->getFlashMessagesFromSession();
         $queuedFlashMessages = array_merge($queuedFlashMessagesFromSession, $this->toArray());
@@ -138,17 +131,11 @@ class FlashMessageQueue extends \SplQueue implements \JsonSerializable
      * After fetching the messages the internal queue and the message queue in the session
      * will be emptied.
      *
-     * @param value-of<ContextualFeedbackSeverity>|ContextualFeedbackSeverity|null $severity the int values are deprecated
+     * @param ContextualFeedbackSeverity|null $severity
      * @return FlashMessage[]
-     *
-     * @todo: Change $severity to allow ContextualFeedbackSeverity|null only in v13
      */
-    public function getAllMessagesAndFlush(int|ContextualFeedbackSeverity|null $severity = null)
+    public function getAllMessagesAndFlush(?ContextualFeedbackSeverity $severity = null)
     {
-        if (is_int($severity)) {
-            // @deprecated int type for $severity deprecated in v12, will change to Severity only in v13.
-            $severity = ContextualFeedbackSeverity::transform($severity);
-        }
         $queuedFlashMessages = $this->getAllMessages($severity);
         // Reset messages in user session
         $this->removeAllFlashMessagesFromSession($severity);
@@ -165,7 +152,7 @@ class FlashMessageQueue extends \SplQueue implements \JsonSerializable
     protected function storeFlashMessagesInSession(?array $flashMessages = null)
     {
         if (is_array($flashMessages)) {
-            $flashMessages = array_map('json_encode', $flashMessages);
+            $flashMessages = array_map(json_encode(...), $flashMessages);
         }
         $user = $this->getUserByContext();
         $user?->setAndSaveSessionData($this->identifier, $flashMessages);
@@ -174,21 +161,15 @@ class FlashMessageQueue extends \SplQueue implements \JsonSerializable
     /**
      * Removes all flash messages from the session
      *
-     * @param value-of<ContextualFeedbackSeverity>|ContextualFeedbackSeverity|null $severity the int values are deprecated
-     *
-     * @todo: Change $severity to allow ContextualFeedbackSeverity|null only in v13
+     * @param ContextualFeedbackSeverity|null $severity
      */
-    protected function removeAllFlashMessagesFromSession(int|ContextualFeedbackSeverity|null $severity = null)
+    protected function removeAllFlashMessagesFromSession(?ContextualFeedbackSeverity $severity = null)
     {
-        if (is_int($severity)) {
-            // @deprecated int type for $severity deprecated in v12, will change to Severity only in v13.
-            $severity = ContextualFeedbackSeverity::transform($severity);
-        }
         if (!$this->getUserByContext() instanceof AbstractUserAuthentication) {
             return;
         }
         if ($severity === null) {
-            $this->storeFlashMessagesInSession(null);
+            $this->storeFlashMessagesInSession();
         } else {
             $messages = $this->getFlashMessagesFromSession();
             foreach ($messages as $index => $message) {
@@ -223,11 +204,17 @@ class FlashMessageQueue extends \SplQueue implements \JsonSerializable
     /**
      * Gets user object by context.
      * This class is also used in install tool, where $GLOBALS['BE_USER'] is not set and can be null.
+     *
+     * @todo: This construct needs to be removed. Methods that use this should be changed to
+     *        get the user hand over explicitly from the caller! A patch should make this global
+     *        access a b/w compat fallback only and adapt consuming methods accordingly.
      */
     protected function getUserByContext(): ?AbstractUserAuthentication
     {
-        if (($GLOBALS['TSFE'] ?? null) instanceof TypoScriptFrontendController && $GLOBALS['TSFE']->fe_user instanceof FrontendUserAuthentication) {
-            return $GLOBALS['TSFE']->fe_user;
+        if (($GLOBALS['TYPO3_REQUEST'] ?? null)
+            && $GLOBALS['TYPO3_REQUEST']->getAttribute('frontend.user') instanceof FrontendUserAuthentication
+        ) {
+            return $GLOBALS['TYPO3_REQUEST']->getAttribute('frontend.user');
         }
         return $GLOBALS['BE_USER'] ?? null;
     }
@@ -272,16 +259,10 @@ class FlashMessageQueue extends \SplQueue implements \JsonSerializable
     /**
      * Removes all items from the queue
      *
-     * @param value-of<ContextualFeedbackSeverity>|ContextualFeedbackSeverity|null $severity the int values are deprecated
-     *
-     * @todo: Change $severity to allow ContextualFeedbackSeverity|null only in v13
+     * @param ContextualFeedbackSeverity|null $severity
      */
-    public function clear(int|ContextualFeedbackSeverity|null $severity = null)
+    public function clear(?ContextualFeedbackSeverity $severity = null)
     {
-        if (is_int($severity)) {
-            // @deprecated int type for $severity deprecated in v12, will change to Severity only in v13.
-            $severity = ContextualFeedbackSeverity::transform($severity);
-        }
         $this->rewind();
         if ($severity === null) {
             while (!$this->isEmpty()) {

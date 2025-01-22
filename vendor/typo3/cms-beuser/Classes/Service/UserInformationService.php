@@ -20,7 +20,9 @@ namespace TYPO3\CMS\Beuser\Service;
 use TYPO3\CMS\Backend\Module\ModuleProvider;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
+use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Site\SiteFinder;
 use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -111,7 +113,7 @@ class UserInformationService
         ];
         $data['groups']['diff'] = array_diff($data['groups']['inherit'], $data['groups']['direct']);
         foreach ($data['groups'] as $type => $groups) {
-            foreach ($groups as $key => $id) {
+            foreach ($groups as $id) {
                 $record = BackendUtility::getRecord('be_groups', (int)$id);
                 if (isset($record['uid'])) {
                     $recordId = $record['uid'];
@@ -127,7 +129,7 @@ class UserInformationService
         asort($userLanguages);
         foreach ($userLanguages as $languageId) {
             $languageId = (int)$languageId;
-            $record = $siteLanguages[$languageId];
+            $record = $siteLanguages[$languageId] ?? null;
             if ($record) {
                 $data['languages'][$languageId] = $record;
             }
@@ -144,7 +146,7 @@ class UserInformationService
                 }
             }
         }
-        $data['tables']['all'] = array_replace($data['tables']['tables_select'] ?? [], $data['tables']['tables_modify'] ?? []);
+        $data['tables']['all'] = array_replace($data['tables']['tables_select'], $data['tables']['tables_modify']);
 
         // DB mounts
         $dbMounts = GeneralUtility::trimExplode(',', $user->groupData['webmounts'] ?? '', true);
@@ -217,10 +219,6 @@ class UserInformationService
                 $fieldList[$itemTable]['fields'][$itemField] = $GLOBALS['TCA'][$itemTable]['columns'][$itemField]['label'] ?? $itemField;
             }
         }
-        ksort($fieldList);
-        foreach ($fieldList as &$fieldListItem) {
-            ksort($fieldListItem['fields']);
-        }
         $data['non_exclude_fields'] = $fieldList;
 
         // page types
@@ -242,7 +240,22 @@ class UserInformationService
             if (count($split) !== 3) {
                 continue;
             }
-            $data['pageContentTypes'][] = BackendUtility::getLabelFromItemlist(...$split);
+            $label = BackendUtility::getLabelFromItemlist(...$split);
+            $recordType = $split[1];
+            $recordTypeValue = $split[2];
+            $record = [
+                $recordType => $recordTypeValue,
+            ];
+            if ($split[0] === 'tt_content' && $recordType === 'list_type') {
+                $record['CType'] = 'list';
+            }
+            $data['pageContentTypes'][] = [
+                // If label is empty => the record type value does not exist so we use "empty-empty" as icon instead of falling back to the default record type icon
+                'icon' => $label ? $this->iconFactory->getIconForRecord($split[0], $record, IconSize::SMALL)->getIdentifier() : 'install-check-extables',
+                'label' => $label,
+                'shortType' => $recordTypeValue,
+                'longType' => $item,
+            ];
         }
 
         return $data;

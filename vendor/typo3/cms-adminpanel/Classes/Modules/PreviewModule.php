@@ -18,8 +18,8 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Adminpanel\Modules;
 
 use Psr\Http\Message\ServerRequestInterface;
-use Psr\Log\LoggerAwareInterface;
-use Psr\Log\LoggerAwareTrait;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Adminpanel\ModuleApi\AbstractModule;
 use TYPO3\CMS\Adminpanel\ModuleApi\OnSubmitActorInterface;
 use TYPO3\CMS\Adminpanel\ModuleApi\PageSettingsProviderInterface;
@@ -35,18 +35,17 @@ use TYPO3\CMS\Core\Context\UserAspect;
 use TYPO3\CMS\Core\Context\VisibilityAspect;
 use TYPO3\CMS\Core\Routing\PageArguments;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Fluid\View\StandaloneView;
+use TYPO3\CMS\Core\View\ViewFactoryData;
+use TYPO3\CMS\Core\View\ViewFactoryInterface;
 use TYPO3\CMS\Frontend\Aspect\PreviewAspect;
+use TYPO3\CMS\Frontend\Cache\CacheInstruction;
 
 /**
  * Admin Panel Preview Module
  */
-class PreviewModule extends AbstractModule implements RequestEnricherInterface, PageSettingsProviderInterface, ResourceProviderInterface, OnSubmitActorInterface, LoggerAwareInterface
+#[Autoconfigure(public: true)]
+class PreviewModule extends AbstractModule implements RequestEnricherInterface, PageSettingsProviderInterface, ResourceProviderInterface, OnSubmitActorInterface
 {
-    use LoggerAwareTrait;
-
-    protected CacheManager $cacheManager;
-
     /**
      * module configuration, set on initialize
      *
@@ -61,10 +60,11 @@ class PreviewModule extends AbstractModule implements RequestEnricherInterface, 
      */
     protected array $config;
 
-    public function injectCacheManager(CacheManager $cacheManager): void
-    {
-        $this->cacheManager = $cacheManager;
-    }
+    public function __construct(
+        protected readonly CacheManager $cacheManager,
+        private readonly ViewFactoryInterface $viewFactory,
+        private readonly LoggerInterface $logger,
+    ) {}
 
     public function getIconIdentifier(): string
     {
@@ -98,8 +98,11 @@ class PreviewModule extends AbstractModule implements RequestEnricherInterface, 
         ];
         if ($this->config['showFluidDebug']) {
             // forcibly unset fluid caching as it does not care about the tsfe based caching settings
+            // @todo: Useless?! CacheManager is initialized via bootstrap already, TYPO3_CONF_VARS is not read again?
             unset($GLOBALS['TYPO3_CONF_VARS']['SYS']['caching']['cacheConfigurations']['fluid_template']['frontend']);
-            $request = $request->withAttribute('noCache', true);
+            $cacheInstruction = $request->getAttribute('frontend.cache.instruction', new CacheInstruction());
+            $cacheInstruction->disableCache('EXT:adminpanel: "Show fluid debug output" disables cache.');
+            $request = $request->withAttribute('frontend.cache.instruction', $cacheInstruction);
         }
         $this->initializeFrontendPreview(
             $this->config['showHiddenPages'],
@@ -115,10 +118,12 @@ class PreviewModule extends AbstractModule implements RequestEnricherInterface, 
 
     public function getPageSettings(): string
     {
-        $view = GeneralUtility::makeInstance(StandaloneView::class);
-        $templateNameAndPath = 'EXT:adminpanel/Resources/Private/Templates/Modules/Settings/Preview.html';
-        $view->setTemplatePathAndFilename(GeneralUtility::getFileAbsFileName($templateNameAndPath));
-        $view->setPartialRootPaths(['EXT:adminpanel/Resources/Private/Partials']);
+        $viewFactoryData = new ViewFactoryData(
+            templateRootPaths: ['EXT:adminpanel/Resources/Private/Templates'],
+            partialRootPaths: ['EXT:adminpanel/Resources/Private/Partials'],
+            layoutRootPaths: ['EXT:adminpanel/Resources/Private/Layouts'],
+        );
+        $view = $this->viewFactory->create($viewFactoryData);
 
         $frontendGroupsRepository = GeneralUtility::makeInstance(FrontendGroupsRepository::class);
 
@@ -145,7 +150,7 @@ class PreviewModule extends AbstractModule implements RequestEnricherInterface, 
                 'languageKey' => $this->getBackendUser()->user['lang'] ?? null,
             ]
         );
-        return $view->render();
+        return $view->render('Modules/Settings/Preview');
     }
 
     protected function getConfigOptionForModule(string $option): string

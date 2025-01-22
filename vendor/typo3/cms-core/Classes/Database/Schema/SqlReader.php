@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Core\Database\Schema;
 
 use Psr\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Core\Database\Event\AlterTableDefinitionStatementsEvent;
 use TYPO3\CMS\Core\Package\PackageManager;
 
@@ -25,8 +26,9 @@ use TYPO3\CMS\Core\Package\PackageManager;
  * Helper methods to handle raw SQL input and transform it into individual statements
  * for further processing.
  *
- * @internal
+ * @internal not part of public core API.
  */
+#[Autoconfigure(public: true)]
 class SqlReader
 {
     /**
