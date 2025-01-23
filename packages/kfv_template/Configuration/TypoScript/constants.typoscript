@@ -1,21 +1,21 @@
 ######################
 #### DEPENDENCIES ####
 ######################
-@import 'EXT:fluid_styled_content/Configuration/TypoScript/setup.typoscript'
-@import 'EXT:seo/Configuration/TypoScript/XmlSitemap/setup.typoscript'
-@import 'EXT:news/Configuration/TypoScript/setup.typoscript'
-@import 'EXT:news/Configuration/TypoScript/SeoSitemap/setup.typoscript'
+@import 'EXT:fluid_styled_content/Configuration/TypoScript/constants.typoscript'
+@import 'EXT:seo/Configuration/TypoScript/XmlSitemap/constants.typoscript'
+@import 'EXT:news/Configuration/TypoScript/constants.typoscript'
+@import 'EXT:news/Configuration/TypoScript/SeoSitemap/constants.typoscript'
 
 
 
 ################
 #### HELPER ####
 ################
-@import 'DIR:EXT:kfv_template/Configuration/TypoScript/Setup/Helper'
+#@import 'DIR:EXT:kfv_template/Configuration/TypoScript/Setup/Helper/'
 
 
 ##################
 #### TEMPLATE ####
 ##################
-@import 'EXT:kfv_template/Configuration/TypoScript/Setup/config.typoscript'
-@import 'EXT:kfv_template/Configuration/TypoScript/Setup/page.typoscript'
+#@import 'EXT:kfv_template/Configuration/TypoScript/Setup/config.typoscript'
+#@import 'EXT:kfv_template/Configuration/TypoScript/Setup/page.typoscript'
