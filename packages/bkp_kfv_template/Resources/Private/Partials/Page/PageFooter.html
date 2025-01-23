@@ -1,0 +1,12 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" xmlns:vhs="http://typo3.org/ns/FluidTYPO3/Vhs/ViewHelpers" >
+<f:section name="PageFooter">
+    <footer class="bg-dark text-white py-3 mt-4">
+      <div class="container">
+        <f:render partial="Navigation" section="Meta" arguments="{_all}" />
+        <p class="text-center">
+          © <f:format.date format="Y">now</f:format.date> <f:format.raw>{sitename}</f:format.raw> Alle Rechte vorbehalten.
+        </p>
+      </div>
+    </footer>
+  </f:section>
+</html>

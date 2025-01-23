@@ -1,0 +1,44 @@
+plugin.tx_kfv_template {
+    pages {
+        # cat=Template - Seiten-IDs/a; type=int+; label=ID of Homepage
+        homePID = 1
+
+        # cat=Template - Seiten-IDs/b; type=int+; label=ID des Ordners der Hauptnavigation
+        primaryPID = 2
+
+        # cat=Template - Seiten-IDs/b; type=int+; label=ID des Ordners der Sekundärnavigation
+        secondaryPID = 3
+
+        # cat=Template - Seiten-IDs/b; type=int+; label=ID des Ordners der Tertiärnavigation
+        tertiaryPID = 4
+
+        # cat=Template - Seiten-IDs/b; type=int+; label=ID des Ordners der Footernavigation
+        footerPID = 5
+
+        # cat=Template - Seiten-IDs/e; type=int+; label=ID des Ordners der Meta-Navigation
+        metaPID = 6
+
+        # cat=Template - Seiten-IDs/d; type=int+; label=ID des Ordners der Social Media Navigation
+        socialPID = 7
+
+        # cat=Template - Seiten-IDs/g; type=int+; label=ID der Suche-Seite
+        searchPID = 22
+
+        # cat=Template - Seiten-IDs/f; type=int+; label=ID der Datenschutz-Seite
+        dataProtectionDeclaration = 10
+
+    }
+
+    images {
+        # cat=Template - Bilder/a; type=resource; label=Logo Filetype: svg, png
+        logo = EXT:kfv_template/Resources/Public/Images/Logo_KFV-Freising.svg
+        # cat=Template - Bilder/a; type=resource; label=Logo Inverse Filetype: svg, png
+        logoInverse = EXT:kfv_template/Resources/Public/Images/Logo_KFV-Freising_Inverse.svg
+    }
+
+    texts {
+        # cat=Template - Texte/a; type=resource; label=Seitenname / Firmenname
+        sitename = KFV Freising e.V.
+    }
+
+}

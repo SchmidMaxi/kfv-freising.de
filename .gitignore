@@ -1,0 +1,15 @@
+.DS_Store
+.idea
+/.backup
+nbproject
+/var/*
+!/var/labels
+/vendor
+/public/*
+/config
+**/settings.php
+**/sites
+env.php
+
+
+

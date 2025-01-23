@@ -1,0 +1,21 @@
+######################
+#### DEPENDENCIES ####
+######################
+<INCLUDE_TYPOSCRIPT: source="FILE:EXT:fluid_styled_content/Configuration/TypoScript/setup.typoscript">
+<INCLUDE_TYPOSCRIPT: source="FILE:EXT:fluid_styled_content/Configuration/TypoScript/Styling/setup.typoscript">
+<INCLUDE_TYPOSCRIPT: source="FILE:EXT:form/Configuration/TypoScript/setup.typoscript">
+<INCLUDE_TYPOSCRIPT: source="FILE:EXT:seo/Configuration/TypoScript/XmlSitemap/setup.typoscript">
+<INCLUDE_TYPOSCRIPT: source="FILE:EXT:indexed_search/Configuration/TypoScript/setup.typoscript">
+<INCLUDE_TYPOSCRIPT: source="FILE:EXT:news/Configuration/TypoScript/setup.typoscript">
+<INCLUDE_TYPOSCRIPT: source="FILE:EXT:news/Configuration/TypoScript/SeoSitemap/setup.typoscript">
+
+
+##################
+#### TEMPLATE ####
+##################
+<INCLUDE_TYPOSCRIPT: source="FILE:EXT:kfv_template/Configuration/TypoScript/Setup/Config.typoscript">
+<INCLUDE_TYPOSCRIPT: source="FILE:EXT:kfv_template/Configuration/TypoScript/Setup/DynamicContent.typoscript">
+<INCLUDE_TYPOSCRIPT: source="FILE:EXT:kfv_template/Configuration/TypoScript/Setup/Page.typoscript">
+<INCLUDE_TYPOSCRIPT: source="FILE:EXT:kfv_template/Configuration/TypoScript/Setup/TouchIcons.typoscript">
+<INCLUDE_TYPOSCRIPT: source="DIR:EXT:kfv_template/Configuration/TypoScript/Setup/ContentElements/" extensions="typoscript">
+<INCLUDE_TYPOSCRIPT: source="DIR:EXT:kfv_template/Configuration/TypoScript/Setup/Extensions/" extensions="typoscript">
