@@ -1,14 +1,13 @@
 #
 # PageTS for Sitepackage
 #
-@import 'EXT:kfv_template/Configuration/TsConfig/Page/RTE.tsconfig'
-@import 'EXT:kfv_template/Configuration/TsConfig/Page/TCEFORM.tsconfig'
-@import 'EXT:kfv_template/Configuration/TsConfig/Page/TCEMAIN.tsconfig'
-@import 'EXT:kfv_template/Configuration/TsConfig/Page/Mod/WebLayout/BackendLayouts.tsconfig'
-@import 'EXT:kfv_template/Configuration/TsConfig/Page/ContentElement/Element/*.tsconfig'
+@import 'EXT:kfv_template/Configuration/TsConfig/RTE.tsconfig'
+@import 'EXT:kfv_template/Configuration/TsConfig/TCEFORM.tsconfig'
+@import 'EXT:kfv_template/Configuration/TsConfig/TCEMAIN.tsconfig'
+@import 'EXT:kfv_template/Configuration/TsConfig/Mod/WebLayout/BackendLayouts/'
+@import 'EXT:kfv_template/Configuration/TsConfig/ContentElement/Element/*.tsconfig'
 
 
-@import './PageTsConfig/BackendLayouts/'
 
 
 

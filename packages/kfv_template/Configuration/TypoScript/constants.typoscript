@@ -11,11 +11,11 @@
 ################
 #### HELPER ####
 ################
-#@import 'DIR:EXT:kfv_template/Configuration/TypoScript/Setup/Helper/'
+#@import 'DIR:EXT:kfv_template/Configuration/TypoScript/Constants/Helper/'
 
 
 ##################
 #### TEMPLATE ####
 ##################
-#@import 'EXT:kfv_template/Configuration/TypoScript/Setup/config.typoscript'
-#@import 'EXT:kfv_template/Configuration/TypoScript/Setup/page.typoscript'
+@import 'EXT:kfv_template/Configuration/TypoScript/Constants/config.typoscript'
+#@import 'EXT:kfv_template/Configuration/TypoScript/Constants/page.typoscript'
