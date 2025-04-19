@@ -68,7 +68,7 @@ value which can be manipulated with Fluid or styled etc.
 
 .. code-block:: html
 
-   <formvh:renderFormValue renderable="{page.rootForm.elements.message}" as="formValue">
+   <formvh:renderFormValue renderable="{form.formDefinition.elements.message}" as="formValue">
        {formValue.processedValue}
    </formvh:renderFormValue>
 
@@ -754,6 +754,7 @@ With the provided hooks, this ``FormElement`` can now be manipulated.
 
 ..  seealso::
     *   :ref:`Hooks for runtime manipulation <apireference-frontendrendering-runtimemanipulation-hooks>`
+    *   :ref:`PSR-14 events <apireference-frontendrendering-runtimemanipulation-events>`
 
 If you insist on your own implementation, the abstract class ``TYPO3\CMS\Form\Domain\Model\FormElements\AbstractFormElement``
 offers a perfect entry point. In addition, we recommend checking-out ``TYPO3\CMS\Form\Domain\Model\Renderable\AbstractRenderable``.
@@ -838,10 +839,10 @@ those).
 
    In general, you can override each and every ``form definition`` with the help
    of TypoScript (see ':ref:`TypoScript overrides<concepts-frontendrendering-runtimemanipulation-typoscriptoverrides>`').
-   This feature is not supported when you are rendering forms via the ``RenderViewHelper``.
 
-   Luckily, there is a solution for your problem: use the ':ref:`overrideConfiguration<apireference-frontendrendering-renderviewHelper-overrideconfiguration>`'
-   parameter instead. This way, you can override the form definition within your template.
+   When using the ``RenderViewHelper``, there is a second way:
+   The ':ref:`overrideConfiguration<apireference-frontendrendering-renderviewHelper-overrideconfiguration>`' parameter.
+   This way, you can override the form definition within your template.
    Provide an according array as shown in the example below.
 
    .. code-block:: html

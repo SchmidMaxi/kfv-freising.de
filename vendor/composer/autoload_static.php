@@ -9,18 +9,21 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
     public static $files = array (
         '6e3fae29631ef280660b3cdad06f25a8' => __DIR__ . '/..' . '/symfony/deprecation-contracts/function.php',
         '0e6d7bf4a5811bfa5cf40c5ccd6fae6a' => __DIR__ . '/..' . '/symfony/polyfill-mbstring/bootstrap.php',
-        'e69f7f6ee287b969198c3c9d6777bd38' => __DIR__ . '/..' . '/symfony/polyfill-intl-normalizer/bootstrap.php',
         '320cde22f66dd4f5d3fd621d3e88b98f' => __DIR__ . '/..' . '/symfony/polyfill-ctype/bootstrap.php',
-        'f598d06aa772fa33d905e87be6398fb1' => __DIR__ . '/..' . '/symfony/polyfill-intl-idn/bootstrap.php',
+        'e69f7f6ee287b969198c3c9d6777bd38' => __DIR__ . '/..' . '/symfony/polyfill-intl-normalizer/bootstrap.php',
         '662a729f963d39afe703c9d9b7ab4a8c' => __DIR__ . '/..' . '/symfony/polyfill-php83/bootstrap.php',
+        'f598d06aa772fa33d905e87be6398fb1' => __DIR__ . '/..' . '/symfony/polyfill-intl-idn/bootstrap.php',
         '7b11c4dc42b3b3023073cb14e519683c' => __DIR__ . '/..' . '/ralouphie/getallheaders/src/getallheaders.php',
         '2203a247e6fda86070a5e4e07aed533a' => __DIR__ . '/..' . '/symfony/clock/Resources/now.php',
         '8825ede83f2f289127722d4e842cf7e8' => __DIR__ . '/..' . '/symfony/polyfill-intl-grapheme/bootstrap.php',
         'b6b991a57620e2fb6b2f66f03fe9ddc2' => __DIR__ . '/..' . '/symfony/string/Resources/functions.php',
-        '09f6b20656683369174dd6fa83b7e5fb' => __DIR__ . '/..' . '/symfony/polyfill-uuid/bootstrap.php',
         '37a3dc5111fe8f707ab4c132ef1dbc62' => __DIR__ . '/..' . '/guzzlehttp/guzzle/src/functions_include.php',
+        '09f6b20656683369174dd6fa83b7e5fb' => __DIR__ . '/..' . '/symfony/polyfill-uuid/bootstrap.php',
         '8a197a13b1f213f3a2178168511a1b5d' => __DIR__ . '/..' . '/typo3/cms-core/Resources/PHP/GlobalDebugFunctions.php',
-        '667aeda72477189d0494fecd327c3641' => __DIR__ . '/..' . '/symfony/var-dumper/Resources/functions/dump.php',
+        'a4a119a56e50fbb293281d9a48007e0e' => __DIR__ . '/..' . '/symfony/polyfill-php80/bootstrap.php',
+        '383eaff206634a77a1be54e64e6459c7' => __DIR__ . '/..' . '/sabre/uri/lib/functions.php',
+        '3569eecfeed3bcf0bad3c998a494ecb8' => __DIR__ . '/..' . '/sabre/xml/lib/Deserializer/functions.php',
+        '93aa591bc4ca510c520999e34229ee79' => __DIR__ . '/..' . '/sabre/xml/lib/Serializer/functions.php',
         '5b605db66a033b182db922f98a2a7f95' => __DIR__ . '/..' . '/typo3/alias-loader-include.php',
         '2c273be442ca0325e9f786d50b1e2e6b' => __DIR__ . '/..' . '/typo3/autoload-include.php',
     );
@@ -40,18 +43,18 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         ),
         'W' => 
         array (
+            'WhichBrowser\\' => 13,
             'Webmozart\\Assert\\' => 17,
+            'WapplerSystems\\WsScss\\' => 22,
         ),
         'T' => 
         array (
-            'Trion\\ScssCompiler\\' => 19,
             'TYPO3\\HtmlSanitizer\\' => 20,
             'TYPO3\\ClassAliasLoader\\' => 23,
             'TYPO3\\CMS\\Workspaces\\' => 21,
             'TYPO3\\CMS\\Webhooks\\' => 19,
             'TYPO3\\CMS\\Viewpage\\' => 19,
             'TYPO3\\CMS\\Tstemplate\\' => 21,
-            'TYPO3\\CMS\\T3editor\\' => 19,
             'TYPO3\\CMS\\SysNote\\' => 18,
             'TYPO3\\CMS\\Setup\\' => 16,
             'TYPO3\\CMS\\Seo\\' => 14,
@@ -90,6 +93,7 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         array (
             'Symfony\\Polyfill\\Uuid\\' => 22,
             'Symfony\\Polyfill\\Php83\\' => 23,
+            'Symfony\\Polyfill\\Php80\\' => 23,
             'Symfony\\Polyfill\\Mbstring\\' => 26,
             'Symfony\\Polyfill\\Intl\\Normalizer\\' => 33,
             'Symfony\\Polyfill\\Intl\\Idn\\' => 26,
@@ -100,7 +104,6 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
             'Symfony\\Contracts\\Cache\\' => 24,
             'Symfony\\Component\\Yaml\\' => 23,
             'Symfony\\Component\\VarExporter\\' => 30,
-            'Symfony\\Component\\VarDumper\\' => 28,
             'Symfony\\Component\\Uid\\' => 22,
             'Symfony\\Component\\TypeInfo\\' => 27,
             'Symfony\\Component\\String\\' => 25,
@@ -108,6 +111,7 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
             'Symfony\\Component\\RateLimiter\\' => 30,
             'Symfony\\Component\\PropertyInfo\\' => 31,
             'Symfony\\Component\\PropertyAccess\\' => 33,
+            'Symfony\\Component\\Process\\' => 26,
             'Symfony\\Component\\OptionsResolver\\' => 34,
             'Symfony\\Component\\Mime\\' => 23,
             'Symfony\\Component\\Messenger\\Bridge\\Doctrine\\' => 44,
@@ -118,12 +122,24 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
             'Symfony\\Component\\Filesystem\\' => 29,
             'Symfony\\Component\\ExpressionLanguage\\' => 37,
             'Symfony\\Component\\EventDispatcher\\' => 34,
+            'Symfony\\Component\\DomCrawler\\' => 29,
             'Symfony\\Component\\DependencyInjection\\' => 38,
+            'Symfony\\Component\\CssSelector\\' => 30,
             'Symfony\\Component\\Console\\' => 26,
             'Symfony\\Component\\Config\\' => 25,
             'Symfony\\Component\\Clock\\' => 24,
             'Symfony\\Component\\Cache\\' => 24,
+            'SourceSpan\\' => 11,
             'ScssPhp\\ScssPhp\\' => 16,
+            'Schmid\\Sitepackage\\' => 19,
+            'Schmid\\Feuerwehren\\' => 19,
+            'Sabre\\Xml\\' => 10,
+            'Sabre\\VObject\\' => 14,
+            'Sabre\\Uri\\' => 10,
+        ),
+        'R' => 
+        array (
+            'Reelworx\\RxShariff\\' => 19,
         ),
         'P' => 
         array (
@@ -140,14 +156,33 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         ),
         'M' => 
         array (
-            'MaxiSchmid\\KfvTemplate\\' => 23,
+            'Mediadreams\\MdNewsAuthor\\' => 25,
+            'Mediadreams\\MdFullcalendar\\' => 27,
             'Masterminds\\' => 12,
+        ),
+        'L' => 
+        array (
+            'League\\Uri\\' => 11,
+        ),
+        'J' => 
+        array (
+            'JMBTechnologyLimited\\ICalDissect\\' => 33,
+        ),
+        'I' => 
+        array (
+            'In2code\\Lux\\' => 12,
+        ),
+        'H' => 
+        array (
+            'Heise\\Shariff\\' => 14,
+            'HDNET\\Calendarize\\' => 18,
         ),
         'G' => 
         array (
             'GuzzleHttp\\Psr7\\' => 16,
             'GuzzleHttp\\Promise\\' => 19,
             'GuzzleHttp\\' => 11,
+            'GeorgRinger\\NumberedPagination\\' => 31,
             'GeorgRinger\\News\\' => 17,
         ),
         'F' => 
@@ -164,24 +199,26 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
             'Doctrine\\Deprecations\\' => 22,
             'Doctrine\\DBAL\\' => 14,
             'Doctrine\\Common\\Lexer\\' => 22,
-            'Doctrine\\Common\\Cache\\' => 22,
             'Doctrine\\Common\\Annotations\\' => 28,
             'Doctrine\\Common\\' => 16,
             'DASPRiD\\Enum\\' => 13,
         ),
         'B' => 
         array (
+            'Buchin\\Bing\\' => 12,
             'Base32\\' => 7,
             'BaconQrCode\\' => 12,
+            'B13\\Make\\' => 9,
+            'B13\\Container\\' => 14,
         ),
     );
 
     public static $prefixDirsPsr4 = array (
         'phpDocumentor\\Reflection\\' => 
         array (
-            0 => __DIR__ . '/..' . '/phpdocumentor/reflection-common/src',
-            1 => __DIR__ . '/..' . '/phpdocumentor/reflection-docblock/src',
-            2 => __DIR__ . '/..' . '/phpdocumentor/type-resolver/src',
+            0 => __DIR__ . '/..' . '/phpdocumentor/reflection-docblock/src',
+            1 => __DIR__ . '/..' . '/phpdocumentor/type-resolver/src',
+            2 => __DIR__ . '/..' . '/phpdocumentor/reflection-common/src',
         ),
         'enshrined\\svgSanitize\\' => 
         array (
@@ -191,13 +228,17 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         array (
             0 => __DIR__ . '/..' . '/lolli42/finediff/src',
         ),
+        'WhichBrowser\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/buzz/which-browser-parser/src',
+        ),
         'Webmozart\\Assert\\' => 
         array (
             0 => __DIR__ . '/..' . '/webmozart/assert/src',
         ),
-        'Trion\\ScssCompiler\\' => 
+        'WapplerSystems\\WsScss\\' => 
         array (
-            0 => __DIR__ . '/..' . '/trion/scss-compiler/Classes',
+            0 => __DIR__ . '/..' . '/wapplersystems/ws-scss/Classes',
         ),
         'TYPO3\\HtmlSanitizer\\' => 
         array (
@@ -222,10 +263,6 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         'TYPO3\\CMS\\Tstemplate\\' => 
         array (
             0 => __DIR__ . '/..' . '/typo3/cms-tstemplate/Classes',
-        ),
-        'TYPO3\\CMS\\T3editor\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/typo3/cms-t3editor/Classes',
         ),
         'TYPO3\\CMS\\SysNote\\' => 
         array (
@@ -333,7 +370,7 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         ),
         'TYPO3\\CMS\\ContentBlocks\\' => 
         array (
-            0 => __DIR__ . '/..' . '/contentblocks/content-blocks/Classes',
+            0 => __DIR__ . '/..' . '/friendsoftypo3/content-blocks/Classes',
         ),
         'TYPO3\\CMS\\Composer\\' => 
         array (
@@ -366,6 +403,10 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         'Symfony\\Polyfill\\Php83\\' => 
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-php83',
+        ),
+        'Symfony\\Polyfill\\Php80\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/symfony/polyfill-php80',
         ),
         'Symfony\\Polyfill\\Mbstring\\' => 
         array (
@@ -407,10 +448,6 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         array (
             0 => __DIR__ . '/..' . '/symfony/var-exporter',
         ),
-        'Symfony\\Component\\VarDumper\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/symfony/var-dumper',
-        ),
         'Symfony\\Component\\Uid\\' => 
         array (
             0 => __DIR__ . '/..' . '/symfony/uid',
@@ -438,6 +475,10 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         'Symfony\\Component\\PropertyAccess\\' => 
         array (
             0 => __DIR__ . '/..' . '/symfony/property-access',
+        ),
+        'Symfony\\Component\\Process\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/symfony/process',
         ),
         'Symfony\\Component\\OptionsResolver\\' => 
         array (
@@ -479,9 +520,17 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         array (
             0 => __DIR__ . '/..' . '/symfony/event-dispatcher',
         ),
+        'Symfony\\Component\\DomCrawler\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/symfony/dom-crawler',
+        ),
         'Symfony\\Component\\DependencyInjection\\' => 
         array (
             0 => __DIR__ . '/..' . '/symfony/dependency-injection',
+        ),
+        'Symfony\\Component\\CssSelector\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/symfony/css-selector',
         ),
         'Symfony\\Component\\Console\\' => 
         array (
@@ -499,9 +548,37 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         array (
             0 => __DIR__ . '/..' . '/symfony/cache',
         ),
+        'SourceSpan\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/scssphp/source-span/src',
+        ),
         'ScssPhp\\ScssPhp\\' => 
         array (
             0 => __DIR__ . '/..' . '/scssphp/scssphp/src',
+        ),
+        'Schmid\\Sitepackage\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/schmid/sitepackage/Classes',
+        ),
+        'Schmid\\Feuerwehren\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/schmid/feuerwehren/Classes',
+        ),
+        'Sabre\\Xml\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/sabre/xml/lib',
+        ),
+        'Sabre\\VObject\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/sabre/vobject/lib',
+        ),
+        'Sabre\\Uri\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/sabre/uri/lib',
+        ),
+        'Reelworx\\RxShariff\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/reelworx/rx-shariff/Classes',
         ),
         'Psr\\Log\\' => 
         array (
@@ -509,8 +586,8 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         ),
         'Psr\\Http\\Server\\' => 
         array (
-            0 => __DIR__ . '/..' . '/psr/http-server-handler/src',
-            1 => __DIR__ . '/..' . '/psr/http-server-middleware/src',
+            0 => __DIR__ . '/..' . '/psr/http-server-middleware/src',
+            1 => __DIR__ . '/..' . '/psr/http-server-handler/src',
         ),
         'Psr\\Http\\Message\\' => 
         array (
@@ -545,13 +622,38 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         array (
             0 => __DIR__ . '/..' . '/phpstan/phpdoc-parser/src',
         ),
-        'MaxiSchmid\\KfvTemplate\\' => 
+        'Mediadreams\\MdNewsAuthor\\' => 
         array (
-            0 => __DIR__ . '/..' . '/maxi-schmid/kfv-template/Classes',
+            0 => __DIR__ . '/..' . '/mediadreams/md_news_author/Classes',
+        ),
+        'Mediadreams\\MdFullcalendar\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/mediadreams/md_fullcalendar/Classes',
         ),
         'Masterminds\\' => 
         array (
             0 => __DIR__ . '/..' . '/masterminds/html5/src',
+        ),
+        'League\\Uri\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/league/uri',
+            1 => __DIR__ . '/..' . '/league/uri-interfaces',
+        ),
+        'JMBTechnologyLimited\\ICalDissect\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/lochmueller/calendarize/Resources/Private/Php/ICalDissect/src/JMBTechnologyLimited/ICalDissect',
+        ),
+        'In2code\\Lux\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/in2code/lux/Classes',
+        ),
+        'Heise\\Shariff\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/reelworx/rx-shariff/Classes/Shariff',
+        ),
+        'HDNET\\Calendarize\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/lochmueller/calendarize/Classes',
         ),
         'GuzzleHttp\\Psr7\\' => 
         array (
@@ -564,6 +666,10 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         'GuzzleHttp\\' => 
         array (
             0 => __DIR__ . '/..' . '/guzzlehttp/guzzle/src',
+        ),
+        'GeorgRinger\\NumberedPagination\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/georgringer/numbered-pagination/Classes',
         ),
         'GeorgRinger\\News\\' => 
         array (
@@ -583,7 +689,7 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         ),
         'Doctrine\\Deprecations\\' => 
         array (
-            0 => __DIR__ . '/..' . '/doctrine/deprecations/lib/Doctrine/Deprecations',
+            0 => __DIR__ . '/..' . '/doctrine/deprecations/src',
         ),
         'Doctrine\\DBAL\\' => 
         array (
@@ -592,10 +698,6 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         'Doctrine\\Common\\Lexer\\' => 
         array (
             0 => __DIR__ . '/..' . '/doctrine/lexer/src',
-        ),
-        'Doctrine\\Common\\Cache\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/doctrine/cache/lib/Doctrine/Common/Cache',
         ),
         'Doctrine\\Common\\Annotations\\' => 
         array (
@@ -609,6 +711,10 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         array (
             0 => __DIR__ . '/..' . '/dasprid/enum/src',
         ),
+        'Buchin\\Bing\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/in2code/bing/src',
+        ),
         'Base32\\' => 
         array (
             0 => __DIR__ . '/..' . '/christian-riesen/base32/src',
@@ -617,10 +723,18 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         array (
             0 => __DIR__ . '/..' . '/bacon/bacon-qr-code/src',
         ),
+        'B13\\Make\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/b13/make/Classes',
+        ),
+        'B13\\Container\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/b13/container/Classes',
+        ),
     );
 
     public static $classMap = array (
-        'Composer\\Autoload\\ClassMapGenerator' => __DIR__ . '/..' . '/typo3/cms-core/Resources/PHP/ClassMapGenerator.php',
+        'Attribute' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/Attribute.php',
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
         'DateError' => __DIR__ . '/..' . '/symfony/polyfill-php83/Resources/stubs/DateError.php',
         'DateException' => __DIR__ . '/..' . '/symfony/polyfill-php83/Resources/stubs/DateException.php',
@@ -633,7 +747,11 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         'DateRangeError' => __DIR__ . '/..' . '/symfony/polyfill-php83/Resources/stubs/DateRangeError.php',
         'Normalizer' => __DIR__ . '/..' . '/symfony/polyfill-intl-normalizer/Resources/stubs/Normalizer.php',
         'Override' => __DIR__ . '/..' . '/symfony/polyfill-php83/Resources/stubs/Override.php',
+        'PhpToken' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/PhpToken.php',
         'SQLite3Exception' => __DIR__ . '/..' . '/symfony/polyfill-php83/Resources/stubs/SQLite3Exception.php',
+        'Stringable' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/Stringable.php',
+        'UnhandledMatchError' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/UnhandledMatchError.php',
+        'ValueError' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/ValueError.php',
         '©' => __DIR__ . '/..' . '/symfony/cache/Traits/ValueWrapper.php',
     );
 

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 /* (c) Anton Medvedev <anton@medv.io>
  *
@@ -164,7 +166,7 @@ class Deployer extends Container
         $this['server'] = function ($c) {
             return new Server(
                 $c['output'],
-                $this,
+                $this
             );
         };
         $this['master'] = function ($c) {
@@ -172,7 +174,7 @@ class Deployer extends Container
                 $c['input'],
                 $c['output'],
                 $c['server'],
-                $c['messenger'],
+                $c['messenger']
             );
         };
         $this['importer'] = function () {
@@ -321,7 +323,7 @@ class Deployer extends Container
                 $output->setVerbosity(OutputInterface::VERBOSITY_DEBUG);
             }
             self::printException($output, $exception);
-            
+
             exit(1);
         }
     }

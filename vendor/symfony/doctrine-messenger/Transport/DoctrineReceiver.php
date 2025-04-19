@@ -67,14 +67,14 @@ class DoctrineReceiver implements ListableReceiverInterface, MessageCountAwareIn
 
     public function ack(Envelope $envelope): void
     {
-        $this->withRetryableExceptionRetry(function() use ($envelope) {
+        $this->withRetryableExceptionRetry(function () use ($envelope) {
             $this->connection->ack($this->findDoctrineReceivedStamp($envelope)->getId());
         });
     }
 
     public function reject(Envelope $envelope): void
     {
-        $this->withRetryableExceptionRetry(function() use ($envelope) {
+        $this->withRetryableExceptionRetry(function () use ($envelope) {
             $this->connection->reject($this->findDoctrineReceivedStamp($envelope)->getId());
         });
     }
@@ -141,10 +141,12 @@ class DoctrineReceiver implements ListableReceiverInterface, MessageCountAwareIn
             throw $exception;
         }
 
-        return $envelope->with(
-            new DoctrineReceivedStamp($data['id']),
-            new TransportMessageIdStamp($data['id'])
-        );
+        return $envelope
+            ->withoutAll(TransportMessageIdStamp::class)
+            ->with(
+                new DoctrineReceivedStamp($data['id']),
+                new TransportMessageIdStamp($data['id'])
+            );
     }
 
     private function withRetryableExceptionRetry(callable $callable): void
@@ -159,7 +161,7 @@ class DoctrineReceiver implements ListableReceiverInterface, MessageCountAwareIn
             $callable();
         } catch (RetryableException $exception) {
             if (++$retries <= self::MAX_RETRIES) {
-                $delay *=  $multiplier;
+                $delay *= $multiplier;
 
                 $randomness = (int) ($delay * $jitter);
                 $delay += random_int(-$randomness, +$randomness);

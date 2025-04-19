@@ -17,8 +17,9 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Form\EventListener;
 
+use TYPO3\CMS\Core\Attribute\AsEventListener;
 use TYPO3\CMS\Filelist\Event\ProcessFileListActionsEvent;
-use TYPO3\CMS\Form\Mvc\Persistence\FormPersistenceManager;
+use TYPO3\CMS\Form\Mvc\Persistence\FormPersistenceManagerInterface;
 
 /**
  * Event listener to disable certain actions when checking for form.yaml files.
@@ -28,13 +29,14 @@ class ProcessFileListActionsEventListener
 {
     protected const DISABLED_ACTIONS = ['edit', 'view', 'replace', 'rename', 'download'];
 
+    #[AsEventListener('form-framework/form-definition-files')]
     public function __invoke(ProcessFileListActionsEvent $event): void
     {
         if (!$event->isFile()) {
             return;
         }
         $fullIdentifier = $event->getResource()->getCombinedIdentifier();
-        if (!str_ends_with($fullIdentifier, FormPersistenceManager::FORM_DEFINITION_FILE_EXTENSION)) {
+        if (!str_ends_with($fullIdentifier, FormPersistenceManagerInterface::FORM_DEFINITION_FILE_EXTENSION)) {
             return;
         }
 

@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-namespace TYPO3\CMS\Backend;
-
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Directive;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Mutation;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\MutationCollection;
@@ -31,10 +29,8 @@ return Map::fromEntries([
         new Mutation(MutationMode::Set, Directive::StyleSrcAttr, SourceKeyword::unsafeInline),
         // allow `data:` images
         new Mutation(MutationMode::Extend, Directive::ImgSrc, SourceScheme::data),
-        // muuri.js is creating workers from `blob:` (?!?)
-        new Mutation(MutationMode::Set, Directive::WorkerSrc, SourceKeyword::self, SourceScheme::blob),
-        // `frame-src blob:` required for es-module-shims blob: URLs
-        new Mutation(MutationMode::Extend, Directive::FrameSrc, SourceScheme::blob),
+        // `frame-src self` required for backend nav and list iframes
+        new Mutation(MutationMode::Extend, Directive::FrameSrc, SourceKeyword::self),
         // deny `<base>` element which might be used for cross-origin targets
         new Mutation(MutationMode::Set, Directive::BaseUri, SourceKeyword::none),
         // deny `<object>` and `<embed>` elements

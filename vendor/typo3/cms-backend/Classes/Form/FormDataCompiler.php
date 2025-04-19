@@ -25,19 +25,6 @@ use TYPO3\CMS\Core\Utility\MathUtility;
 class FormDataCompiler
 {
     /**
-     * @deprecated Remove constructor in v13 and change controllers to get FormDataCompiler injected.
-     */
-    public function __construct(private readonly ?FormDataGroupInterface $formDataGroup = null)
-    {
-        if ($this->formDataGroup !== null) {
-            trigger_error(
-                'Avoid the formDataGroup constructor argument: The form data provider group should be hand over as second argument to compile()',
-                E_USER_DEPRECATED
-            );
-        }
-    }
-
-    /**
      * Main entry method maps given data input array and sanitizes some
      * crucial input parameters and calls compile on FormDataGroupInterface.
      *
@@ -45,18 +32,8 @@ class FormDataCompiler
      * @throws \InvalidArgumentException
      * @throws \UnexpectedValueException
      */
-    public function compile(array $initialData, ?FormDataGroupInterface $formDataGroup = null): array
+    public function compile(array $initialData, FormDataGroupInterface $formDataGroup): array
     {
-        if ($formDataGroup === null) {
-            // @deprecated Remove entire if() in v13.
-            //             Remove constructor in v13
-            //             Change method signature to "compile(array $initialData, FormDataGroupInterface $formDataGroup): array"
-            if ($this->formDataGroup === null) {
-                throw new \RuntimeException('No data provider group given', 1681390133);
-            }
-            $formDataGroup = $this->formDataGroup;
-        }
-
         $result = $this->initializeResultArray();
 
         // There must be only keys that actually exist in result data.
@@ -93,12 +70,10 @@ class FormDataCompiler
         }
 
         if (!$result['request'] instanceof ServerRequestInterface) {
-            // @deprecated since v12: Throw a \RuntimeException in v13 instead.
-            trigger_error(
-                'When using FormDataCompiler, the current ServerRequestInterface object must be provided.',
-                E_USER_DEPRECATED
+            throw new \RuntimeException(
+                'The current ServerRequestInterface must be provided in key "request"',
+                1686867720
             );
-            $result['request'] = $GLOBALS['TYPO3_REQUEST'];
         }
 
         // Call the data group provider but take care it does not add or remove result keys
@@ -182,9 +157,9 @@ class FormDataCompiler
             // Full user TSconfig
             'userTsConfig' => [],
             // Full page TSconfig of the page that is edited or of the parent page if a record is added.
-            // This includes any defaultPageTSconfig and is merged with user TSconfig page. section. After type
-            // of handled record was determined, record type specific settings [TCEFORM.][tableName.][field.][types.][type.]
-            // are merged into [TCEFORM.][tableName.][field.]. Array keys still contain the concatenation dots.
+            // After type of handled record has been determined, record type specific settings from
+            // [TCEFORM.][tableName.][field.][types.][type.] are merged into [TCEFORM.][tableName.][field.].
+            // Array keys still contain the concatenation dots.
             'pageTsConfig' => [],
             // List of available system languages. Array key is the system language uid, value array
             // contains details of the record, with iso code resolved. Key is the sys_language_uid uid.

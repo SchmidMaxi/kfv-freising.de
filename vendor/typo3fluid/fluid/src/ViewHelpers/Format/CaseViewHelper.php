@@ -9,10 +9,8 @@ declare(strict_types=1);
 
 namespace TYPO3Fluid\Fluid\ViewHelpers\Format;
 
-use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
 use TYPO3Fluid\Fluid\Core\ViewHelper\Exception;
-use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
 
 /**
  * Modifies the case of an input string to upper- or lowercase or capitalization.
@@ -21,19 +19,24 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
  * Possible modes are:
  *
  * ``lower``
- *   Transforms the input string to its lowercase representation
+ *   Transforms the input string to lowercase
+ *   Example: "Hello World" -> "hello world"
  *
  * ``upper``
- *   Transforms the input string to its uppercase representation
+ *   Transforms the input string to uppercase
+ *   Example: "Hello World" -> "HELLO WORLD"
  *
  * ``capital``
- *   Transforms the input string to its first letter upper-cased, i.e. capitalization
+ *   Transforms the first character of the input string to uppercase
+ *   Example: "hello world" -> "Hello world"
  *
  * ``uncapital``
- *   Transforms the input string to its first letter lower-cased, i.e. uncapitalization
+ *   Transforms the input string to its first letter lower-cased
+ *   Example: "Hello World" -> "hello World"
  *
  * ``capitalWords``
- *   Not supported yet: Transforms the input string to each containing word being capitalized
+ *   Transforms the input string to capitalize each word
+ *   Example: "hello world" -> "Hello World"
  *
  * Note that the behavior will be the same as in the appropriate PHP function `mb_convert_case`_;
  * especially regarding locale and multibyte behavior.
@@ -67,8 +70,6 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
  */
 final class CaseViewHelper extends AbstractViewHelper
 {
-    use CompileWithRenderStatic;
-
     /**
      * Directs the input string being converted to "lowercase"
      */
@@ -111,15 +112,13 @@ final class CaseViewHelper extends AbstractViewHelper
      * Changes the case of the input string
      * @throws Exception
      */
-    public static function renderStatic(array $arguments, \Closure $renderChildrenClosure, RenderingContextInterface $renderingContext): string
+    public function render(): string
     {
-        $value = $arguments['value'];
-        $mode = $arguments['mode'];
-
+        $value = $this->arguments['value'];
+        $mode = $this->arguments['mode'];
         if ($value === null) {
-            $value = (string)$renderChildrenClosure();
+            $value = (string)$this->renderChildren();
         }
-
         switch ($mode) {
             case self::CASE_LOWER:
                 $output = mb_strtolower($value, 'utf-8');
@@ -145,7 +144,6 @@ final class CaseViewHelper extends AbstractViewHelper
             default:
                 throw new Exception('The case mode "' . $mode . '" supplied to Fluid\'s format.case ViewHelper is not supported.', 1358349150);
         }
-
         return $output;
     }
 }

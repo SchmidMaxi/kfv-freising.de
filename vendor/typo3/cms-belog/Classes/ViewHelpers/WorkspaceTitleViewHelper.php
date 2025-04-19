@@ -17,12 +17,12 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Belog\ViewHelpers;
 
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
+use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
-use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
-use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
 
 /**
  * Get workspace title from workspace id
@@ -31,12 +31,10 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
  */
 final class WorkspaceTitleViewHelper extends AbstractViewHelper
 {
-    use CompileWithRenderStatic;
-
-    /**
-     * First level cache of workspace titles
-     */
-    protected static array $workspaceTitleRuntimeCache = [];
+    public function __construct(
+        #[Autowire(service: 'cache.runtime')]
+        private readonly FrontendInterface $workspaceTitleRuntimeCache
+    ) {}
 
     public function initializeArguments(): void
     {
@@ -46,26 +44,26 @@ final class WorkspaceTitleViewHelper extends AbstractViewHelper
     /**
      * Return resolved workspace title or empty string if it can not be resolved.
      *
-     * @param array{uid: int} $arguments
      * @throws \InvalidArgumentException
      */
-    public static function renderStatic(array $arguments, \Closure $renderChildrenClosure, RenderingContextInterface $renderingContext): string
+    public function render(): string
     {
-        $uid = $arguments['uid'];
-        if (isset(self::$workspaceTitleRuntimeCache[$uid])) {
-            return self::$workspaceTitleRuntimeCache[$uid];
+        $uid = $this->arguments['uid'];
+        $cacheIdentifier = 'belog-viewhelper-workspace-title_' . $uid;
+        if ($this->workspaceTitleRuntimeCache->has($cacheIdentifier)) {
+            return $this->workspaceTitleRuntimeCache->get($cacheIdentifier);
         }
         if ($uid === 0) {
-            self::$workspaceTitleRuntimeCache[$uid] = htmlspecialchars(self::getLanguageService()->sL(
+            $this->workspaceTitleRuntimeCache->set($cacheIdentifier, htmlspecialchars(self::getLanguageService()->sL(
                 'LLL:EXT:belog/Resources/Private/Language/locallang.xlf:live'
-            ));
+            )));
         } elseif (!ExtensionManagementUtility::isLoaded('workspaces')) {
-            self::$workspaceTitleRuntimeCache[$uid] = '';
+            $this->workspaceTitleRuntimeCache->set($cacheIdentifier, '');
         } else {
             $workspace = BackendUtility::getRecord('sys_workspace', $uid);
-            self::$workspaceTitleRuntimeCache[$uid] = $workspace['title'] ?? '';
+            $this->workspaceTitleRuntimeCache->set($cacheIdentifier, $workspace['title'] ?? '');
         }
-        return self::$workspaceTitleRuntimeCache[$uid];
+        return $this->workspaceTitleRuntimeCache->get($cacheIdentifier);
     }
 
     protected static function getLanguageService(): LanguageService

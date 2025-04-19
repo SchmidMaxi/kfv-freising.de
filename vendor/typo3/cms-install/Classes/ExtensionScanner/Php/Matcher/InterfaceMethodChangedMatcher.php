@@ -17,9 +17,9 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Install\ExtensionScanner\Php\Matcher;
 
+use PhpParser\Modifiers;
 use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
-use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
 
 /**
@@ -49,20 +49,18 @@ class InterfaceMethodChangedMatcher extends AbstractCoreMatcher
      * Called by PhpParser.
      * Test for "public function like($arg1, $arg2, $arg3) {}" (weak match)
      * Test for "->like($arg1, $arg2, $arg3); (weak match)
-     *
-     * @return void|null
      */
-    public function enterNode(Node $node)
+    public function enterNode(Node $node): null
     {
         if ($this->isFileIgnored($node) || $this->isLineIgnored($node)) {
-            return;
+            return null;
         }
 
         // Match method name of a class, must be public, wouldn't make sense as interface if protected/private
         if ($node instanceof ClassMethod
             && array_key_exists($node->name->name, $this->matcherDefinitions)
-            && $node->flags & Class_::MODIFIER_PUBLIC // public
-            && ($node->flags & Class_::MODIFIER_STATIC) !== Class_::MODIFIER_STATIC // not static
+            && $node->flags & Modifiers::PUBLIC // public
+            && ($node->flags & Modifiers::STATIC) !== Modifiers::STATIC // not static
         ) {
             $methodName = $node->name->name;
             $numberOfUsedArguments = 0;
@@ -82,7 +80,7 @@ class InterfaceMethodChangedMatcher extends AbstractCoreMatcher
 
         // Match method call (not static) with number of arguments
         if ($node instanceof MethodCall
-            && array_key_exists($node->name->name, $this->matcherDefinitions)
+            && isset($node->name->name) && array_key_exists($node->name->name, $this->matcherDefinitions)
         ) {
             $methodName = $node->name->name;
             $numberOfUsedArguments = 0;
@@ -100,5 +98,6 @@ class InterfaceMethodChangedMatcher extends AbstractCoreMatcher
                 ];
             }
         }
+        return null;
     }
 }

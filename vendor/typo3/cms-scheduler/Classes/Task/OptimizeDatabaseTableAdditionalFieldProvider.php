@@ -15,6 +15,8 @@
 
 namespace TYPO3\CMS\Scheduler\Task;
 
+use Doctrine\DBAL\Platforms\MariaDBPlatform as DoctrineMariaDBPlatform;
+use Doctrine\DBAL\Platforms\MySQLPlatform as DoctrineMySQLPlatform;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Localization\LanguageService;
@@ -22,7 +24,7 @@ use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Scheduler\AbstractAdditionalFieldProvider;
 use TYPO3\CMS\Scheduler\Controller\SchedulerModuleController;
-use TYPO3\CMS\Scheduler\Task\Enumeration\Action;
+use TYPO3\CMS\Scheduler\SchedulerManagementAction;
 
 /**
  * Additional BE fields for optimize database table task.
@@ -50,10 +52,10 @@ class OptimizeDatabaseTableAdditionalFieldProvider extends AbstractAdditionalFie
         // Initialize selected fields
         if (empty($taskInfo['scheduler_optimizeDatabaseTables_selectedTables'])) {
             $taskInfo['scheduler_optimizeDatabaseTables_selectedTables'] = [];
-            if ($currentSchedulerModuleAction->equals(Action::ADD)) {
+            if ($currentSchedulerModuleAction === SchedulerManagementAction::ADD) {
                 // In case of new task, select no tables by default
                 $taskInfo['scheduler_optimizeDatabaseTables_selectedTables'] = [];
-            } elseif ($currentSchedulerModuleAction->equals(Action::EDIT)) {
+            } elseif ($currentSchedulerModuleAction === SchedulerManagementAction::EDIT) {
                 // In case of editing the task, set to currently selected value
                 $taskInfo['scheduler_optimizeDatabaseTables_selectedTables'] = $task->selectedTables;
             }
@@ -187,8 +189,9 @@ class OptimizeDatabaseTableAdditionalFieldProvider extends AbstractAdditionalFie
      */
     protected function getOptimizableTablesForConnection(Connection $connection, array $tableNames = []): array
     {
-        // Return empty list if the database platform is not MySQL
-        if (!str_starts_with($connection->getServerVersion(), 'MySQL')) {
+        // Return empty list if the database platform is not MySQL/MariaDB
+        $platform = $connection->getDatabasePlatform();
+        if (!($platform instanceof DoctrineMariaDBPlatform || $platform instanceof DoctrineMySQLPlatform)) {
             return [];
         }
 

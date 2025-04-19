@@ -1,0 +1,490 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<T3DataStructure>
+	<meta type="array">
+		<langDisable>1</langDisable>
+	</meta>
+	<sheets>
+		<columns_xs>
+			<ROOT>
+				<TCEforms>
+					<sheetTitle>Spalte (Sehr Klein - col)</sheetTitle>
+				</TCEforms>
+				<el>
+					<width_column_xs_1>
+						<label>Breite Spalte 1</label>
+						<config>
+							<type>select</type>
+							<renderType>selectSingle</renderType>
+							<items>
+								<numIndex index="0" type="array"><label>Nicht definiert</label><value></value></numIndex>
+								<numIndex index="1" type="array"><label>1/12</label><value>col-1</value></numIndex>
+								<numIndex index="2" type="array"><label>2/12</label><value>col-2</value></numIndex>
+								<numIndex index="3" type="array"><label>3/12</label><value>col-3</value></numIndex>
+								<numIndex index="4" type="array"><label>4/12</label><value>col-4</value></numIndex>
+								<numIndex index="5" type="array"><label>5/12</label><value>col-5</value></numIndex>
+								<numIndex index="6" type="array"><label>6/12</label><value>col-6</value></numIndex>
+								<numIndex index="7" type="array"><label>7/12</label><value>col-7</value></numIndex>
+								<numIndex index="8" type="array"><label>8/12</label><value>col-8</value></numIndex>
+								<numIndex index="9" type="array"><label>9/12</label><value>col-9</value></numIndex>
+								<numIndex index="10" type="array"><label>10/12</label><value>col-10</value></numIndex>
+								<numIndex index="11" type="array"><label>11/12</label><value>col-11</value></numIndex>
+								<numIndex index="12" type="array"><label>12/12</label><value>col-12</value></numIndex>
+							</items>
+							<default>col-12</default>
+						</config>
+					</width_column_xs_1>
+					<width_column_xs_2>
+						<label>Breite Spalte 2</label>
+						<config>
+							<type>select</type>
+							<renderType>selectSingle</renderType>
+							<items>
+								<numIndex index="0" type="array"><label>Nicht definiert</label><value></value></numIndex>
+								<numIndex index="1" type="array"><label>1/12</label><value>col-1</value></numIndex>
+								<numIndex index="2" type="array"><label>2/12</label><value>col-2</value></numIndex>
+								<numIndex index="3" type="array"><label>3/12</label><value>col-3</value></numIndex>
+								<numIndex index="4" type="array"><label>4/12</label><value>col-4</value></numIndex>
+								<numIndex index="5" type="array"><label>5/12</label><value>col-5</value></numIndex>
+								<numIndex index="6" type="array"><label>6/12</label><value>col-6</value></numIndex>
+								<numIndex index="7" type="array"><label>7/12</label><value>col-7</value></numIndex>
+								<numIndex index="8" type="array"><label>8/12</label><value>col-8</value></numIndex>
+								<numIndex index="9" type="array"><label>9/12</label><value>col-9</value></numIndex>
+								<numIndex index="10" type="array"><label>10/12</label><value>col-10</value></numIndex>
+								<numIndex index="11" type="array"><label>11/12</label><value>col-11</value></numIndex>
+								<numIndex index="12" type="array"><label>12/12</label><value>col-12</value></numIndex>
+							</items>
+							<default>col-12</default>
+						</config>
+					</width_column_xs_2>
+					<width_column_xs_3>
+						<label>Breite Spalte 3</label>
+						<config>
+							<type>select</type>
+							<renderType>selectSingle</renderType>
+							<items>
+								<numIndex index="0" type="array"><label>Nicht definiert</label><value></value></numIndex>
+								<numIndex index="1" type="array"><label>1/12</label><value>col-1</value></numIndex>
+								<numIndex index="2" type="array"><label>2/12</label><value>col-2</value></numIndex>
+								<numIndex index="3" type="array"><label>3/12</label><value>col-3</value></numIndex>
+								<numIndex index="4" type="array"><label>4/12</label><value>col-4</value></numIndex>
+								<numIndex index="5" type="array"><label>5/12</label><value>col-5</value></numIndex>
+								<numIndex index="6" type="array"><label>6/12</label><value>col-6</value></numIndex>
+								<numIndex index="7" type="array"><label>7/12</label><value>col-7</value></numIndex>
+								<numIndex index="8" type="array"><label>8/12</label><value>col-8</value></numIndex>
+								<numIndex index="9" type="array"><label>9/12</label><value>col-9</value></numIndex>
+								<numIndex index="10" type="array"><label>10/12</label><value>col-10</value></numIndex>
+								<numIndex index="11" type="array"><label>11/12</label><value>col-11</value></numIndex>
+								<numIndex index="12" type="array"><label>12/12</label><value>col-12</value></numIndex>
+							</items>
+							<default>col-12</default>
+						</config>
+					</width_column_xs_3>
+					<width_column_xs_4>
+						<label>Breite Spalte 4</label>
+						<config>
+							<type>select</type>
+							<renderType>selectSingle</renderType>
+							<items>
+								<numIndex index="0" type="array"><label>Nicht definiert</label><value></value></numIndex>
+								<numIndex index="1" type="array"><label>1/12</label><value>col-1</value></numIndex>
+								<numIndex index="2" type="array"><label>2/12</label><value>col-2</value></numIndex>
+								<numIndex index="3" type="array"><label>3/12</label><value>col-3</value></numIndex>
+								<numIndex index="4" type="array"><label>4/12</label><value>col-4</value></numIndex>
+								<numIndex index="5" type="array"><label>5/12</label><value>col-5</value></numIndex>
+								<numIndex index="6" type="array"><label>6/12</label><value>col-6</value></numIndex>
+								<numIndex index="7" type="array"><label>7/12</label><value>col-7</value></numIndex>
+								<numIndex index="8" type="array"><label>8/12</label><value>col-8</value></numIndex>
+								<numIndex index="9" type="array"><label>9/12</label><value>col-9</value></numIndex>
+								<numIndex index="10" type="array"><label>10/12</label><value>col-10</value></numIndex>
+								<numIndex index="11" type="array"><label>11/12</label><value>col-11</value></numIndex>
+								<numIndex index="12" type="array"><label>12/12</label><value>col-12</value></numIndex>
+							</items>
+							<default>col-12</default>
+						</config>
+					</width_column_xs_4>
+				</el>
+			</ROOT>
+		</columns_xs>
+		<columns_md>
+			<ROOT>
+				<TCEforms>
+					<sheetTitle>Spalte (Mittel - col-md)</sheetTitle>
+				</TCEforms>
+				<el>
+					<width_column_md_1>
+						<label>Breite Spalte 1</label>
+						<config>
+							<type>select</type>
+							<renderType>selectSingle</renderType>
+							<items>
+								<numIndex index="0" type="array"><label>Nicht definiert</label><value></value></numIndex>
+								<numIndex index="1" type="array"><label>1/12</label><value>col-md-1</value></numIndex>
+								<numIndex index="2" type="array"><label>2/12</label><value>col-md-2</value></numIndex>
+								<numIndex index="3" type="array"><label>3/12</label><value>col-md-3</value></numIndex>
+								<numIndex index="4" type="array"><label>4/12</label><value>col-md-4</value></numIndex>
+								<numIndex index="5" type="array"><label>5/12</label><value>col-md-5</value></numIndex>
+								<numIndex index="6" type="array"><label>6/12</label><value>col-md-6</value></numIndex>
+								<numIndex index="7" type="array"><label>7/12</label><value>col-md-7</value></numIndex>
+								<numIndex index="8" type="array"><label>8/12</label><value>col-md-8</value></numIndex>
+								<numIndex index="9" type="array"><label>9/12</label><value>col-md-9</value></numIndex>
+								<numIndex index="10" type="array"><label>10/12</label><value>col-md-10</value></numIndex>
+								<numIndex index="11" type="array"><label>11/12</label><value>col-md-11</value></numIndex>
+								<numIndex index="12" type="array"><label>12/12</label><value>col-md-12</value></numIndex>
+							</items>
+						</config>
+					</width_column_md_1>
+					<width_column_md_2>
+						<label>Breite Spalte 2</label>
+						<config>
+							<type>select</type>
+							<renderType>selectSingle</renderType>
+							<items>
+								<numIndex index="0" type="array"><label>Nicht definiert</label><value></value></numIndex>
+								<numIndex index="1" type="array"><label>1/12</label><value>col-md-1</value></numIndex>
+								<numIndex index="2" type="array"><label>2/12</label><value>col-md-2</value></numIndex>
+								<numIndex index="3" type="array"><label>3/12</label><value>col-md-3</value></numIndex>
+								<numIndex index="4" type="array"><label>4/12</label><value>col-md-4</value></numIndex>
+								<numIndex index="5" type="array"><label>5/12</label><value>col-md-5</value></numIndex>
+								<numIndex index="6" type="array"><label>6/12</label><value>col-md-6</value></numIndex>
+								<numIndex index="7" type="array"><label>7/12</label><value>col-md-7</value></numIndex>
+								<numIndex index="8" type="array"><label>8/12</label><value>col-md-8</value></numIndex>
+								<numIndex index="9" type="array"><label>9/12</label><value>col-md-9</value></numIndex>
+								<numIndex index="10" type="array"><label>10/12</label><value>col-md-10</value></numIndex>
+								<numIndex index="11" type="array"><label>11/12</label><value>col-md-11</value></numIndex>
+								<numIndex index="12" type="array"><label>12/12</label><value>col-md-12</value></numIndex>
+							</items>
+						</config>
+					</width_column_md_2>
+					<width_column_md_3>
+						<label>Breite Spalte 3</label>
+						<config>
+							<type>select</type>
+							<renderType>selectSingle</renderType>
+							<items>
+								<numIndex index="0" type="array"><label>Nicht definiert</label><value></value></numIndex>
+								<numIndex index="1" type="array"><label>1/12</label><value>col-md-1</value></numIndex>
+								<numIndex index="2" type="array"><label>2/12</label><value>col-md-2</value></numIndex>
+								<numIndex index="3" type="array"><label>3/12</label><value>col-md-3</value></numIndex>
+								<numIndex index="4" type="array"><label>4/12</label><value>col-md-4</value></numIndex>
+								<numIndex index="5" type="array"><label>5/12</label><value>col-md-5</value></numIndex>
+								<numIndex index="6" type="array"><label>6/12</label><value>col-md-6</value></numIndex>
+								<numIndex index="7" type="array"><label>7/12</label><value>col-md-7</value></numIndex>
+								<numIndex index="8" type="array"><label>8/12</label><value>col-md-8</value></numIndex>
+								<numIndex index="9" type="array"><label>9/12</label><value>col-md-9</value></numIndex>
+								<numIndex index="10" type="array"><label>10/12</label><value>col-md-10</value></numIndex>
+								<numIndex index="11" type="array"><label>11/12</label><value>col-md-11</value></numIndex>
+								<numIndex index="12" type="array"><label>12/12</label><value>col-md-12</value></numIndex>
+							</items>
+						</config>
+					</width_column_md_3>
+					<width_column_md_4>
+						<label>Breite Spalte 4</label>
+						<config>
+							<type>select</type>
+							<renderType>selectSingle</renderType>
+							<items>
+								<numIndex index="0" type="array"><label>Nicht definiert</label><value></value></numIndex>
+								<numIndex index="1" type="array"><label>1/12</label><value>col-md-1</value></numIndex>
+								<numIndex index="2" type="array"><label>2/12</label><value>col-md-2</value></numIndex>
+								<numIndex index="3" type="array"><label>3/12</label><value>col-md-3</value></numIndex>
+								<numIndex index="4" type="array"><label>4/12</label><value>col-md-4</value></numIndex>
+								<numIndex index="5" type="array"><label>5/12</label><value>col-md-5</value></numIndex>
+								<numIndex index="6" type="array"><label>6/12</label><value>col-md-6</value></numIndex>
+								<numIndex index="7" type="array"><label>7/12</label><value>col-md-7</value></numIndex>
+								<numIndex index="8" type="array"><label>8/12</label><value>col-md-8</value></numIndex>
+								<numIndex index="9" type="array"><label>9/12</label><value>col-md-9</value></numIndex>
+								<numIndex index="10" type="array"><label>10/12</label><value>col-md-10</value></numIndex>
+								<numIndex index="11" type="array"><label>11/12</label><value>col-md-11</value></numIndex>
+								<numIndex index="12" type="array"><label>12/12</label><value>col-md-12</value></numIndex>
+							</items>
+						</config>
+					</width_column_md_4>
+				</el>
+			</ROOT>
+		</columns_md>
+		<columns_lg>
+			<ROOT>
+				<TCEforms>
+					<sheetTitle>Spalte (Normal - col-lg)</sheetTitle>
+				</TCEforms>
+				<el>
+					<width_column_lg_1>
+						<label>Breite Spalte 1</label>
+						<config>
+							<type>select</type>
+							<renderType>selectSingle</renderType>
+							<items>
+								<numIndex index="0" type="array"><label>1/12</label><value>col-lg-1</value></numIndex>
+								<numIndex index="1" type="array"><label>2/12</label><value>col-lg-2</value></numIndex>
+								<numIndex index="2" type="array"><label>3/12</label><value>col-lg-3</value></numIndex>
+								<numIndex index="3" type="array"><label>4/12</label><value>col-lg-4</value></numIndex>
+								<numIndex index="4" type="array"><label>5/12</label><value>col-lg-5</value></numIndex>
+								<numIndex index="5" type="array"><label>6/12</label><value>col-lg-6</value></numIndex>
+								<numIndex index="6" type="array"><label>7/12</label><value>col-lg-7</value></numIndex>
+								<numIndex index="7" type="array"><label>8/12</label><value>col-lg-8</value></numIndex>
+								<numIndex index="8" type="array"><label>9/12</label><value>col-lg-9</value></numIndex>
+								<numIndex index="9" type="array"><label>10/12</label><value>col-lg-10</value></numIndex>
+								<numIndex index="10" type="array"><label>11/12</label><value>col-lg-11</value></numIndex>
+								<numIndex index="11" type="array"><label>12/12</label><value>col-lg-12</value></numIndex>
+							</items>
+							<default>col-lg-3</default>
+						</config>
+					</width_column_lg_1>
+					<width_column_lg_2>
+						<label>Breite Spalte 2</label>
+						<config>
+							<type>select</type>
+							<renderType>selectSingle</renderType>
+							<items>
+								<numIndex index="0" type="array"><label>1/12</label><value>col-lg-1</value></numIndex>
+								<numIndex index="1" type="array"><label>2/12</label><value>col-lg-2</value></numIndex>
+								<numIndex index="2" type="array"><label>3/12</label><value>col-lg-3</value></numIndex>
+								<numIndex index="3" type="array"><label>4/12</label><value>col-lg-4</value></numIndex>
+								<numIndex index="4" type="array"><label>5/12</label><value>col-lg-5</value></numIndex>
+								<numIndex index="5" type="array"><label>6/12</label><value>col-lg-6</value></numIndex>
+								<numIndex index="6" type="array"><label>7/12</label><value>col-lg-7</value></numIndex>
+								<numIndex index="7" type="array"><label>8/12</label><value>col-lg-8</value></numIndex>
+								<numIndex index="8" type="array"><label>9/12</label><value>col-lg-9</value></numIndex>
+								<numIndex index="9" type="array"><label>10/12</label><value>col-lg-10</value></numIndex>
+								<numIndex index="10" type="array"><label>11/12</label><value>col-lg-11</value></numIndex>
+								<numIndex index="11" type="array"><label>12/12</label><value>col-lg-12</value></numIndex>
+							</items>
+							<default>col-lg-3</default>
+						</config>
+					</width_column_lg_2>
+					<width_column_lg_3>
+						<label>Breite Spalte 3</label>
+						<config>
+							<type>select</type>
+							<renderType>selectSingle</renderType>
+							<items>
+								<numIndex index="0" type="array"><label>1/12</label><value>col-lg-1</value></numIndex>
+								<numIndex index="1" type="array"><label>2/12</label><value>col-lg-2</value></numIndex>
+								<numIndex index="2" type="array"><label>3/12</label><value>col-lg-3</value></numIndex>
+								<numIndex index="3" type="array"><label>4/12</label><value>col-lg-4</value></numIndex>
+								<numIndex index="4" type="array"><label>5/12</label><value>col-lg-5</value></numIndex>
+								<numIndex index="5" type="array"><label>6/12</label><value>col-lg-6</value></numIndex>
+								<numIndex index="6" type="array"><label>7/12</label><value>col-lg-7</value></numIndex>
+								<numIndex index="7" type="array"><label>8/12</label><value>col-lg-8</value></numIndex>
+								<numIndex index="8" type="array"><label>9/12</label><value>col-lg-9</value></numIndex>
+								<numIndex index="9" type="array"><label>10/12</label><value>col-lg-10</value></numIndex>
+								<numIndex index="10" type="array"><label>11/12</label><value>col-lg-11</value></numIndex>
+								<numIndex index="11" type="array"><label>12/12</label><value>col-lg-12</value></numIndex>
+							</items>
+							<default>col-lg-3</default>
+						</config>
+					</width_column_lg_3>
+					<width_column_lg_4>
+						<label>Breite Spalte 4</label>
+						<config>
+							<type>select</type>
+							<renderType>selectSingle</renderType>
+							<items>
+								<numIndex index="0" type="array"><label>1/12</label><value>col-lg-1</value></numIndex>
+								<numIndex index="1" type="array"><label>2/12</label><value>col-lg-2</value></numIndex>
+								<numIndex index="2" type="array"><label>3/12</label><value>col-lg-3</value></numIndex>
+								<numIndex index="3" type="array"><label>4/12</label><value>col-lg-4</value></numIndex>
+								<numIndex index="4" type="array"><label>5/12</label><value>col-lg-5</value></numIndex>
+								<numIndex index="5" type="array"><label>6/12</label><value>col-lg-6</value></numIndex>
+								<numIndex index="6" type="array"><label>7/12</label><value>col-lg-7</value></numIndex>
+								<numIndex index="7" type="array"><label>8/12</label><value>col-lg-8</value></numIndex>
+								<numIndex index="8" type="array"><label>9/12</label><value>col-lg-9</value></numIndex>
+								<numIndex index="9" type="array"><label>10/12</label><value>col-lg-10</value></numIndex>
+								<numIndex index="10" type="array"><label>11/12</label><value>col-lg-11</value></numIndex>
+								<numIndex index="11" type="array"><label>12/12</label><value>col-lg-12</value></numIndex>
+							</items>
+							<default>col-lg-3</default>
+						</config>
+					</width_column_lg_4>
+				</el>
+			</ROOT>
+		</columns_lg>
+		<columns_xl>
+			<ROOT>
+				<TCEforms>
+					<sheetTitle>Spalte (Extra Groß - col-xl)</sheetTitle>
+				</TCEforms>
+				<el>
+					<width_column_xl_1>
+						<label>Breite Spalte 1</label>
+						<config>
+							<type>select</type>
+							<renderType>selectSingle</renderType>
+							<items>
+								<numIndex index="0" type="array"><label>Nicht definiert</label><value></value></numIndex>
+								<numIndex index="1" type="array"><label>1/12</label><value>col-xl-1</value></numIndex>
+								<numIndex index="2" type="array"><label>2/12</label><value>col-xl-2</value></numIndex>
+								<numIndex index="3" type="array"><label>3/12</label><value>col-xl-3</value></numIndex>
+								<numIndex index="4" type="array"><label>4/12</label><value>col-xl-4</value></numIndex>
+								<numIndex index="5" type="array"><label>5/12</label><value>col-xl-5</value></numIndex>
+								<numIndex index="6" type="array"><label>6/12</label><value>col-xl-6</value></numIndex>
+								<numIndex index="7" type="array"><label>7/12</label><value>col-xl-7</value></numIndex>
+								<numIndex index="8" type="array"><label>8/12</label><value>col-xl-8</value></numIndex>
+								<numIndex index="9" type="array"><label>9/12</label><value>col-xl-9</value></numIndex>
+								<numIndex index="10" type="array"><label>10/12</label><value>col-xl-10</value></numIndex>
+								<numIndex index="11" type="array"><label>11/12</label><value>col-xl-11</value></numIndex>
+								<numIndex index="12" type="array"><label>12/12</label><value>col-xl-12</value></numIndex>
+							</items>
+						</config>
+					</width_column_xl_1>
+					<width_column_xl_2>
+						<label>Breite Spalte 2</label>
+						<config>
+							<type>select</type>
+							<renderType>selectSingle</renderType>
+							<items>
+								<numIndex index="0" type="array"><label>Nicht definiert</label><value></value></numIndex>
+								<numIndex index="1" type="array"><label>1/12</label><value>col-xl-1</value></numIndex>
+								<numIndex index="2" type="array"><label>2/12</label><value>col-xl-2</value></numIndex>
+								<numIndex index="3" type="array"><label>3/12</label><value>col-xl-3</value></numIndex>
+								<numIndex index="4" type="array"><label>4/12</label><value>col-xl-4</value></numIndex>
+								<numIndex index="5" type="array"><label>5/12</label><value>col-xl-5</value></numIndex>
+								<numIndex index="6" type="array"><label>6/12</label><value>col-xl-6</value></numIndex>
+								<numIndex index="7" type="array"><label>7/12</label><value>col-xl-7</value></numIndex>
+								<numIndex index="8" type="array"><label>8/12</label><value>col-xl-8</value></numIndex>
+								<numIndex index="9" type="array"><label>9/12</label><value>col-xl-9</value></numIndex>
+								<numIndex index="10" type="array"><label>10/12</label><value>col-xl-10</value></numIndex>
+								<numIndex index="11" type="array"><label>11/12</label><value>col-xl-11</value></numIndex>
+								<numIndex index="12" type="array"><label>12/12</label><value>col-xl-12</value></numIndex>
+							</items>
+						</config>
+					</width_column_xl_2>
+					<width_column_xl_3>
+						<label>Breite Spalte 3</label>
+						<config>
+							<type>select</type>
+							<renderType>selectSingle</renderType>
+							<items>
+								<numIndex index="0" type="array"><label>Nicht definiert</label><value></value></numIndex>
+								<numIndex index="1" type="array"><label>1/12</label><value>col-xl-1</value></numIndex>
+								<numIndex index="2" type="array"><label>2/12</label><value>col-xl-2</value></numIndex>
+								<numIndex index="3" type="array"><label>3/12</label><value>col-xl-3</value></numIndex>
+								<numIndex index="4" type="array"><label>4/12</label><value>col-xl-4</value></numIndex>
+								<numIndex index="5" type="array"><label>5/12</label><value>col-xl-5</value></numIndex>
+								<numIndex index="6" type="array"><label>6/12</label><value>col-xl-6</value></numIndex>
+								<numIndex index="7" type="array"><label>7/12</label><value>col-xl-7</value></numIndex>
+								<numIndex index="8" type="array"><label>8/12</label><value>col-xl-8</value></numIndex>
+								<numIndex index="9" type="array"><label>9/12</label><value>col-xl-9</value></numIndex>
+								<numIndex index="10" type="array"><label>10/12</label><value>col-xl-10</value></numIndex>
+								<numIndex index="11" type="array"><label>11/12</label><value>col-xl-11</value></numIndex>
+								<numIndex index="12" type="array"><label>12/12</label><value>col-xl-12</value></numIndex>
+							</items>
+						</config>
+					</width_column_xl_3>
+					<width_column_xl_4>
+							<label>Breite Spalte 4</label>
+							<config>
+								<type>select</type>
+								<renderType>selectSingle</renderType>
+								<items>
+									<numIndex index="0" type="array"><label>Nicht definiert</label><value></value></numIndex>
+									<numIndex index="1" type="array"><label>1/12</label><value>col-xl-1</value></numIndex>
+									<numIndex index="2" type="array"><label>2/12</label><value>col-xl-2</value></numIndex>
+									<numIndex index="3" type="array"><label>3/12</label><value>col-xl-3</value></numIndex>
+									<numIndex index="4" type="array"><label>4/12</label><value>col-xl-4</value></numIndex>
+									<numIndex index="5" type="array"><label>5/12</label><value>col-xl-5</value></numIndex>
+									<numIndex index="6" type="array"><label>6/12</label><value>col-xl-6</value></numIndex>
+									<numIndex index="7" type="array"><label>7/12</label><value>col-xl-7</value></numIndex>
+									<numIndex index="8" type="array"><label>8/12</label><value>col-xl-8</value></numIndex>
+									<numIndex index="9" type="array"><label>9/12</label><value>col-xl-9</value></numIndex>
+									<numIndex index="10" type="array"><label>10/12</label><value>col-xl-10</value></numIndex>
+									<numIndex index="11" type="array"><label>11/12</label><value>col-xl-11</value></numIndex>
+									<numIndex index="12" type="array"><label>12/12</label><value>col-xl-12</value></numIndex>
+								</items>
+							</config>
+					</width_column_xl_4>
+				</el>
+			</ROOT>
+		</columns_xl>
+		<specials>
+			<ROOT>
+				<TCEforms>
+					<sheetTitle>Weitere Einstellungen</sheetTitle>
+				</TCEforms>
+				<el>
+					<align_items>
+						<label>Raster Eigenschaften</label>
+						<config>
+							<type>select</type>
+							<renderType>selectSingle</renderType>
+							<items>
+								<numIndex index="0" type="array"><label>Nicht definiert</label><value></value></numIndex>
+								<numIndex index="1" type="array"><label>Bündig oben</label><value>align-items-start</value></numIndex>
+								<numIndex index="2" type="array"><label>Zentriert</label><value>align-items-center</value></numIndex>
+								<numIndex index="3" type="array"><label>Bündig unten</label><value>align-items-end</value></numIndex>
+							</items>
+						</config>
+					</align_items>
+					<gutter_x>
+						<label>Horizontaler Spaltenabstand</label>
+						<config>
+							<type>select</type>
+							<renderType>selectSingle</renderType>
+							<items>
+								<numIndex index="0"><label>Standard</label><value></value></numIndex>
+								<numIndex index="1"><label>XS</label><value>gx-1</value></numIndex>
+								<numIndex index="2"><label>S</label><value>gx-2</value></numIndex>
+								<numIndex index="3"><label>M</label><value>gx-3</value></numIndex>
+								<numIndex index="4"><label>L</label><value>gx-4</value></numIndex>
+								<numIndex index="5"><label>XL</label><value>gx-5</value></numIndex>
+								<numIndex index="6"><label>XXL</label><value>gx-6</value></numIndex>
+							</items>
+						</config>
+					</gutter_x>
+					<gutter_y>
+						<label>Vertikaler Spaltenabstand</label>
+						<config>
+							<type>select</type>
+							<renderType>selectSingle</renderType>
+							<items>
+								<numIndex index="0"><label>Standard</label><value></value></numIndex>
+								<numIndex index="1"><label>XS</label><value>gy-1</value></numIndex>
+								<numIndex index="2"><label>S</label><value>gy-2</value></numIndex>
+								<numIndex index="3"><label>M</label><value>gy-3</value></numIndex>
+								<numIndex index="4"><label>L</label><value>gy-4</value></numIndex>
+								<numIndex index="5"><label>XL</label><value>gy-5</value></numIndex>
+								<numIndex index="6"><label>XXL</label><value>gy-6</value></numIndex>
+							</items>
+						</config>
+					</gutter_y>
+					<add_column_1>
+						<label>Spalte 1: Zusätzliche Klasse</label>
+						<config>
+							<type>input</type>
+							<size>20</size>
+							<max>50</max>
+							<eval>trim</eval>
+						</config>
+					</add_column_1>
+					<add_column_2>
+						<label>Spalte 2: Zusätzliche Klasse</label>
+						<config>
+							<type>input</type>
+							<size>20</size>
+							<max>50</max>
+							<eval>trim</eval>
+						</config>
+					</add_column_2>
+					<add_column_3>
+						<label>Spalte 3: Zusätzliche Klasse</label>
+						<config>
+							<type>input</type>
+							<size>20</size>
+							<max>50</max>
+							<eval>trim</eval>
+						</config>
+					</add_column_3>
+					<add_column_4>
+						<label>Spalte 4: Zusätzliche Klasse</label>
+						<config>
+							<type>input</type>
+							<size>20</size>
+							<max>50</max>
+							<eval>trim</eval>
+						</config>
+					</add_column_4>
+				</el>
+			</ROOT>
+		</specials>
+	</sheets>
+</T3DataStructure>

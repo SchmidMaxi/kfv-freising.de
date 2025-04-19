@@ -25,7 +25,7 @@ use TYPO3\CMS\Core\SingletonInterface;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
- * Class IconRegistry, which makes it possible to register custom icons
+ * Class which makes it possible to register custom icons
  * from within an extension.
  */
 class IconRegistry implements SingletonInterface
@@ -61,17 +61,6 @@ class IconRegistry implements SingletonInterface
      * @var string
      */
     protected $backendIconDeclaration = 'EXT:core/Resources/Public/Icons/T3Icons/icons.json';
-
-    /**
-     * List of allowed icon file extensions with their Provider class
-     *
-     * @var string[]
-     */
-    protected $backendIconAllowedExtensionsWithProvider = [
-        'png' => BitmapIconProvider::class,
-        'webp' => BitmapIconProvider::class,
-        'svg' => SvgIconProvider::class,
-    ];
 
     /**
      * manually registered icons
@@ -327,10 +316,7 @@ class IconRegistry implements SingletonInterface
         return isset($this->deprecatedIcons[$identifier]);
     }
 
-    /**
-     * @return string
-     */
-    public function getDefaultIconIdentifier()
+    public function getDefaultIconIdentifier(): string
     {
         return $this->defaultIconIdentifier;
     }

@@ -40,10 +40,8 @@ class BackendUserGroupRepository extends Repository
 
     /**
      * Overwrite createQuery to don't respect enable fields
-     *
-     * @return QueryInterface
      */
-    public function createQuery()
+    public function createQuery(): QueryInterface
     {
         $query = parent::createQuery();
         $query->getQuerySettings()->setIgnoreEnableFields(true);
@@ -52,9 +50,6 @@ class BackendUserGroupRepository extends Repository
 
     /**
      * Get QueryBuilder without restrictions for table be_groups
-     *
-     * @param bool $removeRestrictions
-     * @return QueryBuilder
      */
     public function getQueryBuilder(bool $removeRestrictions = true): QueryBuilder
     {
@@ -73,16 +68,13 @@ class BackendUserGroupRepository extends Repository
     {
         $query = $this->createQuery();
         // being explicit here, albeit `Typo3DbQueryParser::parseDynamicOperand` uses prepared parameters
-        $uidList = array_map('intval', $uidList);
+        $uidList = array_map(intval(...), $uidList);
         $query->matching($query->in('uid', $uidList));
         return $query->execute(true);
     }
 
     /**
      * Preforms a query on be_groups, matching the field title with like
-     *
-     * @param BackendUserGroup $backendUserGroupDto
-     * @return QueryResult
      * @throws InvalidQueryException
      */
     public function findByFilter(BackendUserGroup $backendUserGroupDto): QueryResult

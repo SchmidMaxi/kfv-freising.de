@@ -19,11 +19,12 @@ namespace TYPO3\CMS\Filelist\Controller\File;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\ModuleTemplate;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Resource\Exception\InsufficientFolderAccessPermissionsException;
 use TYPO3\CMS\Core\Resource\FolderInterface;
@@ -35,6 +36,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  *
  * @internal This class is a specific Backend controller implementation and is not considered part of the Public TYPO3 API.
  */
+#[AsController]
 class FileUploadController
 {
     public function __construct(
@@ -66,7 +68,7 @@ class FileUploadController
         $returnUrl = GeneralUtility::sanitizeLocalUrl(
             $parsedBody['returnUrl']
             ?? $queryParams['returnUrl']
-            ?? (string)$this->uriBuilder->buildUriFromRoute('file_list', [
+            ?? (string)$this->uriBuilder->buildUriFromRoute('media_management', [
                 'id' => rawurlencode($targetFolderCombinedIdentifier),
             ])
         );
@@ -92,7 +94,7 @@ class FileUploadController
             ->setHref($returnUrl)
             ->setTitle($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.goBack'))
             ->setShowLabelText(true)
-            ->setIcon($this->iconFactory->getIcon('actions-view-go-back', Icon::SIZE_SMALL));
+            ->setIcon($this->iconFactory->getIcon('actions-view-go-back', IconSize::SMALL));
         $buttonBar->addButton($backButton);
     }
 

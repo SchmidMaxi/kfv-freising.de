@@ -66,16 +66,18 @@ class SelectSingleElement extends AbstractFormElement
         ],
     ];
 
+    public function __construct(
+        private readonly InlineStackProcessor $inlineStackProcessor,
+    ) {}
+
     /**
      * Render single element
      *
      * @return array As defined in initializeResultArray() of AbstractNode
      */
-    public function render()
+    public function render(): array
     {
         $resultArray = $this->initializeResultArray();
-        // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-        $resultArray['labelHasBeenHandled'] = true;
 
         $table = $this->data['tableName'];
         $field = $this->data['fieldName'];
@@ -86,13 +88,12 @@ class SelectSingleElement extends AbstractFormElement
         $classList = ['form-select', 'form-control-adapt'];
 
         // Check against inline uniqueness
-        $inlineStackProcessor = GeneralUtility::makeInstance(InlineStackProcessor::class);
-        $inlineStackProcessor->initializeByGivenStructure($this->data['inlineStructure']);
+        $this->inlineStackProcessor->initializeByGivenStructure($this->data['inlineStructure']);
         $uniqueIds = [];
         if (($this->data['isInlineChild'] ?? false) && ($this->data['inlineParentUid'] ?? false)) {
             // If config[foreign_unique] is set for the parent inline field, all
             // already used unique ids must be excluded from the select items.
-            $inlineObjectName = $inlineStackProcessor->getCurrentStructureDomObjectIdPrefix($this->data['inlineFirstPid']);
+            $inlineObjectName = $this->inlineStackProcessor->getCurrentStructureDomObjectIdPrefix($this->data['inlineFirstPid']);
             if (($this->data['inlineParentConfig']['foreign_table'] ?? false) === $table
                 && ($this->data['inlineParentConfig']['foreign_unique'] ?? false) === $field
             ) {
@@ -108,12 +109,12 @@ class SelectSingleElement extends AbstractFormElement
             ) {
                 $uniqueIds[] = $this->data['inlineParentUid'];
             }
-            $uniqueIds = array_map(static fn($item) => (int)$item, $uniqueIds);
+            $uniqueIds = array_map(intval(...), $uniqueIds);
         }
 
         // Initialization:
         $selectId = StringUtility::getUniqueId('tceforms-select-');
-        $selectedIcon = '';
+        $selectedItem = null;
         $size = (int)($config['size'] ?? 0);
 
         // Style set on <select/>
@@ -152,25 +153,18 @@ class SelectSingleElement extends AbstractFormElement
                 ];
             } elseif ($selected || !in_array((int)$item['value'], $uniqueIds, true)) {
                 $icon = !empty($item['icon']) ? FormEngineUtility::getIconHtml($item['icon'], $item['label'], $item['label']) : '';
-
-                if ($selected) {
-                    $selectedIcon = $icon;
-                }
-
-                $selectItemGroups[$selectItemGroupCount]['items'][] = [
+                $enhancedItem = [
                     'title' => $this->appendValueToLabelInDebugMode($item['label'], $item['value']),
                     'value' => $item['value'],
                     'icon' => $icon,
                     'selected' => $selected,
                 ];
+                if ($selected) {
+                    $selectedItem = $enhancedItem;
+                }
+                $selectItemGroups[$selectItemGroupCount]['items'][] = $enhancedItem;
                 $selectItemCounter++;
             }
-        }
-
-        // Fallback icon
-        // @todo: assign a special icon for non matching values?
-        if (!$selectedIcon && !empty($selectItemGroups[0]['items'][0]['icon'])) {
-            $selectedIcon = $selectItemGroups[0]['items'][0]['icon'];
         }
 
         // Process groups
@@ -188,11 +182,23 @@ class SelectSingleElement extends AbstractFormElement
                     $options .= '<option value="' . htmlspecialchars($item['value']) . '" data-icon="' .
                         htmlspecialchars($item['icon']) . '"'
                         . ($item['selected'] ? ' selected="selected"' : '') . '>' . htmlspecialchars((string)($item['title'] ?? ''), ENT_COMPAT, 'UTF-8', false) . '</option>';
-                }
-                $hasIcons = !empty($item['icon']);
-            }
 
+                    // At least one select item with icon found.
+                    if (!empty($item['icon'])) {
+                        $hasIcons = true;
+                    }
+                }
+            }
             $options .= ($optionGroup ? '</optgroup>' : '');
+        }
+
+        // No item selected. Use first item of first group as selected item, which is display
+        // in the form to render icon of that item icon as selected icon when item has one.
+        if ($hasIcons
+            && $selectedItem === null
+            && isset($selectItemGroups[0]['items'][0])
+        ) {
+            $selectedItem = $selectItemGroups[0]['items'][0];
         }
 
         $selectAttributes = [
@@ -226,11 +232,13 @@ class SelectSingleElement extends AbstractFormElement
         $html[] = $fieldInformationHtml;
         $html[] =   '<div class="form-control-wrap">';
         $html[] =       '<div class="form-wizards-wrap">';
-        $html[] =           '<div class="form-wizards-element">';
+        $html[] =           '<div class="form-wizards-item-element">';
         if ($hasIcons) {
             $html[] =           '<div class="input-group">';
-            $html[] =               '<span class="input-group-addon input-group-icon">';
-            $html[] =                   $selectedIcon;
+            $html[] =               '<span class="input-group-text input-group-icon">';
+            if ($selectedItem !== null) {
+                $html[] =              $selectedItem['icon'];
+            }
             $html[] =               '</span>';
         }
         $html[] =                   '<select ' . GeneralUtility::implodeAttributes($selectAttributes, true) . '>';
@@ -241,14 +249,14 @@ class SelectSingleElement extends AbstractFormElement
         }
         $html[] =           '</div>';
         if (!$disabled && !empty($fieldControlHtml)) {
-            $html[] =      '<div class="form-wizards-items-aside form-wizards-items-aside--field-control">';
+            $html[] =      '<div class="form-wizards-item-aside form-wizards-item-aside--field-control">';
             $html[] =          '<div class="btn-group">';
             $html[] =              $fieldControlHtml;
             $html[] =          '</div>';
             $html[] =      '</div>';
         }
         if (!$disabled && !empty($fieldWizardHtml)) {
-            $html[] =       '<div class="form-wizards-items-bottom">';
+            $html[] =       '<div class="form-wizards-item-bottom">';
             $html[] =           $fieldWizardHtml;
             $html[] =       '</div>';
         }

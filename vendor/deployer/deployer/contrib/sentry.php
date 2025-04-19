@@ -1,4 +1,5 @@
 <?php
+
 /*
 
 ### Configuration options
@@ -54,6 +55,7 @@ after('deploy', 'deploy:sentry');
 ```
 
  */
+
 namespace Deployer;
 
 use Closure;
@@ -99,19 +101,19 @@ task(
         ) {
             throw new \RuntimeException(
                 <<<EXAMPLE
-Required data missing. Please configure sentry:
-set(
-    'sentry',
-    [
-        'organization' => 'exampleorg',
-        'projects' => [
-            'exampleproj',
-            'exampleproje2'
-        ],
-        'token' => 'd47828...',
-    ]
-);"
-EXAMPLE
+                    Required data missing. Please configure sentry:
+                    set(
+                        'sentry',
+                        [
+                            'organization' => 'exampleorg',
+                            'projects' => [
+                                'exampleproj',
+                                'exampleproje2'
+                            ],
+                            'token' => 'd47828...',
+                        ]
+                    );"
+                    EXAMPLE
             );
         }
 
@@ -132,6 +134,7 @@ EXAMPLE
         $response = Httpie::post(
             $releasesApiUrl
         )
+            ->setopt(CURLOPT_TIMEOUT, 10)
             ->header('Authorization', sprintf('Bearer %s', $config['token']))
             ->jsonBody($releaseData)
             ->getJson();
@@ -162,6 +165,7 @@ EXAMPLE
         $response = Httpie::post(
             $releasesApiUrl . $response['version'] . '/deploys/'
         )
+            ->setopt(CURLOPT_TIMEOUT, 10)
             ->header('Authorization', sprintf('Bearer %s', $config['token']))
             ->jsonBody($deployData)
             ->getJson();
@@ -255,14 +259,13 @@ function getGitCommitsRefs(): Closure
         try {
             if (get('update_code_strategy') === 'archive') {
                 cd('{{deploy_path}}/.dep/repo');
-            }
-            else {
+            } else {
                 cd('{{release_path}}');
             }
 
             $result = run(sprintf('git rev-list --pretty="%s" %s', 'format:%H#%an#%ae#%at#%s', $commitRange));
             $lines = array_filter(
-            // limit number of commits for first release with many commits
+                // limit number of commits for first release with many commits
                 array_map('trim', array_slice(explode("\n", $result), 0, 200)),
                 static function (string $line): bool {
                     return !empty($line) && strpos($line, 'commit') !== 0;

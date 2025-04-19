@@ -48,6 +48,31 @@ use TYPO3\CMS\Core\Versioning\VersionState;
  */
 abstract class AbstractItemProvider
 {
+    private IconFactory $iconFactory;
+    private FileRepository $fileRepository;
+    private FlashMessageService $flashMessageService;
+    private ConnectionPool $connectionPool;
+
+    public function injectIconFactory(IconFactory $iconFactory): void
+    {
+        $this->iconFactory = $iconFactory;
+    }
+
+    public function injectFileRepository(FileRepository $fileRepository): void
+    {
+        $this->fileRepository = $fileRepository;
+    }
+
+    public function injectFlashMessageService(FlashMessageService $flashMessageService): void
+    {
+        $this->flashMessageService = $flashMessageService;
+    }
+
+    public function injectConnectionPool(ConnectionPool $connectionPool): void
+    {
+        $this->connectionPool = $connectionPool;
+    }
+
     /**
      * Resolve "itemProcFunc" of elements.
      *
@@ -96,12 +121,12 @@ abstract class AbstractItemProvider
         }
         try {
             $items = array_map(
-                fn(array $item) => SelectItem::fromTcaItemArray($item, $config['type']),
+                fn(array $item): SelectItem => SelectItem::fromTcaItemArray($item, $config['type']),
                 $items
             );
             GeneralUtility::callUserFunction($config['itemsProcFunc'], $processorParameters, $this);
             $items = array_map(
-                fn($item) => $item instanceof SelectItem ? $item : SelectItem::fromTcaItemArray($item, $config['type']),
+                fn(SelectItem|array $item): SelectItem => $item instanceof SelectItem ? $item : SelectItem::fromTcaItemArray($item, $config['type']),
                 $processorParameters['items']
             );
         } catch (\Exception $exception) {
@@ -123,8 +148,7 @@ abstract class AbstractItemProvider
                 ContextualFeedbackSeverity::ERROR,
                 true
             );
-            $flashMessageService = GeneralUtility::makeInstance(FlashMessageService::class);
-            $defaultFlashMessageQueue = $flashMessageService->getMessageQueueByIdentifier();
+            $defaultFlashMessageQueue = $this->flashMessageService->getMessageQueueByIdentifier();
             $defaultFlashMessageQueue->enqueue($flashMessage);
         }
 
@@ -259,15 +283,13 @@ abstract class AbstractItemProvider
      * @param array $result Result array
      * @param string $fieldName Current handled field name
      * @param array $items Incoming items
-     * @param bool $includeFullRows @internal Hack for category tree to speed up tree processing, adding full db row as _row to item
+     * @param bool $includeFullRows @internal Hack for category tree to speed up tree processing, adding full db row as
+     *                              _row to item
      * @return array Modified item array
      * @throws \UnexpectedValueException
      */
     protected function addItemsFromForeignTable(array $result, $fieldName, array $items, bool $includeFullRows = false)
     {
-        $databaseError = null;
-        $queryResult = null;
-        // Guard
         if (empty($result['processedTca']['columns'][$fieldName]['config']['foreign_table'])
             || !is_string($result['processedTca']['columns'][$fieldName]['config']['foreign_table'])
         ) {
@@ -290,17 +312,11 @@ abstract class AbstractItemProvider
         try {
             $queryResult = $queryBuilder->executeQuery();
         } catch (DBALException $e) {
-            $databaseError = $e->getPrevious()->getMessage();
-        }
-
-        // Early return on error with flash message
-        if (!empty($databaseError)) {
-            $msg = $databaseError . '. ';
-            $msg .= $languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:error.database_schema_mismatch');
+            // Early return on error with flash message
+            $msg = $e->getMessage() . '. ' . $languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:error.database_schema_mismatch');
             $msgTitle = $languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:error.database_schema_mismatch_title');
             $flashMessage = GeneralUtility::makeInstance(FlashMessage::class, $msg, $msgTitle, ContextualFeedbackSeverity::ERROR, true);
-            $flashMessageService = GeneralUtility::makeInstance(FlashMessageService::class);
-            $defaultFlashMessageQueue = $flashMessageService->getMessageQueueByIdentifier();
+            $defaultFlashMessageQueue = $this->flashMessageService->getMessageQueueByIdentifier();
             $defaultFlashMessageQueue->enqueue($flashMessage);
             return $items;
         }
@@ -311,14 +327,12 @@ abstract class AbstractItemProvider
             $labelPrefix = $languageService->sL($labelPrefix);
         }
 
-        $fileRepository = GeneralUtility::makeInstance(FileRepository::class);
-        $iconFactory = GeneralUtility::makeInstance(IconFactory::class);
-
         $allForeignRows = $queryResult->fetchAllAssociative();
         // Find all possible versioned records of the current IDs, so we do not need to overlay each record
         // This way, workspaceOL() does not need to be called for each record.
         $workspaceId = $this->getBackendUser()->workspace;
         $doOverlaysForRecords = BackendUtility::getPossibleWorkspaceVersionIdsOfLiveRecordIds($foreignTable, array_column($allForeignRows, 'uid'), $workspaceId);
+        $itemGroupField = $result['processedTca']['columns'][$fieldName]['config']['foreign_table_item_group'] ?? '';
 
         foreach ($allForeignRows as $foreignRow) {
             // Only do workspace overlays when a versioned record exists.
@@ -327,7 +341,7 @@ abstract class AbstractItemProvider
             }
             // Only proceed in case the row was not unset and we don't deal with a delete placeholder
             if (is_array($foreignRow)
-                && !VersionState::cast($foreignRow['t3ver_state'] ?? 0)->equals(VersionState::DELETE_PLACEHOLDER)
+                && VersionState::tryFrom($foreignRow['t3ver_state'] ?? 0) !== VersionState::DELETE_PLACEHOLDER
             ) {
                 // If the foreign table sets selicon_field, this field can contain an image
                 // that represents this specific row.
@@ -341,19 +355,20 @@ abstract class AbstractItemProvider
                 }
                 $icon = '';
                 if ($isFileReference) {
-                    $references = $fileRepository->findByRelation($foreignTable, $iconFieldName, $foreignRow['uid']);
-                    if (is_array($references) && !empty($references)) {
+                    $references = $this->fileRepository->findByRelation($foreignTable, $iconFieldName, $foreignRow['uid']);
+                    if (!empty($references)) {
                         $icon = reset($references);
                         $icon = $icon->getPublicUrl();
                     }
                 } else {
                     // Else, determine icon based on record type, or a generic fallback
-                    $icon = $iconFactory->mapRecordTypeToIconIdentifier($foreignTable, $foreignRow);
+                    $icon = $this->iconFactory->mapRecordTypeToIconIdentifier($foreignTable, $foreignRow);
                 }
                 $item = [
                     'label' => $labelPrefix . BackendUtility::getRecordTitle($foreignTable, $foreignRow),
                     'value' => $foreignRow['uid'],
                     'icon' => $icon,
+                    'group' => $foreignRow[$itemGroupField] ?? null,
                 ];
                 if ($includeFullRows) {
                     // @todo: This is part of the category tree performance hack
@@ -539,7 +554,7 @@ abstract class AbstractItemProvider
         }
 
         $allowedStorageIds = array_map(
-            static function (ResourceStorage $storage) {
+            static function (ResourceStorage $storage): int {
                 return $storage->getUid();
             },
             $this->getBackendUser()->getFileStorages()
@@ -547,7 +562,7 @@ abstract class AbstractItemProvider
 
         return array_filter(
             $items,
-            static function (array $item) use ($allowedStorageIds) {
+            static function (array $item) use ($allowedStorageIds): bool {
                 $itemValue = $item['value'] ?? null;
                 return empty($itemValue)
                     || in_array((int)$itemValue, $allowedStorageIds, true);
@@ -578,8 +593,11 @@ abstract class AbstractItemProvider
             $fieldList = GeneralUtility::trimExplode(',', $fieldList, true);
         }
 
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
-            ->getQueryBuilderForTable($foreignTableName);
+        if ($result['processedTca']['columns'][$localFieldName]['config']['foreign_table_item_group'] ?? false) {
+            $fieldList[] = $foreignTableName . '.' . $result['processedTca']['columns'][$localFieldName]['config']['foreign_table_item_group'];
+        }
+
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable($foreignTableName);
 
         $queryBuilder->getRestrictions()
             ->removeAll()
@@ -660,7 +678,7 @@ abstract class AbstractItemProvider
                 ->andWhere(
                     $queryBuilder->expr()->neq(
                         $foreignTableName . '.t3ver_state',
-                        $queryBuilder->createNamedParameter(VersionState::MOVE_POINTER, Connection::PARAM_INT)
+                        $queryBuilder->createNamedParameter(VersionState::MOVE_POINTER->value, Connection::PARAM_INT)
                     )
                 );
         }
@@ -686,7 +704,7 @@ abstract class AbstractItemProvider
      */
     protected function processForeignTableClause(array $result, $foreignTableName, $localFieldName)
     {
-        $connection = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable($foreignTableName);
+        $connection = $this->connectionPool->getConnectionForTable($foreignTableName);
         $localTable = $result['tableName'];
         $effectivePid = $result['effectivePid'];
 
@@ -713,7 +731,7 @@ abstract class AbstractItemProvider
                             // Pick the first one (always on 0), and use uid only.
                             $rowFieldValue = $rowFieldValue[0]['uid'] ?? $rowFieldValue[0] ?? '';
                         }
-                        if (substr($whereClauseParts[0], -1) === '\'' && $whereClauseSubParts[1][0] === '\'') {
+                        if (str_ends_with($whereClauseParts[0], '\'') && $whereClauseSubParts[1][0] === '\'') {
                             $whereClauseParts[0] = substr($whereClauseParts[0], 0, -1);
                             $whereClauseSubParts[1] = substr($whereClauseSubParts[1], 1);
                         }
@@ -856,7 +874,7 @@ abstract class AbstractItemProvider
 
         $replacements = [];
         $configuration = $site->getConfiguration();
-        array_walk($matches, static function ($match) use (&$replacements, &$configuration) {
+        array_walk($matches, static function (array $match) use (&$replacements, &$configuration): void {
             $key = $match[1];
             try {
                 $value = ArrayUtility::getValueByPath($configuration, $key, '.');
@@ -919,9 +937,9 @@ abstract class AbstractItemProvider
         $parsedSiteConfiguration = $this->parseSiteConfiguration($result['site'], $fieldConfig['config']['treeConfig']['startingPoints']);
         if ($parsedSiteConfiguration !== []) {
             // $this->quoteParsedSiteConfiguration() is omitted on purpose, all values are cast to integers
-            $parsedSiteConfiguration = array_unique(array_map(static function ($value): string {
+            $parsedSiteConfiguration = array_unique(array_map(static function (array|string|int $value): string {
                 if (is_array($value)) {
-                    return implode(',', array_map('intval', $value));
+                    return implode(',', array_map(intval(...), $value));
                 }
 
                 return implode(',', GeneralUtility::intExplode(',', (string)$value, true));
@@ -949,6 +967,9 @@ abstract class AbstractItemProvider
         $currentDatabaseValues = array_key_exists($fieldName, $row)
             ? $row[$fieldName]
             : '';
+        if ($currentDatabaseValues === null) {
+            return [];
+        }
         if (!is_array($currentDatabaseValues)) {
             $currentDatabaseValues = GeneralUtility::trimExplode(',', $currentDatabaseValues, true);
         }

@@ -18,7 +18,9 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Backend\Form\Element;
 
 use TYPO3\CMS\Backend\Controller\FormSlugAjaxController;
-use TYPO3\CMS\Core\Imaging\Icon;
+use TYPO3\CMS\Core\Crypto\HashService;
+use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Page\JavaScriptModuleInstruction;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\MathUtility;
@@ -63,19 +65,22 @@ class InputSlugElement extends AbstractFormElement
         ],
     ];
 
+    public function __construct(
+        private readonly IconFactory $iconFactory,
+        private readonly HashService $hashService,
+    ) {}
+
     /**
      * This will render a single-line input form field, possibly with various control/validation features
      *
      * @return array As defined in initializeResultArray() of AbstractNode
      */
-    public function render()
+    public function render(): array
     {
         $table = $this->data['tableName'];
         $row = $this->data['databaseRow'];
         $parameterArray = $this->data['parameterArray'];
         $resultArray = $this->initializeResultArray();
-        // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-        $resultArray['labelHasBeenHandled'] = true;
 
         $languageId = 0;
         if (isset($GLOBALS['TCA'][$table]['ctrl']['languageField']) && !empty($GLOBALS['TCA'][$table]['ctrl']['languageField'])) {
@@ -120,9 +125,9 @@ class InputSlugElement extends AbstractFormElement
             $html[] =     $fieldInformationHtml;
             $html[] =     '<div class="form-control-wrap" style="max-width: ' . $width . 'px">';
             $html[] =         '<div class="form-wizards-wrap">';
-            $html[] =             '<div class="form-wizards-element">';
+            $html[] =             '<div class="form-wizards-item-element">';
             $html[] =                 '<div class="input-group">';
-            $html[] =                     ($baseUrl ? '<span class="input-group-addon">' . htmlspecialchars($baseUrl) . '</span>' : '');
+            $html[] =                     ($baseUrl ? '<span class="input-group-text">' . htmlspecialchars($baseUrl) . '</span>' : '');
             $html[] =                     '<input ' . GeneralUtility::implodeAttributes($disabledFieldAttributes, true) . ' disabled>';
             $html[] =                 '</div>';
             $html[] =             '</div>';
@@ -152,9 +157,9 @@ class InputSlugElement extends AbstractFormElement
         $mainFieldHtml[] =  $fieldInformationHtml;
         $mainFieldHtml[] =  '<div class="form-control-wrap" style="max-width: ' . $width . 'px" id="' . htmlspecialchars($thisSlugId) . '">';
         $mainFieldHtml[] =      '<div class="form-wizards-wrap">';
-        $mainFieldHtml[] =          '<div class="form-wizards-element">';
+        $mainFieldHtml[] =          '<div class="form-wizards-item-element">';
         $mainFieldHtml[] =              '<div class="input-group">';
-        $mainFieldHtml[] =                  ($baseUrl ? '<span class="input-group-addon">' . htmlspecialchars($baseUrl) . '</span>' : '');
+        $mainFieldHtml[] =                  ($baseUrl ? '<span class="input-group-text">' . htmlspecialchars($baseUrl) . '</span>' : '');
         // We deal with 3 fields here: a readonly field for current / default values, an input
         // field to manipulate the value, and the final hidden field used to send the value
         $mainFieldHtml[] =                  '<input';
@@ -177,29 +182,33 @@ class InputSlugElement extends AbstractFormElement
         $mainFieldHtml[] =                      ' value="' . htmlspecialchars($itemValue) . '"';
         $mainFieldHtml[] =                  ' />';
         $mainFieldHtml[] =                  '<button class="btn btn-default t3js-form-field-slug-toggle" type="button" title="' . htmlspecialchars($toggleButtonTitle) . '">';
-        $mainFieldHtml[] =                      $this->iconFactory->getIcon('actions-version-workspaces-preview-link', Icon::SIZE_SMALL)->render();
+        $mainFieldHtml[] =                      $this->iconFactory->getIcon('actions-version-workspaces-preview-link', IconSize::SMALL)->render();
         $mainFieldHtml[] =                  '</button>';
         $mainFieldHtml[] =                  '<button class="btn btn-default t3js-form-field-slug-recreate" type="button" title="' . htmlspecialchars($recreateButtonTitle) . '">';
-        $mainFieldHtml[] =                      $this->iconFactory->getIcon('actions-refresh', Icon::SIZE_SMALL)->render();
+        $mainFieldHtml[] =                      $this->iconFactory->getIcon('actions-refresh', IconSize::SMALL)->render();
         $mainFieldHtml[] =                  '</button>';
         $mainFieldHtml[] =              '</div>';
         $mainFieldHtml[] =          '</div>';
         if (!empty($fieldControlHtml)) {
-            $mainFieldHtml[] =      '<div class="form-wizards-items-aside form-wizards-items-aside--field-control">';
+            $mainFieldHtml[] =      '<div class="form-wizards-item-aside form-wizards-item-aside--field-control">';
             $mainFieldHtml[] =          '<div class="btn-group">';
             $mainFieldHtml[] =              $fieldControlHtml;
             $mainFieldHtml[] =          '</div>';
             $mainFieldHtml[] =      '</div>';
         }
-        $mainFieldHtml[] =          '<div class="form-wizards-items-bottom">';
+        $mainFieldHtml[] =          '<div class="form-wizards-item-bottom">';
         $mainFieldHtml[] =              '<div class="t3js-form-proposal-accepted callout callout-success hidden mt-3 mb-0">';
-        $mainFieldHtml[] =                  '<div class="callout-body">';
-        $mainFieldHtml[] =                      sprintf(htmlspecialchars($successMessage), '<samp class="text-nowrap">' . htmlspecialchars($baseUrl) . '<span class="fw-bold">/abc/</span></samp>');
+        $mainFieldHtml[] =                  '<div class="callout-content">';
+        $mainFieldHtml[] =                      '<div class="callout-body">';
+        $mainFieldHtml[] =                          sprintf(htmlspecialchars($successMessage), '<samp class="text-nowrap">' . htmlspecialchars($baseUrl) . '<span class="fw-bold">/abc/</span></samp>');
+        $mainFieldHtml[] =                      '</div>';
         $mainFieldHtml[] =                  '</div>';
         $mainFieldHtml[] =              '</div>';
         $mainFieldHtml[] =              '<div class="t3js-form-proposal-different callout callout-warning hidden mt-3 mb-0">';
-        $mainFieldHtml[] =                  '<div class="callout-body">';
-        $mainFieldHtml[] =                      sprintf(htmlspecialchars($errorMessage), '<samp class="text-nowrap">' . htmlspecialchars($baseUrl) . '<span class="fw-bold">/abc/</span></samp>');
+        $mainFieldHtml[] =                  '<div class="callout-content">';
+        $mainFieldHtml[] =                      '<div class="callout-body">';
+        $mainFieldHtml[] =                          sprintf(htmlspecialchars($errorMessage), '<samp class="text-nowrap">' . htmlspecialchars($baseUrl) . '<span class="fw-bold">/abc/</span></samp>');
+        $mainFieldHtml[] =                      '</div>';
         $mainFieldHtml[] =                  '</div>';
         $mainFieldHtml[] =              '</div>';
         $mainFieldHtml[] =              $fieldWizardHtml;
@@ -226,7 +235,7 @@ class InputSlugElement extends AbstractFormElement
             }
         }
         $parentPageId = $this->data['parentPageRow']['uid'] ?? 0;
-        $signature = GeneralUtility::hmac(
+        $signature = $this->hashService->hmac(
             implode(
                 '',
                 [

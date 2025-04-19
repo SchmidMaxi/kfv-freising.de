@@ -9,7 +9,6 @@ return [
         'title' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:pages',
         'type' => 'doktype',
         'versioningWS' => true,
-        'origUid' => 't3_origuid',
         'delete' => 'deleted',
         'crdate' => 'crdate',
         'hideAtCopy' => true,
@@ -49,8 +48,6 @@ return [
             '254' => 'apps-pagetree-folder-default',
             '254-hideinmenu' => 'apps-pagetree-folder-default',
             '254-root' => 'apps-pagetree-page-domain',
-            '255' => 'apps-pagetree-page-recycler',
-            '255-hideinmenu' => 'apps-pagetree-page-recycler',
             'contains-shop' => 'apps-pagetree-folder-contains-shop',
             'contains-approve' => 'apps-pagetree-folder-contains-approve',
             'contains-fe_users' => 'apps-pagetree-folder-contains-fe_users',
@@ -63,10 +60,6 @@ return [
         ],
         'searchFields' => 'title,nav_title,subtitle,url,slug,keywords,description,abstract,author,author_email',
     ],
-    'interface' => [
-        'maxDBListItems' => 30,
-        'maxSingleDBListItems' => 50,
-    ],
     'columns' => [
         'doktype' => [
             'exclude' => true,
@@ -75,11 +68,6 @@ return [
                 'type' => 'select',
                 'renderType' => 'selectSingle',
                 'items' => [
-                    [
-                        'label' => 'LLL:EXT:frontend/Resources/Private/Language/locallang_tca.xlf:pages.doktype.div.page',
-                        'value' => '--div--',
-                        'group' => 'default',
-                    ],
                     [
                         'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:doktype.I.0',
                         'value' => (string)\TYPO3\CMS\Core\Domain\Repository\PageRepository::DOKTYPE_DEFAULT,
@@ -91,11 +79,6 @@ return [
                         'value' => (string)\TYPO3\CMS\Core\Domain\Repository\PageRepository::DOKTYPE_BE_USER_SECTION,
                         'icon' => 'apps-pagetree-page-backend-users',
                         'group' => 'default',
-                    ],
-                    [
-                        'label' => 'LLL:EXT:frontend/Resources/Private/Language/locallang_tca.xlf:pages.doktype.div.link',
-                        'value' => '--div--',
-                        'group' => 'link',
                     ],
                     [
                         'label' => 'LLL:EXT:frontend/Resources/Private/Language/locallang_tca.xlf:pages.doktype.I.2',
@@ -116,20 +99,9 @@ return [
                         'group' => 'link',
                     ],
                     [
-                        'label' => 'LLL:EXT:frontend/Resources/Private/Language/locallang_tca.xlf:pages.doktype.div.special',
-                        'value' => '--div--',
-                        'group' => 'special',
-                    ],
-                    [
                         'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:doktype.I.folder',
                         'value' => (string)\TYPO3\CMS\Core\Domain\Repository\PageRepository::DOKTYPE_SYSFOLDER,
                         'icon' => 'apps-pagetree-folder-default',
-                        'group' => 'special',
-                    ],
-                    [
-                        'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:doktype.I.2',
-                        'value' => (string)\TYPO3\CMS\Core\Domain\Repository\PageRepository::DOKTYPE_RECYCLER,
-                        'icon' => 'apps-filetree-folder-recycler',
                         'group' => 'special',
                     ],
                     [
@@ -158,18 +130,8 @@ return [
                 'eval' => 'trim',
             ],
         ],
-        'rowDescription' => [
-            'exclude' => true,
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.description',
-            'config' => [
-                'type' => 'text',
-                'rows' => 5,
-                'cols' => 30,
-            ],
-        ],
         'slug' => [
             'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:pages.slug',
-            'displayCond' => 'USER:' . \TYPO3\CMS\Core\Compatibility\PseudoSiteTcaDisplayCondition::class . '->isInPseudoSite:pages:false',
             'config' => [
                 'type' => 'slug',
                 'size' => 50,
@@ -204,93 +166,9 @@ return [
                 'renderType' => 'checkboxToggle',
             ],
         ],
-        'editlock' => [
-            'displayCond' => 'HIDE_FOR_NON_ADMINS',
-            'l10n_mode' => 'exclude',
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:editlock',
-            'config' => [
-                'type' => 'check',
-                'renderType' => 'checkboxToggle',
-            ],
-        ],
-        'hidden' => [
-            'exclude' => true,
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:pages.hidden_toggle',
-            'config' => [
-                'type' => 'check',
-                'renderType' => 'checkboxToggle',
-                'default' => 1,
-                'items' => [
-                    [
-                        'label' => '',
-                        'invertStateDisplay' => true,
-                    ],
-                ],
-            ],
-        ],
-        'starttime' => [
-            'exclude' => true,
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.starttime',
-            'config' => [
-                'type' => 'datetime',
-                'default' => 0,
-                'behaviour' => [
-                    'allowLanguageSynchronization' => true,
-                ],
-            ],
-        ],
-        'endtime' => [
-            'exclude' => true,
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.endtime',
-            'config' => [
-                'type' => 'datetime',
-                'default' => 0,
-                'range' => [
-                    'upper' => mktime(0, 0, 0, 1, 1, 2038),
-                ],
-                'behaviour' => [
-                    'allowLanguageSynchronization' => true,
-                ],
-            ],
-        ],
-        'l10n_parent' => [
-            'displayCond' => 'FIELD:sys_language_uid:>:0',
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.l18n_parent',
-            'config' => [
-                'type' => 'select',
-                'renderType' => 'selectSingle',
-                'items' => [
-                    [
-                        'label' => '',
-                        'value' => 0,
-                    ],
-                ],
-                'foreign_table' => 'pages',
-                // no sys_language_uid = -1 allowed explicitly!
-                'foreign_table_where' => 'AND {#pages}.{#uid}=###CURRENT_PID### AND {#pages}.{#sys_language_uid} = 0',
-                'default' => 0,
-            ],
-        ],
-        'sys_language_uid' => [
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.language',
-            'config' => [
-                'type' => 'language',
-            ],
-        ],
         'categories' => [
             'config' => [
                 'type' => 'category',
-            ],
-        ],
-        'l10n_diffsource' => [
-            'config' => [
-                'type' => 'passthrough',
-                'default' => '',
-            ],
-        ],
-        'l10n_source' => [
-            'config' => [
-                'type' => 'passthrough',
             ],
         ],
         'layout' => [
@@ -319,33 +197,6 @@ return [
                     ],
                 ],
                 'default' => 0,
-            ],
-        ],
-        'fe_group' => [
-            'exclude' => true,
-            'l10n_mode' => 'exclude',
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.fe_group',
-            'config' => [
-                'type' => 'select',
-                'renderType' => 'selectMultipleSideBySide',
-                'size' => 7,
-                'maxitems' => 20,
-                'items' => [
-                    [
-                        'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.hide_at_login',
-                        'value' => -1,
-                    ],
-                    [
-                        'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.any_login',
-                        'value' => -2,
-                    ],
-                    [
-                        'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.usergroups',
-                        'value' => '--div--',
-                    ],
-                ],
-                'exclusiveKeys' => '-1,-2',
-                'foreign_table' => 'fe_groups',
             ],
         ],
         'extendToSubpages' => [
@@ -537,7 +388,7 @@ return [
                 'type' => 'group',
                 'allowed' => 'pages',
                 'size' => 1,
-                'maxitems' => 1,
+                'relationship' => 'manyToOne',
                 'suggestOptions' => [
                     'default' => [
                         'additionalSearchFields' => 'nav_title, url',
@@ -587,7 +438,7 @@ return [
                 'type' => 'group',
                 'allowed' => 'pages',
                 'size' => 1,
-                'maxitems' => 1,
+                'relationship' => 'manyToOne',
                 'suggestOptions' => [
                     'default' => [
                         'additionalSearchFields' => 'nav_title, url',
@@ -607,7 +458,7 @@ return [
                 'type' => 'group',
                 'allowed' => 'pages',
                 'size' => 1,
-                'maxitems' => 1,
+                'relationship' => 'manyToOne',
                 'default' => 0,
             ],
         ],
@@ -624,7 +475,7 @@ return [
         'description' => [
             'exclude' => true,
             'l10n_mode' => 'prefixLangTitle',
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.description',
+            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:pages.description',
             'config' => [
                 'type' => 'text',
                 'cols' => 40,
@@ -648,7 +499,7 @@ return [
                 'type' => 'input',
                 'size' => 23,
                 'eval' => 'trim',
-                'max' => 80,
+                'max' => 255,
                 'behaviour' => [
                     'allowLanguageSynchronization' => true,
                 ],
@@ -673,37 +524,22 @@ return [
                 'behaviour' => [
                     'allowLanguageSynchronization' => true,
                 ],
-                // Use the imageoverlayPalette instead of the basicoverlayPalette
+                // @todo Only kept for backwards compatibility. Remove in v14.
                 'overrideChildTca' => [
                     'types' => [
                         '0' => [
                             'showitem' => '
-                                    --palette--;;imageoverlayPalette,
+                                    --palette--;;extendedBasicOverlayPalette,
                                     --palette--;;filePalette',
                         ],
-                        \TYPO3\CMS\Core\Resource\File::FILETYPE_TEXT => [
+                        \TYPO3\CMS\Core\Resource\FileType::TEXT->value => [
                             'showitem' => '
-                                    --palette--;;imageoverlayPalette,
+                                    --palette--;;extendedBasicOverlayPalette,
                                     --palette--;;filePalette',
                         ],
-                        \TYPO3\CMS\Core\Resource\File::FILETYPE_IMAGE => [
+                        \TYPO3\CMS\Core\Resource\FileType::APPLICATION->value => [
                             'showitem' => '
-                                    --palette--;;imageoverlayPalette,
-                                    --palette--;;filePalette',
-                        ],
-                        \TYPO3\CMS\Core\Resource\File::FILETYPE_AUDIO => [
-                            'showitem' => '
-                                    --palette--;;audioOverlayPalette,
-                                    --palette--;;filePalette',
-                        ],
-                        \TYPO3\CMS\Core\Resource\File::FILETYPE_VIDEO => [
-                            'showitem' => '
-                                    --palette--;;videoOverlayPalette,
-                                    --palette--;;filePalette',
-                        ],
-                        \TYPO3\CMS\Core\Resource\File::FILETYPE_APPLICATION => [
-                            'showitem' => '
-                                    --palette--;;imageoverlayPalette,
+                                    --palette--;;extendedBasicOverlayPalette,
                                     --palette--;;filePalette',
                         ],
                     ],
@@ -792,7 +628,7 @@ return [
                         'renderType' => 'backendLayoutFromParentPage',
                     ],
                 ],
-                'maxitems' => 1,
+                'dbFieldLength' => 64,
             ],
         ],
         'backend_layout_next_level' => [
@@ -812,7 +648,7 @@ return [
                         'disabled' => false,
                     ],
                 ],
-                'maxitems' => 1,
+                'dbFieldLength' => 64,
             ],
         ],
         'tsconfig_includes' => [
@@ -1018,22 +854,6 @@ return [
                 --div--;LLL:EXT:frontend/Resources/Private/Language/locallang_tca.xlf:pages.tabs.resources,
                     --palette--;;media,
                     --palette--;;config,
-                --div--;LLL:EXT:frontend/Resources/Private/Language/locallang_tca.xlf:pages.tabs.access,
-                    --palette--;;hiddenonly,
-                    --palette--;;adminsonly,
-                --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:categories,
-                    categories,
-                --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:notes,
-                    rowDescription,
-                --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:extended,
-            ',
-        ],
-        // Trash
-        (string)\TYPO3\CMS\Core\Domain\Repository\PageRepository::DOKTYPE_RECYCLER => [
-            'showitem' => '
-                --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:general,
-                    --palette--;;standard,
-                    --palette--;;titleonly,
                 --div--;LLL:EXT:frontend/Resources/Private/Language/locallang_tca.xlf:pages.tabs.access,
                     --palette--;;hiddenonly,
                     --palette--;;adminsonly,

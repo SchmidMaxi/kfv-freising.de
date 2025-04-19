@@ -93,7 +93,7 @@ class TcaCategory extends AbstractItemProvider implements FormDataProviderInterf
                 $dynamicItems = $this->removeItemsByKeepItemsPageTsConfig($result, $fieldName, $dynamicItems);
                 $dynamicItems = $this->removeItemsByRemoveItemsPageTsConfig($result, $fieldName, $dynamicItems);
                 // Finally, the only data needed for the tree code are the valid uids of the possible records
-                $uidListOfAllDynamicItems = array_map('intval', array_filter(
+                $uidListOfAllDynamicItems = array_map(intval(...), array_filter(
                     array_values(array_column($dynamicItems, 'value')),
                     static fn($uid) => (int)$uid > 0
                 ));
@@ -175,29 +175,17 @@ class TcaCategory extends AbstractItemProvider implements FormDataProviderInterf
         $newDatabaseValueArray = [];
         $currentDatabaseValueArray = array_key_exists($fieldName, $result['databaseRow']) ? $result['databaseRow'][$fieldName] : [];
 
-        if (!empty($fieldConfig['config']['MM']) && $result['command'] !== 'new') {
-            $relationHandler->start(
-                implode(',', $currentDatabaseValueArray),
-                $fieldConfig['config']['foreign_table'],
-                $fieldConfig['config']['MM'],
-                $result['databaseRow']['uid'],
-                $result['tableName'],
-                $fieldConfig['config']
-            );
-            $newDatabaseValueArray = array_merge($newDatabaseValueArray, $relationHandler->getValueArray());
-        } else {
-            // If not dealing with MM relations, use default live uid, not versioned uid for record relations
-            $relationHandler->start(
-                implode(',', $currentDatabaseValueArray),
-                $fieldConfig['config']['foreign_table'],
-                '',
-                $this->getLiveUid($result),
-                $result['tableName'],
-                $fieldConfig['config']
-            );
-            $databaseIds = array_merge($newDatabaseValueArray, $relationHandler->getValueArray());
+        $relationHandler->initializeForField(
+            $result['tableName'],
+            $fieldConfig['config'],
+            $result['databaseRow'],
+            implode(',', $currentDatabaseValueArray),
+        );
+        $newDatabaseValueArray = array_merge($newDatabaseValueArray, $relationHandler->getValueArray());
+
+        if (empty($fieldConfig['config']['MM']) || $result['command'] === 'new') {
             // remove all items from the current DB values if not available as relation
-            $newDatabaseValueArray = array_values(array_intersect($currentDatabaseValueArray, $databaseIds));
+            $newDatabaseValueArray = array_values(array_intersect($currentDatabaseValueArray, $newDatabaseValueArray));
         }
 
         // Since only uids are allowed, the array must be unique

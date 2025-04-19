@@ -18,7 +18,10 @@ namespace TYPO3\CMS\Extbase\Mvc\Controller;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
+use Psr\Http\Message\UriInterface;
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Http\PropagateResponseException;
 use TYPO3\CMS\Core\Http\RedirectResponse;
 use TYPO3\CMS\Core\Messaging\FlashMessage;
@@ -26,8 +29,12 @@ use TYPO3\CMS\Core\Messaging\FlashMessageQueue;
 use TYPO3\CMS\Core\Messaging\FlashMessageService;
 use TYPO3\CMS\Core\Page\PageRenderer;
 use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
+use TYPO3\CMS\Core\Utility\ArrayUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\MathUtility;
+use TYPO3\CMS\Core\View\ViewFactoryData;
+use TYPO3\CMS\Core\View\ViewFactoryInterface;
+use TYPO3\CMS\Core\View\ViewInterface;
 use TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface;
 use TYPO3\CMS\Extbase\Event\Mvc\BeforeActionCallEvent;
 use TYPO3\CMS\Extbase\Http\ForwardResponse;
@@ -39,158 +46,123 @@ use TYPO3\CMS\Extbase\Mvc\ExtbaseRequestParameters;
 use TYPO3\CMS\Extbase\Mvc\Request;
 use TYPO3\CMS\Extbase\Mvc\RequestInterface;
 use TYPO3\CMS\Extbase\Mvc\View\GenericViewResolver;
+use TYPO3\CMS\Extbase\Mvc\View\JsonView;
 use TYPO3\CMS\Extbase\Mvc\View\ViewResolverInterface;
 use TYPO3\CMS\Extbase\Mvc\Web\Routing\UriBuilder;
 use TYPO3\CMS\Extbase\Property\Exception\TargetNotFoundException;
 use TYPO3\CMS\Extbase\Property\PropertyMapper;
 use TYPO3\CMS\Extbase\Reflection\ReflectionService;
-use TYPO3\CMS\Extbase\Security\Cryptography\HashService;
+use TYPO3\CMS\Extbase\Security\HashScope;
 use TYPO3\CMS\Extbase\Service\ExtensionService;
+use TYPO3\CMS\Extbase\Service\FileHandlingService;
 use TYPO3\CMS\Extbase\Validation\Validator\ConjunctionValidator;
-use TYPO3\CMS\Extbase\Validation\Validator\ValidatorInterface;
 use TYPO3\CMS\Extbase\Validation\ValidatorResolver;
-use TYPO3\CMS\Fluid\Core\Rendering\RenderingContext;
-use TYPO3\CMS\Fluid\View\TemplateView;
+use TYPO3\CMS\Fluid\View\FluidViewAdapter;
+use TYPO3\CMS\Fluid\View\TemplatePaths;
+use TYPO3\CMS\Frontend\Controller\ErrorController;
 use TYPO3Fluid\Fluid\View\AbstractTemplateView;
-use TYPO3Fluid\Fluid\View\ViewInterface;
+use TYPO3Fluid\Fluid\View\ViewInterface as FluidStandaloneViewInterface;
 
 /**
  * A multi action controller. This is by far the most common base class for Controllers.
  */
 abstract class ActionController implements ControllerInterface
 {
-    /**
-     * @var ResponseFactoryInterface
-     */
-    protected $responseFactory;
+    protected ResponseFactoryInterface $responseFactory;
+    protected StreamFactoryInterface $streamFactory;
+    protected HashService $hashService;
 
     /**
-     * @var StreamFactoryInterface
+     * @internal
      */
-    protected $streamFactory;
+    protected ReflectionService $reflectionService;
 
     /**
-     * @var \TYPO3\CMS\Extbase\Reflection\ReflectionService
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @internal
      */
-    protected $reflectionService;
-
-    /**
-     * @var HashService
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
-     */
-    protected $hashService;
-
-    /**
-     * @var ViewResolverInterface
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
-     */
-    private $viewResolver;
+    private ViewResolverInterface $viewResolver;
 
     /**
      * The current view, as resolved by resolveView()
-     *
-     * @var ViewInterface
+     * @todo Use "protected ViewInterface $view;" in v14.
+     * @var FluidStandaloneViewInterface|ViewInterface $view
      */
     protected $view;
 
     /**
-     * The default view object to use if none of the resolved views can render
-     * a response for the current request.
+     * The default view class to use. Keep this 'null' for default fluid
+     * view, or set to 'JsonView::class' or some inheriting class.
      *
-     * @var string
+     * @var class-string|null
      */
-    protected $defaultViewObjectName = TemplateView::class;
+    protected ?string $defaultViewObjectName = null;
 
     /**
      * Name of the action method
-     *
-     * @var string
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @var non-empty-string
+     * @internal
      */
-    protected $actionMethodName = 'indexAction';
+    protected string $actionMethodName = 'indexAction';
 
     /**
      * Name of the special error action method which is called in case of errors
-     *
-     * @var string
      */
-    protected $errorMethodName = 'errorAction';
+    protected string $errorMethodName = 'errorAction';
 
-    /**
-     * @var \TYPO3\CMS\Extbase\Mvc\Controller\MvcPropertyMappingConfigurationService
-     */
-    protected $mvcPropertyMappingConfigurationService;
-
-    /**
-     * @var EventDispatcherInterface
-     */
-    protected $eventDispatcher;
-
-    /**
-     * The current request.
-     */
+    protected MvcPropertyMappingConfigurationService $mvcPropertyMappingConfigurationService;
+    protected EventDispatcherInterface $eventDispatcher;
+    protected FileHandlingService $fileHandlingService;
     protected RequestInterface $request;
-
-    /**
-     * @var \TYPO3\CMS\Extbase\Mvc\Web\Routing\UriBuilder
-     */
-    protected $uriBuilder;
+    protected UriBuilder $uriBuilder;
 
     /**
      * Contains the settings of the current extension
-     *
-     * @var array
      */
-    protected $settings;
+    protected array $settings;
 
     /**
-     * @var \TYPO3\CMS\Extbase\Validation\ValidatorResolver
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @internal
      */
-    protected $validatorResolver;
+    protected ValidatorResolver $validatorResolver;
+
+    private ViewFactoryInterface $viewFactory;
+
+    protected Arguments $arguments;
 
     /**
-     * @var \TYPO3\CMS\Extbase\Mvc\Controller\Arguments Arguments passed to the controller
+     * @internal
      */
-    protected $arguments;
+    protected ConfigurationManagerInterface $configurationManager;
 
     /**
-     * @var ConfigurationManagerInterface
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @internal
      */
-    protected $configurationManager;
+    private PropertyMapper $propertyMapper;
 
     /**
-     * @var PropertyMapper
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
-     */
-    private $propertyMapper;
-
-    /**
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @internal
      */
     private FlashMessageService $internalFlashMessageService;
 
     /**
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @internal
      */
     private ExtensionService $internalExtensionService;
 
-    final public function injectResponseFactory(ResponseFactoryInterface $responseFactory)
+    final public function injectResponseFactory(ResponseFactoryInterface $responseFactory): void
     {
         $this->responseFactory = $responseFactory;
     }
 
-    final public function injectStreamFactory(StreamFactoryInterface $streamFactory)
+    final public function injectStreamFactory(StreamFactoryInterface $streamFactory): void
     {
         $this->streamFactory = $streamFactory;
     }
 
     /**
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @internal
      */
-    public function injectConfigurationManager(ConfigurationManagerInterface $configurationManager)
+    public function injectConfigurationManager(ConfigurationManagerInterface $configurationManager): void
     {
         $this->configurationManager = $configurationManager;
         $this->settings = $this->configurationManager->getConfiguration(ConfigurationManagerInterface::CONFIGURATION_TYPE_SETTINGS);
@@ -198,38 +170,43 @@ abstract class ActionController implements ControllerInterface
     }
 
     /**
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @internal
      */
-    public function injectValidatorResolver(ValidatorResolver $validatorResolver)
+    public function injectValidatorResolver(ValidatorResolver $validatorResolver): void
     {
         $this->validatorResolver = $validatorResolver;
     }
 
     /**
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @internal
      */
-    public function injectViewResolver(ViewResolverInterface $viewResolver)
+    public function injectViewResolver(ViewResolverInterface $viewResolver): void
     {
         $this->viewResolver = $viewResolver;
     }
 
+    final public function injectViewFactory(ViewFactoryInterface $viewFactory): void
+    {
+        $this->viewFactory = $viewFactory;
+    }
+
     /**
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @internal
      */
-    public function injectReflectionService(ReflectionService $reflectionService)
+    public function injectReflectionService(ReflectionService $reflectionService): void
     {
         $this->reflectionService = $reflectionService;
     }
 
     /**
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @internal
      */
-    public function injectHashService(HashService $hashService)
+    public function injectHashService(HashService $hashService): void
     {
         $this->hashService = $hashService;
     }
 
-    public function injectMvcPropertyMappingConfigurationService(MvcPropertyMappingConfigurationService $mvcPropertyMappingConfigurationService)
+    public function injectMvcPropertyMappingConfigurationService(MvcPropertyMappingConfigurationService $mvcPropertyMappingConfigurationService): void
     {
         $this->mvcPropertyMappingConfigurationService = $mvcPropertyMappingConfigurationService;
     }
@@ -239,8 +216,13 @@ abstract class ActionController implements ControllerInterface
         $this->eventDispatcher = $eventDispatcher;
     }
 
+    public function injectFileHandlingService(FileHandlingService $fileHandlingService): void
+    {
+        $this->fileHandlingService = $fileHandlingService;
+    }
+
     /**
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @internal
      */
     public function injectPropertyMapper(PropertyMapper $propertyMapper): void
     {
@@ -248,7 +230,7 @@ abstract class ActionController implements ControllerInterface
     }
 
     /**
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @internal
      */
     final public function injectInternalFlashMessageService(FlashMessageService $flashMessageService): void
     {
@@ -256,7 +238,7 @@ abstract class ActionController implements ControllerInterface
     }
 
     /**
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @internal
      */
     final public function injectInternalExtensionService(ExtensionService $extensionService): void
     {
@@ -269,7 +251,7 @@ abstract class ActionController implements ControllerInterface
      * Override this method to solve tasks which all actions have in
      * common.
      */
-    protected function initializeAction() {}
+    protected function initializeAction(): void {}
 
     /**
      * Implementation of the arguments initialization in the action controller:
@@ -277,10 +259,10 @@ abstract class ActionController implements ControllerInterface
      *
      * Don't override this method - use initializeAction() instead.
      *
-     * @throws \TYPO3\CMS\Extbase\Mvc\Exception\InvalidArgumentTypeException
+     * @throws InvalidArgumentTypeException
      * @see initializeArguments()
      *
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @internal
      */
     protected function initializeActionMethodArguments(): void
     {
@@ -306,12 +288,12 @@ abstract class ActionController implements ControllerInterface
     /**
      * Adds the needed validators to the Arguments:
      *
-     * - Validators checking the data type from the @param annotation
+     * - Validators checking the data type from the param annotation
      * - Custom validators specified with validate annotations.
      * - Model-based validators (validate annotations in the model)
      * - Custom model validator classes
      *
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @internal
      */
     protected function initializeActionMethodValidators(): void
     {
@@ -331,15 +313,21 @@ abstract class ActionController implements ControllerInterface
                 continue;
             }
             /** @var ConjunctionValidator $validator */
-            $validator = $this->validatorResolver->createValidator(ConjunctionValidator::class, []);
+            $validator = $this->validatorResolver->createValidator(ConjunctionValidator::class);
             foreach ($classSchemaMethodParameter->getValidators() as $validatorDefinition) {
-                /** @var ValidatorInterface $validatorInstance */
-                $validatorInstance = $this->validatorResolver->createValidator($validatorDefinition['className'], $validatorDefinition['options']);
-                $validator->addValidator(
-                    $validatorInstance
+                $validatorInstance = $this->validatorResolver->createValidator(
+                    $validatorDefinition['className'],
+                    $validatorDefinition['options'],
+                    $this->request
                 );
+                if ($validatorInstance !== null) {
+                    $validator->addValidator($validatorInstance);
+                }
             }
-            $baseValidatorConjunction = $this->validatorResolver->getBaseValidatorConjunction($argument->getDataType());
+            $baseValidatorConjunction = $this->validatorResolver->getBaseValidatorConjunction(
+                $argument->getDataType(),
+                $this->request
+            );
             if ($baseValidatorConjunction->count() > 0) {
                 $validator->addValidator($baseValidatorConjunction);
             }
@@ -351,13 +339,16 @@ abstract class ActionController implements ControllerInterface
      * Collects the base validators which were defined for the data type of each
      * controller argument and adds them to the argument's validator chain.
      *
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @internal
      */
-    public function initializeControllerArgumentsBaseValidators()
+    public function initializeControllerArgumentsBaseValidators(): void
     {
         /** @var Argument $argument */
         foreach ($this->arguments as $argument) {
-            $validator = $this->validatorResolver->getBaseValidatorConjunction($argument->getDataType());
+            $validator = $this->validatorResolver->getBaseValidatorConjunction(
+                $argument->getDataType(),
+                $this->request
+            );
             if ($validator !== null) {
                 $argument->setValidator($validator);
             }
@@ -367,9 +358,7 @@ abstract class ActionController implements ControllerInterface
     /**
      * Handles an incoming request and returns a response object
      *
-     * @param \TYPO3\CMS\Extbase\Mvc\RequestInterface $request The request object
-     *
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @internal
      */
     public function processRequest(RequestInterface $request): ResponseInterface
     {
@@ -381,6 +370,7 @@ abstract class ActionController implements ControllerInterface
         $this->initializeActionMethodArguments();
         $this->initializeActionMethodValidators();
         $this->mvcPropertyMappingConfigurationService->initializePropertyMappingConfigurationFromRequest($request, $this->arguments);
+        $this->fileHandlingService->initializeFileUploadConfigurationsFromRequest($request, $this->arguments);
         $this->initializeAction();
         $actionInitializationMethodName = 'initialize' . ucfirst($this->actionMethodName);
         /** @var callable $callable */
@@ -390,12 +380,15 @@ abstract class ActionController implements ControllerInterface
         }
         $this->mapRequestArgumentsToControllerArguments();
         $this->view = $this->resolveView();
-        if ($this->view !== null && method_exists($this, 'initializeView')) {
+        if (method_exists($this, 'initializeView')) {
+            // @todo: We may want to get rid of this and declare actions should actively create own
+            //        views using ViewFactoryInterface instead. See comment on resolveView() below.
+            //        Currently, this method is pretty much only helpful in 'xclass' scenarios,
+            //        since actions can already do whatever happens here within their action body.
             $this->initializeView($this->view);
         }
         $response = $this->callActionMethod($request);
         $this->renderAssetsForRequest($request);
-
         return $response;
     }
 
@@ -412,17 +405,12 @@ abstract class ActionController implements ControllerInterface
      * You can add assets with this method without worrying about duplicates, if
      * for example you do this in a plugin that gets used multiple time on a page.
      *
-     * @param \TYPO3\CMS\Extbase\Mvc\RequestInterface $request
-     *
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @internal
      */
-    protected function renderAssetsForRequest($request): void
+    protected function renderAssetsForRequest(RequestInterface $request): void
     {
-        if (!$this->view instanceof AbstractTemplateView) {
-            // Only AbstractTemplateView (from Fluid engine, so this includes all TYPO3 Views based
-            // on TYPO3's AbstractTemplateView) supports renderSection(). The method is not
-            // declared on ViewInterface - so we must assert a specific class. We silently skip
-            // asset processing if the View doesn't match, so we don't risk breaking custom Views.
+        if (!($this->view instanceof AbstractTemplateView) && !($this->view instanceof FluidViewAdapter)) {
+            // @todo: Simplify to if (!($this->view instanceof FluidViewAdapter)) in v14.
             return;
         }
         $pageRenderer = GeneralUtility::makeInstance(PageRenderer::class);
@@ -440,12 +428,11 @@ abstract class ActionController implements ControllerInterface
     /**
      * Resolves and checks the current action method name
      *
-     * @return string Method name of the current action
-     * @throws \TYPO3\CMS\Extbase\Mvc\Exception\NoSuchActionException if the action specified in the request object does not exist (and if there's no default action either).
+     * @throws NoSuchActionException if the action specified in the request object does not exist (and if there's no default action either).
      *
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @internal
      */
-    protected function resolveActionMethodName()
+    protected function resolveActionMethodName(): string
     {
         $actionMethodName = $this->request->getControllerActionName() . 'Action';
         if (!method_exists($this, $actionMethodName)) {
@@ -461,20 +448,24 @@ abstract class ActionController implements ControllerInterface
      * response object. If the action doesn't return anything and a valid
      * view exists, the view is rendered automatically.
      *
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @internal
      */
     protected function callActionMethod(RequestInterface $request): ResponseInterface
     {
         // incoming request is not needed yet but can be passed into the action in the future like in symfony
         // todo: support this via method-reflection
 
-        $preparedArguments = [];
-        /** @var Argument $argument */
-        foreach ($this->arguments as $argument) {
-            $preparedArguments[] = $argument->getValue();
-        }
+        $this->fileHandlingService->initializeFileUploadDeletionConfigurationsFromRequest($request, $this->arguments);
         $validationResult = $this->arguments->validate();
         if (!$validationResult->hasErrors()) {
+            $preparedArguments = [];
+            /** @var Argument $argument */
+            foreach ($this->arguments as $argument) {
+                $this->fileHandlingService->applyDeletionsToArgument($argument);
+                $this->fileHandlingService->mapUploadedFilesToArgument($argument);
+                $preparedArguments[] = $argument->getValue();
+            }
+
             $this->eventDispatcher->dispatch(new BeforeActionCallEvent(static::class, $this->actionMethodName, $preparedArguments));
             $actionResult = $this->{$this->actionMethodName}(...$preparedArguments);
         } else {
@@ -496,69 +487,92 @@ abstract class ActionController implements ControllerInterface
 
     /**
      * Prepares a view for the current action.
-     * By default, this method tries to locate a view with a name matching the current action.
      *
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @internal
+     * @todo Set "protected function resolveView(): ViewInterface" in v14.
+     * @todo We may want to decide in extbase to go away from the automatic view preparation via
+     *       processRequest() and this method for actions. We could very well postulate actions
+     *       should take care of creating "their" view on their own using a ViewFactoryInterface
+     *       implementation, similar to what is done with request creation already (which needs
+     *       further work, too), and have a helper in this class to easily create a standard view.
+     *       This would dissolve the ugly $this->defaultViewObjectName property, which is more
+     *       a burden than helpful since controllers then need to have an initializeFooAction()
+     *       just to set this property when different actions want different views. Also, it does
+     *       not allow actions to have no view prepared at all, for instance when they just want to
+     *       create a json response by json_encode()'ing stuff. We should look at this in v14, when
+     *       GenericViewResolver and ViewResolverInterface are gone, which renders property
+     *       defaultViewObjectName even more useless.
      */
-    protected function resolveView(): ViewInterface
+    protected function resolveView(): FluidStandaloneViewInterface|ViewInterface
     {
+        if ($this->defaultViewObjectName !== null && is_a($this->defaultViewObjectName, JsonView::class, true)) {
+            // @todo: JsonView is a very extbase specific thing. It comes with setVariablesToRender() and
+            //        setConfiguration(). We don't let it run through a factory here, since consumers need
+            //        to deal with these specialities anyways. Often, one would rather want to either have
+            //        an own view prepared in a controller (or action), or have a custom factory that deals
+            //        with stuff and returns a ViewInterface, or directly json_encode() data in an action.
+            //        This is related to the comment above, too.
+            $view = new JsonView();
+            $view->assign('settings', $this->settings);
+            return $view;
+        }
+        $configuration = $this->configurationManager->getConfiguration(ConfigurationManagerInterface::CONFIGURATION_TYPE_FRAMEWORK);
+        $extensionKey = $this->request->getControllerExtensionKey();
+        $templateRootPaths = ['EXT:' . $extensionKey . '/Resources/Private/Templates/'];
+        if (!empty($configuration['view']['templateRootPaths']) && is_array($configuration['view']['templateRootPaths'])) {
+            $templateRootPaths = array_merge($templateRootPaths, ArrayUtility::sortArrayWithIntegerKeys($configuration['view']['templateRootPaths']));
+        }
+        $layoutRootPaths = ['EXT:' . $extensionKey . '/Resources/Private/Layouts/'];
+        if (!empty($configuration['view']['layoutRootPaths']) && is_array($configuration['view']['layoutRootPaths'])) {
+            $layoutRootPaths = array_merge($layoutRootPaths, ArrayUtility::sortArrayWithIntegerKeys($configuration['view']['layoutRootPaths']));
+        }
+        $partialRootPaths = ['EXT:' . $extensionKey . '/Resources/Private/Partials/'];
+        if (!empty($configuration['view']['partialRootPaths']) && is_array($configuration['view']['partialRootPaths'])) {
+            $partialRootPaths = array_merge($partialRootPaths, ArrayUtility::sortArrayWithIntegerKeys($configuration['view']['partialRootPaths']));
+        }
+        if ($this->defaultViewObjectName === null) {
+            $viewFactoryData = new ViewFactoryData(
+                templateRootPaths: $templateRootPaths,
+                partialRootPaths: $partialRootPaths,
+                layoutRootPaths: $layoutRootPaths,
+                request: $this->request,
+                format: $this->request->getFormat(),
+            );
+            $view = $this->viewFactory->create($viewFactoryData);
+            if ($view instanceof FluidViewAdapter) {
+                // This specific magic is tailored to Fluid. Ignore if we're not dealing with a fluid view here.
+                $renderingContext = $view->getRenderingContext();
+                $renderingContext->setControllerName($this->request->getControllerName());
+                $renderingContext->setControllerAction($this->request->getControllerActionName());
+            }
+            $view->assign('settings', $this->settings);
+            return $view;
+        }
+        // @deprecated Drop everything below in v14 and remove GenericViewResolver and ViewResolverInterface
+        trigger_error(
+            'The only allowed values for $this->defaultViewObjectName are null or extbase JsonView::class. Please'
+            . ' create an own view in your action if that is not sufficient, or inject a different ViewFactoryInterface',
+            E_USER_DEPRECATED
+        );
         if ($this->viewResolver instanceof GenericViewResolver) {
-            /*
-             * This setter is not part of the ViewResolverInterface as it's only necessary to set
-             * the default view class from this point when using the generic view resolver which
-             * must respect the possibly overridden property defaultViewObjectName.
-             */
             $this->viewResolver->setDefaultViewClass($this->defaultViewObjectName);
         }
-
-        $view = $this->viewResolver->resolve(
-            $this->request->getControllerObjectName(),
-            $this->request->getControllerActionName(),
-            $this->request->getFormat()
-        );
-        $this->setViewConfiguration($view);
-        if ($view instanceof AbstractTemplateView) {
+        $view = $this->viewResolver->resolve($this->request->getControllerObjectName(), $this->request->getControllerActionName(), $this->request->getFormat());
+        if ($view instanceof FluidViewAdapter || method_exists($view, 'getRenderingContext')) {
+            // This specific magic is tailored to Fluid. Ignore if we're not dealing with a fluid view here.
             $renderingContext = $view->getRenderingContext();
-            if ($renderingContext instanceof RenderingContext) {
-                $renderingContext->setRequest($this->request);
-            }
-            $templatePaths = $view->getRenderingContext()->getTemplatePaths();
-            $templatePaths->fillDefaultsByPackageName($this->request->getControllerExtensionKey());
+            $renderingContext->setAttribute(ServerRequestInterface::class, $this->request);
+            $renderingContext->setControllerName($this->request->getControllerName());
+            $renderingContext->setControllerAction($this->request->getControllerActionName());
+            /** @var TemplatePaths $templatePaths */
+            $templatePaths = $renderingContext->getTemplatePaths();
+            $templatePaths->setTemplateRootPaths($templateRootPaths);
+            $templatePaths->setPartialRootPaths($partialRootPaths);
+            $templatePaths->setLayoutRootPaths($layoutRootPaths);
             $templatePaths->setFormat($this->request->getFormat());
-        }
-        if (method_exists($view, 'injectSettings')) {
-            $view->injectSettings($this->settings);
         }
         $view->assign('settings', $this->settings);
         return $view;
-    }
-
-    /**
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
-     */
-    protected function setViewConfiguration(ViewInterface $view): void
-    {
-        $configuration = $this->configurationManager->getConfiguration(
-            ConfigurationManagerInterface::CONFIGURATION_TYPE_FRAMEWORK
-        );
-        if (!empty($configuration['view']['templateRootPaths'])
-            && is_array($configuration['view']['templateRootPaths'])
-            && method_exists($view, 'setTemplateRootPaths')
-        ) {
-            $view->setTemplateRootPaths($configuration['view']['templateRootPaths']);
-        }
-        if (!empty($configuration['view']['layoutRootPaths'])
-            && is_array($configuration['view']['layoutRootPaths'])
-            && method_exists($view, 'setLayoutRootPaths')
-        ) {
-            $view->setLayoutRootPaths($configuration['view']['layoutRootPaths']);
-        }
-        if (!empty($configuration['view']['partialRootPaths'])
-            && is_array($configuration['view']['partialRootPaths'])
-            && method_exists($view, 'setPartialRootPaths')
-        ) {
-            $view->setPartialRootPaths($configuration['view']['partialRootPaths']);
-        }
     }
 
     /**
@@ -570,10 +584,8 @@ abstract class ActionController implements ControllerInterface
      *
      * We clear the page cache by default on an error as well, as we need to make sure the
      * data is re-evaluated when the user changes something.
-     *
-     * @return ResponseInterface
      */
-    protected function errorAction()
+    protected function errorAction(): ResponseInterface
     {
         $this->addErrorFlashMessage();
         if (($response = $this->forwardToReferringRequest()) !== null) {
@@ -588,9 +600,9 @@ abstract class ActionController implements ControllerInterface
      * If an error occurred during this request, this adds a flash message describing the error to the flash
      * message container.
      *
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @internal
      */
-    protected function addErrorFlashMessage()
+    protected function addErrorFlashMessage(): void
     {
         $errorFlashMessage = $this->getErrorFlashMessage();
         if ($errorFlashMessage !== false) {
@@ -603,11 +615,9 @@ abstract class ActionController implements ControllerInterface
      * display no flash message at all on errors. Override this to customize
      * the flash message in your action controller.
      *
-     * @return string|bool The flash message or FALSE if no flash message should be set
-     *
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * Returns either the flash message or "false" if no flash message should be set
      */
-    protected function getErrorFlashMessage()
+    protected function getErrorFlashMessage(): bool|string
     {
         return 'An error occurred while trying to call ' . static::class . '->' . $this->actionMethodName . '()';
     }
@@ -618,7 +628,7 @@ abstract class ActionController implements ControllerInterface
      * call this method before you have finished the necessary business logic!
      *
      *
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @internal
      */
     protected function forwardToReferringRequest(): ?ResponseInterface
     {
@@ -627,13 +637,13 @@ abstract class ActionController implements ControllerInterface
         $referringRequestArguments = $extbaseRequestParameters->getInternalArgument('__referrer') ?? null;
         if (is_string($referringRequestArguments['@request'] ?? null)) {
             $referrerArray = json_decode(
-                $this->hashService->validateAndStripHmac($referringRequestArguments['@request']),
+                $this->hashService->validateAndStripHmac($referringRequestArguments['@request'], HashScope::ReferringRequest->prefix()),
                 true
             );
             $arguments = [];
             if (is_string($referringRequestArguments['arguments'] ?? null)) {
                 $arguments = unserialize(
-                    base64_decode($this->hashService->validateAndStripHmac($referringRequestArguments['arguments']))
+                    base64_decode($this->hashService->validateAndStripHmac($referringRequestArguments['arguments'], HashScope::ReferringArguments->prefix()))
                 );
             }
             $replacedArguments = array_replace_recursive($arguments, $referrerArray);
@@ -665,38 +675,30 @@ abstract class ActionController implements ControllerInterface
      * We may add all validation error messages to a log file in the future,
      * but for security reasons (@see #54074) we do not return these here.
      *
-     * @return string
-     *
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @internal
      */
-    protected function getFlattenedValidationErrorMessage()
+    protected function getFlattenedValidationErrorMessage(): string
     {
-        $outputMessage = 'Validation failed while trying to call ' . static::class . '->' . $this->actionMethodName . '().' . PHP_EOL;
-        return $outputMessage;
+        return 'Validation failed while trying to call ' . static::class . '->' . $this->actionMethodName . '().' . PHP_EOL;
     }
 
     /**
      * Creates a Message object and adds it to the FlashMessageQueue.
      *
-     * @param string $messageTitle Optional message title
-     * @param int|ContextualFeedbackSeverity $severity Optional severity, must be one of \TYPO3\CMS\Core\Type\ContextualFeedbackSeverity cases. Accepts int values as well, which is deprecated.
-     * @param bool $storeInSession Optional, defines whether the message should be stored in the session (default) or not
      * @throws \InvalidArgumentException if the message body is no string
-     * @see \TYPO3\CMS\Core\Messaging\FlashMessage
-     *
-     * @todo: Change $severity to allow ContextualFeedbackSeverity only in v13
+     * @see FlashMessage
      */
-    public function addFlashMessage(string $messageBody, $messageTitle = '', $severity = ContextualFeedbackSeverity::OK, $storeInSession = true)
-    {
-        if (is_int($severity)) {
-            // @deprecated int type for $severity deprecated in v12, will change to Severity only in v13.
-            $severity = ContextualFeedbackSeverity::transform($severity);
-        }
-        /* @var \TYPO3\CMS\Core\Messaging\FlashMessage $flashMessage */
+    public function addFlashMessage(
+        string $messageBody,
+        string $messageTitle = '',
+        ContextualFeedbackSeverity $severity = ContextualFeedbackSeverity::OK,
+        bool $storeInSession = true
+    ): void {
+        /* @var FlashMessage $flashMessage */
         $flashMessage = GeneralUtility::makeInstance(
             FlashMessage::class,
             $messageBody,
-            (string)$messageTitle,
+            $messageTitle,
             $severity,
             $storeInSession
         );
@@ -709,7 +711,7 @@ abstract class ActionController implements ControllerInterface
      *       create a flash message identifier from the current request. Users then should inject the flash message
      *       service themselves if needed.
      *
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @internal
      */
     protected function getFlashMessageQueue(?string $identifier = null): FlashMessageQueue
     {
@@ -737,8 +739,15 @@ abstract class ActionController implements ControllerInterface
      * @param null $_ (optional) Unused
      * @param int $statusCode (optional) The HTTP status code for the redirect. Default is "303 See Other
      */
-    protected function redirect($actionName, $controllerName = null, $extensionName = null, ?array $arguments = null, $pageUid = null, $_ = null, $statusCode = 303): ResponseInterface
-    {
+    protected function redirect(
+        ?string $actionName,
+        ?string $controllerName = null,
+        ?string $extensionName = null,
+        ?array $arguments = null,
+        ?int $pageUid = null,
+        $_ = null,
+        int $statusCode = 303
+    ): ResponseInterface {
         if ($controllerName === null) {
             $controllerName = $this->request->getControllerName();
         }
@@ -756,27 +765,24 @@ abstract class ActionController implements ControllerInterface
     /**
      * Redirects the web request to another uri.
      *
-     * @param mixed $uri A string representation of a URI
+     * @param string|UriInterface $uri A string representation of a URI
      * @param null $_ (optional) Unused
      * @param int $statusCode (optional) The HTTP status code for the redirect. Default is "303 See Other"
      */
-    protected function redirectToUri($uri, $_ = null, $statusCode = 303): ResponseInterface
+    protected function redirectToUri(string|UriInterface $uri, $_ = null, int $statusCode = 303): ResponseInterface
     {
-        $uri = $this->addBaseUriIfNecessary($uri);
+        $uri = $this->addBaseUriIfNecessary((string)$uri);
         return new RedirectResponse($uri, $statusCode);
     }
 
     /**
      * Adds the base uri if not already in place.
      *
-     * @param string $uri The URI
-     * @return string
-     *
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * @internal
      */
-    protected function addBaseUriIfNecessary($uri)
+    protected function addBaseUriIfNecessary(string $uri): string
     {
-        return GeneralUtility::locationHeaderUrl((string)$uri);
+        return GeneralUtility::locationHeaderUrl($uri);
     }
 
     /**
@@ -785,45 +791,77 @@ abstract class ActionController implements ControllerInterface
      *
      * @param int $statusCode The HTTP status code
      * @param string $statusMessage A custom HTTP status message
-     * @param string $content Body content which further explains the status
-     * @return never
+     * @param string|null $content Body content which further explains the status
      * @throws PropagateResponseException
      */
-    public function throwStatus($statusCode, $statusMessage = null, $content = null)
+    public function throwStatus(int $statusCode, string $statusMessage = '', ?string $content = null): never
     {
         if ($content === null) {
             $content = $statusCode . ' ' . $statusMessage;
         }
         $response = $this->responseFactory
-            ->createResponse((int)$statusCode, (string)$statusMessage)
+            ->createResponse($statusCode, $statusMessage)
             ->withBody($this->streamFactory->createStream((string)$content));
         throw new PropagateResponseException($response, 1476045871);
     }
 
     /**
-     * Maps arguments delivered by the request object to the local controller arguments.
+     * This method processes exceptions that occur due to missing or not found targets or arguments during argument
+     * mapping. Based on configuration settings, either a "page not found" response is triggered or the original
+     * exception is propagated.
      *
-     * @throws Exception\RequiredArgumentMissingException
-     *
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     * Extension authors can override this function to implement additional/custom argument mapping exception handling
      */
-    protected function mapRequestArgumentsToControllerArguments()
+    protected function handleArgumentMappingExceptions(\Exception $exception): void
     {
-        /** @var Argument $argument */
-        foreach ($this->arguments as $argument) {
-            $argumentName = $argument->getName();
-            if ($this->request->hasArgument($argumentName)) {
-                $this->setArgumentValue($argument, $this->request->getArgument($argumentName));
-            } elseif ($argument->isRequired()) {
-                throw new RequiredArgumentMissingException('Required argument "' . $argumentName . '" is not set for ' . $this->request->getControllerObjectName() . '->' . $this->request->getControllerActionName() . '.', 1298012500);
-            }
+        $configuration = $this->configurationManager->getConfiguration(
+            ConfigurationManagerInterface::CONFIGURATION_TYPE_FRAMEWORK
+        );
+
+        $handleTargetNotFoundException = $exception instanceof TargetNotFoundException &&
+            (bool)($configuration['mvc']['showPageNotFoundIfTargetNotFoundException'] ?? false);
+        $handleRequiredArgumentMissingException = $exception instanceof RequiredArgumentMissingException &&
+            (bool)($configuration['mvc']['showPageNotFoundIfRequiredArgumentIsMissingException'] ?? false);
+
+        if ($handleTargetNotFoundException || $handleRequiredArgumentMissingException) {
+            $response = GeneralUtility::makeInstance(ErrorController::class)->pageNotFoundAction(
+                $this->request,
+                $exception->getMessage()
+            );
+            throw new PropagateResponseException($response, 1720242346);
         }
+
+        throw $exception;
     }
 
     /**
-     * @param mixed $rawValue
+     * Maps arguments delivered by the request object to the local controller arguments.
+     *
+     * @internal
      */
-    private function setArgumentValue(Argument $argument, $rawValue): void
+    protected function mapRequestArgumentsToControllerArguments(): void
+    {
+        try {
+            /** @var Argument $argument */
+            foreach ($this->arguments as $argument) {
+                $argumentName = $argument->getName();
+                if ($this->request->hasArgument($argumentName)) {
+                    $this->setArgumentValue($argument, $this->request->getArgument($argumentName));
+                } elseif ($argument->isRequired()) {
+                    throw new RequiredArgumentMissingException('Required argument "' . $argumentName . '" is not set for ' . $this->request->getControllerObjectName() . '->' . $this->request->getControllerActionName() . '.', 1298012500);
+                }
+
+                if ($this->request->getMethod() === 'POST') {
+                    $uploadedFiles = $this->request->getUploadedFiles()[$argumentName] ?? [];
+                    $argument->setUploadedFiles($uploadedFiles);
+                }
+            }
+        } catch (\Exception $exception) {
+            $this->handleArgumentMappingExceptions($exception);
+        }
+    }
+
+    private function setArgumentValue(Argument $argument, mixed $rawValue): void
     {
         if ($rawValue === null) {
             $argument->setValue(null);
@@ -854,26 +892,22 @@ abstract class ActionController implements ControllerInterface
 
     /**
      * Returns a response object with either the given html string or the current rendered view as content.
-     *
-     * @param string|null $html
      */
     protected function htmlResponse(?string $html = null): ResponseInterface
     {
         return $this->responseFactory->createResponse()
             ->withHeader('Content-Type', 'text/html; charset=utf-8')
-            ->withBody($this->streamFactory->createStream((string)($html ?? $this->view->render())));
+            ->withBody($this->streamFactory->createStream(($html ?? $this->view->render())));
     }
 
     /**
      * Returns a response object with either the given json string or the current rendered
      * view as content. Mainly to be used for actions / controllers using the JsonView.
-     *
-     * @param string|null $json
      */
     protected function jsonResponse(?string $json = null): ResponseInterface
     {
         return $this->responseFactory->createResponse()
             ->withHeader('Content-Type', 'application/json; charset=utf-8')
-            ->withBody($this->streamFactory->createStream((string)($json ?? $this->view->render())));
+            ->withBody($this->streamFactory->createStream(($json ?? $this->view->render())));
     }
 }

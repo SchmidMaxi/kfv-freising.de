@@ -59,7 +59,6 @@ class SetupCommand extends Command
         private readonly LateBootService $lateBootService,
     ) {
         parent::__construct($name);
-
     }
 
     protected function configure()
@@ -431,7 +430,6 @@ EOT
                     $default = $this->getDefinition()->getOption($key)->getDefault();
                     $defaultLabel = empty($value) ? '' : ' [default: ' . $default . ']';
                     $question = new Question('Enter the database "' . $key . '"' . $defaultLabel . ' ? ', $default);
-
                     if ($key === 'password') {
                         $question = new Question('Enter the database "' . $key . '" ? ', $default);
                         $question->setHidden(true);
@@ -444,19 +442,18 @@ EOT
                                     1669747572
                                 );
                             }
-
                             return $host;
                         };
                         $question->setValidator($hostValidator);
                     } elseif ($key === 'port') {
                         $portValidator = function ($port) {
-                            if (!$this->setupDatabaseService->isValidDbPort((int)$port)) {
+                            $port = (int)$port;
+                            if (!$this->setupDatabaseService->isValidDbPort($port)) {
                                 throw new \RuntimeException(
                                     'Please use a port in the range between 1 and 65535.',
                                     1669747592,
                                 );
                             }
-
                             return $port;
                         };
                         $question->setValidator($portValidator);
@@ -468,12 +465,10 @@ EOT
                                     1669747601,
                                 );
                             }
-
                             return $value;
                         };
                         $question->setValidator($emptyValidator);
                     }
-
                     if ($envValue === false && $key === 'password') {
                         // Force this question if no `TYPO3_DB_PASSWORD` set via cli.
                         // Thus, the user will always be prompted for a password even --no-interaction is set.
@@ -490,7 +485,6 @@ EOT
                         $envValue = $envValue ?: $default;
                         $value = $validator ? $validator($envValue) : $envValue;
                     }
-
                     $databaseConnectionOptions[$key] = $value;
             }
         }
@@ -628,9 +622,12 @@ EOT
     protected function getSiteSetup(QuestionHelper $questionHelper, InputInterface $input, OutputInterface $output): string|bool
     {
         $urlValidator = static function ($url) {
-            if ($url && !GeneralUtility::isValidUrl($url)) {
+            if (empty($url) || in_array(strtolower($url), ['no', 'n'], true)) {
+                return false;
+            }
+            if (!GeneralUtility::isValidUrl($url)) {
                 throw new \RuntimeException(
-                    'The given url for the site name is not valid! Please try again.',
+                    'Invalid URL provided for the site name. Please provide a valid URL.',
                     1669747625,
                 );
             }

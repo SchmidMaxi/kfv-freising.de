@@ -22,6 +22,12 @@ use Doctrine\DBAL\Types\Type;
 
 /**
  * Type that maps a TYPE field.
+ *
+ * @internal not part of public core API.
+ *
+ * @todo SetType does not work for SQLite and PostgresSQL. SQLite supports it with a slightly other syntax and
+ *       PostgreSQL needs to create a custom type with a human-readable name, which is not reasonable either. Consider
+ *       to deprecate and drop ENUM support due not having compatibility for all supported database systems.
  */
 class SetType extends Type
 {
@@ -35,16 +41,11 @@ class SetType extends Type
      */
     public function getSQLDeclaration(array $fieldDeclaration, AbstractPlatform $platform): string
     {
-        $quotedValues = array_map([$platform, 'quoteStringLiteral'], $fieldDeclaration['unquotedValues']);
-
+        if (method_exists($platform, 'getSetDeclarationSQL')) {
+            return $platform->getSetDeclarationSQL($fieldDeclaration);
+        }
+        $quotedValues = array_map($platform->quoteStringLiteral(...), $fieldDeclaration['values']);
         return sprintf('SET(%s)', implode(', ', $quotedValues));
-    }
 
-    /**
-     * Gets the name of this type.
-     */
-    public function getName(): string
-    {
-        return static::TYPE;
     }
 }

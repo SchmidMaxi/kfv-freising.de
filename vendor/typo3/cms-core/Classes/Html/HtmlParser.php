@@ -24,8 +24,6 @@ use TYPO3\CMS\Core\Utility\MathUtility;
  */
 class HtmlParser
 {
-    protected array $caseShift_cache = [];
-
     // Void elements that do not have closing tags, as defined by HTML5, except link element
     public const VOID_ELEMENTS = 'area|base|br|col|command|embed|hr|img|input|keygen|meta|param|source|track|wbr';
 
@@ -49,7 +47,7 @@ class HtmlParser
     public function splitIntoBlock($tag, $content, $eliminateExtraEndTags = false)
     {
         $tags = array_unique(GeneralUtility::trimExplode(',', $tag, true));
-        array_walk($tags, static function (&$tag) {
+        array_walk($tags, static function (string &$tag): void {
             $tag = preg_quote($tag, '/');
         });
         $regexStr = '/\\<\\/?(' . implode('|', $tags) . ')(\\s*\\>|\\s[^\\>]*\\>)/si';
@@ -159,7 +157,7 @@ class HtmlParser
     public function splitTags($tag, $content)
     {
         $tags = GeneralUtility::trimExplode(',', $tag, true);
-        array_walk($tags, static function (&$tag) {
+        array_walk($tags, static function (string &$tag): void {
             $tag = preg_quote($tag, '/');
         });
         $regexStr = '/\\<(' . implode('|', $tags) . ')(\\s[^>]*)?\\/?>/si';
@@ -207,7 +205,7 @@ class HtmlParser
             $first->getIndex() + 1,
             $last->getIndex() - $first->getIndex() - 1
         );
-        return implode('', array_map('strval', $sequence));
+        return implode('', array_map(strval(...), $sequence));
     }
 
     /**
@@ -229,7 +227,7 @@ class HtmlParser
             0,
             $first->getIndex() + 1
         );
-        return implode('', array_map('strval', $sequence));
+        return implode('', array_map(strval(...), $sequence));
     }
 
     /**
@@ -466,26 +464,28 @@ class HtmlParser
                                 if (isset($tags[$tagName]['overrideAttribs']) && (string)$tags[$tagName]['overrideAttribs'] !== '') {
                                     $tagParts[1] = $tags[$tagName]['overrideAttribs'];
                                 }
-                                // Allowed tags
-                                if (isset($tags[$tagName]['allowedAttribs']) && (string)$tags[$tagName]['allowedAttribs'] !== '') {
-                                    // No attribs allowed
-                                    if ((string)$tags[$tagName]['allowedAttribs'] === '0') {
+                                // Allowed attributes (array-directives takes precedence in general)
+                                $allowedAttribsArray = $tags[$tagName]['allowedAttribs.'] ?? null;
+                                $allowedAttribsList = $tags[$tagName]['allowedAttribs'] ?? null;
+                                // Note that "allowedAttribsList = 0" means: "strip every attribute", and not "do not apply attribute stripping".
+                                // Only a 'null' (or [] for the array notation) means to allow all attributes, and not kick into this condition branch.
+                                if (is_array($allowedAttribsArray) && $allowedAttribsArray !== [] || (string)$allowedAttribsList !== '') {
+                                    // No attribs allowed - array-directives takes precedence in general
+                                    if ($allowedAttribsArray === [0] || $allowedAttribsArray === ['0'] || $allowedAttribsList === '0') {
                                         $tagParts[1] = '';
                                     } elseif (isset($tagParts[1]) && trim($tagParts[1])) {
                                         $tagAttrib = $this->get_tag_attributes($tagParts[1]);
-                                        $tagParts[1] = '';
-                                        $newTagAttrib = [];
-                                        $tList = (array)(
-                                            $tags[$tagName]['_allowedAttribs']
-                                            ?? GeneralUtility::trimExplode(',', strtolower($tags[$tagName]['allowedAttribs']), true)
-                                        );
-                                        foreach ($tList as $allowTag) {
-                                            if (isset($tagAttrib[0][$allowTag])) {
-                                                $newTagAttrib[$allowTag] = $tagAttrib[0][$allowTag];
+                                        $newTagAttribs = [];
+                                        $allowedAttribs = is_array($allowedAttribsArray)
+                                            ? array_map('strtolower', $allowedAttribsArray)
+                                            : GeneralUtility::trimExplode(',', strtolower($allowedAttribsList), true);
+
+                                        foreach ($allowedAttribs as $allowedAttrib) {
+                                            if (isset($tagAttrib[0][$allowedAttrib])) {
+                                                $newTagAttribs[$allowedAttrib] = $tagAttrib[0][$allowedAttrib];
                                             }
                                         }
-
-                                        $tagParts[1] = $this->compileTagAttribs($newTagAttrib, $tagAttrib[1]);
+                                        $tagParts[1] = $this->compileTagAttribs($newTagAttribs, $tagAttrib[1]);
                                     }
                                 }
                                 // Fixed attrib values
@@ -539,7 +539,14 @@ class HtmlParser
                                                         $tagAttrib[0][$attr] = $params['list'][0];
                                                     }
                                                 } else {
-                                                    if (!in_array($this->caseShift($tagAttrib[0][$attr] ?? '', $params['casesensitiveComp'] ?? false), (array)$this->caseShift($params['list'], $params['casesensitiveComp'] ?? false, $tagName))) {
+                                                    $normalizedSearchWord = $tagAttrib[0][$attr] ?? '';
+                                                    $normalizedSearchList = $params['list'];
+                                                    if (!($params['casesensitiveComp'] ?? false)) {
+                                                        // Case-sensitive comparison is not wanted, normalize all values
+                                                        $normalizedSearchWord = strtoupper((string)($tagAttrib[0][$attr] ?? ''));
+                                                        $normalizedSearchList = array_map('strtoupper', $normalizedSearchList);
+                                                    }
+                                                    if (!in_array($normalizedSearchWord, $normalizedSearchList, true)) {
                                                         $tagAttrib[0][$attr] = $params['list'][0];
                                                     }
                                                 }
@@ -550,11 +557,18 @@ class HtmlParser
                                             ) {
                                                 unset($tagAttrib[0][$attr]);
                                             }
-                                            if (
-                                                (string)($params['removeIfEquals'] ?? '') !== ''
-                                                && $this->caseShift($tagAttrib[0][$attr], (bool)($params['casesensitiveComp'] ?? false)) === $this->caseShift($params['removeIfEquals'], (bool)($params['casesensitiveComp'] ?? false))
-                                            ) {
-                                                unset($tagAttrib[0][$attr]);
+                                            if ((string)($params['removeIfEquals'] ?? '') !== '') {
+                                                $normalizedAttribute = $tagAttrib[0][$attr];
+                                                $normalizedRemoveIfEquals = $params['removeIfEquals'];
+                                                if (!($params['casesensitiveComp'] ?? false)) {
+                                                    // Case-sensitive comparison is not wanted, normalize all values
+                                                    $normalizedAttribute = strtoupper($tagAttrib[0][$attr]);
+                                                    $normalizedRemoveIfEquals = strtoupper($params['removeIfEquals']);
+                                                }
+
+                                                if ($normalizedAttribute === $normalizedRemoveIfEquals) {
+                                                    unset($tagAttrib[0][$attr]);
+                                                }
                                             }
                                             if ($params['prefixRelPathWith'] ?? false) {
                                                 $urlParts = parse_url($tagAttrib[0][$attr]);
@@ -669,7 +683,7 @@ class HtmlParser
             }
         }
         // Unsetting tags:
-        foreach ($tagRegister as $tag => $positions) {
+        foreach ($tagRegister as $positions) {
             foreach ($positions as $pKey) {
                 unset($newContent[$pKey]);
             }
@@ -817,38 +831,6 @@ class HtmlParser
     }
 
     /**
-     * Internal function for case shifting of a string or whole array
-     *
-     * @param mixed $str Input string/array
-     * @param bool $caseSensitiveComparison If this value is FALSE, the string is returned in uppercase
-     * @param string $cacheKey Key string used for internal caching of the results. Could be an MD5 hash of the serialized version of the input $str if that is an array.
-     * @return array|string Output string, processed
-     * @internal
-     */
-    public function caseShift($str, $caseSensitiveComparison, $cacheKey = '')
-    {
-        if ($caseSensitiveComparison) {
-            return $str;
-        }
-        if (is_array($str)) {
-            // Fetch from runlevel cache
-            if ($cacheKey && isset($this->caseShift_cache[$cacheKey])) {
-                $str = $this->caseShift_cache[$cacheKey];
-            } else {
-                array_walk($str, static function (&$value) {
-                    $value = strtoupper($value);
-                });
-                if ($cacheKey) {
-                    $this->caseShift_cache[$cacheKey] = $str;
-                }
-            }
-        } else {
-            $str = strtoupper($str);
-        }
-        return $str;
-    }
-
-    /**
      * Compiling an array with tag attributes into a string
      *
      * @param array $tagAttrib Tag attributes
@@ -909,11 +891,19 @@ class HtmlParser
                                     $keepTags[$key]['fixAttrib'][$atName] = [];
                                 }
                                 $keepTags[$key]['fixAttrib'][$atName] = array_merge($keepTags[$key]['fixAttrib'][$atName], $atConfig);
-                                if ((string)($keepTags[$key]['fixAttrib'][$atName]['range'] ?? '') !== '') {
-                                    $keepTags[$key]['fixAttrib'][$atName]['range'] = GeneralUtility::trimExplode(',', $keepTags[$key]['fixAttrib'][$atName]['range']);
+                                if (!empty($keepTags[$key]['fixAttrib'][$atName]['range'])) {
+                                    if (!isset($keepTags[$key]['fixAttrib'][$atName]['range.'])) {
+                                        $keepTags[$key]['fixAttrib'][$atName]['range'] = GeneralUtility::trimExplode(',', $keepTags[$key]['fixAttrib'][$atName]['range']);
+                                    } else {
+                                        $keepTags[$key]['fixAttrib'][$atName]['range'] = $keepTags[$key]['fixAttrib'][$atName]['range.'];
+                                    }
                                 }
-                                if ((string)($keepTags[$key]['fixAttrib'][$atName]['list'] ?? '') !== '') {
-                                    $keepTags[$key]['fixAttrib'][$atName]['list'] = GeneralUtility::trimExplode(',', $keepTags[$key]['fixAttrib'][$atName]['list']);
+                                if (!empty($keepTags[$key]['fixAttrib'][$atName]['list'])) {
+                                    if (!isset($keepTags[$key]['fixAttrib'][$atName]['list.'])) {
+                                        $keepTags[$key]['fixAttrib'][$atName]['list'] = GeneralUtility::trimExplode(',', $keepTags[$key]['fixAttrib'][$atName]['list']);
+                                    } else {
+                                        $keepTags[$key]['fixAttrib'][$atName]['list'] = $keepTags[$key]['fixAttrib'][$atName]['list.'];
+                                    }
                                 }
                             }
                         }
@@ -974,13 +964,19 @@ class HtmlParser
                 }
             }
         }
-        if (!empty($TSconfig['removeTags'])) {
-            $lN = GeneralUtility::trimExplode(',', strtolower($TSconfig['removeTags']), true);
-            foreach ($lN as $tn) {
-                $keepTags[$tn] = [];
-                $keepTags[$tn]['allowedAttribs'] = 0;
-                $keepTags[$tn]['rmTagIfNoAttrib'] = 1;
+        // Hint: RteHtmlParser->TS_transform_db() is another layer of scrubbing
+        //       which already removes any inline-level tags if they occur at
+        //       block-level range.
+        $removeTagsArray = is_array($TSconfig['removeTags.'] ?? null) ?
+            $TSconfig['removeTags.'] :
+            GeneralUtility::trimExplode(',', strtolower($TSconfig['removeTags'] ?? ''), true);
+        foreach ($removeTagsArray as $removeTagName) {
+            if (!is_string($removeTagName) || $removeTagName === '') {
+                continue;
             }
+            $keepTags[$removeTagName] = [];
+            $keepTags[$removeTagName]['allowedAttribs'] = 0;
+            $keepTags[$removeTagName]['rmTagIfNoAttrib'] = 1;
         }
         // Create additional configuration:
         $addConfig = [];

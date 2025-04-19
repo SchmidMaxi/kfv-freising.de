@@ -17,8 +17,8 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Extbase\Property\TypeConverter;
 
+use TYPO3\CMS\Core\Resource\FileReference;
 use TYPO3\CMS\Core\Resource\ResourceInterface;
-use TYPO3\CMS\Extbase\Domain\Model\FileReference;
 
 /**
  * Converter which transforms simple types to \TYPO3\CMS\Extbase\Domain\Model\FileReference.
@@ -28,25 +28,12 @@ use TYPO3\CMS\Extbase\Domain\Model\FileReference;
 class FileReferenceConverter extends AbstractFileFolderConverter
 {
     /**
-     * @var string[]
-     * @deprecated will be removed in TYPO3 v13.0, as this is defined in Services.yaml.
-     */
-    protected $sourceTypes = ['integer'];
-
-    /**
-     * @var string
-     * @deprecated will be removed in TYPO3 v13.0, as this is defined in Services.yaml.
-     */
-    protected $targetType = FileReference::class;
-
-    /**
      * @var string
      */
-    protected $expectedObjectType = \TYPO3\CMS\Core\Resource\FileReference::class;
+    protected $expectedObjectType = FileReference::class;
 
     /**
      * @param string|int $source
-     * @return \TYPO3\CMS\Core\Resource\FileReference
      */
     protected function getOriginalResource($source): ?ResourceInterface
     {

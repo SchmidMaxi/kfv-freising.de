@@ -19,6 +19,7 @@ namespace TYPO3\CMS\Workspaces\Controller;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Module\ModuleProvider;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
@@ -27,9 +28,11 @@ use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Workspaces\Service\WorkspaceService;
 
 /**
- * Implements the AJAX functionality for the various asynchronous calls
+ * Implements the AJAX functionality for the various asynchronous calls.
+ *
  * @internal This is a specific Backend Controller implementation and is not considered part of the Public TYPO3 API.
  */
+#[AsController]
 class AjaxController
 {
     public function __construct(
@@ -78,21 +81,9 @@ class AjaxController
             'title'       => $this->workspaceService->getWorkspaceTitle($workspaceId),
             'workspaceId' => $workspaceId,
             'pageId'      => ($finalPageUid && $originalPageId == $finalPageUid) ? null : $finalPageUid,
-            'pageModule'  => $this->getPageModuleName(),
+            'pageModule'  => $this->moduleProvider->accessGranted('web_layout', $this->getBackendUser()) ? 'web_layout' : '',
         ];
         return new JsonResponse($ajaxResponse);
-    }
-
-    /**
-     * Get the page module name. Either "web_layout" or custom
-     * module name from TSconfig. Also perform module access check.
-     */
-    protected function getPageModuleName(): string
-    {
-        $backendUser = $this->getBackendUser();
-        $pageModule = trim($backendUser->getTSConfig()['options.']['overridePageModule'] ?? '');
-        $pageModule = $this->moduleProvider->isModuleRegistered($pageModule) ? $pageModule : 'web_layout';
-        return $this->moduleProvider->accessGranted($pageModule, $backendUser) ? $pageModule : '';
     }
 
     protected function getBackendUser(): BackendUserAuthentication

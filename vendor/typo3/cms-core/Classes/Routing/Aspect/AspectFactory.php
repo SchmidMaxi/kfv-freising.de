@@ -17,13 +17,10 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Core\Routing\Aspect;
 
-use TYPO3\CMS\Core\Context\Context;
-use TYPO3\CMS\Core\Context\ContextAwareInterface;
 use TYPO3\CMS\Core\Site\Entity\Site;
 use TYPO3\CMS\Core\Site\Entity\SiteLanguage;
 use TYPO3\CMS\Core\Site\SiteAwareInterface;
 use TYPO3\CMS\Core\Site\SiteLanguageAwareInterface;
-use TYPO3\CMS\Core\Site\SiteLanguageAwareTrait;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
@@ -31,25 +28,6 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  */
 class AspectFactory
 {
-    /**
-     * @var array
-     */
-    protected $availableAspects;
-
-    /**
-     * @var Context
-     */
-    protected $context;
-
-    /**
-     * AspectFactory constructor.
-     */
-    public function __construct(?Context $context = null)
-    {
-        $this->context = $context ?? GeneralUtility::makeInstance(Context::class);
-        $this->availableAspects = $GLOBALS['TYPO3_CONF_VARS']['SYS']['routing']['aspects'] ?? [];
-    }
-
     /**
      * Create aspects from the given settings.
      *
@@ -78,22 +56,14 @@ class AspectFactory
     protected function create(string $type, array $settings): AspectInterface
     {
         if (empty($type)) {
-            throw new \InvalidArgumentException(
-                'Aspect type cannot be empty',
-                1538079481
-            );
+            throw new \InvalidArgumentException('Aspect type cannot be empty', 1538079481);
         }
-        if (!isset($this->availableAspects[$type])) {
-            throw new \OutOfRangeException(
-                sprintf('No aspect found for %s', $type),
-                1538079482
-            );
+        if (!isset($GLOBALS['TYPO3_CONF_VARS']['SYS']['routing']['aspects'][$type])) {
+            throw new \OutOfRangeException(sprintf('No aspect found for %s', $type), 1538079482);
         }
         unset($settings['type']);
-        $className = $this->availableAspects[$type];
-        /** @var AspectInterface $aspect */
-        $aspect = GeneralUtility::makeInstance($className, $settings);
-        return $aspect;
+        $className = $GLOBALS['TYPO3_CONF_VARS']['SYS']['routing']['aspects'][$type];
+        return GeneralUtility::makeInstance($className, $settings);
     }
 
     /**
@@ -101,25 +71,12 @@ class AspectFactory
      */
     protected function enrich(AspectInterface $aspect, SiteLanguage $language, Site $site): AspectInterface
     {
-        // The check for the trait is @deprecated and will be removed in TYPO3 v13
-        if ($aspect instanceof SiteLanguageAwareInterface || in_array(SiteLanguageAwareTrait::class, class_uses($aspect) ?: [], true)) {
+        if ($aspect instanceof SiteLanguageAwareInterface) {
             /** @var AspectInterface|SiteLanguageAwareInterface $aspect */
             $aspect->setSiteLanguage($language);
-
-            if (!$aspect instanceof SiteLanguageAwareInterface) {
-                trigger_error(
-                    'The class "' . get_class($aspect) . '" uses the (internal) TYPO3\CMS\Core\Site\SiteLanguageAwareTrait instead of implementing '
-                    . 'TYPO3\CMS\Core\Site\SiteLanguageAwareInterface to mark the class as language-aware. Using the trait for this purpose will stop working '
-                    . 'in TYPO3 v13. Please implement the interface for this.',
-                    E_USER_DEPRECATED
-                );
-            }
         }
         if ($aspect instanceof SiteAwareInterface) {
             $aspect->setSite($site);
-        }
-        if ($aspect instanceof ContextAwareInterface) {
-            $aspect->setContext($this->context);
         }
         return $aspect;
     }

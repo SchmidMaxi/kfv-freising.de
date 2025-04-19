@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Adminpanel\Modules\Debug;
 
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Adminpanel\Log\InMemoryLogWriter;
 use TYPO3\CMS\Adminpanel\ModuleApi\AbstractSubModule;
 use TYPO3\CMS\Adminpanel\ModuleApi\DataProviderInterface;
@@ -27,19 +28,22 @@ use TYPO3\CMS\Adminpanel\ModuleApi\RequestEnricherInterface;
 use TYPO3\CMS\Adminpanel\Service\ConfigurationService;
 use TYPO3\CMS\Core\Log\LogLevel;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Fluid\View\StandaloneView;
+use TYPO3\CMS\Core\View\ViewFactoryData;
+use TYPO3\CMS\Core\View\ViewFactoryInterface;
 
 /**
  * Log Sub Module of the AdminPanel
  *
  * @internal
  */
+#[Autoconfigure(public: true)]
 class Log extends AbstractSubModule implements DataProviderInterface, ModuleSettingsProviderInterface, RequestEnricherInterface
 {
     protected int $logLevel;
 
     public function __construct(
         private readonly ConfigurationService $configurationService,
+        private readonly ViewFactoryInterface $viewFactory,
     ) {
         $this->logLevel = LogLevel::normalizeLevel(\Psr\Log\LogLevel::INFO);
     }
@@ -90,12 +94,12 @@ class Log extends AbstractSubModule implements DataProviderInterface, ModuleSett
 
     public function getSettings(): string
     {
-        $view = GeneralUtility::makeInstance(StandaloneView::class);
-        $templateNameAndPath = 'EXT:adminpanel/Resources/Private/Templates/Modules/Debug/LogSettings.html';
-        $view->setTemplatePathAndFilename(GeneralUtility::getFileAbsFileName($templateNameAndPath));
-        $view->setPartialRootPaths(['EXT:adminpanel/Resources/Private/Partials']);
-        $view->assign('languageKey', $this->getBackendUser()->user['lang'] ?? null);
-
+        $viewFactoryData = new ViewFactoryData(
+            templateRootPaths: ['EXT:adminpanel/Resources/Private/Templates'],
+            partialRootPaths: ['EXT:adminpanel/Resources/Private/Partials'],
+            layoutRootPaths: ['EXT:adminpanel/Resources/Private/Layouts'],
+        );
+        $view = $this->viewFactory->create($viewFactoryData);
         $maxLevel = LogLevel::normalizeLevel(\Psr\Log\LogLevel::DEBUG);
         $levels = [];
         for ($i = 1; $i <= $maxLevel; $i++) {
@@ -106,14 +110,14 @@ class Log extends AbstractSubModule implements DataProviderInterface, ModuleSett
         }
         $view->assignMultiple(
             [
+                'languageKey' => $this->getBackendUser()->user['lang'] ?? null,
                 'levels' => $levels,
                 'startLevel' => (int)$this->getConfigOption('startLevel'),
                 'groupByComponent' => $this->getConfigOption('groupByComponent'),
                 'groupByLevel' => $this->getConfigOption('groupByLevel'),
             ]
         );
-
-        return $view->render();
+        return $view->render('Modules/Debug/LogSettings');
     }
 
     /**
@@ -122,10 +126,13 @@ class Log extends AbstractSubModule implements DataProviderInterface, ModuleSett
     public function getContent(ModuleData $data): string
     {
         $this->logLevel = (int)$this->getConfigOption('startLevel');
-        $view = GeneralUtility::makeInstance(StandaloneView::class);
-        $templateNameAndPath = 'EXT:adminpanel/Resources/Private/Templates/Modules/Debug/Log.html';
-        $view->setTemplatePathAndFilename(GeneralUtility::getFileAbsFileName($templateNameAndPath));
-        $view->setPartialRootPaths(['EXT:adminpanel/Resources/Private/Partials']);
+        $viewFactoryData = new ViewFactoryData(
+            templateRootPaths: ['EXT:adminpanel/Resources/Private/Templates'],
+            partialRootPaths: ['EXT:adminpanel/Resources/Private/Partials'],
+            layoutRootPaths: ['EXT:adminpanel/Resources/Private/Layouts'],
+        );
+        $viewFactory = GeneralUtility::makeInstance(ViewFactoryInterface::class);
+        $view = $viewFactory->create($viewFactoryData);
         $sortedLog = [];
         // settings for this module
         $groupByComponent = $this->getConfigOption('groupByComponent');
@@ -151,7 +158,7 @@ class Log extends AbstractSubModule implements DataProviderInterface, ModuleSett
         $view->assignMultiple($data->getArrayCopy());
         $view->assign('languageKey', $this->getBackendUser()->user['lang'] ?? null);
 
-        return $view->render();
+        return $view->render('Modules/Debug/Log');
     }
 
     public function enrich(ServerRequestInterface $request): ServerRequestInterface

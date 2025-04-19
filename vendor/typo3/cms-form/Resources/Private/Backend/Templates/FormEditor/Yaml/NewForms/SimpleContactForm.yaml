@@ -28,48 +28,54 @@ renderables:
 
     renderables:
       -
+        defaultValue: ''
         identifier: name
         label: 'Name'
         type: Text
         properties:
           fluidAdditionalAttributes:
             placeholder: 'Name'
-        defaultValue: ''
+            autocomplete: name
+            required: required
         validators:
           -
             identifier: NotEmpty
       -
+        defaultValue: ''
         identifier: subject
         label: 'Subject'
         type: Text
         properties:
           fluidAdditionalAttributes:
             placeholder: 'Subject'
-        defaultValue: ''
+            required: required
         validators:
           -
             identifier: NotEmpty
       -
+        defaultValue: ''
         identifier: email
         label: 'Email'
-        type: Text
+        type: Email
         properties:
           fluidAdditionalAttributes:
             placeholder: 'Email address'
-        defaultValue: ''
+            autocomplete: email
+            required: required
         validators:
           -
             identifier: NotEmpty
           -
             identifier: EmailAddress
       -
+        defaultValue: ''
         identifier: message
         label: 'Message'
         type: Textarea
         properties:
           fluidAdditionalAttributes:
             placeholder: ''
-        defaultValue: ''
+            required: required
         validators:
           -
             identifier: NotEmpty

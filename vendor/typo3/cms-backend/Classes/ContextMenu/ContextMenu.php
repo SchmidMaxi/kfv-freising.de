@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Backend\ContextMenu;
 
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Backend\ContextMenu\ItemProviders\ItemProvidersRegistry;
 use TYPO3\CMS\Backend\ContextMenu\ItemProviders\ProviderInterface;
 
@@ -24,6 +25,7 @@ use TYPO3\CMS\Backend\ContextMenu\ItemProviders\ProviderInterface;
  * Class for generating the click menu
  * @internal
  */
+#[Autoconfigure(public: true)]
 class ContextMenu
 {
     protected ItemProvidersRegistry $itemProvidersRegistry;
@@ -70,6 +72,10 @@ class ContextMenu
         $prevItemWasDivider = false;
 
         foreach ($items as $key => $item) {
+            // Assign the key as the identifier for each item.
+            // This is needed for the JavaScript to render a single node
+            $items[$key]['identifier'] = $key;
+
             if ($item['type'] === 'item') {
                 $canRender = true;
                 $prevItemWasDivider = false;

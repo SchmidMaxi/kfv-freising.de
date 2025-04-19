@@ -1,4 +1,5 @@
 <?php
+
 /*
 
 ### Configuration
@@ -17,6 +18,7 @@ Since the website should be built and some load is likely about to be applied to
 if not the, last tasks before cleanup
 
 */
+
 namespace Deployer;
 
 desc('Clears Cloudflare Cache');
@@ -27,16 +29,16 @@ task('deploy:cloudflare', function () {
     // validate config and set headers
     if (!empty($config['service_key'])) {
         $headers = [
-            'X-Auth-User-Service-Key' => $config['service_key']
+            'X-Auth-User-Service-Key' => $config['service_key'],
         ];
     } elseif (!empty($config['email']) && !empty($config['api_key'])) {
         $headers = [
             'X-Auth-Key'   => $config['api_key'],
-            'X-Auth-Email' => $config['email']
+            'X-Auth-Email' => $config['email'],
         ];
-    } else if (!empty($config['api_token'])) {
+    } elseif (!empty($config['api_token'])) {
         $headers = [
-            'Authorization' => 'Bearer '.$config['api_token']
+            'Authorization' => 'Bearer ' . $config['api_token'],
         ];
     } else {
         throw new \RuntimeException("Set a service key or email / api key");
@@ -48,13 +50,13 @@ task('deploy:cloudflare', function () {
         $ch = curl_init("https://api.cloudflare.com/client/v4/$url");
 
         $parsedHeaders = [];
-        foreach($headers as $key => $value){
+        foreach ($headers as $key => $value) {
             $parsedHeaders[] = "$key: $value";
         }
 
         curl_setopt_array($ch, [
             CURLOPT_HTTPHEADER     => $parsedHeaders,
-            CURLOPT_RETURNTRANSFER => true
+            CURLOPT_RETURNTRANSFER => true,
         ]);
 
         curl_setopt_array($ch, $opts);
@@ -95,7 +97,7 @@ task('deploy:cloudflare', function () {
             CURLOPT_CUSTOMREQUEST => 'DELETE',
             CURLOPT_POSTFIELDS    => json_encode(
                 [
-                    'purge_everything' => true
+                    'purge_everything' => true,
                 ]
             ),
         ]

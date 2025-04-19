@@ -30,7 +30,6 @@ use TYPO3\CMS\Core\Domain\Repository\PageRepository;
 use TYPO3\CMS\Core\Site\Entity\Site;
 use TYPO3\CMS\Core\TimeTracker\TimeTracker;
 use TYPO3\CMS\Core\Type\Bitmask\PageTranslationVisibility;
-use TYPO3\CMS\Core\TypoScript\TemplateService;
 use TYPO3\CMS\Core\TypoScript\TypoScriptService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\MathUtility;
@@ -39,6 +38,7 @@ use TYPO3\CMS\Frontend\ContentObject\Exception\ContentRenderingException;
 use TYPO3\CMS\Frontend\ContentObject\Menu\Exception\NoSuchMenuTypeException;
 use TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController;
 use TYPO3\CMS\Frontend\Event\FilterMenuItemsEvent;
+use TYPO3\CMS\Frontend\Typolink\LinkResult;
 use TYPO3\CMS\Frontend\Typolink\LinkResultInterface;
 use TYPO3\CMS\Frontend\Typolink\PageLinkBuilder;
 use TYPO3\CMS\Frontend\Typolink\UnableToLinkException;
@@ -103,11 +103,6 @@ abstract class AbstractMenuContentObject
      * @var array
      */
     protected $mconf = [];
-
-    /**
-     * @deprecated since v12: Remove property and usages in v13 when TemplateService is removed
-     */
-    protected ?TemplateService $tmpl;
 
     /**
      * @var PageRepository
@@ -199,8 +194,8 @@ abstract class AbstractMenuContentObject
     /**
      * The initialization of the object. This just sets some internal variables.
      *
-     * @param TemplateService|null $_ Obsolete argument
-     * @param PageRepository $sys_page The $this->getTypoScriptFrontendController()->sys_page object
+     * @param null $_ Obsolete argument
+     * @param PageRepository $sys_page
      * @param int|string $id A starting point page id. This should probably be blank since the 'entryLevel' value will be used then.
      * @param array $conf The TypoScript configuration for the HMENU cObject
      * @param int $menuNumber Menu number; 1,2,3. Should probably be 1
@@ -208,20 +203,18 @@ abstract class AbstractMenuContentObject
      * @return bool Returns TRUE on success
      * @see \TYPO3\CMS\Frontend\ContentObject\ContentObjectRenderer::HMENU()
      */
-    public function start($_, $sys_page, $id, $conf, int $menuNumber, $objSuffix = '', ?ServerRequestInterface $request = null)
+    public function start($_, $sys_page, $id, $conf, int $menuNumber, string $objSuffix, ServerRequestInterface $request): bool
     {
-        $tsfe = $this->getTypoScriptFrontendController();
-        $this->conf = $conf;
+        $this->conf = (array)$conf;
         $this->menuNumber = $menuNumber;
-        $this->mconf = $conf[$this->menuNumber . $objSuffix . '.'];
+        $this->mconf = (array)$conf[$this->menuNumber . $objSuffix . '.'];
         $this->request = $request;
-        // Sets the internal vars. $tmpl MUST be the template-object. $sys_page MUST be the PageRepository object
+        // Sets the internal vars. $sys_page MUST be the PageRepository object
         if ($this->conf[$this->menuNumber . $objSuffix] && is_object($sys_page)) {
-            // @deprecated since v12, will be removed in v13: Remove assignment and property when TemplateService is removed
-            $this->tmpl = $_;
+            $localRootLine = $request->getAttribute('frontend.page.information')->getLocalRootLine();
             $this->sys_page = $sys_page;
             // alwaysActivePIDlist initialized:
-            $this->conf['alwaysActivePIDlist'] = (string)$this->parent_cObj->stdWrapValue('alwaysActivePIDlist', $this->conf ?? []);
+            $this->conf['alwaysActivePIDlist'] = (string)$this->parent_cObj->stdWrapValue('alwaysActivePIDlist', $this->conf);
             if (trim($this->conf['alwaysActivePIDlist'])) {
                 $this->alwaysActivePIDlist = GeneralUtility::intExplode(',', $this->conf['alwaysActivePIDlist']);
             }
@@ -233,8 +226,8 @@ abstract class AbstractMenuContentObject
             }
             // EntryLevel
             $this->entryLevel = $this->parent_cObj->getKey(
-                $this->parent_cObj->stdWrapValue('entryLevel', $this->conf ?? []),
-                $tsfe->config['rootLine'] ?? []
+                $this->parent_cObj->stdWrapValue('entryLevel', $this->conf),
+                $localRootLine
             );
             // Set parent page: If $id not stated with start() then the base-id will be found from rootLine[$this->entryLevel]
             // Called as the next level in a menu. It is assumed that $this->MP_array is set from parent menu.
@@ -242,11 +235,11 @@ abstract class AbstractMenuContentObject
                 $this->id = (int)$id;
             } else {
                 // This is a BRAND NEW menu, first level. So we take ID from rootline and also find MP_array (mount points)
-                $this->id = (int)($tsfe->config['rootLine'][$this->entryLevel]['uid'] ?? 0);
+                $this->id = (int)($localRootLine[$this->entryLevel]['uid'] ?? 0);
 
                 // Traverse rootline to build MP_array of pages BEFORE the entryLevel
                 // (MP var for ->id is picked up in the next part of the code...)
-                foreach (($tsfe->config['rootLine'] ?? []) as $entryLevel => $levelRec) {
+                foreach ($localRootLine as $entryLevel => $levelRec) {
                     // For overlaid mount points, set the variable right now:
                     if (($levelRec['_MP_PARAM'] ?? false) && ($levelRec['_MOUNT_OL'] ?? false)) {
                         $this->MP_array[] = $levelRec['_MP_PARAM'];
@@ -279,7 +272,7 @@ abstract class AbstractMenuContentObject
             if ($this->rL_uidRegister === null) {
                 $this->rL_uidRegister = [];
                 $rl_MParray = [];
-                foreach (($tsfe->config['rootLine'] ?? []) as $v_rl) {
+                foreach ($localRootLine as $v_rl) {
                     // For overlaid mount points, set the variable right now:
                     if (($v_rl['_MP_PARAM'] ?? false) && ($v_rl['_MOUNT_OL'] ?? false)) {
                         $rl_MParray[] = $v_rl['_MP_PARAM'];
@@ -303,29 +296,29 @@ abstract class AbstractMenuContentObject
             if (($this->conf['special'] ?? '') === 'directory') {
                 $value = $this->parent_cObj->stdWrapValue('value', $this->conf['special.'] ?? [], null);
                 if ($value === '') {
-                    $value = $tsfe->id;
+                    $value = $this->request->getAttribute('frontend.page.information')->getId();
                 }
-                $directoryLevel = $this->getRootlineLevel($tsfe->config['rootLine'], (string)$value);
+                $directoryLevel = $this->getRootlineLevel($localRootLine, (string)$value);
             }
             // Setting "nextActive": This is the page uid + MPvar of the NEXT page in rootline. Used to expand the menu if we are in the right branch of the tree
             // Notice: The automatic expansion of a menu is designed to work only when no "special" modes (except "directory") are used.
             $startLevel = $directoryLevel ?: $this->entryLevel;
             $currentLevel = $startLevel + $this->menuNumber;
-            if (is_array($tsfe->config['rootLine'][$currentLevel] ?? null)) {
+            if (is_array($localRootLine[$currentLevel] ?? null)) {
                 $nextMParray = $this->MP_array;
-                if (empty($nextMParray) && !($tsfe->config['rootLine'][$currentLevel]['_MOUNT_OL'] ?? false) && $currentLevel > 0) {
+                if (empty($nextMParray) && !($localRootLine[$currentLevel]['_MOUNT_OL'] ?? false) && $currentLevel > 0) {
                     // Make sure to slide-down any mount point information (_MP_PARAM) to children records in the rootline
                     // otherwise automatic expansion will not work
-                    $parentRecord = $tsfe->config['rootLine'][$currentLevel - 1] ?? [];
+                    $parentRecord = $localRootLine[$currentLevel - 1] ?? [];
                     if (isset($parentRecord['_MP_PARAM'])) {
                         $nextMParray[] = $parentRecord['_MP_PARAM'];
                     }
                 }
                 // In overlay mode, add next level MPvars as well:
-                if ($tsfe->config['rootLine'][$currentLevel]['_MOUNT_OL'] ?? false) {
-                    $nextMParray[] = $tsfe->config['rootLine'][$currentLevel]['_MP_PARAM'] ?? [];
+                if ($localRootLine[$currentLevel]['_MOUNT_OL'] ?? false) {
+                    $nextMParray[] = $localRootLine[$currentLevel]['_MP_PARAM'] ?? [];
                 }
-                $this->nextActive = ($tsfe->config['rootLine'][$currentLevel]['uid']  ?? 0) .
+                $this->nextActive = ($localRootLine[$currentLevel]['uid']  ?? 0) .
                     (
                         !empty($nextMParray)
                         ? ':' . implode(',', $nextMParray)
@@ -352,9 +345,7 @@ abstract class AbstractMenuContentObject
             return;
         }
 
-        $frontendController = $this->getTypoScriptFrontendController();
         // Initializing showAccessRestrictedPages
-        $SAVED_where_groupAccess = '';
         if ($this->mconf['showAccessRestrictedPages'] ?? false) {
             $this->disableGroupAccessCheck = true;
         }
@@ -368,11 +359,11 @@ abstract class AbstractMenuContentObject
         $maxItems = (int)(($this->mconf['maxItems'] ?? 0) ?: ($this->conf['maxItems'] ?? 0));
         $begin = $this->parent_cObj->calc(($this->mconf['begin'] ?? 0) ?: ($this->conf['begin'] ?? 0));
         $minItemsConf = $this->mconf['minItems.'] ?? $this->conf['minItems.'] ?? null;
-        $minItems = is_array($minItemsConf) ? $this->parent_cObj->stdWrap($minItems, $minItemsConf) : $minItems;
+        $minItems = is_array($minItemsConf) ? $this->parent_cObj->stdWrap((string)$minItems, $minItemsConf) : $minItems;
         $maxItemsConf = $this->mconf['maxItems.'] ?? $this->conf['maxItems.'] ?? null;
-        $maxItems = is_array($maxItemsConf) ? $this->parent_cObj->stdWrap($maxItems, $maxItemsConf) : $maxItems;
+        $maxItems = is_array($maxItemsConf) ? $this->parent_cObj->stdWrap((string)$maxItems, $maxItemsConf) : $maxItems;
         $beginConf = $this->mconf['begin.'] ?? $this->conf['begin.'] ?? null;
-        $begin = is_array($beginConf) ? $this->parent_cObj->stdWrap($begin, $beginConf) : $begin;
+        $begin = is_array($beginConf) ? $this->parent_cObj->stdWrap((string)$begin, $beginConf) : $begin;
         $this->menuArr = [];
         foreach ($menuItems as &$data) {
             $data['isSpacer'] = ($data['isSpacer'] ?? false) || (int)($data['doktype'] ?? 0) === PageRepository::DOKTYPE_SPACER || ($data['ITEM_STATE'] ?? '') === 'SPC';
@@ -395,7 +386,7 @@ abstract class AbstractMenuContentObject
             while ($c < $minItems) {
                 $this->menuArr[$c] = [
                     'title' => '...',
-                    'uid' => $frontendController->id,
+                    'uid' => $this->request->getAttribute('frontend.page.information')->getId(),
                 ];
                 $c++;
             }
@@ -405,6 +396,7 @@ abstract class AbstractMenuContentObject
             $this->menuArr = $this->userProcess('itemArrayProcFunc', $this->menuArr);
         }
         // Setting number of menu items
+        $frontendController = $this->getTypoScriptFrontendController();
         $frontendController->register['count_menuItems'] = count($this->menuArr);
         $this->generate();
         // End showAccessRestrictedPages
@@ -458,8 +450,8 @@ abstract class AbstractMenuContentObject
             $banned,
             $this->excludedDoktypes,
             $this->getCurrentSite(),
-            $this->getTypoScriptFrontendController()->getContext(),
-            $this->getTypoScriptFrontendController()->page
+            GeneralUtility::makeInstance(Context::class),
+            $this->request->getAttribute('frontend.page.information')->getPageRecord()
         );
         $event = GeneralUtility::makeInstance(EventDispatcherInterface::class)->dispatch($event);
         return $event->getFilteredMenuItems();
@@ -476,7 +468,7 @@ abstract class AbstractMenuContentObject
         $alternativeSortingField = trim($this->mconf['alternativeSortingField'] ?? '') ?: 'sorting';
 
         // Additional where clause, usually starts with AND (as usual with all additionalWhere functionality in TS)
-        $additionalWhere = $this->parent_cObj->stdWrapValue('additionalWhere', $this->mconf ?? []);
+        $additionalWhere = $this->parent_cObj->stdWrapValue('additionalWhere', $this->mconf);
         $additionalWhere .= $this->getDoktypeExcludeWhere();
 
         // ... only for the FIRST level of a HMENU
@@ -567,8 +559,8 @@ abstract class AbstractMenuContentObject
     {
         $menuItems = [];
         // Getting current page record NOT overlaid by any translation:
-        $tsfe = $this->getTypoScriptFrontendController();
-        $currentPageWithNoOverlay = ($tsfe->page['_TRANSLATION_SOURCE'] ?? null)?->toArray(true) ?? $tsfe->page;
+        $pageRecord = $this->request->getAttribute('frontend.page.information')->getPageRecord();
+        $currentPageWithNoOverlay = ($pageRecord['_TRANSLATION_SOURCE'] ?? null)?->toArray(true) ?? $pageRecord;
 
         $languages = $this->getCurrentSite()->getLanguages();
         if ($specialValue === 'auto') {
@@ -577,6 +569,7 @@ abstract class AbstractMenuContentObject
             $languageItems = GeneralUtility::intExplode(',', $specialValue);
         }
 
+        $tsfe = $this->getTypoScriptFrontendController();
         $tsfe->register['languages_HMENU'] = implode(',', $languageItems);
 
         $currentLanguageId = $this->getCurrentLanguageAspect()->getId();
@@ -590,7 +583,7 @@ abstract class AbstractMenuContentObject
                 $lRecs = $pageRepository->getPageOverlay($currentPageWithNoOverlay, $languageAspect);
                 // getPageOverlay() might return the original record again, if so this is emptied
                 // this should be fixed in PageRepository in the future.
-                if (!empty($lRecs) && !isset($lRecs['_PAGES_OVERLAY'])) {
+                if (!empty($lRecs) && !isset($lRecs['_LOCALIZED_UID'])) {
                     $lRecs = [];
                 }
             } else {
@@ -611,7 +604,7 @@ abstract class AbstractMenuContentObject
             $menuItems[] = array_merge(
                 array_merge($currentPageWithNoOverlay, $lRecs),
                 [
-                    '_PAGES_OVERLAY_REQUESTEDLANGUAGE' => $sUid,
+                    '_REQUESTED_OVERLAY_LANGUAGE' => $sUid,
                     'ITEM_STATE' => $iState,
                     '_ADD_GETVARS' => $this->conf['addQueryString'] ?? false,
                     '_SAFE' => true,
@@ -648,10 +641,9 @@ abstract class AbstractMenuContentObject
      */
     protected function prepareMenuItemsForDirectoryMenu($specialValue, $sortingField)
     {
-        $tsfe = $this->getTypoScriptFrontendController();
         $menuItems = [];
         if ($specialValue == '') {
-            $specialValue = $tsfe->id;
+            $specialValue = $this->request->getAttribute('frontend.page.information')->getId();
         }
         $items = GeneralUtility::intExplode(',', (string)$specialValue);
         $pageLinkBuilder = GeneralUtility::makeInstance(PageLinkBuilder::class, $this->parent_cObj);
@@ -746,10 +738,9 @@ abstract class AbstractMenuContentObject
      */
     protected function prepareMenuItemsForUpdatedMenu($specialValue, $sortingField)
     {
-        $tsfe = $this->getTypoScriptFrontendController();
         $menuItems = [];
         if ($specialValue == '') {
-            $specialValue = $tsfe->id;
+            $specialValue = $this->request->getAttribute('frontend.page.information')->getId();
         }
         $items = GeneralUtility::intExplode(',', (string)$specialValue);
         if (MathUtility::canBeInterpretedAsInteger($this->conf['special.']['depth'] ?? null)) {
@@ -782,12 +773,12 @@ abstract class AbstractMenuContentObject
         $connection = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable('pages');
         $extraWhere = ($this->conf['includeNotInMenu'] ? '' : ' AND pages.nav_hide=0') . $this->getDoktypeExcludeWhere();
         if ($this->conf['special.']['excludeNoSearchPages'] ?? false) {
-            $extraWhere .= sprintf(' AND %s=%s', $connection->quoteIdentifier('pages.no_search'), $connection->quote(0, Connection::PARAM_INT));
+            $extraWhere .= sprintf(' AND %s=%s', $connection->quoteIdentifier('pages.no_search'), $connection->quote('0'));
         }
         if ($maxAge > 0) {
-            $extraWhere .= sprintf(' AND %s>%s', $connection->quoteIdentifier($sortField), $connection->quote(($GLOBALS['SIM_ACCESS_TIME'] - $maxAge), Connection::PARAM_INT));
+            $extraWhere .= sprintf(' AND %s>%s', $connection->quoteIdentifier($sortField), $connection->quote((string)($GLOBALS['SIM_ACCESS_TIME'] - $maxAge)));
         }
-        $extraWhere = sprintf('%s>=%s', $connection->quoteIdentifier($sortField), $connection->quote(0, Connection::PARAM_INT)) . $extraWhere;
+        $extraWhere = sprintf('%s>=%s', $connection->quoteIdentifier($sortField), $connection->quote('0')) . $extraWhere;
 
         $i = 0;
         $pageRecords = $this->sys_page->getMenuForPages($pageIds, '*', $sortingField ?: $sortField . ' DESC', $extraWhere, true, $this->disableGroupAccessCheck);
@@ -811,17 +802,16 @@ abstract class AbstractMenuContentObject
      */
     protected function prepareMenuItemsForKeywordsMenu($specialValue, $sortingField)
     {
-        $tsfe = $this->getTypoScriptFrontendController();
         $menuItems = [];
         [$specialValue] = GeneralUtility::intExplode(',', $specialValue);
         if (!$specialValue) {
-            $specialValue = $tsfe->id;
+            $specialValue = $this->request->getAttribute('frontend.page.information')->getId();
         }
         if (($this->conf['special.']['setKeywords'] ?? false) || ($this->conf['special.']['setKeywords.'] ?? false)) {
             $kw = (string)$this->parent_cObj->stdWrapValue('setKeywords', $this->conf['special.'] ?? []);
         } else {
             // The page record of the 'value'.
-            $value_rec = $this->sys_page->getPage($specialValue);
+            $value_rec = $this->sys_page->getPage((int)$specialValue);
             $kfieldSrc = ($this->conf['special.']['keywordsField.']['sourceField'] ?? false) ? $this->conf['special.']['keywordsField.']['sourceField'] : 'keywords';
             // keywords.
             $kw = trim($this->parent_cObj->keywords($value_rec[$kfieldSrc] ?? ''));
@@ -838,11 +828,12 @@ abstract class AbstractMenuContentObject
         // Max number of items
         $limit = MathUtility::forceIntegerInRange(($this->conf['special.']['limit'] ?? 0), 0, 100);
         // Start point
+        $localRootLine = $this->request->getAttribute('frontend.page.information')->getLocalRootLine();
         $eLevel = $this->parent_cObj->getKey(
             $this->parent_cObj->stdWrapValue('entryLevel', $this->conf['special.'] ?? []),
-            $tsfe->config['rootLine'] ?? []
+            $localRootLine
         );
-        $startUid = (int)($tsfe->config['rootLine'][$eLevel]['uid'] ?? 0);
+        $startUid = (int)($localRootLine[$eLevel]['uid'] ?? 0);
         // Which field is for keywords
         $kfield = 'keywords';
         if ($this->conf['special.']['keywordsField'] ?? false) {
@@ -928,7 +919,6 @@ abstract class AbstractMenuContentObject
      */
     protected function prepareMenuItemsForRootlineMenu()
     {
-        $tsfe = $this->getTypoScriptFrontendController();
         $menuItems = [];
         $range = (string)$this->parent_cObj->stdWrapValue('range', $this->conf['special.'] ?? []);
         $begin_end = explode('|', $range);
@@ -936,13 +926,14 @@ abstract class AbstractMenuContentObject
         if (!MathUtility::canBeInterpretedAsInteger($begin_end[1] ?? '')) {
             $begin_end[1] = -1;
         }
-        $beginKey = $this->parent_cObj->getKey($begin_end[0], $tsfe->config['rootLine'] ?? []);
-        $endKey = $this->parent_cObj->getKey($begin_end[1], $tsfe->config['rootLine'] ?? []);
+        $localRootLine = $this->request->getAttribute('frontend.page.information')->getLocalRootLine();
+        $beginKey = $this->parent_cObj->getKey($begin_end[0], $localRootLine ?? []);
+        $endKey = $this->parent_cObj->getKey($begin_end[1], $localRootLine ?? []);
         if ($endKey < $beginKey) {
             $endKey = $beginKey;
         }
         $rl_MParray = [];
-        foreach (($tsfe->config['rootLine'] ?? []) as $k_rl => $v_rl) {
+        foreach ($localRootLine as $k_rl => $v_rl) {
             // For overlaid mount points, set the variable right now:
             if (($v_rl['_MP_PARAM'] ?? false) && ($v_rl['_MOUNT_OL'] ?? false)) {
                 $rl_MParray[] = $v_rl['_MP_PARAM'];
@@ -950,7 +941,7 @@ abstract class AbstractMenuContentObject
             // Traverse rootline:
             if ($k_rl >= $beginKey && $k_rl <= $endKey) {
                 $temp_key = $k_rl;
-                $menuItems[$temp_key] = $this->sys_page->getPage($v_rl['uid']);
+                $menuItems[$temp_key] = $this->sys_page->getPage((int)$v_rl['uid']);
                 if (!empty($menuItems[$temp_key])) {
                     // If there are no specific target for the page, put the level specific target on.
                     if (!$menuItems[$temp_key]['target']) {
@@ -983,26 +974,26 @@ abstract class AbstractMenuContentObject
      */
     protected function prepareMenuItemsForBrowseMenu($specialValue, $sortingField, $additionalWhere)
     {
-        $tsfe = $this->getTypoScriptFrontendController();
         $menuItems = [];
         [$specialValue] = GeneralUtility::intExplode(',', $specialValue);
         if (!$specialValue) {
-            $specialValue = $this->getTypoScriptFrontendController()->page['uid'];
+            $specialValue = $this->request->getAttribute('frontend.page.information')->getPageRecord()['uid'];
         }
+        $localRootLine = $this->request->getAttribute('frontend.page.information')->getLocalRootLine();
         // Will not work out of rootline
-        if ($specialValue != ($tsfe->config['rootLine'][0]['uid'] ?? null)) {
+        if ($specialValue != ($localRootLine[0]['uid'] ?? null)) {
             $recArr = [];
-            // The page record of the 'value'.
-            $value_rec = $this->sys_page->getPage($specialValue, $this->disableGroupAccessCheck);
+            // The page id of the 'value'
+            $value_rec_pid = $this->sys_page->getPage((int)$specialValue, $this->disableGroupAccessCheck)['pid'] ?? null;
             // 'up' page cannot be outside rootline
-            if ($value_rec['pid']) {
+            if ($value_rec_pid) {
                 // The page record of 'up'.
-                $recArr['up'] = $this->sys_page->getPage($value_rec['pid'], $this->disableGroupAccessCheck);
+                $recArr['up'] = $this->sys_page->getPage((int)$value_rec_pid, $this->disableGroupAccessCheck);
             }
             // If the 'up' item was NOT level 0 in rootline...
-            if (($recArr['up']['pid'] ?? 0) && $value_rec['pid'] != ($tsfe->config['rootLine'][0]['uid'] ?? null)) {
+            if (($recArr['up']['pid'] ?? 0) && $value_rec_pid != ($localRootLine[0]['uid'] ?? null)) {
                 // The page record of "index".
-                $recArr['index'] = $this->sys_page->getPage($recArr['up']['pid']);
+                $recArr['index'] = $this->sys_page->getPage((int)$recArr['up']['pid']);
             }
             // check if certain pages should be excluded
             $additionalWhere .= ($this->conf['includeNotInMenu'] ? '' : ' AND pages.nav_hide=0') . $this->getDoktypeExcludeWhere();
@@ -1010,7 +1001,10 @@ abstract class AbstractMenuContentObject
                 $additionalWhere .= ' AND pages.no_search=0';
             }
             // prev / next is found
-            $prevnext_menu = $this->removeInaccessiblePages($this->sys_page->getMenu($value_rec['pid'], '*', $sortingField, $additionalWhere, true, $this->disableGroupAccessCheck));
+            $prevnext_menu = [];
+            if ($value_rec_pid) {
+                $prevnext_menu = $this->removeInaccessiblePages($this->sys_page->getMenu($value_rec_pid, '*', $sortingField, $additionalWhere, true, $this->disableGroupAccessCheck));
+            }
             $nextActive = false;
             foreach ($prevnext_menu as $k_b => $v_b) {
                 if ($nextActive) {
@@ -1043,7 +1037,7 @@ abstract class AbstractMenuContentObject
                             $nextActive = false;
                         }
                     }
-                    if ($v_b['uid'] == $value_rec['pid']) {
+                    if ($v_b['uid'] == $value_rec_pid) {
                         if (isset($lastKey)) {
                             $sectionRec_temp = $this->removeInaccessiblePages($this->sys_page->getMenu($prevnextsection_menu[$lastKey]['uid'], '*', $sortingField, $additionalWhere, true, $this->disableGroupAccessCheck));
                             if (!empty($sectionRec_temp)) {
@@ -1065,15 +1059,16 @@ abstract class AbstractMenuContentObject
                     $recArr['next'] = $recArr['nextsection'];
                 }
             }
-            $items = explode('|', $this->conf['special.']['items']);
+            $items = explode('|', ($this->conf['special.']['items'] ?? 'index|up|next|prev'));
             $c = 0;
-            foreach ($items as $k_b => $v_b) {
+            foreach ($items as $v_b) {
                 $v_b = strtolower(trim($v_b));
                 if ((int)($this->conf['special.'][$v_b . '.']['uid'] ?? false)) {
                     $recArr[$v_b] = $this->sys_page->getPage((int)$this->conf['special.'][$v_b . '.']['uid'], $this->disableGroupAccessCheck);
                 }
                 if (is_array($recArr[$v_b] ?? false)) {
                     $menuItems[$c] = $recArr[$v_b];
+                    $menuItems[$c]['ITEM_STATE'] = $v_b;
                     if ($this->conf['special.'][$v_b . '.']['target'] ?? false) {
                         $menuItems[$c]['target'] = $this->conf['special.'][$v_b . '.']['target'];
                     }
@@ -1111,9 +1106,8 @@ abstract class AbstractMenuContentObject
         if (in_array((int)($data['doktype'] ?? 0), $this->excludedDoktypes, true)) {
             return false;
         }
-        $languageId = $this->getCurrentLanguageAspect()->getId();
-        // PageID should not be banned (check for default language pages as well)
-        if (($data['_PAGES_OVERLAY_UID'] ?? 0) > 0 && in_array((int)($data['_PAGES_OVERLAY_UID'] ?? 0), $banUidArray, true)) {
+        // PageID should not be banned (check for default language and translated IDs)
+        if (($data['_LOCALIZED_UID'] ?? 0) > 0 && in_array((int)$data['_LOCALIZED_UID'], $banUidArray, true)) {
             return false;
         }
         if (in_array((int)($data['uid'] ?? 0), $banUidArray, true)) {
@@ -1127,15 +1121,16 @@ abstract class AbstractMenuContentObject
         if (!$this->sys_page->isPageSuitableForLanguage($data, $this->getCurrentLanguageAspect())) {
             return false;
         }
+        $languageAspect = $this->getCurrentLanguageAspect();
         // Checking if the link should point to the default language so links to non-accessible pages will not happen
-        if ($languageId > 0 && !empty($this->conf['protectLvar'])) {
+        if ($languageAspect->getId() > 0 && !empty($this->conf['protectLvar'])) {
             $pageTranslationVisibility = new PageTranslationVisibility((int)($data['l18n_cfg'] ?? 0));
             if ($this->conf['protectLvar'] === 'all' || $pageTranslationVisibility->shouldHideTranslationIfNoTranslatedRecordExists()) {
-                $olRec = $this->sys_page->getPageOverlay($data['uid'], $languageId);
+                $olRec = $this->sys_page->getPageOverlay((int)($data['uid'] ?? 0), $languageAspect);
                 if (empty($olRec)) {
                     // If no page translation record then page can NOT be accessed in
                     // the language pointed to, therefore we protect the link by linking to the default language
-                    $data['_PAGES_OVERLAY_REQUESTEDLANGUAGE'] = '0';
+                    $data['_REQUESTED_OVERLAY_LANGUAGE'] = '0';
                 }
             }
         }
@@ -1175,7 +1170,7 @@ abstract class AbstractMenuContentObject
                 if ($this->isItemState($state, $key)) {
                     // if this is the first element of type $state, we must generate the custom configuration.
                     if ($customConfiguration === null) {
-                        $customConfiguration = $typoScriptService->explodeConfigurationForOptionSplit((array)$this->mconf[$state . '.'], $splitCount);
+                        $customConfiguration = $typoScriptService->explodeConfigurationForOptionSplit((array)($this->mconf[$state . '.'] ?? []), $splitCount);
                     }
                     // Substitute normal with the custom (e.g. IFSUB)
                     if (isset($customConfiguration[$key])) {
@@ -1218,19 +1213,16 @@ abstract class AbstractMenuContentObject
             return $runtimeCachedLink;
         }
 
-        $tsfe = $this->getTypoScriptFrontendController();
+        $typoScript = $this->request->getAttribute('frontend.typoscript');
+        $backupSetupConfigArray = $hackedSetupConfigArray = $typoScript->getConfigArray();
 
-        $SAVED_link_to_restricted_pages = '';
-        $SAVED_link_to_restricted_pages_additional_params = '';
-        $SAVED_link_to_restricted_pages_tag_attributes = '';
         // links to a specific page
         if ($this->mconf['showAccessRestrictedPages'] ?? false) {
-            $SAVED_link_to_restricted_pages = $tsfe->config['config']['typolinkLinkAccessRestrictedPages'] ?? false;
-            $SAVED_link_to_restricted_pages_additional_params = $tsfe->config['config']['typolinkLinkAccessRestrictedPages_addParams'] ?? null;
-            $SAVED_link_to_restricted_pages_tag_attributes = $tsfe->config['config']['typolinkLinkAccessRestrictedPages.']['ATagParams'] ?? '';
-            $tsfe->config['config']['typolinkLinkAccessRestrictedPages'] = $this->mconf['showAccessRestrictedPages'];
-            $tsfe->config['config']['typolinkLinkAccessRestrictedPages_addParams'] = $this->mconf['showAccessRestrictedPages.']['addParams'] ?? '';
-            $tsfe->config['config']['typolinkLinkAccessRestrictedPages.']['ATagParams'] = $this->mconf['showAccessRestrictedPages.']['ATagParams'] ?? '';
+            // @todo: Resetting config is a hack. This needs to be resolved differently. Consumed in PageLinkBuilder.
+            $hackedSetupConfigArray['typolinkLinkAccessRestrictedPages'] = $this->mconf['showAccessRestrictedPages'];
+            $hackedSetupConfigArray['typolinkLinkAccessRestrictedPages_addParams'] = $this->mconf['showAccessRestrictedPages.']['addParams'] ?? '';
+            $hackedSetupConfigArray['typolinkLinkAccessRestrictedPages.']['ATagParams'] = $this->mconf['showAccessRestrictedPages.']['ATagParams'] ?? '';
+            $typoScript->setConfigArray($hackedSetupConfigArray);
         }
         // If a user script returned the value overrideId in the menu array we use that as page id
         if (($this->mconf['overrideId'] ?? false) || ($this->menuArr[$key]['overrideId'] ?? false)) {
@@ -1244,28 +1236,29 @@ abstract class AbstractMenuContentObject
             $MP_params = $MP_var ? '&MP=' . rawurlencode($MP_var) : '';
         }
         // Setting main target
-        $mainTarget = $altTarget ?: (string)$this->parent_cObj->stdWrapValue('target', $this->mconf ?? []);
+        $mainTarget = $altTarget ?: (string)$this->parent_cObj->stdWrapValue('target', $this->mconf);
         // Creating link
         $addParams = ($this->mconf['addParams'] ?? '') . ($this->I['val']['additionalParams'] ?? '') . $MP_params;
         try {
             $linkResult = $this->menuTypoLink($this->menuArr[$key], $mainTarget, $addParams, $typeOverride, $overrideId);
-            // Overriding URL / Target if set to do so:
-            if ($this->menuArr[$key]['_OVERRIDE_HREF'] ?? false) {
-                $linkResult = $linkResult->withAttribute('href', $this->menuArr[$key]['_OVERRIDE_HREF']);
-                if ($this->menuArr[$key]['_OVERRIDE_TARGET'] ?? false) {
-                    $linkResult = $linkResult->withAttribute('target', $this->menuArr[$key]['_OVERRIDE_TARGET']);
-                }
-            }
         } catch (UnableToLinkException $e) {
             $linkResult = null;
+        }
+        // Overriding URL / Target if set to do so:
+        if ($this->menuArr[$key]['_OVERRIDE_HREF'] ?? false) {
+            if ($linkResult === null) {
+                $linkResult = new LinkResult('', '');
+            }
+            $linkResult = $linkResult->withAttribute('href', $this->menuArr[$key]['_OVERRIDE_HREF']);
+            if ($this->menuArr[$key]['_OVERRIDE_TARGET'] ?? false) {
+                $linkResult = $linkResult->withAttribute('target', $this->menuArr[$key]['_OVERRIDE_TARGET']);
+            }
         }
         $runtimeCache->set($cacheId, $linkResult);
 
         // End showAccessRestrictedPages
         if ($this->mconf['showAccessRestrictedPages'] ?? false) {
-            $tsfe->config['config']['typolinkLinkAccessRestrictedPages'] = $SAVED_link_to_restricted_pages;
-            $tsfe->config['config']['typolinkLinkAccessRestrictedPages_addParams'] = $SAVED_link_to_restricted_pages_additional_params;
-            $tsfe->config['config']['typolinkLinkAccessRestrictedPages.']['ATagParams'] = $SAVED_link_to_restricted_pages_tag_attributes;
+            $typoScript->setConfigArray($backupSetupConfigArray);
         }
 
         return $linkResult;
@@ -1281,15 +1274,15 @@ abstract class AbstractMenuContentObject
     protected function subMenu(int $uid, string $objSuffix, int $menuItemKey)
     {
         // Setting alternative menu item array if _SUB_MENU has been defined in the current ->menuArr
-        $altArray = '';
+        $altArray = [];
         if (is_array($this->menuArr[$menuItemKey]['_SUB_MENU'] ?? null) && !empty($this->menuArr[$menuItemKey]['_SUB_MENU'])) {
             $altArray = $this->menuArr[$menuItemKey]['_SUB_MENU'];
         }
         // Make submenu if the page is the next active
         $menuType = $this->conf[($this->menuNumber + 1) . $objSuffix] ?? '';
         // stdWrap for expAll
-        $this->mconf['expAll'] = $this->parent_cObj->stdWrapValue('expAll', $this->mconf ?? []);
-        if (($this->mconf['expAll'] || $this->isNext($uid, $this->getMPvar($menuItemKey)) || is_array($altArray)) && !($this->mconf['sectionIndex'] ?? false)) {
+        $this->mconf['expAll'] = $this->parent_cObj->stdWrapValue('expAll', $this->mconf);
+        if (($this->mconf['expAll'] || $this->isNext($uid, $this->getMPvar($menuItemKey)) || $altArray !== []) && !($this->mconf['sectionIndex'] ?? false)) {
             try {
                 $menuObjectFactory = GeneralUtility::makeInstance(MenuContentObjectFactory::class);
                 /** @var AbstractMenuContentObject $submenu */
@@ -1304,11 +1297,10 @@ abstract class AbstractMenuContentObject
                 $submenu->parent_cObj = $this->parent_cObj;
                 $submenu->setParentMenu($this->menuArr, $menuItemKey);
                 // Setting alternativeMenuTempArray (will be effective only if an array and not empty)
-                if (is_array($altArray) && !empty($altArray)) {
+                if ($altArray !== []) {
                     $submenu->alternativeMenuTempArray = $altArray;
                 }
-                // @deprecated since v12, will be removed in v13: Hand over null as first argument.
-                if ($submenu->start($this->tmpl, $this->sys_page, $uid, $this->conf, $this->menuNumber + 1, $objSuffix, $this->request)) {
+                if ($submenu->start(null, $this->sys_page, $uid, $this->conf, $this->menuNumber + 1, $objSuffix, $this->request)) {
                     $submenu->makeMenu();
                     // Memorize the current menu item count
                     $tsfe = $this->getTypoScriptFrontendController();
@@ -1368,8 +1360,8 @@ abstract class AbstractMenuContentObject
         }
         try {
             $page = $this->sys_page->resolveShortcutPage($page, $this->disableGroupAccessCheck);
-            $shortcutPage = (int)($page['_SHORTCUT_ORIGINAL_PAGE_UID'] ?? 0);
-            if ($shortcutPage) {
+            if (isset($page['_SHORTCUT_ORIGINAL_PAGE_UID'])) {
+                $shortcutPage = (int)($page['uid'] ?? 0);
                 if (in_array($shortcutPage, $this->alwaysActivePIDlist, true)) {
                     return true;
                 }
@@ -1386,11 +1378,11 @@ abstract class AbstractMenuContentObject
     }
 
     /**
-     * Returns TRUE if the page is the CURRENT page (equals $this->getTypoScriptFrontendController()->id)
+     * Returns TRUE if the page is the CURRENT page.
      *
      * @param array $page Page record to evaluate.
      * @param string $MPvar MPvar for the current position of item.
-     * @return bool TRUE if resolved page ID = $this->getTypoScriptFrontendController()->id
+     * @return bool TRUE if resolved page ID is current requested page id
      */
     protected function isCurrent(array $page, $MPvar)
     {
@@ -1400,8 +1392,8 @@ abstract class AbstractMenuContentObject
         }
         try {
             $page = $this->sys_page->resolveShortcutPage($page);
-            $shortcutPage = (int)($page['_SHORTCUT_ORIGINAL_PAGE_UID'] ?? 0);
-            if ($shortcutPage) {
+            if (isset($page['_SHORTCUT_ORIGINAL_PAGE_UID'])) {
+                $shortcutPage = (int)($page['uid'] ?? 0);
                 $testUid = $shortcutPage . ($MPvar ? ':' . $MPvar : '');
                 if (end($this->rL_uidRegister) === 'ITEM:' . $testUid) {
                     return true;
@@ -1441,7 +1433,7 @@ abstract class AbstractMenuContentObject
         $cacheIdentifierPagesNextLevel = 'menucontentobject-is-submenu-pages-next-level-' . $this->menuNumber . '-' . sha1(json_encode($pageIdsOnSameLevel));
         $cachePagesNextLevel = $runtimeCache->get($cacheIdentifierPagesNextLevel);
         if (!is_array($cachePagesNextLevel)) {
-            $cachePagesNextLevel = $this->sys_page->getMenu($pageIdsOnSameLevel, 'uid,pid,doktype,mount_pid,mount_pid_ol,nav_hide,shortcut,shortcut_mode,l18n_cfg');
+            $cachePagesNextLevel = $this->sys_page->getMenu($pageIdsOnSameLevel, 'uid,pid,doktype,mount_pid,mount_pid_ol,nav_hide,shortcut,shortcut_mode,l18n_cfg,sys_language_uid,l10n_parent,t3ver_wsid,t3ver_oid,t3ver_state', 'sorting', '', true, $this->disableGroupAccessCheck);
             $runtimeCache->set($cacheIdentifierPagesNextLevel, $cachePagesNextLevel);
         }
 
@@ -1469,12 +1461,12 @@ abstract class AbstractMenuContentObject
                 continue;
             }
             // No valid subpage if the alternative language should be shown and the page settings
-            // are requiring a valid overlay but it doesn't exists
-            if ($pageTranslationVisibility->shouldHideTranslationIfNoTranslatedRecordExists() && $languageId > 0 && !($theRec['_PAGES_OVERLAY'] ?? false)) {
+            // are requiring a valid overlay, but it doesn't exist
+            if ($pageTranslationVisibility->shouldHideTranslationIfNoTranslatedRecordExists() && $languageId > 0 && !isset($theRec['_LOCALIZED_UID'])) {
                 continue;
             }
             // No valid subpage if the subpage is banned by excludeUidList (check for default language pages as well)
-            if (($theRec['_PAGES_OVERLAY_UID'] ?? 0) > 0 && in_array((int)($theRec['_PAGES_OVERLAY_UID'] ?? 0), $bannedUids, true)) {
+            if (isset($theRec['_LOCALIZED_UID']) && in_array($theRec['_LOCALIZED_UID'], $bannedUids, true)) {
                 continue;
             }
             if (in_array((int)($theRec['uid'] ?? 0), $bannedUids, true)) {
@@ -1612,12 +1604,12 @@ abstract class AbstractMenuContentObject
      */
     protected function getBannedUids()
     {
-        $excludeUidList = (string)$this->parent_cObj->stdWrapValue('excludeUidList', $this->conf ?? []);
+        $excludeUidList = (string)$this->parent_cObj->stdWrapValue('excludeUidList', $this->conf);
         if (!trim($excludeUidList)) {
             return [];
         }
-
-        $banUidList = str_replace('current', (string)($this->getTypoScriptFrontendController()->page['uid'] ?? ''), $excludeUidList);
+        $currentPageUid = $this->request->getAttribute('frontend.page.information')->getPageRecord()['uid'] ?? '';
+        $banUidList = str_replace('current', (string)($currentPageUid), $excludeUidList);
         return GeneralUtility::intExplode(',', $banUidList);
     }
 
@@ -1649,9 +1641,9 @@ abstract class AbstractMenuContentObject
 
         // Ensure that the typolink gets an info which language was actually requested. The $page record could be the record
         // from page translation language=1 as fallback but page translation language=2 was requested. Search for
-        // "_PAGES_OVERLAY_REQUESTEDLANGUAGE" for more details
-        if (isset($page['_PAGES_OVERLAY_REQUESTEDLANGUAGE'])) {
-            $conf['language'] = $page['_PAGES_OVERLAY_REQUESTEDLANGUAGE'];
+        // "_REQUESTED_OVERLAY_LANGUAGE" for more details
+        if (isset($page['_REQUESTED_OVERLAY_LANGUAGE'])) {
+            $conf['language'] = $page['_REQUESTED_OVERLAY_LANGUAGE'];
         }
         if ($oTarget) {
             $conf['target'] = $oTarget;
@@ -1693,7 +1685,7 @@ abstract class AbstractMenuContentObject
     {
         $pid = (int)($pid ?: $this->id);
         $basePageRow = $this->sys_page->getPage($pid);
-        if (!is_array($basePageRow)) {
+        if ($basePageRow === []) {
             return [];
         }
         $useColPos = (int)$this->parent_cObj->stdWrapValue('useColPos', $this->mconf['sectionIndex.'] ?? [], 0);
@@ -1724,8 +1716,8 @@ abstract class AbstractMenuContentObject
         $result = [];
         while ($row = $statement->fetchAssociative()) {
             $this->sys_page->versionOL('tt_content', $row);
-            if ($this->getCurrentLanguageAspect()->doOverlays() && $basePageRow['_PAGES_OVERLAY_LANGUAGE']) {
-                $languageAspect = new LanguageAspect($basePageRow['_PAGES_OVERLAY_LANGUAGE'], $basePageRow['_PAGES_OVERLAY_LANGUAGE'], $this->getCurrentLanguageAspect()->getOverlayType());
+            if ($this->getCurrentLanguageAspect()->doOverlays() && $basePageRow['sys_language_uid'] > 0) {
+                $languageAspect = new LanguageAspect($basePageRow['sys_language_uid'], $basePageRow['sys_language_uid'], $this->getCurrentLanguageAspect()->getOverlayType());
                 $row = $this->sys_page->getLanguageOverlay(
                     'tt_content',
                     $row,
@@ -1792,7 +1784,6 @@ abstract class AbstractMenuContentObject
         if (!$frontendController instanceof TypoScriptFrontendController) {
             throw new ContentRenderingException('TypoScriptFrontendController is not available.', 1655725105);
         }
-
         return $frontendController;
     }
 
@@ -1816,12 +1807,9 @@ abstract class AbstractMenuContentObject
         return GeneralUtility::makeInstance(CacheManager::class)->getCache('runtime');
     }
 
-    /**
-     * Returns the currently configured "site" if a site is configured (= resolved) in the current request.
-     */
     protected function getCurrentSite(): Site
     {
-        return $this->getTypoScriptFrontendController()->getSite();
+        return $this->request->getAttribute('site');
     }
 
     /**

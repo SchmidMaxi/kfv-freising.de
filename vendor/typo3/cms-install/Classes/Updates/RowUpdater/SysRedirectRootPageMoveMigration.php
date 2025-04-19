@@ -24,6 +24,7 @@ use TYPO3\CMS\Core\Exception\SiteNotFoundException;
 use TYPO3\CMS\Core\Site\SiteFinder;
 
 /**
+ * @since 12.1
  * @internal This class is only meant to be used within EXT:install and is not part of the TYPO3 Core API.
  */
 class SysRedirectRootPageMoveMigration implements RowUpdaterInterface
@@ -100,7 +101,7 @@ class SysRedirectRootPageMoveMigration implements RowUpdaterInterface
     private function sysRedirectsTableExists(): bool
     {
         $schemaManager = $this->connectionPool->getConnectionForTable(self::TABLE_NAME)->createSchemaManager();
-        return $schemaManager->tablesExist(self::TABLE_NAME);
+        return $schemaManager->tablesExist([self::TABLE_NAME]);
     }
 
     private function getPreparedQueryBuilder(): QueryBuilder

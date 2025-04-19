@@ -26,7 +26,7 @@ class WidgetGroupInitializationService
 {
     public function __construct(
         private readonly WidgetGroupRegistry $widgetGroupRegistry,
-        private readonly WidgetRegistry $widgetRegistry
+        private readonly WidgetRegistry $widgetRegistry,
     ) {}
 
     /**
@@ -41,17 +41,26 @@ class WidgetGroupInitializationService
 
             $widgetsForGroup = $this->widgetRegistry->getAvailableWidgetsForWidgetGroup($widgetGroupIdentifier);
             foreach ($widgetsForGroup as $widgetConfiguration) {
-                $widgets[$widgetConfiguration->getIdentifier()] = [
-                    'iconIdentifier' => $widgetConfiguration->getIconIdentifier(),
-                    'title' => $this->getLanguageService()->sL($widgetConfiguration->getTitle()),
+                $widgetIdentifier = $widgetConfiguration->getIdentifier();
+
+                $widgets[] = [
+                    'identifier' => $widgetIdentifier,
+                    'icon' => $widgetConfiguration->getIconIdentifier(),
+                    'label' => $this->getLanguageService()->sL($widgetConfiguration->getTitle()),
                     'description' => $this->getLanguageService()->sL($widgetConfiguration->getDescription()),
+                    'requestType' => 'event',
+                    'event' => 'typo3:dashboard:widget:add',
                 ];
+            }
+
+            if ($widgets === []) {
+                continue;
             }
 
             $groupConfigurations[$widgetGroupIdentifier] = [
                 'identifier' => $widgetGroupIdentifier,
-                'title' => $widgetGroup->getTitle(),
-                'widgets' => $widgets,
+                'label' => $widgetGroup->getTitle(),
+                'items' => $widgets,
             ];
         }
 

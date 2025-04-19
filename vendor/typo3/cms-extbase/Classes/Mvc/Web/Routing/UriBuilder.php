@@ -17,127 +17,47 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Extbase\Mvc\Web\Routing;
 
-use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Backend\Routing\Exception\RouteNotFoundException;
 use TYPO3\CMS\Backend\Routing\Route;
 use TYPO3\CMS\Core\Http\ApplicationType;
 use TYPO3\CMS\Core\Utility\ArrayUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\HttpUtility;
-use TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface;
 use TYPO3\CMS\Extbase\DomainObject\AbstractValueObject;
 use TYPO3\CMS\Extbase\DomainObject\DomainObjectInterface;
 use TYPO3\CMS\Extbase\Mvc\Exception\InvalidArgumentValueException;
-use TYPO3\CMS\Extbase\Mvc\ExtbaseRequestParameters;
-use TYPO3\CMS\Extbase\Mvc\Request;
 use TYPO3\CMS\Extbase\Mvc\RequestInterface;
 use TYPO3\CMS\Extbase\Persistence\Generic\LazyLoadingProxy;
 use TYPO3\CMS\Extbase\Service\ExtensionService;
 use TYPO3\CMS\Frontend\ContentObject\ContentObjectRenderer;
 
 /**
- * An URI Builder
+ * URI Builder for extbase requests.
  */
+#[Autoconfigure(public: true, shared: false)]
 class UriBuilder
 {
-    protected ConfigurationManagerInterface $configurationManager;
+    protected RequestInterface $request;
 
-    protected ExtensionService $extensionService;
+    protected array $arguments = [];
+    protected array $lastArguments = [];
+    protected string $section = '';
+    protected bool $createAbsoluteUri = false;
+    protected ?string $absoluteUriScheme = null;
+    protected bool|string|int $addQueryString = false;
+    protected array $argumentsToBeExcludedFromQueryString = [];
+    protected bool $linkAccessRestrictedPages = false;
+    protected ?int $targetPageUid = null;
+    protected int $targetPageType = 0;
+    protected ?string $language = null;
+    protected bool $noCache = false;
+    protected string $format = '';
+    protected ?string $argumentPrefix = null;
 
-    /**
-     * @deprecated Remove nullable in v13
-     */
-    protected ?ContentObjectRenderer $contentObject = null;
-
-    protected ?RequestInterface $request = null;
-
-    /**
-     * @var array
-     */
-    protected $arguments = [];
-
-    /**
-     * Arguments which have been used for building the last URI
-     *
-     * @var array
-     */
-    protected $lastArguments = [];
-
-    /**
-     * @var string
-     */
-    protected $section = '';
-
-    /**
-     * @var bool
-     */
-    protected $createAbsoluteUri = false;
-
-    /**
-     * @var string|null
-     */
-    protected $absoluteUriScheme;
-
-    /**
-     * @var bool|string|int
-     */
-    protected $addQueryString = false;
-
-    /**
-     * @var array
-     */
-    protected $argumentsToBeExcludedFromQueryString = [];
-
-    /**
-     * @var bool
-     */
-    protected $linkAccessRestrictedPages = false;
-
-    /**
-     * @var int|null
-     */
-    protected $targetPageUid;
-
-    /**
-     * @var int
-     */
-    protected $targetPageType = 0;
-
-    /**
-     * @var string|null
-     */
-    protected $language;
-
-    /**
-     * @var bool
-     */
-    protected $noCache = false;
-
-    /**
-     * @var string
-     */
-    protected $format = '';
-
-    /**
-     * @var string|null
-     */
-    protected $argumentPrefix;
-
-    /**
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
-     */
-    public function injectConfigurationManager(ConfigurationManagerInterface $configurationManager): void
-    {
-        $this->configurationManager = $configurationManager;
-    }
-
-    /**
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
-     */
-    public function injectExtensionService(ExtensionService $extensionService): void
-    {
-        $this->extensionService = $extensionService;
-    }
+    public function __construct(
+        protected readonly ExtensionService $extensionService,
+    ) {}
 
     /**
      * Sets the current request
@@ -147,40 +67,7 @@ class UriBuilder
     public function setRequest(RequestInterface $request): UriBuilder
     {
         $this->request = $request;
-        $contentObject = $request->getAttribute('currentContentObject');
-        if ($contentObject === null) {
-            // @todo: Review this. This should never be the case since extbase
-            //        bootstrap adds 'currentContentObject' to request. When this
-            //        if() kicks in, it most likely indicates an "out of scope" usage.
-            $contentObject = GeneralUtility::makeInstance(ContentObjectRenderer::class);
-            $contentObject->setRequest($request->withAttribute('currentContentObject', $contentObject));
-        }
-        $this->contentObject = $contentObject;
         return $this;
-    }
-
-    /**
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
-     */
-    public function getRequest(): ?RequestInterface
-    {
-        if (!$this->request instanceof RequestInterface) {
-            trigger_error(
-                __CLASS__ . ' will rely on a PSR-7 Request object to properly calculate URLs in the future. ' .
-                    'Make sure to provide such object by calling $uriBuilder->setRequest() before calculating URLs.',
-                E_USER_DEPRECATED
-            );
-            $request = $GLOBALS['TYPO3_REQUEST'];
-            if ($request instanceof ServerRequestInterface && !$request instanceof RequestInterface) {
-                // Usually, UriBuilder gets the request set via setRequest() from extbase abstract ActionController
-                // in processRequest(). Otherwise, if not in extbase context, this class fell back to non-extbase request
-                // which is set as $GLOBALS['TYPO3_REQUEST']. Since this method must return an extbase request, and the
-                // constructor of Request throws an exception if no ExtbaseRequestParameters attribute is given, we simply
-                // create an empty attribute, attach it and create the extbase request.
-                $this->request = new Request($request->withAttribute('extbase', new ExtbaseRequestParameters()));
-            }
-        }
-        return $this->request;
     }
 
     /**
@@ -290,6 +177,9 @@ class UriBuilder
         return $this;
     }
 
+    /**
+     * @internal only to be used within Extbase, not part of TYPO3 Core API.
+     */
     public function getLanguage(): ?string
     {
         return $this->language;
@@ -391,9 +281,7 @@ class UriBuilder
     }
 
     /**
-     * returns $this->targetPageUid.
-     *
-     * @internal
+     * @internal only to be used within Extbase, not part of TYPO3 Core API.
      */
     public function getTargetPageUid(): ?int
     {
@@ -470,16 +358,13 @@ class UriBuilder
         $this->noCache = false;
         $this->argumentPrefix = null;
         $this->absoluteUriScheme = null;
-        /*
-         * $this->request MUST NOT be reset here because the request is actually a hard dependency and not part
-         * of the internal state of this object.
-         * todo: make the request a constructor dependency
-         */
+        // $this->request MUST NOT be reset here because the request is actually a hard dependency
+        // and not part of the internal state of this object.
         return $this;
     }
 
     /**
-     * Creates an URI used for linking to an Extbase action.
+     * Creates a URI used for linking to an Extbase action.
      * Works in Frontend and Backend mode of TYPO3.
      *
      * @param string|null $actionName Name of the action to be called
@@ -510,18 +395,12 @@ class UriBuilder
         if ($extensionName === null) {
             $extensionName = $this->request->getControllerExtensionName();
         }
-        $isFrontend = $this->getRequest() instanceof ServerRequestInterface
-            && ApplicationType::fromRequest($this->getRequest())->isFrontend();
+        $isFrontend = ApplicationType::fromRequest($this->request)->isFrontend();
         if ($pluginName === null && $isFrontend) {
             $pluginName = $this->extensionService->getPluginNameByAction($extensionName, $controllerArguments['controller'], $controllerArguments['action'] ?? null);
         }
         if ($pluginName === null) {
             $pluginName = $this->request->getPluginName();
-        }
-        if ($isFrontend && $this->configurationManager->isFeatureEnabled('skipDefaultArguments')) {
-            // @deprecated since TYPO3 v12, will be removed in TYPO3 v13. Remove together with other extbase feature toggle related code.
-            //             Remove if() with body, remove removeDefaultControllerAndAction() method.
-            $controllerArguments = $this->removeDefaultControllerAndAction($controllerArguments, $extensionName, $pluginName);
         }
         if ($this->targetPageUid === null && $isFrontend) {
             $this->targetPageUid = $this->extensionService->getTargetPidByPlugin($extensionName, $pluginName);
@@ -531,9 +410,7 @@ class UriBuilder
         }
         if ($this->argumentPrefix !== null) {
             $prefixedControllerArguments = [$this->argumentPrefix => $controllerArguments];
-        } elseif (!$isFrontend && !$this->configurationManager->isFeatureEnabled('enableNamespacedArgumentsForBackend')) {
-            // @deprecated since TYPO3 v12, will be removed in TYPO3 v13. Remove together with other extbase feature toggle related code.
-            //             Remove "&& !$this->configurationManager->isFeatureEnabled('enableNamespacedArgumentsForBackend')" from if()
+        } elseif (!$isFrontend) {
             $prefixedControllerArguments = $controllerArguments;
         } else {
             $pluginNamespace = $this->extensionService->getPluginNamespace($extensionName, $pluginName);
@@ -541,36 +418,6 @@ class UriBuilder
         }
         ArrayUtility::mergeRecursiveWithOverrule($this->arguments, $prefixedControllerArguments);
         return $this->build();
-    }
-
-    /**
-     * This removes controller and/or action arguments from given controllerArguments
-     * if they are equal to the default controller/action of the target plugin.
-     * Note: This is only active in FE mode and if feature "skipDefaultArguments" is enabled
-     *
-     * @see \TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface::isFeatureEnabled()
-     * @param array $controllerArguments the current controller arguments to be modified
-     * @param string $extensionName target extension name
-     * @param string $pluginName target plugin name
-     * @deprecated since TYPO3 v12, will be removed in TYPO3 v13. Remove together with other extbase feature toggle related code.
-     */
-    protected function removeDefaultControllerAndAction(array $controllerArguments, string $extensionName, string $pluginName): array
-    {
-        trigger_error(
-            'Extbase feature toggle skipDefaultArguments=1 is deprecated. Use routing to "configure-away" default arguments',
-            E_USER_DEPRECATED
-        );
-        $defaultControllerName = $this->extensionService->getDefaultControllerNameByPlugin($extensionName, $pluginName);
-        if (isset($controllerArguments['action'])) {
-            $defaultActionName = $this->extensionService->getDefaultActionNameByPluginAndController($extensionName, $pluginName, $controllerArguments['controller']);
-            if ($controllerArguments['action'] === $defaultActionName) {
-                unset($controllerArguments['action']);
-            }
-        }
-        if ($controllerArguments['controller'] === $defaultControllerName) {
-            unset($controllerArguments['controller']);
-        }
-        return $controllerArguments;
     }
 
     /**
@@ -583,10 +430,7 @@ class UriBuilder
      */
     public function build(): string
     {
-        $request = $this->getRequest();
-        if ($request instanceof ServerRequestInterface
-            && ApplicationType::fromRequest($request)->isBackend()
-        ) {
+        if (ApplicationType::fromRequest($this->request)->isBackend()) {
             return $this->buildBackendUri();
         }
         return $this->buildFrontendUri();
@@ -603,21 +447,20 @@ class UriBuilder
     public function buildBackendUri(): string
     {
         $arguments = [];
-        $request = $this->getRequest();
         if ($this->addQueryString && $this->addQueryString !== 'false') {
-            $arguments = $request?->getQueryParams() ?? [];
+            $arguments = $this->request->getQueryParams();
             foreach ($this->argumentsToBeExcludedFromQueryString as $argumentToBeExcluded) {
                 $argumentArrayToBeExcluded = [];
                 parse_str($argumentToBeExcluded, $argumentArrayToBeExcluded);
                 $arguments = ArrayUtility::arrayDiffKeyRecursive($arguments, $argumentArrayToBeExcluded);
             }
         } else {
-            $id = $request?->getParsedBody()['id'] ?? $request?->getQueryParams()['id'] ?? null;
+            $id = $this->request->getParsedBody()['id'] ?? $this->request->getQueryParams()['id'] ?? null;
             if ($id !== null) {
                 $arguments['id'] = $id;
             }
         }
-        if (($route = $request?->getAttribute('route')) instanceof Route) {
+        if (($route = $this->request->getAttribute('route')) instanceof Route) {
             /** @var Route $route */
             $arguments['route'] = $route->getOption('_identifier');
         }
@@ -627,21 +470,16 @@ class UriBuilder
         $routeIdentifier = $arguments['route'] ?? null;
         unset($arguments['route'], $arguments['token']);
 
-        // @deprecated since TYPO3 v12, will be removed in TYPO3 v13. Remove together with other extbase feature toggle related code.
-        //             Remove if below, keep body.
-        $useArgumentsWithoutNamespace = !$this->configurationManager->isFeatureEnabled('enableNamespacedArgumentsForBackend');
-        if ($useArgumentsWithoutNamespace) {
-            // In case the current route identifier is an identifier of a sub route, remove the sub route
-            // part to be able to add the actually requested sub route based on the current arguments.
-            if ($routeIdentifier && str_contains($routeIdentifier, '.')) {
-                [$routeIdentifier] = explode('.', $routeIdentifier);
-            }
-            // Build route identifier to the actually requested sub route (controller / action pair) - if any -
-            // and unset corresponding arguments, because "enableNamespacedArgumentsForBackend" is turned off.
-            if ($routeIdentifier && isset($arguments['controller'], $arguments['action'])) {
-                $routeIdentifier .= '.' . $arguments['controller'] . '_' . $arguments['action'];
-                unset($arguments['controller'], $arguments['action']);
-            }
+        // In case the current route identifier is an identifier of a sub route, remove the sub route
+        // part to be able to add the actually requested sub route based on the current arguments.
+        if ($routeIdentifier && str_contains($routeIdentifier, '.')) {
+            [$routeIdentifier] = explode('.', $routeIdentifier);
+        }
+        // Build route identifier to the actually requested sub route (controller / action pair) - if any -
+        // and unset corresponding arguments.
+        if ($routeIdentifier && isset($arguments['controller'], $arguments['action'])) {
+            $routeIdentifier .= '.' . $arguments['controller'] . '_' . $arguments['action'];
+            unset($arguments['controller'], $arguments['action']);
         }
         $uri = '';
         if ($routeIdentifier) {
@@ -652,9 +490,8 @@ class UriBuilder
                 } else {
                     $uri = (string)$backendUriBuilder->buildUriFromRoute($routeIdentifier, $arguments);
                 }
-            } catch (RouteNotFoundException $e) {
-                // return empty URL
-                $uri = '';
+            } catch (RouteNotFoundException) {
+                // empty URL
             }
         }
         if ($this->section !== '') {
@@ -679,26 +516,9 @@ class UriBuilder
                 $typolinkConfiguration['forceAbsoluteUrl.']['scheme'] = $this->absoluteUriScheme;
             }
         }
-        return $this->getContentObject()->createUrl($typolinkConfiguration);
-    }
-
-    /**
-     * @deprecated Remove in v13 when contentObject is no longer nullable
-     */
-    protected function getContentObject(): ContentObjectRenderer
-    {
-        if ($this->contentObject !== null) {
-            return $this->contentObject;
-        }
-
-        trigger_error(
-            __CLASS__ . ' relies on the current content object which should be initialized by calling ->setRequest(). The automatic fallback will be removed with TYPO3 v13.',
-            E_USER_DEPRECATED
-        );
-
-        return ($contentObject = $this->getRequest()?->getAttribute('currentContentObject')) instanceof ContentObjectRenderer
-            ? $contentObject
-            : GeneralUtility::makeInstance(ContentObjectRenderer::class);
+        /** @var ?ContentObjectRenderer $currentContentObject */
+        $currentContentObject = $this->request->getAttribute('currentContentObject');
+        return $currentContentObject?->createUrl($typolinkConfiguration) ?? '';
     }
 
     /**
@@ -710,12 +530,11 @@ class UriBuilder
     protected function buildTypolinkConfiguration(): array
     {
         $typolinkConfiguration = [];
-        $typolinkConfiguration['parameter'] = $this->targetPageUid ?? $GLOBALS['TSFE']?->id ?? '';
+        $typolinkConfiguration['parameter'] = $this->targetPageUid ?? $this->request->getAttribute('frontend.page.information')?->getId() ?? '';
         if ($this->targetPageType !== 0) {
             $typolinkConfiguration['parameter'] .= ',' . $this->targetPageType;
         } elseif ($this->format !== '') {
-            $request = $this->getRequest();
-            $targetPageType = $this->extensionService->getTargetPageTypeByFormat($request->getControllerExtensionName(), $this->format);
+            $targetPageType = $this->extensionService->getTargetPageTypeByFormat($this->request->getControllerExtensionName(), $this->format);
             $typolinkConfiguration['parameter'] .= ',' . $targetPageType;
         }
         if (!empty($this->arguments)) {
@@ -734,7 +553,6 @@ class UriBuilder
         if ($this->language !== null) {
             $typolinkConfiguration['language'] = $this->language;
         }
-
         if ($this->noCache === true) {
             $typolinkConfiguration['no_cache'] = 1;
         }
@@ -752,7 +570,7 @@ class UriBuilder
      * into an arrays containing the uid of the domain object.
      *
      * @param array $arguments The arguments to be iterated
-     * @throws \TYPO3\CMS\Extbase\Mvc\Exception\InvalidArgumentValueException
+     * @throws InvalidArgumentValueException
      * @return array The modified arguments array
      */
     protected function convertDomainObjectsToIdentityArrays(array $arguments): array
@@ -778,6 +596,8 @@ class UriBuilder
                 }
             } elseif (is_array($argumentValue)) {
                 $arguments[$argumentKey] = $this->convertDomainObjectsToIdentityArrays($argumentValue);
+            } elseif ($argumentValue instanceof \UnitEnum) {
+                $arguments[$argumentKey] = $argumentValue->value ?? $argumentValue->name;
             }
         }
         return $arguments;
@@ -797,9 +617,8 @@ class UriBuilder
      * Converts a given object recursively into an array.
      *
      * @todo Refactor this into convertDomainObjectsToIdentityArrays()
-     * @internal only to be used within Extbase, not part of TYPO3 Core API.
      */
-    public function convertTransientObjectToArray(DomainObjectInterface $object): array
+    protected function convertTransientObjectToArray(DomainObjectInterface $object): array
     {
         $result = [];
         foreach ($object->_getProperties() as $propertyName => $propertyValue) {

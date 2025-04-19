@@ -21,7 +21,6 @@ use Symfony\Component\ExpressionLanguage\ExpressionFunction;
 use Symfony\Component\ExpressionLanguage\ExpressionFunctionProviderInterface;
 use TYPO3\CMS\Core\Site\Entity\SiteInterface;
 use TYPO3\CMS\Core\Site\Entity\SiteLanguage;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController;
 
 /**
@@ -38,40 +37,11 @@ class Typo3ConditionFunctionsProvider implements ExpressionFunctionProviderInter
     public function getFunctions(): array
     {
         return [
-            $this->getLoginUserFunction(),
             $this->getTSFEFunction(),
-            $this->getUsergroupFunction(),
             $this->getSessionFunction(),
             $this->getSiteFunction(),
             $this->getSiteLanguageFunction(),
         ];
-    }
-
-    /**
-     * @deprecated since TYPO3 v12, will be removed in TYPO3 v13
-     */
-    protected function getLoginUserFunction(): ExpressionFunction
-    {
-        return new ExpressionFunction(
-            'loginUser',
-            static fn() => null, // Not implemented, we only use the evaluator
-            static function ($arguments, $str) {
-                trigger_error(
-                    'TypoScript condition function "loginUser()" has been deprecated with TYPO3 v12 and' .
-                    ' will be removed in v13. Use "frontend.user" and "backend.user" variables instead.',
-                    E_USER_DEPRECATED
-                );
-                $user = $arguments['frontend']->user ?? $arguments['backend']->user;
-                if ($user->isLoggedIn) {
-                    foreach (GeneralUtility::trimExplode(',', $str, true) as $test) {
-                        if ($test === '*' || (string)$user->userId === (string)$test) {
-                            return true;
-                        }
-                    }
-                }
-                return false;
-            }
-        );
     }
 
     protected function getTSFEFunction(): ExpressionFunction
@@ -82,40 +52,15 @@ class Typo3ConditionFunctionsProvider implements ExpressionFunctionProviderInter
             'getTSFE',
             static fn() => null, // Not implemented, we only use the evaluator
             static function ($arguments) {
+                // @todo: b/w compat layer. This will later log a deprecation log entry when
+                //        for instance tsfe->id is being actively deprecated. When this happens,
+                //        an alternative should be documented to for instance retrieve the current
+                //        page uid from PageInformation - request attribute 'frontend.page.information'.
                 if (($arguments['tsfe'] ?? null) instanceof TypoScriptFrontendController) {
                     return $arguments['tsfe'];
                 }
                 // If TSFE is not given as argument, return null.
                 return null;
-            }
-        );
-    }
-
-    /**
-     * @deprecated since TYPO3 v12, will be removed in TYPO3 v13
-     */
-    protected function getUsergroupFunction(): ExpressionFunction
-    {
-        return new ExpressionFunction(
-            'usergroup',
-            static fn() => null, // Not implemented, we only use the evaluator
-            static function ($arguments, $str) {
-                trigger_error(
-                    'TypoScript condition function "usergroup()" has been deprecated with TYPO3 v12 and' .
-                    ' will be removed in v13. Use "frontend.user" and "backend.user" variables instead.',
-                    E_USER_DEPRECATED
-                );
-                $user = $arguments['frontend']->user ?? $arguments['backend']->user;
-                $groupList = $user->userGroupList ?? '';
-                // '0,-1' is the default usergroups string when not logged in!
-                if ($groupList !== '0,-1' && $groupList !== '') {
-                    foreach (GeneralUtility::trimExplode(',', $str, true) as $test) {
-                        if ($test === '*' || GeneralUtility::inList($groupList, $test)) {
-                            return true;
-                        }
-                    }
-                }
-                return false;
             }
         );
     }
@@ -129,10 +74,9 @@ class Typo3ConditionFunctionsProvider implements ExpressionFunctionProviderInter
                 $retVal = null;
                 $keyParts = explode('|', $str);
                 $sessionKey = array_shift($keyParts);
-                // @todo: Provide session data differently and refrain from using TSFE.
-                $tsfe = $arguments['tsfe'] ?? null;
-                if ($tsfe && is_object($tsfe->fe_user)) {
-                    $retVal = $tsfe->fe_user->getSessionData($sessionKey);
+                $frontendUser = $arguments['request']->getFrontendUser();
+                if ($frontendUser) {
+                    $retVal = $frontendUser->getSessionData($sessionKey);
                     foreach ($keyParts as $keyPart) {
                         if (is_object($retVal)) {
                             $retVal = $retVal->{$keyPart};

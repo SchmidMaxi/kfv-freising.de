@@ -1,7 +1,6 @@
 .. include:: /Includes.rst.txt
 
-
-.. _implement-new-widget:
+..  _implement-new-widget:
 
 ====================
 Implement new widget
@@ -24,6 +23,8 @@ while registration adds necessary options for a concrete instance of a widget.
 For example a TYPO3.org RSS Widget would consist of an :php:`RssWidget` PHP class.
 This class would provide the implementation to fetch rss news and display them.
 The concrete registration will provide the URL to RSS feed.
+
+..  _widget-php-class:
 
 PHP class
 ---------
@@ -86,7 +87,7 @@ The difference between :php:`$options` and :php:`$configuration` in above exampl
 :php:`$configuration` is an instance of :php:`WidgetConfigurationInterface`
 holding all internal configuration, like icon identifier.
 
-.. _implement-new-widget-fluid:
+..  _implement-new-widget-fluid:
 
 Using Fluid
 -----------
@@ -96,7 +97,7 @@ Therefore each widget can define :php:`BackendViewFactory` as requirement for DI
 constructor, like done in RSS example.
 
 
-.. _implement-new-widget-custom-js:
+..  _implement-new-widget-custom-js:
 
 Providing custom JS
 -------------------
@@ -165,51 +166,7 @@ JavaScript
 
 All ways can be combined.
 
-Migration from RequireJsModuleInterface
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. versionchanged:: 12.0
-    The :php:`RequireJsModuleInterface` has been deprecated, use
-    :php:`JavaScriptInterface` instead.
-
-Affected widgets have to implement :php:`\TYPO3\CMS\Dashboard\Widgets\JavaScriptInterface`
-instead of deprecated :php:`\TYPO3\CMS\Dashboard\Widgets\RequireJsModuleInterface`.
-Instead of using inline JavaScript for initializing RequireJS modules,
-:php:`\TYPO3\CMS\Core\Page\JavaScriptModuleInstruction` have to be declared.
-
-.. code-block:: php
-
-    class ExampleChartWidget implements RequireJsModuleInterface
-    {
-        // ...
-        public function getJavaScriptModuleInstructions(): array
-        {
-            return [
-                'TYPO3/CMS/Dashboard/ChartInitializer' =>
-                    'function(ChartInitializer) { ChartInitializer.initialize(); }',
-            ];
-        }
-    }
-
-Deprecated example widget above would look like the following when using
-`JavaScriptInterface` and `JavaScriptModuleInstruction`:
-
-.. code-block:: php
-
-    class ExampleChartWidget implements JavaScriptInterface
-    {
-        // ...
-        public function getJavaScriptModuleInstructions(): array
-        {
-            return [
-                JavaScriptModuleInstruction::forRequireJS(
-                    'TYPO3/CMS/Dashboard/ChartInitializer'
-                )->invoke('initialize'),
-            ];
-        }
-    }
-
-
+..  _custom-css:
 
 Providing custom CSS
 --------------------

@@ -10,4 +10,4 @@
  *
  * The TYPO3 project - inspiring people to share!
  */
-import"@typo3/backend/input/clearable.js";class BackendUserListing{constructor(){let e;if(null!==(e=document.getElementById("tx_Beuser_username"))){const t=""!==e.value;e.clearable({onClear:e=>{t&&e.closest("form").submit()}})}}}export default new BackendUserListing;
+import e from"@typo3/core/event/regular-event.js";import s from"@typo3/core/document-service.js";class i{constructor(){this.searchField=document.querySelector("#tx_Beuser_username"),this.activeSearch=this.searchField?this.searchField.value!=="":!1,s.ready().then(()=>{this.searchField&&new e("search",()=>{this.searchField.value===""&&this.activeSearch&&this.searchField.closest("form").submit()}).bindTo(this.searchField)})}}var r=new i;export{r as default};

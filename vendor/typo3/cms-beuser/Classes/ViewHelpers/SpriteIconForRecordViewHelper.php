@@ -17,11 +17,10 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Beuser\ViewHelpers;
 
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Fluid\ViewHelpers\Be\AbstractBackendViewHelper;
-use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
 
 /**
  * Views sprite icon for a record (object)
@@ -49,16 +48,8 @@ final class SpriteIconForRecordViewHelper extends AbstractBackendViewHelper
      */
     public function render(): string
     {
-        return self::renderStatic($this->arguments, $this->buildRenderChildrenClosure(), $this->renderingContext);
-    }
-
-    /**
-     * @param array{'table': string, 'object': object} $arguments
-     */
-    public static function renderStatic(array $arguments, \Closure $renderChildrenClosure, RenderingContextInterface $renderingContext): string
-    {
-        $object = $arguments['object'];
-        $table = $arguments['table'];
+        $object = $this->arguments['object'];
+        $table = $this->arguments['table'];
 
         if (!method_exists($object, 'getUid')) {
             return '';
@@ -81,6 +72,6 @@ final class SpriteIconForRecordViewHelper extends AbstractBackendViewHelper
             $row['endTime'] = $object->getEndDateAndTime();
         }
         $iconFactory = GeneralUtility::makeInstance(IconFactory::class);
-        return $iconFactory->getIconForRecord($table, $row, Icon::SIZE_SMALL)->render();
+        return $iconFactory->getIconForRecord($table, $row, IconSize::SMALL)->render();
     }
 }

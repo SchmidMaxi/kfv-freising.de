@@ -68,7 +68,7 @@ class FileBackend extends SimpleFileBackend implements FreezableBackendInterface
         }
         $cacheEntryFileExtensionLength = strlen($this->cacheEntryFileExtension);
         for ($directoryIterator = new \DirectoryIterator($this->cacheDirectory); $directoryIterator->valid(); $directoryIterator->next()) {
-            if ($directoryIterator->isDot()) {
+            if (!$directoryIterator->isFile()) {
                 continue;
             }
             if ($cacheEntryFileExtensionLength > 0) {
@@ -142,8 +142,7 @@ class FileBackend extends SimpleFileBackend implements FreezableBackendInterface
         $lifetime = (int)($lifetime ?? $this->defaultLifetime);
         $expiryTime = $lifetime === 0 ? 0 : (int)($GLOBALS['EXEC_TIME'] + $lifetime);
         $metaData = str_pad((string)$expiryTime, self::EXPIRYTIME_LENGTH) . implode(' ', $tags) . str_pad((string)strlen($data), self::DATASIZE_DIGITS);
-        $result = file_put_contents($temporaryCacheEntryPathAndFilename, $data . $metaData);
-        GeneralUtility::fixPermissions($temporaryCacheEntryPathAndFilename);
+        $result = GeneralUtility::writeFile($temporaryCacheEntryPathAndFilename, $data . $metaData, true);
         if ($result === false) {
             throw new Exception('The temporary cache file "' . $temporaryCacheEntryPathAndFilename . '" could not be written.', 1204026251);
         }
@@ -231,13 +230,13 @@ class FileBackend extends SimpleFileBackend implements FreezableBackendInterface
      * @param string $searchedTag The tag to search for
      * @return array An array with identifiers of all matching entries. An empty array if no entries matched
      */
-    public function findIdentifiersByTag($searchedTag)
+    public function findIdentifiersByTag($searchedTag): array
     {
         $entryIdentifiers = [];
         $now = $GLOBALS['EXEC_TIME'];
         $cacheEntryFileExtensionLength = strlen($this->cacheEntryFileExtension);
         for ($directoryIterator = GeneralUtility::makeInstance(\DirectoryIterator::class, $this->cacheDirectory); $directoryIterator->valid(); $directoryIterator->next()) {
-            if ($directoryIterator->isDot()) {
+            if (!$directoryIterator->isFile()) {
                 continue;
             }
             $cacheEntryPathAndFilename = $directoryIterator->getPathname();
@@ -323,7 +322,7 @@ class FileBackend extends SimpleFileBackend implements FreezableBackendInterface
             return;
         }
         for ($directoryIterator = new \DirectoryIterator($this->cacheDirectory); $directoryIterator->valid(); $directoryIterator->next()) {
-            if ($directoryIterator->isDot()) {
+            if (!$directoryIterator->isFile()) {
                 continue;
             }
             if ($this->isCacheFileExpired($directoryIterator->getPathname())) {

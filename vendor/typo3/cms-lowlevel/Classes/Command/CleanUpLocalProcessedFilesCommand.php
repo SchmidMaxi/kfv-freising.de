@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Lowlevel\Command;
 
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputInterface;
@@ -27,6 +28,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 use TYPO3\CMS\Core\Utility\PathUtility;
 use TYPO3\CMS\Lowlevel\Service\CleanUpLocalProcessedFilesService;
 
+#[AsCommand('cleanup:localprocessedfiles', 'Delete processed files and their database records.')]
 class CleanUpLocalProcessedFilesCommand extends Command
 {
     public function __construct(
@@ -40,7 +42,7 @@ class CleanUpLocalProcessedFilesCommand extends Command
         $this
             ->setDescription(
                 'Deletes local processed files from local storage that are no longer referenced and ' .
-                'deletes references to processed files that do no longer exist'
+                'deletes references to processed files that do no longer exist. Also allows to reset ALL files.'
             )
             ->setHelp('If you want to get more detailed information, use the --verbose option.')
             ->addOption(
@@ -48,6 +50,12 @@ class CleanUpLocalProcessedFilesCommand extends Command
                 null,
                 InputOption::VALUE_NONE,
                 'If set, the records and files which would be deleted are displayed.'
+            )
+            ->addOption(
+                'all',
+                '',
+                InputOption::VALUE_NONE,
+                'If set, ALL processed-file (driver=Local) records will be removed, also those without identifier ("stubs" for unprocessed files) and existing files.'
             )
             ->addOption(
                 'force',
@@ -63,8 +71,8 @@ class CleanUpLocalProcessedFilesCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $files = $this->cleanProcessedFilesService->getFilesToClean();
-        $records = $this->cleanProcessedFilesService->getRecordsToClean();
+        $files = $this->cleanProcessedFilesService->getFilesToClean(0, $input->getOption('all'));
+        $records = $this->cleanProcessedFilesService->getRecordsToClean($input->getOption('all'));
 
         if ($output->isVerbose()) {
             foreach ($records as $record) {
@@ -84,7 +92,7 @@ class CleanUpLocalProcessedFilesCommand extends Command
             return Command::SUCCESS;
         }
 
-        $output->writeln('Found <options=bold,underscore>' . count($files) . ' files</> and <options=bold,underscore>' . (count($records) + count($files)) . ' processed records</>');
+        $output->writeln('Found <options=bold,underscore>' . count($files) . ' files</> and <options=bold,underscore>' . count($records) . ' processed records</>');
 
         if ($input->getOption('dry-run')) {
             return Command::SUCCESS;
@@ -108,7 +116,7 @@ class CleanUpLocalProcessedFilesCommand extends Command
         if (($answerDeleteFiles ?? false) || $input->getOption('force')) {
             [$success, $error] = $this->deleteFile($input, $output, $files);
             // Reload the list auf records to get the files deleted using deleteFile() as well
-            $recordsIncludingDeleted = $this->cleanProcessedFilesService->getRecordsToClean();
+            $recordsIncludingDeleted = $this->cleanProcessedFilesService->getRecordsToClean($input->getOption('all'));
             $deletedRecordsCount = $this->cleanProcessedFilesService->deleteRecord(array_column($recordsIncludingDeleted, 'uid'));
 
             $failedRecordCount = count($records) - $deletedRecordsCount;

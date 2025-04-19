@@ -28,6 +28,7 @@ trait CompileWithRenderStatic
      */
     public function render()
     {
+        trigger_error('CompileWithRenderStatic has been deprecated and will be removed in Fluid v5.', E_USER_DEPRECATED);
         return static::renderStatic(
             $this->arguments,
             $this->buildRenderChildrenClosure(),

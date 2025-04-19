@@ -22,6 +22,6 @@ use TYPO3\CMS\Core\Exception;
 /**
  * A detail exception thrown within DefaultTcaSchema.
  *
- * @internal
+ * @internal not part of public core API.
  */
 class DefaultTcaSchemaTablePositionException extends Exception {}

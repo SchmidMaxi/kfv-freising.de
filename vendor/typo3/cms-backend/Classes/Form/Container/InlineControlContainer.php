@@ -16,11 +16,10 @@
 namespace TYPO3\CMS\Backend\Form\Container;
 
 use TYPO3\CMS\Backend\Form\InlineStackProcessor;
-use TYPO3\CMS\Backend\Form\NodeFactory;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
-use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
-use TYPO3\CMS\Core\Imaging\Icon;
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Page\JavaScriptModuleInstruction;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -47,16 +46,6 @@ class InlineControlContainer extends AbstractContainer
     protected $inlineData = [];
 
     /**
-     * @var InlineStackProcessor
-     */
-    protected $inlineStackProcessor;
-
-    /**
-     * @var IconFactory
-     */
-    protected $iconFactory;
-
-    /**
      * @var array<int,JavaScriptModuleInstruction>
      */
     protected $javaScriptModules = [];
@@ -81,29 +70,24 @@ class InlineControlContainer extends AbstractContainer
         ],
     ];
 
-    /**
-     * Container objects give $nodeFactory down to other containers.
-     */
-    public function __construct(NodeFactory $nodeFactory, array $data)
-    {
-        parent::__construct($nodeFactory, $data);
-        $this->iconFactory = GeneralUtility::makeInstance(IconFactory::class);
-    }
+    public function __construct(
+        private readonly IconFactory $iconFactory,
+        private readonly InlineStackProcessor $inlineStackProcessor,
+        private readonly HashService $hashService,
+    ) {}
 
     /**
      * Entry method
      *
      * @return array As defined in initializeResultArray() of AbstractNode
      */
-    public function render()
+    public function render(): array
     {
         $languageService = $this->getLanguageService();
 
         $this->inlineData = $this->data['inlineData'];
 
-        $inlineStackProcessor = GeneralUtility::makeInstance(InlineStackProcessor::class);
-        $this->inlineStackProcessor = $inlineStackProcessor;
-        $inlineStackProcessor->initializeByGivenStructure($this->data['inlineStructure']);
+        $this->inlineStackProcessor->initializeByGivenStructure($this->data['inlineStructure']);
 
         $table = $this->data['tableName'];
         $row = $this->data['databaseRow'];
@@ -135,7 +119,7 @@ class InlineControlContainer extends AbstractContainer
                 $newStructureItem['flexform'] = $flexFormParts;
             }
         }
-        $inlineStackProcessor->pushStableStructureItem($newStructureItem);
+        $this->inlineStackProcessor->pushStableStructureItem($newStructureItem);
 
         // Transport the flexform DS identifier fields to the FormInlineAjaxController
         if (!empty($newStructureItem['flexform'])
@@ -150,9 +134,9 @@ class InlineControlContainer extends AbstractContainer
         $config['originalReturnUrl'] = $this->data['returnUrl'];
 
         // e.g. data[<table>][<uid>][<field>]
-        $nameForm = $inlineStackProcessor->getCurrentStructureFormPrefix();
+        $nameForm = $this->inlineStackProcessor->getCurrentStructureFormPrefix();
         // e.g. data-<pid>-<table1>-<uid1>-<field1>-<table2>-<uid2>-<field2>
-        $nameObject = $inlineStackProcessor->getCurrentStructureDomObjectIdPrefix($this->data['inlineFirstPid']);
+        $nameObject = $this->inlineStackProcessor->getCurrentStructureDomObjectIdPrefix($this->data['inlineFirstPid']);
 
         $inlineChildren = $parameterArray['fieldConf']['children'] ?? [];
 
@@ -168,7 +152,7 @@ class InlineControlContainer extends AbstractContainer
             }
         }
 
-        $top = $inlineStackProcessor->getStructureLevel(0);
+        $top = $this->inlineStackProcessor->getStructureLevel(0);
 
         $this->inlineData['config'][$nameObject] = [
             'table' => $foreign_table,
@@ -184,7 +168,7 @@ class InlineControlContainer extends AbstractContainer
             ],
             'context' => [
                 'config' => $configJson,
-                'hmac' => GeneralUtility::hmac($configJson, 'InlineContext'),
+                'hmac' => $this->hashService->hmac($configJson, 'InlineContext'),
             ],
         ];
         $this->inlineData['nested'][$nameObject] = $this->data['tabAndInlineStack'];
@@ -306,7 +290,7 @@ class InlineControlContainer extends AbstractContainer
 
         // Add the level buttons before all child records:
         if (in_array($config['appearance']['levelLinksPosition'] ?? null, ['both', 'top'], true)) {
-            $html .= '<div class="form-group t3js-formengine-validation-marker t3js-inline-controls-top-outer-container">' . $newRecordButton . $localizationButtons . '</div>';
+            $html .= '<div class="form-group t3js-formengine-validation-marker t3js-inline-controls">' . $newRecordButton . $localizationButtons . '</div>';
         }
 
         // If it's required to select from possible child records (reusable children), add a selector box
@@ -329,7 +313,7 @@ class InlineControlContainer extends AbstractContainer
             // @todo: this can be removed if this container no longer sets additional info to $config
             $options['inlineParentConfig'] = $config;
             $options['inlineData'] = $this->inlineData;
-            $options['inlineStructure'] = $inlineStackProcessor->getStructure();
+            $options['inlineStructure'] = $this->inlineStackProcessor->getStructure();
             $options['inlineExpandCollapseStateArray'] = $this->data['inlineExpandCollapseStateArray'];
             $options['renderType'] = 'inlineRecordContainer';
             $childResult = $this->nodeFactory->create($options)->render();
@@ -351,7 +335,7 @@ class InlineControlContainer extends AbstractContainer
 
         // Add the level buttons after all child records:
         if (!$isReadOnly && in_array($config['appearance']['levelLinksPosition'] ?? false, ['both', 'bottom'], true)) {
-            $html .= $newRecordButton . $localizationButtons;
+            $html .= '<div class="form-group t3js-formengine-validation-marker t3js-inline-controls">' . $newRecordButton . $localizationButtons . '</div>';
         }
         if (is_array($config['customControls'] ?? false)) {
             $html .= '<div id="' . $nameObject . '_customControls">';
@@ -392,7 +376,7 @@ class InlineControlContainer extends AbstractContainer
         // Close the wrap for all inline fields (container)
         $html .= '</div>';
 
-        $resultArray['html'] = $html;
+        $resultArray['html'] = $this->wrapWithFieldsetAndLegend($html);
         return $resultArray;
     }
 
@@ -412,8 +396,8 @@ class InlineControlContainer extends AbstractContainer
             case 'newRecord':
                 $title = htmlspecialchars($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:cm.createnew'));
                 $icon = 'actions-plus';
-                $className = 'typo3-newRecordLink t3js-inline-controls';
                 $attributes['class'] = 'btn btn-default t3js-create-new-button';
+                $attributes['data-type'] = 'newRecord';
                 if (!empty($conf['inline']['inlineNewButtonStyle'])) {
                     $attributes['style'] = $conf['inline']['inlineNewButtonStyle'];
                 }
@@ -429,38 +413,27 @@ class InlineControlContainer extends AbstractContainer
             case 'localize':
                 $title = htmlspecialchars($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_misc.xlf:localizeAllRecords'));
                 $icon = 'actions-document-localize';
-                $className = 'typo3-localizationLink';
                 $attributes['class'] = 'btn btn-default t3js-synchronizelocalize-button';
                 $attributes['data-type'] = 'localize';
                 break;
             case 'synchronize':
                 $title = htmlspecialchars($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_misc.xlf:synchronizeWithOriginalLanguage'));
                 $icon = 'actions-document-synchronize';
-                $className = 'typo3-synchronizationLink';
                 $attributes['class'] = 'btn btn-default inlineNewButton t3js-synchronizelocalize-button';
                 $attributes['data-type'] = 'synchronize';
                 break;
             default:
                 $title = '';
                 $icon = '';
-                $className = '';
         }
         // Create the button:
-        $icon = $icon ? $this->iconFactory->getIcon($icon, Icon::SIZE_SMALL)->render() : '';
-        $button = $this->wrapWithButton($icon . ' ' . $title, $attributes);
-        return '<div' . ($className ? ' class="' . $className . '"' : '') . 'title="' . $title . '">' . $button . '</div>';
-    }
-
-    /**
-     * Wraps a text with a button and returns the HTML representation.
-     *
-     * @param string $text The text to be wrapped by a button
-     * @param array<string, string> $attributes Array of attributes to be used in the anchor
-     * @return string The wrapped text as HTML representation
-     */
-    protected function wrapWithButton(string $text, array $attributes = []): string
-    {
-        return '<button type="button" ' . GeneralUtility::implodeAttributes($attributes, true, true) . '>' . $text . '</button>';
+        $icon = $icon ? $this->iconFactory->getIcon($icon, IconSize::SMALL)->render() : '';
+        $attributes['title'] = $title;
+        return '
+            <button type="button" ' . GeneralUtility::implodeAttributes($attributes, true, true) . '>
+                ' . $icon . ' ' . $title . '
+            </button>
+        ';
     }
 
     /**
@@ -497,7 +470,7 @@ class InlineControlContainer extends AbstractContainer
             $item .= '
                 <button type="button" class="btn btn-default t3js-element-browser" data-mode="db" data-params="' . htmlspecialchars('|||' . implode(',', $allowed) . '|' . $objectPrefix) . '"
                     ' . $buttonStyle . ' title="' . $createNewRelationText . '">
-                    ' . $this->iconFactory->getIcon('actions-insert-record', Icon::SIZE_SMALL)->render() . '
+                    ' . $this->iconFactory->getIcon('actions-insert-record', IconSize::SMALL)->render() . '
                     ' . $createNewRelationText . '
                 </button>';
         }
@@ -507,10 +480,12 @@ class InlineControlContainer extends AbstractContainer
                 <div class="form-text">
                     ' . htmlspecialchars($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:cm.allowedRelations')) . '
                     <br>
-                    ' . implode(' ', array_map(static fn($item) => '<span class="badge badge-success">' . strtoupper($item) . '</span>', $allowed)) . '
+                    <ul class="badge-list">
+                    ' . implode(' ', array_map(static fn(string $item): string => '<li><span class="badge badge-success">' . strtoupper($item) . '</span></li>', $allowed)) . '
+                    </ul>
                 </div>';
         }
-        return '<div class="form-group t3js-formengine-validation-marker t3js-inline-controls-top-outer-container">' . $item . '</div>';
+        return '<div class="form-group t3js-formengine-validation-marker">' . $item . '</div>';
     }
 
     /**
@@ -561,15 +536,12 @@ class InlineControlContainer extends AbstractContainer
             }
             $item .= '
                 <button type="button" class="btn btn-default t3js-create-new-button" title="' . $createNewRelationText . '">
-                    ' . $this->iconFactory->getIcon('actions-plus', Icon::SIZE_SMALL)->render() . $createNewRelationText . '
+                    ' . $this->iconFactory->getIcon('actions-plus', IconSize::SMALL)->render() . $createNewRelationText . '
                 </button>';
-        } else {
-            $item .= '
-            <span class="btn"></span>';
         }
 
         // Wrap the selector and add a spacer to the bottom
-        $item = '<div class="input-group form-group t3js-formengine-validation-marker t3js-inline-controls-top-outer-container">' . $item . '</div>';
+        $item = '<div class="input-group form-group t3js-formengine-validation-marker t3js-inline-controls">' . $item . '</div>';
         return $item;
     }
 
@@ -592,11 +564,6 @@ class InlineControlContainer extends AbstractContainer
             );
         }
         return $flexFormParts;
-    }
-
-    protected function getBackendUserAuthentication(): BackendUserAuthentication
-    {
-        return $GLOBALS['BE_USER'];
     }
 
     protected function getLanguageService(): LanguageService

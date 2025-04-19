@@ -15,6 +15,7 @@
 
 namespace TYPO3\CMS\Extbase\Persistence\Generic;
 
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Persistence\Generic\Mapper\DataMapper;
 use TYPO3\CMS\Extbase\Persistence\PersistenceManagerInterface;
@@ -28,6 +29,7 @@ use TYPO3\CMS\Extbase\Persistence\QueryResultInterface;
  * @template TValue of object
  * @implements QueryResultInterface<mixed,TValue>
  */
+#[Autoconfigure(public: true, shared: false)]
 class QueryResult implements QueryResultInterface
 {
     protected DataMapper $dataMapper;
@@ -153,12 +155,9 @@ class QueryResult implements QueryResultInterface
 
     /**
      * @param mixed $offset
-     * @return mixed
-     * @phpstan-return TValue|null
-     * @todo: Set return type to mixed in v13
+     * @return TValue|null
      */
-    #[\ReturnTypeWillChange]
-    public function offsetGet($offset)
+    public function offsetGet($offset): mixed
     {
         $this->initialize();
         return $this->queryResult[$offset] ?? null;
@@ -193,11 +192,9 @@ class QueryResult implements QueryResultInterface
     /**
      * @return mixed
      * @see Iterator::current()
-     * @todo: Set return type to mixed in v13
-     * @phpstan-return TValue|false
+     * @return TValue|false
      */
-    #[\ReturnTypeWillChange]
-    public function current()
+    public function current(): mixed
     {
         $this->initialize();
         return current($this->queryResult);
@@ -206,11 +203,9 @@ class QueryResult implements QueryResultInterface
     /**
      * @return mixed
      * @see Iterator::key()
-     * @todo: Set return type to mixed in v13
-     * @phpstan-return int|null
+     * @return int|null
      */
-    #[\ReturnTypeWillChange]
-    public function key()
+    public function key(): mixed
     {
         $this->initialize();
         return key($this->queryResult);

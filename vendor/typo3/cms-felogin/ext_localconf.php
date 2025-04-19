@@ -11,22 +11,24 @@ defined('TYPO3') or die();
 
 // Add default TypoScript
 ExtensionManagementUtility::addTypoScriptConstants(
-    "@import 'EXT:felogin/Configuration/TypoScript/constants.typoscript'"
+    "@import 'EXT:felogin/Configuration/TypoScript/constants.typoscript'",
+    false
 );
 ExtensionManagementUtility::addTypoScriptSetup(
-    "@import 'EXT:felogin/Configuration/TypoScript/setup.typoscript'"
+    "@import 'EXT:felogin/Configuration/TypoScript/setup.typoscript'",
+    false
 );
 
 ExtensionUtility::configurePlugin(
     'Felogin',
     'Login',
     [
-        LoginController::class => 'login, overview',
-        PasswordRecoveryController::class => 'recovery,showChangePassword,changePassword',
+        LoginController::class => ['login', 'overview'],
+        PasswordRecoveryController::class => ['recovery', 'showChangePassword', 'changePassword'],
     ],
     [
-        LoginController::class => 'login, overview',
-        PasswordRecoveryController::class => 'recovery,showChangePassword,changePassword',
+        LoginController::class => ['login', 'overview'],
+        PasswordRecoveryController::class => ['recovery', 'showChangePassword', 'changePassword'],
     ],
     ExtensionUtility::PLUGIN_TYPE_CONTENT_ELEMENT
 );

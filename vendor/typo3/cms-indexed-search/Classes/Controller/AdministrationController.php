@@ -26,8 +26,9 @@ use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
-use TYPO3\CMS\Core\Imaging\Icon;
+use TYPO3\CMS\Core\Http\AllowedMethodsTrait;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -44,6 +45,8 @@ use TYPO3\CMS\IndexedSearch\Indexer;
  */
 class AdministrationController extends ActionController
 {
+    use AllowedMethodsTrait;
+
     protected int $pageUid = 0;
     protected array $indexerConfig = [];
 
@@ -127,7 +130,7 @@ class AdministrationController extends ActionController
     /**
      * Function will be called before every other action
      */
-    protected function initializeAction()
+    protected function initializeAction(): void
     {
         $this->pageUid = (int)($this->request->getQueryParams()['id'] ?? 0);
         $this->indexerConfig = $this->extensionConfiguration->get('indexed_search') ?? [];
@@ -142,10 +145,10 @@ class AdministrationController extends ActionController
         $arguments = $request->getArguments();
         $beUser = $this->getBackendUserAuthentication();
 
-        if (is_array($arguments) && isset($arguments['action']) && method_exists($this, $arguments['action'] . 'Action')) {
+        if (isset($arguments['action']) && method_exists($this, $arguments['action'] . 'Action')) {
             $action = $arguments['action'];
             switch ($action) {
-                case 'saveStopwordsKeywords':
+                case 'saveStopwords':
                     $action = 'statisticDetails';
                     break;
                 case 'deleteIndexedItem':
@@ -199,6 +202,7 @@ class AdministrationController extends ActionController
         $view->assignMultiple([
             'extensionConfiguration' => $this->indexerConfig,
             'records' => $this->administrationRepository->getPageStatistic(),
+            'pageUid' => $this->pageUid,
         ]);
         return $view->renderResponse('Administration/Pages');
     }
@@ -212,26 +216,25 @@ class AdministrationController extends ActionController
         $view->assignMultiple([
             'extensionConfiguration' => $this->indexerConfig,
             'records' => $this->administrationRepository->getExternalDocumentsStatistic(),
+            'pageUid' => $this->pageUid,
         ]);
         return $view->renderResponse('Administration/ExternalDocuments');
     }
 
     /**
      * Statistics for a given page hash
-     *
-     * @param int $pageHash
      */
-    protected function statisticDetailsAction($pageHash = 0): ResponseInterface
+    protected function statisticDetailsAction(string $pageHash): ResponseInterface
     {
         $view = $this->initializeModuleTemplate($this->request);
         $buttonBar = $view->getDocHeaderComponent()->getButtonBar();
-        $pageHash = (int)$pageHash;
 
         // Set back button
         $backButton = $buttonBar
             ->makeLinkButton()
             ->setTitle($this->getLanguageService()->sL('LLL:EXT:indexed_search/Resources/Private/Language/locallang.xlf:administration.back'))
-            ->setIcon($this->iconFactory->getIcon('actions-view-go-up', Icon::SIZE_SMALL))
+            ->setShowLabelText(true)
+            ->setIcon($this->iconFactory->getIcon('actions-view-go-back', IconSize::SMALL))
             ->setHref($this->uriBuilder->reset()->uriFor('statistic', [], 'Administration'));
         $buttonBar->addButton($backButton);
 
@@ -242,7 +245,7 @@ class AdministrationController extends ActionController
             ->where(
                 $queryBuilder->expr()->eq(
                     'phash',
-                    $queryBuilder->createNamedParameter($pageHash, Connection::PARAM_INT)
+                    $queryBuilder->createNamedParameter($pageHash, Connection::PARAM_STR)
                 )
             )
             ->executeQuery()
@@ -252,28 +255,9 @@ class AdministrationController extends ActionController
             return $this->redirect('statistic');
         }
 
-        $queryBuilder = $this->connectionPool->getQueryBuilderForTable('index_debug');
-        $debugRow = $queryBuilder
-            ->select('debuginfo')
-            ->from('index_debug')
-            ->where(
-                $queryBuilder->expr()->eq(
-                    'phash',
-                    $queryBuilder->createNamedParameter($pageHash, Connection::PARAM_INT)
-                )
-            )
-            ->executeQuery()
-            ->fetchAssociative();
-        $debugInfo = [];
-        $lexer = '';
-        if (is_array($debugRow)) {
-            $debugInfo = json_decode($debugRow['debuginfo'], true);
-            $lexer = $debugInfo['lexer'];
-            unset($debugInfo['lexer']);
-        }
         $pageRecord = BackendUtility::getRecord('pages', $pageHashRow['data_page_id']);
-        $keywords = is_array($pageRecord) ? array_flip(GeneralUtility::trimExplode(',', (string)$pageRecord['keywords'], true)) : [];
 
+        // words
         $queryBuilder = $this->connectionPool->getQueryBuilderForTable('index_words');
         $wordRecords = $queryBuilder
             ->select('index_words.*', 'index_rel.*')
@@ -282,7 +266,7 @@ class AdministrationController extends ActionController
             ->where(
                 $queryBuilder->expr()->eq(
                     'index_rel.phash',
-                    $queryBuilder->createNamedParameter($pageHash, Connection::PARAM_INT)
+                    $queryBuilder->createNamedParameter($pageHash, Connection::PARAM_STR)
                 ),
                 $queryBuilder->expr()->eq(
                     'index_words.wid',
@@ -292,29 +276,6 @@ class AdministrationController extends ActionController
             ->orderBy('index_words.baseword')
             ->executeQuery()
             ->fetchAllAssociative();
-        foreach ($wordRecords as $id => $row) {
-            if (isset($keywords[$row['baseword']])) {
-                $wordRecords[$id]['is_keyword'] = true;
-            }
-        }
-        $metaphoneRows = $metaphone = [];
-        $enableMetaphoneSearch = (bool)($this->indexerConfig['enableMetaphoneSearch'] ?? false);
-        if ($enableMetaphoneSearch && is_array($wordRecords)) {
-            // Group metaphone hash
-            foreach ($wordRecords as $row) {
-                $metaphoneRows[$row['metaphone']][] = $row['baseword'];
-            }
-
-            foreach ($metaphoneRows as $hash => $words) {
-                if (count($words) > 1) {
-                    $metaphone[] = [
-                        'metaphone' => $this->indexer->metaphone($words[0], true), $hash,
-                        'words' => $words,
-                        'hash' => $hash,
-                    ];
-                }
-            }
-        }
 
         // sections
         $queryBuilder = $this->connectionPool->getQueryBuilderForTable('index_section');
@@ -324,96 +285,37 @@ class AdministrationController extends ActionController
             ->where(
                 $queryBuilder->expr()->eq(
                     'phash',
-                    $queryBuilder->createNamedParameter($pageHash, Connection::PARAM_INT)
+                    $queryBuilder->createNamedParameter($pageHash, Connection::PARAM_STR)
                 )
             )
-            ->executeQuery()
-            ->fetchAllAssociative();
-
-        // top words
-        $queryBuilder = $this->connectionPool->getQueryBuilderForTable('index_words');
-        $topCountWords = $queryBuilder
-            ->select('index_words.baseword', 'index_words.metaphone', 'index_rel.*')
-            ->from('index_words')
-            ->from('index_rel')
-            ->setMaxResults(20)
-            ->where(
-                $queryBuilder->expr()->eq(
-                    'index_rel.phash',
-                    $queryBuilder->createNamedParameter($pageHash, Connection::PARAM_INT)
-                ),
-                $queryBuilder->expr()->eq(
-                    'index_words.is_stopword',
-                    $queryBuilder->createNamedParameter(0, Connection::PARAM_INT)
-                ),
-                $queryBuilder->expr()->eq(
-                    'index_words.wid',
-                    $queryBuilder->quoteIdentifier('index_rel.wid')
-                )
-            )
-            ->orderBy('index_rel.count', 'DESC')
-            ->executeQuery()
-            ->fetchAllAssociative();
-
-        // top frequency
-        $queryBuilder = $this->connectionPool->getQueryBuilderForTable('index_words');
-        $topFrequency = $queryBuilder
-            ->select('index_words.baseword', 'index_words.metaphone', 'index_rel.*')
-            ->from('index_words')
-            ->from('index_rel')
-            ->setMaxResults(20)
-            ->where(
-                $queryBuilder->expr()->eq(
-                    'index_rel.phash',
-                    $queryBuilder->createNamedParameter($pageHash, Connection::PARAM_INT)
-                ),
-                $queryBuilder->expr()->eq(
-                    'index_words.is_stopword',
-                    $queryBuilder->createNamedParameter(0, Connection::PARAM_INT)
-                ),
-                $queryBuilder->expr()->eq(
-                    'index_words.wid',
-                    $queryBuilder->quoteIdentifier('index_rel.wid')
-                )
-            )
-            ->orderBy('index_rel.freq', 'DESC')
             ->executeQuery()
             ->fetchAllAssociative();
 
         $view->assignMultiple([
             'extensionConfiguration' => $this->indexerConfig,
-            'phash' => (int)$pageHash,
+            'phash' => $pageHash,
             'phashRow' => $pageHashRow,
             'words' => $wordRecords,
             'sections' => $sections,
-            'topCount' => $topCountWords,
-            'topFrequency' => $topFrequency,
-            'debug' => $debugInfo,
-            'lexer' => $lexer,
-            'metaphone' => $metaphone,
             'page' => $pageRecord,
-            'keywords' => $keywords,
         ]);
 
         return $view->renderResponse('Administration/StatisticDetails');
     }
 
+    protected function initializeSaveStopwordsAction(): void
+    {
+        $this->assertAllowedHttpMethod($this->request, 'POST');
+    }
+
     /**
-     * Save stop words and keywords
-     *
-     * @param string $pageHash
-     * @param int $pageId
-     * @param array $stopwords
-     * @param array $keywords
+     * Save stop words
      */
-    protected function saveStopwordsKeywordsAction($pageHash, $pageId, $stopwords = [], $keywords = []): ResponseInterface
+    protected function saveStopwordsAction(string $pageHash, array $stopwords = []): ResponseInterface
     {
         if ($this->getBackendUserAuthentication()->isAdmin()) {
             if (is_array($stopwords) && !empty($stopwords)) {
                 $this->administrationRepository->saveStopWords($stopwords);
-            }
-            if (is_array($keywords) && !empty($keywords)) {
-                $this->administrationRepository->saveKeywords($keywords, $pageId);
             }
         }
         return $this->redirect('statisticDetails', null, null, ['pageHash' => $pageHash]);
@@ -421,11 +323,8 @@ class AdministrationController extends ActionController
 
     /**
      * Statistics for a given word id
-     *
-     * @param int $wordHash
-     * @param int $pageHash
      */
-    protected function wordDetailAction($wordHash = 0, $pageHash = 0): ResponseInterface
+    protected function wordDetailAction(string $wordHash, string $pageHash, string $wordTitle): ResponseInterface
     {
         $queryBuilder = $this->connectionPool->getQueryBuilderForTable('index_phash');
         $rows = $queryBuilder
@@ -436,7 +335,7 @@ class AdministrationController extends ActionController
             ->where(
                 $queryBuilder->expr()->eq(
                     'index_rel.wid',
-                    $queryBuilder->createNamedParameter($wordHash, Connection::PARAM_INT)
+                    $queryBuilder->createNamedParameter($wordHash, Connection::PARAM_STR)
                 ),
                 $queryBuilder->expr()->eq(
                     'index_rel.phash',
@@ -452,21 +351,30 @@ class AdministrationController extends ActionController
             ->fetchAllAssociative();
 
         $view = $this->initializeModuleTemplate($this->request);
+        $buttonBar = $view->getDocHeaderComponent()->getButtonBar();
+
+        // Set back button
+        $backButton = $buttonBar
+            ->makeLinkButton()
+            ->setTitle($this->getLanguageService()->sL('LLL:EXT:indexed_search/Resources/Private/Language/locallang.xlf:administration.back'))
+            ->setShowLabelText(true)
+            ->setIcon($this->iconFactory->getIcon('actions-view-go-back', IconSize::SMALL))
+            ->setHref($this->uriBuilder->reset()->uriFor('statisticDetails', ['pageHash' => $pageHash], 'Administration'));
+        $buttonBar->addButton($backButton);
+
         $view->assignMultiple([
             'extensionConfiguration' => $this->indexerConfig,
             'rows' => $rows,
             'phash' => $pageHash,
+            'wordTitle' => $wordTitle,
         ]);
         return $view->renderResponse('Administration/WordDetail');
     }
 
     /**
      * General statistics
-     *
-     * @param int $depth
-     * @param string $mode
      */
-    protected function statisticAction($depth = 1, $mode = 'overview'): ResponseInterface
+    protected function statisticAction(int $depth = 1, string $mode = 'overview'): ResponseInterface
     {
         $externalParsers = [];
         foreach ($GLOBALS['TYPO3_CONF_VARS']['EXTCONF']['indexed_search']['external_parsers'] ?? [] as $extension => $className) {
@@ -477,27 +385,29 @@ class AdministrationController extends ActionController
             }
         }
         $this->administrationRepository->external_parsers = $externalParsers;
-        $allLines = $this->administrationRepository->getTree($this->pageUid, $depth, $mode);
+        $tree = $this->administrationRepository->getTree($this->pageUid, $depth, $mode);
         $view = $this->initializeModuleTemplate($this->request);
         $view->assignMultiple([
             'extensionConfiguration' => $this->indexerConfig,
             'levelTranslations' => explode('|', $this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.enterSearchLevels')),
-            'tree' => $allLines,
+            'tree' => $tree,
             'pageUid' => $this->pageUid,
             'mode' => $mode,
             'depth' => $depth,
+            'backendUserTitleLength' => (int)$this->getBackendUserAuthentication()->uc['titleLen'],
         ]);
         return $view->renderResponse('Administration/Statistic');
     }
 
+    protected function initializeDeleteIndexedItemAction(): void
+    {
+        $this->assertAllowedHttpMethod($this->request, 'POST');
+    }
+
     /**
      * Remove item from index
-     *
-     * @param string $itemId
-     * @param int $depth
-     * @param string $mode
      */
-    protected function deleteIndexedItemAction($itemId, $depth = 1, $mode = 'overview'): ResponseInterface
+    protected function deleteIndexedItemAction(string $itemId, int $depth = 1, string $mode = 'overview'): ResponseInterface
     {
         $this->administrationRepository->removeIndexedPhashRow($itemId, $this->pageUid, $depth);
         return $this->redirect('statistic', null, null, ['depth' => $depth, 'mode' => $mode]);

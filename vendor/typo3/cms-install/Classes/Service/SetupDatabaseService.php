@@ -62,6 +62,7 @@ class SetupDatabaseService
         private readonly ConfigurationManager $configurationManager,
         private readonly PermissionsCheck $databasePermissionsCheck,
         private readonly Registry $registry,
+        private readonly SchemaMigrator $schemaMigrator,
     ) {}
 
     /**
@@ -74,6 +75,7 @@ class SetupDatabaseService
         if (($values['availableSet'] ?? '') === 'configurationFromEnvironment') {
             $defaultConnectionSettings = $this->getDatabaseConfigurationFromEnvironment();
         } else {
+            $defaultConnectionSettings = [];
             if (isset($values['driver'])) {
                 if (in_array($values['driver'], $this->validDrivers, true)) {
                     $defaultConnectionSettings['driver'] = $values['driver'];
@@ -150,8 +152,8 @@ class SetupDatabaseService
             // For sqlite a db path is automatically calculated
             if (isset($values['driver']) && $values['driver'] === 'pdo_sqlite') {
                 $dbFilename = '/cms-' . (new Random())->generateRandomHexString(8) . '.sqlite';
-                // If the var/ folder exists outside of document root, put it into var/sqlite/
-                // Otherwise simply into typo3conf/
+                // If the "var/" folder exists outside of document root, put it into "var/sqlite/"
+                // Otherwise simply into "typo3conf/"
                 if (Environment::getProjectPath() !== Environment::getPublicPath()) {
                     GeneralUtility::mkdir_deep(Environment::getVarPath() . '/sqlite');
                     $defaultConnectionSettings['path'] = Environment::getVarPath() . '/sqlite' . $dbFilename;
@@ -159,14 +161,11 @@ class SetupDatabaseService
                     $defaultConnectionSettings['path'] = Environment::getConfigPath() . $dbFilename;
                 }
             }
-            // For mysql, set utf8mb4 as default charset
-            if (isset($values['driver']) && in_array($values['driver'], ['mysqli', 'pdo_mysql'])) {
-                $defaultConnectionSettings['charset'] = 'utf8mb4';
-                $defaultConnectionSettings['tableoptions'] = [
-                    'charset' => 'utf8mb4',
-                    'collate' => 'utf8mb4_unicode_ci',
-                ];
-            }
+            // Note hard setting default charset and defaultTableOptions here does not take `additional.php`
+            // (existing) configuration into account. This is not an issue for the `setup` cli command.
+            // The difference can be detected for example when the local development environment tool `ddev` is
+            // used. See class method `getDriverOptions()`
+            $defaultConnectionSettings = $this->setDefaultConnectionCharsetAndCollation($defaultConnectionSettings);
         }
 
         $success = false;
@@ -175,12 +174,8 @@ class SetupDatabaseService
             try {
                 $connectionParams = $defaultConnectionSettings;
                 $connectionParams['wrapperClass'] = Connection::class;
-                if (!isset($connectionParams['charset'])) {
-                    // utf-8 as default for non mysql
-                    $connectionParams['charset'] = 'utf-8';
-                }
                 $connection = DriverManager::getConnection($connectionParams);
-                if ($connection->getWrappedConnection() !== null) {
+                if ($connection->getNativeConnection() !== null) {
                     $connection->executeQuery($connection->getDatabasePlatform()->getDummySelectSQL());
                     $success = true;
                 }
@@ -225,12 +220,12 @@ class SetupDatabaseService
         if (!empty($envCredentials)) {
             $connectionParams = $envCredentials;
             $connectionParams['wrapperClass'] = Connection::class;
-            $connectionParams['charset'] = 'utf-8';
+            $connectionParams = $this->setDefaultConnectionCharsetAndCollation($connectionParams);
             try {
                 $connection = DriverManager::getConnection($connectionParams);
-                if ($connection->getWrappedConnection() !== null) {
+                if ($connection->getNativeConnection() !== null) {
                     $connection->executeQuery($connection->getDatabasePlatform()->getDummySelectSQL());
-                    return $envCredentials;
+                    return $connectionParams;
                 }
             } catch (DBALException $e) {
                 return [];
@@ -332,7 +327,7 @@ class SetupDatabaseService
             try {
                 $connection = GeneralUtility::makeInstance(ConnectionPool::class)
                     ->getConnectionByName(ConnectionPool::DEFAULT_CONNECTION_NAME);
-                if ($connection->getWrappedConnection() !== null) {
+                if ($connection->getNativeConnection() !== null) {
                     $connection->executeQuery($connection->getDatabasePlatform()->getDummySelectSQL());
                     $success = true;
                 }
@@ -354,7 +349,7 @@ class SetupDatabaseService
             ->getDatabasePlatform();
         $connection = GeneralUtility::makeInstance(ConnectionPool::class)
             ->getConnectionByName(ConnectionPool::DEFAULT_CONNECTION_NAME);
-        $connection->exec(
+        $connection->executeStatement(
             PlatformInformation::getDatabaseCreateStatementWithCharset(
                 $platform,
                 $connection->quoteIdentifier($name)
@@ -372,7 +367,7 @@ class SetupDatabaseService
         try {
             $connection = GeneralUtility::makeInstance(ConnectionPool::class)
                 ->getConnectionByName(ConnectionPool::DEFAULT_CONNECTION_NAME);
-            if ($connection->getWrappedConnection() !== null) {
+            if ($connection->getNativeConnection() !== null) {
                 $connection->executeQuery($connection->getDatabasePlatform()->getDummySelectSQL());
                 return true;
             }
@@ -520,15 +515,14 @@ class SetupDatabaseService
 
         $sqlReader = $container->get(SqlReader::class);
         $sqlCode = $sqlReader->getTablesDefinitionString(true);
-        $schemaMigrationService = GeneralUtility::makeInstance(SchemaMigrator::class);
         $createTableStatements = $sqlReader->getCreateTableStatementArray($sqlCode);
-        $results = $schemaMigrationService->install($createTableStatements);
+        $results = $this->schemaMigrator->install($createTableStatements);
 
         // Only keep statements with error messages
         $results = array_filter($results);
         if (count($results) === 0) {
             $insertStatements = $sqlReader->getInsertStatementArray($sqlCode);
-            $results = $schemaMigrationService->importStaticData($insertStatements);
+            $results = $this->schemaMigrator->importStaticData($insertStatements);
         }
         foreach ($results as $statement => &$message) {
             if ($message === '') {
@@ -600,7 +594,7 @@ class SetupDatabaseService
                 'driver' => 'mysqli',
                 'username' => $GLOBALS['TYPO3_CONF_VARS']['DB']['Connections'][ConnectionPool::DEFAULT_CONNECTION_NAME]['user'] ?? '',
                 'password' => $GLOBALS['TYPO3_CONF_VARS']['DB']['Connections'][ConnectionPool::DEFAULT_CONNECTION_NAME]['password'] ?? '',
-                'port' => $GLOBALS['TYPO3_CONF_VARS']['DB']['Connections'][ConnectionPool::DEFAULT_CONNECTION_NAME]['port'] ?? 3306,
+                'port' => (int)($GLOBALS['TYPO3_CONF_VARS']['DB']['Connections'][ConnectionPool::DEFAULT_CONNECTION_NAME]['port'] ?? 3306),
                 'database' => $GLOBALS['TYPO3_CONF_VARS']['DB']['Connections'][ConnectionPool::DEFAULT_CONNECTION_NAME]['dbname'] ?? '',
             ];
             $host = $GLOBALS['TYPO3_CONF_VARS']['DB']['Connections'][ConnectionPool::DEFAULT_CONNECTION_NAME]['host'] ?? '127.0.0.1';
@@ -632,7 +626,7 @@ class SetupDatabaseService
                 'driver' => 'pdo_mysql',
                 'username' => $GLOBALS['TYPO3_CONF_VARS']['DB']['Connections'][ConnectionPool::DEFAULT_CONNECTION_NAME]['user'] ?? '',
                 'password' => $GLOBALS['TYPO3_CONF_VARS']['DB']['Connections'][ConnectionPool::DEFAULT_CONNECTION_NAME]['password'] ?? '',
-                'port' => $GLOBALS['TYPO3_CONF_VARS']['DB']['Connections'][ConnectionPool::DEFAULT_CONNECTION_NAME]['port'] ?? 3306,
+                'port' => (int)($GLOBALS['TYPO3_CONF_VARS']['DB']['Connections'][ConnectionPool::DEFAULT_CONNECTION_NAME]['port'] ?? 3306),
                 'database' => $GLOBALS['TYPO3_CONF_VARS']['DB']['Connections'][ConnectionPool::DEFAULT_CONNECTION_NAME]['dbname'] ?? '',
             ];
             $host = $GLOBALS['TYPO3_CONF_VARS']['DB']['Connections'][ConnectionPool::DEFAULT_CONNECTION_NAME]['host'] ?? '127.0.0.1';
@@ -669,7 +663,7 @@ class SetupDatabaseService
                 'username' => $GLOBALS['TYPO3_CONF_VARS']['DB']['Connections'][ConnectionPool::DEFAULT_CONNECTION_NAME]['user'] ?? '',
                 'password' => $GLOBALS['TYPO3_CONF_VARS']['DB']['Connections'][ConnectionPool::DEFAULT_CONNECTION_NAME]['password'] ?? '',
                 'host' => $GLOBALS['TYPO3_CONF_VARS']['DB']['Connections'][ConnectionPool::DEFAULT_CONNECTION_NAME]['host'] ?? '127.0.0.1',
-                'port' => $GLOBALS['TYPO3_CONF_VARS']['DB']['Connections'][ConnectionPool::DEFAULT_CONNECTION_NAME]['port'] ?? 5432,
+                'port' => (int)($GLOBALS['TYPO3_CONF_VARS']['DB']['Connections'][ConnectionPool::DEFAULT_CONNECTION_NAME]['port'] ?? 5432),
                 'database' => $GLOBALS['TYPO3_CONF_VARS']['DB']['Connections'][ConnectionPool::DEFAULT_CONNECTION_NAME]['dbname'] ?? '',
             ];
             if (($GLOBALS['TYPO3_CONF_VARS']['DB']['Connections'][ConnectionPool::DEFAULT_CONNECTION_NAME]['driver'] ?? '') === 'pdo_pgsql') {
@@ -705,5 +699,25 @@ class SetupDatabaseService
             $this->registry->set('installUpdate', $className, 1);
         }
         $this->registry->set('installUpdateRows', 'rowUpdatersDone', GeneralUtility::makeInstance(DatabaseRowsUpdateWizard::class)->getAvailableRowUpdater());
+    }
+
+    /**
+     * Set default connection charset, and in case of MySQL/MariaDB
+     * connections also defaultTableOptions charset and collation.
+     *
+     * Note that no check for pre-configured values are done. Thus,
+     * default values are set to enforce default values.
+     */
+    private function setDefaultConnectionCharsetAndCollation(array $params): array
+    {
+        $params['charset'] = 'utf8';
+        if (isset($params['driver']) && in_array($params['driver'], ['mysqli', 'pdo_mysql'], true)) {
+            $params['charset'] = 'utf8mb4';
+            $params['defaultTableOptions'] = [
+                'charset' => 'utf8mb4',
+                'collation' => 'utf8mb4_unicode_ci',
+            ];
+        }
+        return $params;
     }
 }

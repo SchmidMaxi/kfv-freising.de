@@ -19,14 +19,17 @@
 		"sort-packages": true
 	},
 	"require": {
-		"typo3/cms-core": "12.4.20"
+		"typo3/cms-core": "13.4.9"
+	},
+	"suggest": {
+		"typo3/cms-dashboard": "TYPO3 users can add widgets that can help to quickly see existing sys_note records"
 	},
 	"conflict": {
 		"typo3/cms": "*"
 	},
 	"extra": {
 		"branch-alias": {
-			"dev-main": "12.4.x-dev"
+			"dev-main": "13.4.x-dev"
 		},
 		"typo3/cms": {
 			"Package": {

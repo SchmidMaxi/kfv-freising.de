@@ -17,18 +17,10 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Core\Utility;
 
-use Psr\EventDispatcher\EventDispatcherInterface;
-use Symfony\Component\Finder\Finder;
-use TYPO3\CMS\Core\Cache\CacheManager;
-use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
-use TYPO3\CMS\Core\Configuration\Event\AfterTcaCompilationEvent;
 use TYPO3\CMS\Core\Core\Environment;
-use TYPO3\CMS\Core\DataHandling\PageDoktypeRegistry;
-use TYPO3\CMS\Core\Migrations\TcaMigration;
-use TYPO3\CMS\Core\Package\Cache\PackageDependentCacheIdentifier;
 use TYPO3\CMS\Core\Package\Exception as PackageException;
+use TYPO3\CMS\Core\Package\FailsafePackageManager;
 use TYPO3\CMS\Core\Package\PackageManager;
-use TYPO3\CMS\Core\Preparations\TcaPreparation;
 use TYPO3\CMS\Core\Schema\Struct\SelectItem;
 
 /**
@@ -39,19 +31,7 @@ use TYPO3\CMS\Core\Schema\Struct\SelectItem;
  */
 class ExtensionManagementUtility
 {
-    /**
-     * TRUE, if ext_tables file was read from cache for this script run.
-     * The frontend tends to do that multiple times, but the caching framework does
-     * not allow this (via a require_once call). This variable is used to track
-     * the access to the cache file to read the single ext_tables.php if it was
-     * already read from cache
-     *
-     * @todo See if we can get rid of the 'load multiple times' scenario in fe
-     */
-    protected static bool $extTablesWasReadFromCacheOnce = false;
     protected static PackageManager $packageManager;
-    protected static EventDispatcherInterface $eventDispatcher;
-    protected static ?CacheManager $cacheManager;
 
     /**
      * Sets the package manager for all that backwards compatibility stuff,
@@ -62,24 +42,6 @@ class ExtensionManagementUtility
     public static function setPackageManager(PackageManager $packageManager): void
     {
         static::$packageManager = $packageManager;
-    }
-
-    /**
-     * Sets the event dispatcher to be available.
-     *
-     * @internal only used for tests and the internal TYPO3 Bootstrap process
-     */
-    public static function setEventDispatcher(EventDispatcherInterface $eventDispatcher): void
-    {
-        static::$eventDispatcher = $eventDispatcher;
-    }
-
-    /**
-     * Returns the Cache manager
-     */
-    protected static function getCacheManager(): CacheManager
-    {
-        return static::$cacheManager ??= GeneralUtility::makeInstance(CacheManager::class);
     }
 
     /**************************************
@@ -423,12 +385,13 @@ class ExtensionManagementUtility
      * @throws \RuntimeException If reference to related position fields can not
      * @param string $table Name of TCA table
      * @param string $field Name of TCA field
-     * @param array $item New item to add
+     * @param array|SelectItem $item New item to add
      * @param string $relativeToField Add item relative to existing field
      * @param string $relativePosition Valid keywords: 'before', 'after'
      */
-    public static function addTcaSelectItem(string $table, string $field, array $item, string $relativeToField = '', string $relativePosition = ''): void
+    public static function addTcaSelectItem(string $table, string $field, array|SelectItem $item, string $relativeToField = '', string $relativePosition = ''): void
     {
+        $item = $item instanceof SelectItem ? $item->toArray() : $item;
         if ($relativePosition !== '' && $relativePosition !== 'before' && $relativePosition !== 'after' && $relativePosition !== 'replace') {
             throw new \InvalidArgumentException('Relative position must be either empty or one of "before", "after", "replace".', 1303236967);
         }
@@ -522,32 +485,6 @@ class ExtensionManagementUtility
                 $itemGroups[$groupId] = $groupLabel;
         }
         $GLOBALS['TCA'][$table]['columns'][$field]['config']['itemGroups'] = $itemGroups;
-    }
-
-    /**
-     * Gets the TCA configuration for a field handling (FAL) files.
-     *
-     * @param string $fieldName Name of the field to be used
-     * @param array $customSettingOverride Custom field settings overriding the basics
-     * @param string $allowedFileExtensions Comma-separated list of allowed file extensions (e.g. "jpg,gif,pdf")
-     * @param string $disallowedFileExtensions Comma-separated list of disallowed file extensions (e.g. "doc,docx")
-     *
-     * @deprecated since TYPO3 v12.0. Use the TCA type "file" directly
-     */
-    public static function getFileFieldTCAConfig(string $fieldName, array $customSettingOverride = [], string $allowedFileExtensions = '', string $disallowedFileExtensions = ''): array
-    {
-        trigger_error(
-            'ExtensionManagementUtility::getFileFieldTCAConfig() will be removed in TYPO3 v13.0. Use TCA type "file" directly instead.',
-            E_USER_DEPRECATED
-        );
-
-        $fileFieldTCAConfig = [
-            'type' => 'file',
-            'allowed' => $allowedFileExtensions,
-            'disallowed' => $disallowedFileExtensions,
-        ];
-        ArrayUtility::mergeRecursiveWithOverrule($fileFieldTCAConfig, $customSettingOverride);
-        return $fileFieldTCAConfig;
     }
 
     /**
@@ -670,118 +607,31 @@ class ExtensionManagementUtility
     }
 
     /**
-     * Add tablename to default list of allowed tables on pages (in $PAGES_TYPES)
-     * Will add the $table to the list of tables allowed by default on pages as setup by $PAGES_TYPES['default']['allowedTables']
-     * FOR USE IN ext_tables.php FILES
-     *
-     * @param string $table Table name
-     * @deprecated will be removed in TYPO3 v13.0. Use $GLOBALS['TCA'][$table]['ctrl']['security']['ignorePageTypeRestriction'] instead.
-     */
-    public static function allowTableOnStandardPages(string $table): void
-    {
-        if ($table === '') {
-            return;
-        }
-        $registry = GeneralUtility::makeInstance(PageDoktypeRegistry::class);
-        $tables = explode(',', $table);
-        foreach ($tables as $singleTable) {
-            if (!$registry->isRecordTypeAllowedForDoktype($singleTable, null)) {
-                $registry->addAllowedRecordTypes(explode(',', $singleTable));
-            }
-        }
-    }
-
-    /**
-     * To allow extension authors to support multiple versions, this method is kept until
-     * TYPO3 v13, but is no longer used nor evaluated from TYPO3 v12.0. To add modules,
-     * place the configuration in your extensions' Configuration/Backend/Modules.php file.
-     *
-     * The method deliberately does not throw a deprecation warning in order to keep the noise
-     * of deprecation warnings small.
-     *
-     * @deprecated The functionality has been removed in v12. The method will be removed in TYPO3 v13.
-     */
-    public static function addModule($main, $sub = '', $position = '', $path = null, $moduleConfiguration = []) {}
-
-    /**
-     * Adds a "Function menu module" ('third level module') to an existing function menu of some other backend module.
-     *
-     * FOR USE IN ext_tables.php FILES
-     *
-     * @param string $modname Module name
-     * @param string $className Class name
-     * @param string $_unused not in use anymore
-     * @param string $title Title of module
-     * @param string $MM_key Menu array key - default is "function
-     * @param string $WS Workspace conditions. Blank means all workspaces, any other string can be a comma list of "online", "offline" and "custom
-     * @deprecated use the Module Registration API to define calls, will be removed in TYPO3 v13.0.
-     */
-    public static function insertModuleFunction($modname, $className, $_unused, $title, $MM_key = 'function', $WS = '')
-    {
-        // no-op: This is not in use anymore, use Modules.php instead
-        // This does not trigger a deprecation message as everything continues to work
-    }
-
-    /**
      * Adds $content to the default page TSconfig as set in $GLOBALS['TYPO3_CONF_VARS'][BE]['defaultPageTSconfig']
-     * Prefixed with a [GLOBAL] line
-     * FOR USE IN ext_localconf.php FILE
      *
-     * @param string $content Page TSconfig content
+     * @deprecated since TYPO3 v13.0, will be removed in TYPO3 v14.0.
      */
     public static function addPageTSConfig(string $content): void
     {
+        trigger_error(
+            'ExtensionManagementUtility::addPageTSConfig() has been deprecated in TYPO3 v13.0 and will be removed in v14.0. Use Configuration/page.tsconfig files in extensions instead.',
+            E_USER_DEPRECATED
+        );
         $GLOBALS['TYPO3_CONF_VARS']['BE']['defaultPageTSconfig'] .= chr(10) . $content;
     }
 
     /**
      * Adds $content to the default user TSconfig as set in $GLOBALS['TYPO3_CONF_VARS'][BE]['defaultUserTSconfig']
-     * Prefixed with a [GLOBAL] line
-     * FOR USE IN ext_localconf.php FILE
      *
-     * @param string $content User TSconfig content
+     * @deprecated since TYPO3 v13.0, will be removed in TYPO3 v14.0.
      */
     public static function addUserTSConfig(string $content): void
     {
+        trigger_error(
+            'ExtensionManagementUtility::addUserTSConfig() has been deprecated in TYPO3 v13.0 and will be removed in v14.0. Use Configuration/user.tsconfig files in extensions instead.',
+            E_USER_DEPRECATED
+        );
         $GLOBALS['TYPO3_CONF_VARS']['BE']['defaultUserTSconfig'] .= chr(10) . $content;
-    }
-
-    /**
-     * Adds a reference to a locallang file with $GLOBALS['TCA_DESCR'] labels
-     * FOR USE IN ext_tables.php FILES
-     * eg. \TYPO3\CMS\Core\Utility\ExtensionManagementUtility::addLLrefForTCAdescr('pages', 'EXT:core/Resources/Private/Language/locallang_csh_pages.xlf'); for the pages table or \TYPO3\CMS\Core\Utility\ExtensionManagementUtility::addLLrefForTCAdescr('_MOD_web_layout', 'EXT:frontend/Resources/Private/Language/locallang_csh_weblayout.xlf'); for the Web > Page module.
-     *
-     * @param string $key Description key. Typically a database table (like "pages") but for applications can be other strings, but prefixed with "_MOD_")
-     * @param string $file File reference to locallang file, eg. "EXT:core/Resources/Private/Language/locallang_csh_pages.xlf"
-     *
-     * @deprecated The functionality has been removed in v12. The method will be removed in TYPO3 v13.
-     */
-    public static function addLLrefForTCAdescr($key, $file) {}
-
-    /**
-     * Registers a navigation component e.g. page tree
-     *
-     * @param string $module
-     * @param string $componentId componentId is also a RequireJS module name e.g. 'TYPO3/CMS/MyExt/MyNavComponent'
-     * @param string $extensionKey
-     * @throws \RuntimeException
-     * @deprecated no longer in use. Will be removed in TYPO3 v13.0.
-     */
-    public static function addNavigationComponent($module, $componentId, $extensionKey)
-    {
-        trigger_error('ExtensionManagementUtility::addNavigationComponent() will be removed in TYPO3 v13.0. Is not needed anymore. Remove any calls to this method.', E_USER_DEPRECATED);
-    }
-
-    /**
-     * Registers a core navigation component
-     *
-     * @param string $module
-     * @param string $componentId
-     * @deprecated no longer in use. Will be removed in TYPO3 v13.0.
-     */
-    public static function addCoreNavigationComponent($module, $componentId)
-    {
-        trigger_error('ExtensionManagementUtility::addCoreNavigationComponent() will be removed in TYPO3 v13.0. Is not needed anymore. Remove any calls to this method.', E_USER_DEPRECATED);
     }
 
     /**************************************
@@ -951,6 +801,65 @@ class ExtensionManagementUtility
      *	 Adding FRONTEND features
      *
      ***************************************/
+
+    /**
+     * Convenience method so you don't have to deal with strings and arrays and $GLOBALS[TCA] directly that much.
+     *
+     * Adds a new entry to an existing TCA DB table that has a type field configured (via $TCA[$table][ctrl][type])
+     * such as "tt_content" or "pages" tables.
+     *
+     * Takes the $item (label, value[, icon] etc.) and adds the item to the items-array of $TCA[$table]
+     * of the "type" field. The position in the list can be chosen via the $position argument.
+     *
+     * In addition, a type-icon gets registered, and, based on the $item[value], the record type is also added
+     * to $TCA[$table]['types'][$newType], where $showItemList is added as 'showitem' key, as well as $additionalTypeInformation
+     * such as 'columnsOverride' or 'creationOptions'.
+     *
+     * In addition, the $showItemList will receive a 'extended' tab at the very end, so other extensions
+     * that add additional fields, will receive this at the extended tab automatically.
+     *
+     * Can be used in favor of addPlugin() and addTcaSelectItem().
+     *
+     * FOR USE IN files in Configuration/TCA/Overrides/*.php Use in ext_tables.php FILES may break the frontend.
+     *
+     * @param array|SelectItem $item The item to add to the select field
+     * @param string $showItemList A string containing all fields to be used / displayed in this type
+     * @param array $additionalTypeInformation Additional type information to be added to the type in $TCA[$table]['types']
+     * @param string $position The position in the list where the new item should be added, something like "after:textpic"
+     * @param string $table The table name, defaults to 'tt_content'
+     */
+    public static function addRecordType(array|SelectItem $item, string $showItemList, array $additionalTypeInformation = [], string $position = '', string $table = 'tt_content'): void
+    {
+        $selectItem = is_array($item) ? SelectItem::fromTcaItemArray($item) : $item;
+        $typeField = $GLOBALS['TCA'][$table]['ctrl']['type'] ?? null;
+        // Throw exception if no type is set
+        if ($typeField === null) {
+            throw new \RuntimeException('Cannot add record type "' . $selectItem->getValue() . '" for TCA table "' . $table . '" without type field defined.', 1725997543);
+        }
+        // Set the type icon as well
+        if ($selectItem->getIcon()) {
+            $GLOBALS['TCA'][$table]['ctrl']['typeicon_classes'][$selectItem->getValue()] = $selectItem->getIcon();
+        }
+        if (!$selectItem->hasGroup()) {
+            $selectItem = $selectItem->withGroup('default');
+        }
+
+        $relativeInformation = GeneralUtility::trimExplode(':', $position, true, 2);
+        self::addTcaSelectItem($table, $typeField, $selectItem, $relativeInformation[1] ?? '', $relativeInformation[0] ?? '');
+
+        $showItemList = trim($showItemList, ', ');
+        // Add the extended tab if not already added manually at the very end.
+        if ($showItemList !== '' && !str_contains($showItemList, '--div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:extended')) {
+            $showItemList .= ',--div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:extended';
+        }
+        if ($showItemList !== '') {
+            $showItemList .= ',';
+        }
+
+        $additionalTypeInformation['showitem'] = $showItemList;
+        $GLOBALS['TCA'][$table]['types'][$selectItem->getValue()] = $additionalTypeInformation;
+    }
+
     /**
      * Adds an entry to the list of plugins in content elements of type "Insert plugin"
      * Takes the $itemArray (label, value[,icon]) and adds to the items-array of $GLOBALS['TCA'][tt_content] elements with CType "listtype" (or another field if $type points to another fieldname)
@@ -959,11 +868,11 @@ class ExtensionManagementUtility
      *
      * FOR USE IN files in Configuration/TCA/Overrides/*.php Use in ext_tables.php FILES may break the frontend.
      *
-     * @param array|SelectItem $itemArray Numerical or assoc array: [0 or 'label'] => Plugin label, [1 or 'value'] => Plugin identifier / plugin key, ideally prefixed with an extension-specific name (e.g. "events2_list"), [2 or 'icon'] => Icon identifier or path to plugin icon, [3 or 'group'] => an optional "group" ID, falls back to "default"
+     * @param array|SelectItem $itemArray Numerical or assoc array: [0 or 'label'] => Plugin label, [1 or 'value'] => Plugin identifier / plugin key, ideally prefixed with an extension-specific name (e.g. "events2_list"), [2 or 'icon'] => Icon identifier or path to plugin icon, [3 or 'group'] => an optional "group" ID, falls back to "plugins"
      * @param string|null $extensionKey The extension key
      * @throws \RuntimeException
      */
-    public static function addPlugin(array|SelectItem $itemArray, string $type = 'list_type', ?string $extensionKey = null): void
+    public static function addPlugin(array|SelectItem $itemArray, ?string $type = null, ?string $extensionKey = null): void
     {
         // $extensionKey is required, but presumably for BC reasons it still lives after $type in the
         // parameter list, and $type is nominally optional.
@@ -977,18 +886,22 @@ class ExtensionManagementUtility
                 1404068038
             );
         }
+
         $selectItem = is_array($itemArray) ? SelectItem::fromTcaItemArray($itemArray) : $itemArray;
-        if (!$selectItem->hasIcon()) {
-            $iconPath = static::getExtensionIcon(static::$packageManager->getPackage($extensionKey)->getPackagePath());
-            if ($iconPath) {
-                $selectItem = $selectItem->withIcon('EXT:' . $extensionKey . '/' . $iconPath);
-            }
-        } elseif ($type === 'CType' && !isset($GLOBALS['TCA']['tt_content']['ctrl']['typeicon_classes'][$selectItem->getValue()])) {
+
+        $type ??= 'list_type';
+        // The instanceof FailsafePackageManager check is required to avoid deprecation being triggered in
+        // ext:install, where EXTCONF if not initialized.
+        if ($type === 'list_type' && !self::$packageManager instanceof FailsafePackageManager) {
+            trigger_error('Plugin subtype "list_type" has been deprecated and will be removed in TYPO3 v14.0. Register the plugin "' . $selectItem->getValue() . '" as "CType" instead. Affected extension: ' . $extensionKey, E_USER_DEPRECATED);
+        }
+
+        if ($type === 'CType' && $selectItem->getIcon() && !isset($GLOBALS['TCA']['tt_content']['ctrl']['typeicon_classes'][$selectItem->getValue()])) {
             // Set the type icon as well
             $GLOBALS['TCA']['tt_content']['ctrl']['typeicon_classes'][$selectItem->getValue()] = $selectItem->getIcon();
         }
         if (!$selectItem->hasGroup()) {
-            $selectItem = $selectItem->withGroup('default');
+            $selectItem = $selectItem->withGroup('plugins');
         }
         // Override possible existing entries.
         foreach ($GLOBALS['TCA']['tt_content']['columns'][$type]['config']['items'] ?? [] as $index => $item) {
@@ -1075,9 +988,16 @@ class ExtensionManagementUtility
      * @param string $suffix Is used as a suffix of the class name (e.g. "_pi1")
      * @param string $type See description above
      * @param bool $cacheable If $cached is set as USER content object (cObject) is created - otherwise a USER_INT object is created.
+     *
+     * @deprecated since TYPO3 v13.3, will be removed in TYPO3 v14.0.
      */
     public static function addPItoST43(string $key, string $_ = '', string $suffix = '', string $type = 'list_type', bool $cacheable = false): void
     {
+        trigger_error(
+            'ExtensionManagementUtility::addPItoST43() has been deprecated in TYPO3 v13.3 and will be removed in v14.0. Use Plugin Registration API',
+            E_USER_DEPRECATED
+        );
+
         $cN = self::getCN($key);
         // General plugin
         $pluginContent = trim('
@@ -1177,14 +1097,23 @@ tt_content.' . $key . $suffix . ' {
      * FOR USE IN ext_localconf.php FILES
      *
      * @param string $content TypoScript Setup string
+     * @param bool $includeInSiteSets
      */
-    public static function addTypoScriptSetup(string $content): void
+    public static function addTypoScriptSetup(string $content, bool $includeInSiteSets = true): void
     {
         $GLOBALS['TYPO3_CONF_VARS']['FE']['defaultTypoScript_setup'] ??= '';
         if (!empty($GLOBALS['TYPO3_CONF_VARS']['FE']['defaultTypoScript_setup'])) {
             $GLOBALS['TYPO3_CONF_VARS']['FE']['defaultTypoScript_setup'] .= LF;
         }
         $GLOBALS['TYPO3_CONF_VARS']['FE']['defaultTypoScript_setup'] .= $content;
+
+        if ($includeInSiteSets) {
+            $GLOBALS['TYPO3_CONF_VARS']['FE']['defaultTypoScript_setup.']['siteSets'] ??= '';
+            if (!empty($GLOBALS['TYPO3_CONF_VARS']['FE']['defaultTypoScript_setup.']['siteSets'])) {
+                $GLOBALS['TYPO3_CONF_VARS']['FE']['defaultTypoScript_setup.']['siteSets'] .= LF;
+            }
+            $GLOBALS['TYPO3_CONF_VARS']['FE']['defaultTypoScript_setup.']['siteSets'] .= $content;
+        }
     }
 
     /**
@@ -1193,14 +1122,22 @@ tt_content.' . $key . $suffix . ' {
      * FOR USE IN ext_localconf.php FILES
      *
      * @param string $content TypoScript Constants string
+     * @param bool $includeInSiteSets
      */
-    public static function addTypoScriptConstants(string $content): void
+    public static function addTypoScriptConstants(string $content, bool $includeInSiteSets = true): void
     {
         $GLOBALS['TYPO3_CONF_VARS']['FE']['defaultTypoScript_constants'] ??= '';
         if (!empty($GLOBALS['TYPO3_CONF_VARS']['FE']['defaultTypoScript_constants'])) {
             $GLOBALS['TYPO3_CONF_VARS']['FE']['defaultTypoScript_constants'] .= LF;
         }
         $GLOBALS['TYPO3_CONF_VARS']['FE']['defaultTypoScript_constants'] .= $content;
+        if ($includeInSiteSets) {
+            $GLOBALS['TYPO3_CONF_VARS']['FE']['defaultTypoScript_constants.']['siteSets'] ??= '';
+            if (!empty($GLOBALS['TYPO3_CONF_VARS']['FE']['defaultTypoScript_constants.']['siteSets'])) {
+                $GLOBALS['TYPO3_CONF_VARS']['FE']['defaultTypoScript_constants.']['siteSets'] .= LF;
+            }
+            $GLOBALS['TYPO3_CONF_VARS']['FE']['defaultTypoScript_constants.']['siteSets'] .= $content;
+        }
     }
 
     /**
@@ -1220,7 +1157,7 @@ tt_content.' . $key . $suffix . ' {
      * @param int|string $afterStaticUid string pointing to the "key" of a static_file template ([reduced extension_key]/[local path]). The points is that the TypoScript you add is included only IF that static template is included (and in that case, right after). So effectively the TypoScript you set can specifically overrule settings from those static templates.
      * @throws \InvalidArgumentException
      */
-    public static function addTypoScript(string $key, string $type, string $content, int|string $afterStaticUid = 0): void
+    public static function addTypoScript(string $key, string $type, string $content, int|string $afterStaticUid = 0, bool $includeInSiteSets = true): void
     {
         if ($type !== 'setup' && $type !== 'constants') {
             throw new \InvalidArgumentException('Argument $type must be set to either "setup" or "constants" when calling addTypoScript from extension "' . $key . '"', 1507321200);
@@ -1247,6 +1184,11 @@ tt_content.' . $key . $suffix . ' {
         } else {
             $GLOBALS['TYPO3_CONF_VARS']['FE']['defaultTypoScript_' . $type] ??= '';
             $GLOBALS['TYPO3_CONF_VARS']['FE']['defaultTypoScript_' . $type] .= $content;
+            if ($includeInSiteSets) {
+                // 'siteSets' is an @internal identifier
+                $GLOBALS['TYPO3_CONF_VARS']['FE']['defaultTypoScript_' . $type . '.']['siteSets'] ??= '';
+                $GLOBALS['TYPO3_CONF_VARS']['FE']['defaultTypoScript_' . $type . '.']['siteSets'] .= $content;
+            }
         }
     }
 
@@ -1260,354 +1202,20 @@ tt_content.' . $key . $suffix . ' {
      *
      * @param string $extensionPath Path to extension directory.
      * @param bool $returnFullPath Return full path of file.
+     * @deprecated will be removed in TYPO3 v14.0 - Use Package->getPackageIcon() instead.
      */
     public static function getExtensionIcon(string $extensionPath, bool $returnFullPath = false): string
     {
+        trigger_error('ExtensionManagementUtility::getExtensionIcon() will be removed in v14.0. Use Package->getPackageIcon() instead.', E_USER_DEPRECATED);
         $icon = '';
-        // @deprecated In v13 remove the boolean array value and use the file location string as value again
-        $locationsToCheckFor = [
-            'Resources/Public/Icons/Extension.svg' => false,
-            'Resources/Public/Icons/Extension.png' => false,
-            'Resources/Public/Icons/Extension.gif' => false,
-            'ext_icon.svg' => true,
-            'ext_icon.png' => true,
-            'ext_icon.gif' => true,
-        ];
-        foreach ($locationsToCheckFor as $fileLocation => $legacyLocation) {
-            if (file_exists($extensionPath . $fileLocation)) {
-                $icon = $fileLocation;
-                if ($legacyLocation) {
-                    trigger_error(
-                        'Usage of ' . $fileLocation . ' for the extension icon is deprecated since v12 and will ' .
-                        'stop working with TYPO3 v13. Add your icon as Resources/Public/Icons/Extension.' .
-                        substr($fileLocation, -3, 3) . ' instead.',
-                        E_USER_DEPRECATED
-                    );
-                }
+        $resourcePath = 'Resources/Public/Icons/Extension.';
+        foreach (['svg', 'png', 'gif'] as $fileExtension) {
+            if (file_exists($extensionPath . $resourcePath . $fileExtension)) {
+                $icon = $resourcePath . $fileExtension;
                 break;
             }
         }
         return $returnFullPath ? $extensionPath . $icon : $icon;
-    }
-
-    /**
-     * Execute all ext_localconf.php files of loaded extensions.
-     * The method implements an optionally used caching mechanism that concatenates all
-     * ext_localconf.php files in one file.
-     *
-     * This is an internal method. It is only used during bootstrap and
-     * extensions should not use it!
-     *
-     * @param bool $allowCaching Whether or not to load / create concatenated cache file
-     * @param FrontendInterface|null $codeCache
-     * @internal
-     */
-    public static function loadExtLocalconf(bool $allowCaching = true, ?FrontendInterface $codeCache = null): void
-    {
-        if ($allowCaching) {
-            $codeCache = $codeCache ?? self::getCacheManager()->getCache('core');
-            $cacheIdentifier = self::getExtLocalconfCacheIdentifier();
-            $hasCache = $codeCache->require($cacheIdentifier) !== false;
-            if (!$hasCache) {
-                self::loadSingleExtLocalconfFiles();
-                self::createExtLocalconfCacheEntry($codeCache);
-            }
-        } else {
-            self::loadSingleExtLocalconfFiles();
-        }
-    }
-
-    /**
-     * Execute ext_localconf.php files from extensions
-     */
-    protected static function loadSingleExtLocalconfFiles(): void
-    {
-        foreach (static::$packageManager->getActivePackages() as $package) {
-            $extLocalconfPath = $package->getPackagePath() . 'ext_localconf.php';
-            if (file_exists($extLocalconfPath)) {
-                require $extLocalconfPath;
-            }
-        }
-    }
-
-    /**
-     * Create cache entry for concatenated ext_localconf.php files
-     *
-     * @internal
-     */
-    public static function createExtLocalconfCacheEntry(FrontendInterface $codeCache): void
-    {
-        $phpCodeToCache = [];
-        // Set same globals as in loadSingleExtLocalconfFiles()
-        $phpCodeToCache[] = '/**';
-        $phpCodeToCache[] = ' * Compiled ext_localconf.php cache file';
-        $phpCodeToCache[] = ' */';
-        $phpCodeToCache[] = '';
-        // Iterate through loaded extensions and add ext_localconf content
-        foreach (static::$packageManager->getActivePackages() as $package) {
-            $extensionKey = $package->getPackageKey();
-            $extLocalconfPath = $package->getPackagePath() . 'ext_localconf.php';
-            if (@file_exists($extLocalconfPath)) {
-                // Include a header per extension to make the cache file more readable
-                $phpCodeToCache[] = '/**';
-                $phpCodeToCache[] = ' * Extension: ' . $extensionKey;
-                $phpCodeToCache[] = ' * File: ' . $extLocalconfPath;
-                $phpCodeToCache[] = ' */';
-                $phpCodeToCache[] = '';
-                // Add ext_localconf.php content of extension
-                $phpCodeToCache[] = 'namespace {';
-                $phpCodeToCache[] = trim((string)file_get_contents($extLocalconfPath));
-                $phpCodeToCache[] = '}';
-                $phpCodeToCache[] = '';
-                $phpCodeToCache[] = '';
-            }
-        }
-        $phpCodeToCache = implode(LF, $phpCodeToCache);
-        // Remove all start and ending php tags from content
-        $phpCodeToCache = preg_replace('/<\\?php|\\?>/is', '', $phpCodeToCache);
-        $phpCodeToCache = preg_replace('/declare\\s?+\\(\\s?+strict_types\\s?+=\\s?+1\\s?+\\);/is', '', (string)$phpCodeToCache);
-        $codeCache->set(self::getExtLocalconfCacheIdentifier(), $phpCodeToCache);
-    }
-
-    /**
-     * Cache identifier of concatenated ext_localconf file
-     */
-    protected static function getExtLocalconfCacheIdentifier(): string
-    {
-        return (new PackageDependentCacheIdentifier(self::$packageManager))->withPrefix('ext_localconf')->toString();
-    }
-
-    /**
-     * Wrapper for buildBaseTcaFromSingleFiles handling caching.
-     *
-     * This builds 'base' TCA that is later overloaded by ext_tables.php.
-     *
-     * Use a cache file if exists and caching is allowed.
-     *
-     * This is an internal method. It is only used during bootstrap and
-     * extensions should not use it!
-     *
-     * @param bool $allowCaching Whether or not to load / create concatenated cache file
-     * @internal
-     */
-    public static function loadBaseTca(bool $allowCaching = true, ?FrontendInterface $codeCache = null): void
-    {
-        if ($allowCaching) {
-            $codeCache = $codeCache ?? self::getCacheManager()->getCache('core');
-            $cacheIdentifier = static::getBaseTcaCacheIdentifier();
-            $cacheData = $codeCache->require($cacheIdentifier);
-            if ($cacheData) {
-                $GLOBALS['TCA'] = $cacheData['tca'];
-            } else {
-                static::buildBaseTcaFromSingleFiles();
-                static::createBaseTcaCacheFile($codeCache);
-            }
-        } else {
-            static::buildBaseTcaFromSingleFiles();
-        }
-
-        $allowedRecordTypesForDefault = [];
-        foreach ($GLOBALS['TCA'] as $table => $tableConfiguration) {
-            if ($tableConfiguration['ctrl']['security']['ignorePageTypeRestriction'] ?? false) {
-                $allowedRecordTypesForDefault[] = $table;
-            }
-        }
-        GeneralUtility::makeInstance(PageDoktypeRegistry::class)->addAllowedRecordTypes($allowedRecordTypesForDefault);
-    }
-
-    /**
-     * Find all Configuration/TCA/* files of extensions and create base TCA from it.
-     * The filename must be the table name in $GLOBALS['TCA'], and the content of
-     * the file should return an array with content of a specific table.
-     *
-     * @see Extension core, extensionmanager and others for examples.
-     * @internal
-     */
-    public static function buildBaseTcaFromSingleFiles(): void
-    {
-        $GLOBALS['TCA'] = [];
-
-        $activePackages = static::$packageManager->getActivePackages();
-
-        // To require TCA in a safe scoped environment avoiding local variable clashes.
-        // @see TYPO3\CMS\Core\Tests\Functional\Utility\ExtensionManagementUtility\ExtensionManagementUtilityTcaRequireTest
-        // Note: Return type 'mixed' is intended, otherwise broken TCA files with missing "return [];" statement would
-        //       emit a "return value must be of type array, int returned" PHP TypeError. This is mitigated by an array
-        //       check below.
-        $scopedReturnRequire = static function (string $filename): mixed {
-            return require $filename;
-        };
-        // First load "full table" files from Configuration/TCA
-        foreach ($activePackages as $package) {
-            try {
-                $finder = Finder::create()->files()->sortByName()->depth(0)->name('*.php')->in($package->getPackagePath() . 'Configuration/TCA');
-            } catch (\InvalidArgumentException $e) {
-                // No such directory in this package
-                continue;
-            }
-            foreach ($finder as $fileInfo) {
-                $tcaOfTable = $scopedReturnRequire($fileInfo->getPathname());
-                if (is_array($tcaOfTable)) {
-                    $tcaTableName = substr($fileInfo->getBasename(), 0, -4);
-                    $GLOBALS['TCA'][$tcaTableName] = $tcaOfTable;
-                }
-            }
-        }
-
-        // To require TCA Overrides in a safe scoped environment avoiding local variable clashes.
-        // @see TYPO3\CMS\Core\Tests\Functional\Utility\ExtensionManagementUtility\ExtensionManagementUtilityTcaOverrideRequireTest
-        $scopedRequire = static function (string $filename): void {
-            require $filename;
-        };
-        // Execute override files from Configuration/TCA/Overrides
-        foreach ($activePackages as $package) {
-            try {
-                $finder = Finder::create()->files()->sortByName()->depth(0)->name('*.php')->in($package->getPackagePath() . 'Configuration/TCA/Overrides');
-            } catch (\InvalidArgumentException $e) {
-                // No such directory in this package
-                continue;
-            }
-            foreach ($finder as $fileInfo) {
-                $scopedRequire($fileInfo->getPathname());
-            }
-        }
-
-        // Call the TcaMigration and log any deprecations.
-        $tcaMigration = GeneralUtility::makeInstance(TcaMigration::class);
-        $GLOBALS['TCA'] = $tcaMigration->migrate($GLOBALS['TCA']);
-        $messages = $tcaMigration->getMessages();
-        if (!empty($messages)) {
-            $context = 'Automatic TCA migration done during bootstrap. Please adapt TCA accordingly, these migrations'
-                . ' will be removed. The backend module "Configuration -> TCA" shows the modified values.'
-                . ' Please adapt these areas:';
-            array_unshift($messages, $context);
-            trigger_error(implode(LF, $messages), E_USER_DEPRECATED);
-        }
-
-        // TCA preparation
-        $tcaPreparation = GeneralUtility::makeInstance(TcaPreparation::class);
-        $GLOBALS['TCA'] = $tcaPreparation->prepare($GLOBALS['TCA']);
-
-        static::dispatchTcaIsBeingBuiltEvent($GLOBALS['TCA']);
-    }
-
-    /**
-     * Triggers an event for manipulating the final TCA
-     */
-    protected static function dispatchTcaIsBeingBuiltEvent(array $tca): void
-    {
-        $GLOBALS['TCA'] = static::$eventDispatcher->dispatch(new AfterTcaCompilationEvent($tca))->getTca();
-    }
-
-    /**
-     * Cache base $GLOBALS['TCA'] to cache file to require the whole thing in one
-     * file for next access instead of cycling through all extensions again.
-     *
-     * @internal
-     */
-    public static function createBaseTcaCacheFile(FrontendInterface $codeCache): void
-    {
-        $codeCache->set(
-            static::getBaseTcaCacheIdentifier(),
-            'return '
-                . var_export(['tca' => $GLOBALS['TCA']], true)
-                . ';'
-        );
-    }
-
-    /**
-     * Cache identifier of base TCA cache entry.
-     */
-    protected static function getBaseTcaCacheIdentifier(): string
-    {
-        return (new PackageDependentCacheIdentifier(self::$packageManager))->withPrefix('tca_base')->toString();
-    }
-
-    /**
-     * Execute all ext_tables.php files of loaded extensions.
-     * The method implements an optionally used caching mechanism that concatenates all
-     * ext_tables.php files in one file.
-     *
-     * This is an internal method. It is only used during bootstrap and
-     * extensions should not use it!
-     *
-     * @param bool $allowCaching Whether to load / create concatenated cache file
-     * @internal
-     */
-    public static function loadExtTables(bool $allowCaching = true, ?FrontendInterface $codeCache = null): void
-    {
-        if ($allowCaching && !self::$extTablesWasReadFromCacheOnce) {
-            self::$extTablesWasReadFromCacheOnce = true;
-            $cacheIdentifier = self::getExtTablesCacheIdentifier();
-            $codeCache = $codeCache ?? self::getCacheManager()->getCache('core');
-            $hasCache = $codeCache->require($cacheIdentifier) !== false;
-            if (!$hasCache) {
-                self::loadSingleExtTablesFiles();
-                self::createExtTablesCacheEntry($codeCache);
-            }
-        } else {
-            self::loadSingleExtTablesFiles();
-        }
-    }
-
-    /**
-     * Load ext_tables.php as single files
-     */
-    protected static function loadSingleExtTablesFiles(): void
-    {
-        // Load each ext_tables.php file of loaded extensions
-        foreach (static::$packageManager->getActivePackages() as $package) {
-            $extTablesPath = $package->getPackagePath() . 'ext_tables.php';
-            if (@file_exists($extTablesPath)) {
-                require $extTablesPath;
-            }
-        }
-    }
-
-    /**
-     * Create concatenated ext_tables.php cache file
-     *
-     * @internal
-     */
-    public static function createExtTablesCacheEntry(FrontendInterface $codeCache): void
-    {
-        $phpCodeToCache = [];
-        // Set same globals as in loadSingleExtTablesFiles()
-        $phpCodeToCache[] = '/**';
-        $phpCodeToCache[] = ' * Compiled ext_tables.php cache file';
-        $phpCodeToCache[] = ' */';
-        $phpCodeToCache[] = '';
-        // Iterate through loaded extensions and add ext_tables content
-        foreach (static::$packageManager->getActivePackages() as $package) {
-            $extensionKey = $package->getPackageKey();
-            $extTablesPath = $package->getPackagePath() . 'ext_tables.php';
-            if (@file_exists($extTablesPath)) {
-                // Include a header per extension to make the cache file more readable
-                $phpCodeToCache[] = '/**';
-                $phpCodeToCache[] = ' * Extension: ' . $extensionKey;
-                $phpCodeToCache[] = ' * File: ' . $extTablesPath;
-                $phpCodeToCache[] = ' */';
-                $phpCodeToCache[] = '';
-                // Add ext_tables.php content of extension
-                $phpCodeToCache[] = 'namespace {';
-                $phpCodeToCache[] = trim((string)file_get_contents($extTablesPath));
-                $phpCodeToCache[] = '}';
-                $phpCodeToCache[] = '';
-            }
-        }
-        $phpCodeToCache = implode(LF, $phpCodeToCache);
-        // Remove all start and ending php tags from content
-        $phpCodeToCache = preg_replace('/<\\?php|\\?>/is', '', $phpCodeToCache);
-        $phpCodeToCache = preg_replace('/declare\\s?+\\(\\s?+strict_types\\s?+=\\s?+1\\s?+\\);/is', '', (string)$phpCodeToCache);
-        $codeCache->set(self::getExtTablesCacheIdentifier(), $phpCodeToCache);
-    }
-
-    /**
-     * Cache identifier for concatenated ext_tables.php files
-     */
-    protected static function getExtTablesCacheIdentifier(): string
-    {
-        return (new PackageDependentCacheIdentifier(self::$packageManager))->withPrefix('ext_tables')->toString();
     }
 
     /**

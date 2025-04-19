@@ -21,10 +21,7 @@ use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Core\Utility\ArrayUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Fluid\Core\Rendering\RenderingContext;
-use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
-use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
 
 /**
  * Create internal link within backend.
@@ -46,38 +43,33 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
  */
 final class ModuleLinkViewHelper extends AbstractViewHelper
 {
-    use CompileWithRenderStatic;
-
     public function initializeArguments(): void
     {
         $this->registerArgument('route', 'string', 'The route to link to', true);
-        $this->registerArgument('arguments', 'array', 'Additional link arguments', false, []);
-        $this->registerArgument('query', 'string', 'Additional link arguments as string');
+        $this->registerArgument('arguments', 'array', 'Additional link arguments (e.g. id or returnUrl)', false, []);
+        $this->registerArgument('query', 'string', 'Additional link arguments as string  (e.g. id or returnUrl)');
         $this->registerArgument('currentUrlParameterName', 'string', 'Add current url as given parameter');
     }
 
     /**
      * Render module link with arguments
-     *
-     * @param array<string, mixed> $arguments
      */
-    public static function renderStatic(array $arguments, \Closure $renderChildrenClosure, RenderingContextInterface $renderingContext): string
+    public function render(): string
     {
         $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
-        $parameters = $arguments['arguments'];
-        if ($arguments['query'] !== null) {
-            ArrayUtility::mergeRecursiveWithOverrule($parameters, GeneralUtility::explodeUrl2Array($arguments['query']));
+        $parameters = $this->arguments['arguments'];
+        if ($this->arguments['query'] !== null) {
+            ArrayUtility::mergeRecursiveWithOverrule($parameters, GeneralUtility::explodeUrl2Array($this->arguments['query']));
         }
-        /** @var RenderingContext $renderingContext */
-        $request = $renderingContext->getRequest();
-        if (!empty($arguments['currentUrlParameterName'])
-            && empty($arguments['arguments'][$arguments['currentUrlParameterName']])
-            && $request instanceof ServerRequestInterface
+        if (!empty($this->arguments['currentUrlParameterName'])
+            && empty($this->arguments['arguments'][$this->arguments['currentUrlParameterName']])
+            && $this->renderingContext->hasAttribute(ServerRequestInterface::class)
         ) {
             // If currentUrlParameterName is given and if that argument is not hand over yet, and if there is a request, fetch it from request
             // @todo: We may want to deprecate fetching stuff from request and advise handing over a proper value as 'arguments' argument.
-            $parameters[$arguments['currentUrlParameterName']] = $request->getAttribute('normalizedParams')->getRequestUri();
+            $request = $this->renderingContext->getAttribute(ServerRequestInterface::class);
+            $parameters[$this->arguments['currentUrlParameterName']] = $request->getAttribute('normalizedParams')->getRequestUri();
         }
-        return (string)$uriBuilder->buildUriFromRoute($arguments['route'], $parameters);
+        return (string)$uriBuilder->buildUriFromRoute($this->arguments['route'], $parameters);
     }
 }

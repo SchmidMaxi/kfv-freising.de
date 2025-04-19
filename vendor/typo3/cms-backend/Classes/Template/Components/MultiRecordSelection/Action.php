@@ -17,8 +17,8 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Backend\Template\Components\MultiRecordSelection;
 
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -51,7 +51,7 @@ class Action
 
     public function getIcon(): string
     {
-        return GeneralUtility::makeInstance(IconFactory::class)->getIcon($this->iconIdentifier, Icon::SIZE_SMALL)->render();
+        return GeneralUtility::makeInstance(IconFactory::class)->getIcon($this->iconIdentifier, IconSize::SMALL)->render();
     }
 
     protected function getLanguageService(): LanguageService

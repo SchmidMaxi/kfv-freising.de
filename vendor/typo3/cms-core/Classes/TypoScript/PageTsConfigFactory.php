@@ -18,9 +18,10 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Core\TypoScript;
 
 use Psr\Container\ContainerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Cache\Frontend\PhpFrontend;
-use TYPO3\CMS\Core\ExpressionLanguage\DeprecatingRequestWrapper;
 use TYPO3\CMS\Core\Site\Entity\Site;
 use TYPO3\CMS\Core\Site\Entity\SiteInterface;
 use TYPO3\CMS\Core\TypoScript\IncludeTree\IncludeNode\RootInclude;
@@ -41,13 +42,15 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  *
  * @internal Internal for now until API stabilized. Use BackendUtility::getPagesTSconfig().
  */
-final class PageTsConfigFactory
+#[Autoconfigure(public: true)]
+final readonly class PageTsConfigFactory
 {
     public function __construct(
-        private readonly ContainerInterface $container,
-        private readonly TokenizerInterface $tokenizer,
-        private readonly TsConfigTreeBuilder $tsConfigTreeBuilder,
-        private readonly PhpFrontend $cache,
+        private ContainerInterface $container,
+        private TokenizerInterface $tokenizer,
+        private TsConfigTreeBuilder $tsConfigTreeBuilder,
+        #[Autowire(service: 'cache.typoscript')]
+        private PhpFrontend $cache,
     ) {}
 
     public function create(
@@ -127,8 +130,6 @@ final class PageTsConfigFactory
             //       want to switch to $fullRootLine[array_key_last($fullRootLine)] as soon as it contains all fields.
             'page' => $lastPageFullRecord,
             'pageId' => $pageId,
-            // @deprecated since v12, will be removed in v13.
-            'request' => new DeprecatingRequestWrapper($GLOBALS['TYPO3_REQUEST'] ?? null),
         ];
         $conditionMatcherVisitor = GeneralUtility::makeInstance(IncludeTreeConditionMatcherVisitor::class);
         $conditionMatcherVisitor->initializeExpressionMatcherWithVariables($conditionMatcherVariables);
@@ -138,6 +139,6 @@ final class PageTsConfigFactory
         $includeTreeTraverserConditionVerdictAwareVisitors[] = $astBuilderVisitor;
         $includeTreeTraverserConditionVerdictAware->traverse($pagesTsConfigTree, $includeTreeTraverserConditionVerdictAwareVisitors);
 
-        return new PageTsConfig($astBuilderVisitor->getAst());
+        return new PageTsConfig($astBuilderVisitor->getAst(), $conditionMatcherVisitor->getConditionListWithVerdicts());
     }
 }

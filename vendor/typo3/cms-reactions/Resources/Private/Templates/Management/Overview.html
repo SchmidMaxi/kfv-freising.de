@@ -20,7 +20,7 @@
         name="returnUrl"
         value="{f:be.uri(route:'system_reactions')}"
     />
-    <f:if condition="{reactionRecords -> f:count()}">
+    <f:if condition="{paginator.paginatedItems -> f:count()}">
         <f:then>
             <f:render section="filter" arguments="{_all}" />
             <f:render section="table" arguments="{_all}" />
@@ -29,7 +29,7 @@
             <f:if condition="{demand.constraints}">
                 <f:then>
                     <f:render section="filter" arguments="{_all}" />
-                    <f:be.infobox state="-2" title="{f:translate(key: 'LLL:EXT:reactions/Resources/Private/Language/locallang_module_reactions.xlf:reaction_not_found_with_filter.title')}">
+                    <f:be.infobox state="{f:constant(name: 'TYPO3\CMS\Fluid\ViewHelpers\Be\InfoboxViewHelper::STATE_NOTICE')}" title="{f:translate(key: 'LLL:EXT:reactions/Resources/Private/Language/locallang_module_reactions.xlf:reaction_not_found_with_filter.title')}">
                         <p><f:translate key="LLL:EXT:reactions/Resources/Private/Language/locallang_module_reactions.xlf:reaction_not_found_with_filter.message"/></p>
                         <a class="btn btn-default" href="{f:be.uri(route:'system_reactions')}">
                             <f:translate key="LLL:EXT:reactions/Resources/Private/Language/locallang_module_reactions.xlf:reaction_no_filter"/>
@@ -45,7 +45,7 @@
                     </form>
                 </f:then>
                 <f:else>
-                    <f:be.infobox state="-1" title="{f:translate(key: 'LLL:EXT:reactions/Resources/Private/Language/locallang_module_reactions.xlf:reaction_not_found.title')}">
+                    <f:be.infobox state="{f:constant(name: 'TYPO3\CMS\Fluid\ViewHelpers\Be\InfoboxViewHelper::STATE_INFO')}" title="{f:translate(key: 'LLL:EXT:reactions/Resources/Private/Language/locallang_module_reactions.xlf:reaction_not_found.title')}">
                         <p><f:translate key="LLL:EXT:reactions/Resources/Private/Language/locallang_module_reactions.xlf:reaction_not_found.message"/></p>
                         <be:link.newRecord returnUrl="{returnUrl}" class="btn btn-primary" table="sys_reaction">
                             <f:translate key="LLL:EXT:reactions/Resources/Private/Language/locallang_module_reactions.xlf:reaction_create"/>
@@ -71,7 +71,7 @@
                         </button>
                         <ul class="dropdown-menu t3js-multi-record-selection-check-actions">
                             <li>
-                                <button type="button" class="dropdown-item disabled" data-multi-record-selection-check-action="check-all" title="{f:translate(key: 'LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.checkAll')}">
+                                <button type="button" class="dropdown-item" disabled="disabled" data-multi-record-selection-check-action="check-all" title="{f:translate(key: 'LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.checkAll')}">
                                     <span class="dropdown-item-columns">
                                         <span class="dropdown-item-column dropdown-item-column-icon" aria-hidden="true">
                                             <core:icon identifier="actions-selection-elements-all" size="small" />
@@ -83,7 +83,7 @@
                                 </button>
                             </li>
                             <li>
-                                <button type="button" class="dropdown-item disabled" data-multi-record-selection-check-action="check-none" title="{f:translate(key: 'LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.uncheckAll')}">
+                                <button type="button" class="dropdown-item" disabled="disabled" data-multi-record-selection-check-action="check-none" title="{f:translate(key: 'LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.uncheckAll')}">
                                     <span class="dropdown-item-columns">
                                         <span class="dropdown-item-column dropdown-item-column-icon" aria-hidden="true">
                                             <core:icon identifier="actions-selection-elements-none" size="small" />
@@ -116,7 +116,7 @@
             </tr>
             </thead>
             <tbody data-multi-record-selection-row-selection="true">
-            <f:for each="{reactionRecords}" key="reactionId" as="reaction">
+            <f:for each="{paginator.paginatedItems}" key="reactionId" as="reaction">
                 <f:variable name="reactionRecord" value="{reaction as array}"/>
                 <tr data-uid="{reaction.uid}" data-multi-record-selection-element="true">
                     <td class="col-checkbox">
@@ -129,7 +129,7 @@
                             <td class="col-icon">
                                 <button
                                     type="button"
-                                    class="btn btn-link p-0"
+                                    class="btn btn-link"
                                     data-contextmenu-trigger="click"
                                     data-contextmenu-table="sys_reaction"
                                     data-contextmenu-uid="{reaction.uid}"
@@ -186,19 +186,74 @@
 </f:section>
 
 <f:section name="listHeaderSorting">
-    <f:if condition="{demand.orderField} === {field}">
-        <f:then>
-            <a href="{f:be.uri(route:'system_reactions', parameters: '{demand: demand.parameters, orderField: field, orderDirection: demand.reverseOrderDirection}')}">
-                <f:translate key="LLL:EXT:reactions/Resources/Private/Language/locallang_db.xlf:{label}"/>
-            </a>
-            <core:icon identifier="status-status-sorting-{demand.orderDirection}"/>
-        </f:then>
-        <f:else>
-            <a href="{f:be.uri(route:'system_reactions', parameters: '{demand: demand.parameters, orderField: field, orderDirection: demand.defaultOrderDirection}')}">
-                <f:translate key="LLL:EXT:reactions/Resources/Private/Language/locallang_db.xlf:{label}"/>
-            </a>
-        </f:else>
-    </f:if>
+    <div class="dropdown dropdown-static">
+        <button class="dropdown-toggle dropdown-toggle-link" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <f:translate key="LLL:EXT:reactions/Resources/Private/Language/locallang_db.xlf:{label}"/>
+            <f:if condition="{demand.orderField} === {field}">
+                <f:then>
+                    <div class="text-primary">
+                        <f:if condition="{demand.orderDirection} === asc">
+                            <f:then>
+                                <core:icon identifier="actions-sort-amount-up" />
+                            </f:then>
+                            <f:else>
+                                <core:icon identifier="actions-sort-amount-down" />
+                            </f:else>
+                        </f:if>
+                    </div>
+                </f:then>
+                <f:else>
+                    <div>
+                        <core:icon identifier="empty-empty" />
+                    </div>
+                </f:else>
+            </f:if>
+        </button>
+        <ul class="dropdown-menu">
+            <li>
+                <a
+                    class="dropdown-item"
+                    href="{f:be.uri(route:'system_reactions', parameters: '{demand: demand.parameters, orderField: field, orderDirection: demand.defaultOrderDirection}')}"
+                    title="{f:translate(key: 'LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.sorting.asc')}"
+                    aria-label="{f:translate(key: 'LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.sorting.asc')}"
+                >
+                    <span class="dropdown-item-columns">
+                        <span class="dropdown-item-column dropdown-item-column-icon text-primary">
+                            <f:if condition="{demand.orderField} === {field}">
+                                <f:if condition="{demand.orderDirection} === asc">
+                                    <core:icon identifier="actions-dot" />
+                                </f:if>
+                            </f:if>
+                        </span>
+                        <span class="dropdown-item-column dropdown-item-column-title">
+                            {f:translate(key: 'LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.sorting.asc')}
+                        </span>
+                    </span>
+                </a>
+            </li>
+            <li>
+                <a
+                    class="dropdown-item"
+                    href="{f:be.uri(route:'system_reactions', parameters: '{demand: demand.parameters, orderField: field, orderDirection: demand.reverseOrderDirection}')}"
+                    title="{f:translate(key: 'LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.sorting.desc')}"
+                    aria-label="{f:translate(key: 'LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.sorting.desc')}"
+                >
+                    <span class="dropdown-item-columns">
+                        <span class="dropdown-item-column dropdown-item-column-icon text-primary">
+                            <f:if condition="{demand.orderField} === {field}">
+                                <f:if condition="{demand.orderDirection} === desc">
+                                    <core:icon identifier="actions-dot" />
+                                </f:if>
+                            </f:if>
+                        </span>
+                        <span class="dropdown-item-column dropdown-item-column-title">
+                            {f:translate(key: 'LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.sorting.desc')}
+                        </span>
+                    </span>
+                </a>
+            </li>
+        </ul>
+    </div>
 </f:section>
 
 <f:section name="filter">

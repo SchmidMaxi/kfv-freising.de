@@ -1,4 +1,5 @@
 <?php
+
 /*
 
 ## Configuration
@@ -16,6 +17,7 @@ after('deploy:update_code', 'npm:install');
 after('deploy:update_code', 'webpack_encore:build');
 ```
  */
+
 namespace Deployer;
 
 require_once __DIR__ . '/npm.php';

@@ -27,10 +27,10 @@ use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Http\HtmlResponse;
 use TYPO3\CMS\Core\Http\JsonResponse;
 use TYPO3\CMS\Core\Http\RedirectResponse;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Messaging\FlashMessageService;
-use TYPO3\CMS\Core\Resource\DuplicationBehavior;
+use TYPO3\CMS\Core\Resource\Enum\DuplicationBehavior;
 use TYPO3\CMS\Core\Resource\File;
 use TYPO3\CMS\Core\Resource\Folder;
 use TYPO3\CMS\Core\Resource\ProcessedFile;
@@ -63,12 +63,9 @@ class FileController
     protected $CB;
 
     /**
-     * Defines behaviour when uploading files with names that already exist; possible values are
-     * the values of the \TYPO3\CMS\Core\Resource\DuplicationBehavior enumeration
-     *
-     * @var DuplicationBehavior
+     * Defines behaviour when uploading files with names that already exist.
      */
-    protected $overwriteExistingFiles;
+    protected DuplicationBehavior $overwriteExistingFiles;
 
     /**
      * The page where the user should be redirected after everything is done
@@ -210,9 +207,10 @@ class FileController
         if (isset($this->file['rename'][0]['conflictMode'])) {
             $conflictMode = $this->file['rename'][0]['conflictMode'];
             unset($this->file['rename'][0]['conflictMode']);
-            $this->overwriteExistingFiles = DuplicationBehavior::cast($conflictMode);
+            $this->overwriteExistingFiles = DuplicationBehavior::tryFrom($conflictMode) ?? DuplicationBehavior::getDefaultDuplicationBehaviour();
         } else {
-            $this->overwriteExistingFiles = DuplicationBehavior::cast($parsedBody['overwriteExistingFiles'] ?? $queryParams['overwriteExistingFiles'] ?? null);
+            $duplicationBehaviorFromRequest = $parsedBody['overwriteExistingFiles'] ?? $queryParams['overwriteExistingFiles'] ?? '';
+            $this->overwriteExistingFiles = DuplicationBehavior::tryFrom($duplicationBehaviorFromRequest) ?? DuplicationBehavior::getDefaultDuplicationBehaviour();
         }
         $this->initClipboard($request);
     }
@@ -288,7 +286,7 @@ class FileController
             $result->toArray(),
             [
                 'date' => BackendUtility::date($result->getModificationTime()),
-                'icon' => $this->iconFactory->getIconForFileExtension($result->getExtension(), Icon::SIZE_SMALL)->render(),
+                'icon' => $this->iconFactory->getIconForFileExtension($result->getExtension(), IconSize::SMALL)->render(),
                 'thumbUrl' => $thumbUrl,
                 'path' => $path,
             ]

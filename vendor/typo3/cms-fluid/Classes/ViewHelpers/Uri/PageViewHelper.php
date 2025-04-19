@@ -28,13 +28,10 @@ use TYPO3\CMS\Core\Utility\HttpUtility;
 use TYPO3\CMS\Core\Utility\MathUtility;
 use TYPO3\CMS\Extbase\Mvc\RequestInterface as ExtbaseRequestInterface;
 use TYPO3\CMS\Extbase\Mvc\Web\Routing\UriBuilder as ExtbaseUriBuilder;
-use TYPO3\CMS\Fluid\Core\Rendering\RenderingContext;
 use TYPO3\CMS\Frontend\ContentObject\ContentObjectRenderer;
 use TYPO3\CMS\Frontend\Typolink\LinkFactory;
 use TYPO3\CMS\Frontend\Typolink\UnableToLinkException;
-use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
-use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
 
 /**
  * A ViewHelper for creating URIs to TYPO3 pages.
@@ -77,15 +74,13 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
  */
 final class PageViewHelper extends AbstractViewHelper
 {
-    use CompileWithRenderStatic;
-
     public function initializeArguments(): void
     {
         $this->registerArgument('pageUid', 'int', 'target PID');
         $this->registerArgument('additionalParams', 'array', 'query parameters to be attached to the resulting URI', false, []);
         $this->registerArgument('pageType', 'int', 'type of the target page. See typolink.parameter', false, 0);
         $this->registerArgument('noCache', 'bool', 'set this to disable caching for the target page. You should not need this.', false, false);
-        $this->registerArgument('language', 'string', 'link to a specific language - defaults to the current language, use a language ID or "current" to enforce a specific language', false);
+        $this->registerArgument('language', 'string', 'link to a specific language - defaults to the current language, use a language ID or "current" to enforce a specific language');
         $this->registerArgument('section', 'string', 'the anchor to be added to the URI', false, '');
         $this->registerArgument('linkAccessRestrictedPages', 'bool', 'If set, links pointing to access restricted pages will still link to the page even though the page cannot be accessed.', false, false);
         $this->registerArgument('absolute', 'bool', 'If set, the URI of the rendered link is absolute', false, false);
@@ -93,19 +88,21 @@ final class PageViewHelper extends AbstractViewHelper
         $this->registerArgument('argumentsToBeExcludedFromQueryString', 'array', 'arguments to be removed from the URI. Only active if $addQueryString = TRUE', false, []);
     }
 
-    public static function renderStatic(array $arguments, \Closure $renderChildrenClosure, RenderingContextInterface $renderingContext): string
+    public function render(): string
     {
-        /** @var RenderingContext $renderingContext */
-        $request = $renderingContext->getRequest();
+        $request = null;
+        if ($this->renderingContext->hasAttribute(ServerRequestInterface::class)) {
+            $request = $this->renderingContext->getAttribute(ServerRequestInterface::class);
+        }
         if ($request instanceof ExtbaseRequestInterface) {
-            return self::renderWithExtbaseContext($request, $arguments);
+            return self::renderWithExtbaseContext($request, $this->arguments);
         }
         if ($request instanceof ServerRequestInterface) {
             if (ApplicationType::fromRequest($request)->isFrontend()) {
                 // Use the regular typolink functionality.
-                return self::renderFrontendLinkWithCoreContext($request, $arguments, $renderChildrenClosure);
+                return self::renderFrontendLinkWithCoreContext($request, $this->arguments, $this->renderChildren(...));
             }
-            return self::renderBackendLinkWithCoreContext($request, $arguments);
+            return self::renderBackendLinkWithCoreContext($request, $this->arguments);
         }
         throw new \RuntimeException(
             'The rendering context of ViewHelper f:uri.page is missing a valid request object.',

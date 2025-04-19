@@ -22,6 +22,10 @@ final class ViewHelperFinder
     private const FILE_SUFFIX = 'ViewHelper.php';
 
     private ViewHelperMetadataFactory $viewHelperMetadataFactory;
+    /**
+     * @var \Throwable[] $lastErrors
+     */
+    private array $lastErrors = [];
 
     public function __construct(?ViewHelperMetadataFactory $viewHelperMetadataFactory = null)
     {
@@ -33,6 +37,7 @@ final class ViewHelperFinder
      */
     public function findViewHelpersInComposerProject(ClassLoader $autoloader): array
     {
+        $this->lastErrors = [];
         $viewHelpers = [];
         foreach ($autoloader->getPrefixesPsr4() as $namespace => $paths) {
             foreach ($paths as $path) {
@@ -43,10 +48,21 @@ final class ViewHelperFinder
     }
 
     /**
+     * @return \Throwable[]
+     */
+    public function getLastErrors(): array
+    {
+        return $this->lastErrors;
+    }
+
+    /**
      * @return ViewHelperMetadata[]
      */
     private function findViewHelperFilesInPath(string $namespace, string $path): array
     {
+        if (!is_dir($path)) {
+            return [];
+        }
         $viewHelpers = [];
         $iterator = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS | FilesystemIterator::CURRENT_AS_PATHNAME),
@@ -77,6 +93,10 @@ final class ViewHelperFinder
                 $viewHelpers[] = $this->viewHelperMetadataFactory->createFromViewhelperClass($className);
             } catch (\InvalidArgumentException) {
                 // Just ignore this class
+            } catch (\Throwable $t) {
+                // Catch all Throwables to mitigate technical debt of a ViewHelper
+                // and avoid aborting the whole generation
+                $this->lastErrors[] = $t;
             }
         }
         return $viewHelpers;

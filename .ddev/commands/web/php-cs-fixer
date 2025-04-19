@@ -1,0 +1,8 @@
+#!/bin/bash
+
+## Description: Run php-cs-fixer analyse inside the web container
+## Usage: php-cs-fixer [args]
+## Example: "ddev php-cs-fixer analyse"
+## ProjectTypes: typo3
+
+./.typo3/bin/php-cs-fixer "$@"

@@ -1,0 +1,11 @@
+<div id="c{data.uid}" class="container frame frame-{data.frame_class} frame-type-{data.CType} frame-layout-{data.layout}{f:if(condition: data.space_before_class, then: ' frame-space-before-{data.space_before_class}')}{f:if(condition: data.space_after_class, then: ' frame-space-after-{data.space_after_class}')}">
+    <div class="card text-bg-{data.color}">
+        <f:if condition="{data.image}">
+            <f:image image="{data.image.0}" class="card-img-top img-fluid mb-2" />
+        </f:if>
+        <div class="card-body">
+            <h4 class="card-title">{data.header}</h4>
+            <div class="card-text">{data.bodytext->f:format.html()}</div>
+        </div>
+    </div>
+</div>

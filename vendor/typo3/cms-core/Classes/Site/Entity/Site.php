@@ -26,11 +26,13 @@ use TYPO3\CMS\Core\Error\PageErrorHandler\InvalidPageErrorHandlerException;
 use TYPO3\CMS\Core\Error\PageErrorHandler\PageContentErrorHandler;
 use TYPO3\CMS\Core\Error\PageErrorHandler\PageErrorHandlerInterface;
 use TYPO3\CMS\Core\Error\PageErrorHandler\PageErrorHandlerNotConfiguredException;
+use TYPO3\CMS\Core\Error\PageErrorHandler\RedirectLoginErrorHandler;
 use TYPO3\CMS\Core\ExpressionLanguage\Resolver;
 use TYPO3\CMS\Core\Http\Uri;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Routing\PageRouter;
 use TYPO3\CMS\Core\Routing\RouterInterface;
+use TYPO3\CMS\Core\Site\Set\SetError;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
@@ -43,6 +45,7 @@ class Site implements SiteInterface
     protected const ERRORHANDLER_TYPE_PAGE = 'Page';
     protected const ERRORHANDLER_TYPE_FLUID = 'Fluid';
     protected const ERRORHANDLER_TYPE_PHP = 'PHP';
+    protected const ERRORHANDLER_TYPE_LOGIN_REDIRECT = 'LoginRedirect';
 
     /**
      * @var string
@@ -66,9 +69,25 @@ class Site implements SiteInterface
     protected $configuration;
 
     /**
+     * Raw attributes for this site
+     * @var array
+     */
+    protected $rawConfiguration;
+
+    /**
      * @var array<LanguageRef, SiteLanguage>
      */
     protected $languages;
+
+    /**
+     * @var list<string>
+     */
+    protected array $sets;
+
+    /**
+     * @var array<string, array{error: SetError, name: string, context: string}>
+     */
+    public array $invalidSets = [];
 
     /**
      * @var array
@@ -77,17 +96,25 @@ class Site implements SiteInterface
 
     protected SiteSettings $settings;
 
+    protected ?SiteTypoScript $typoscript;
+
+    protected ?SiteTSconfig $tsConfig;
+
     /**
      * Sets up a site object, and its languages, error handlers and the settings
      */
-    public function __construct(string $identifier, int $rootPageId, array $configuration, ?SiteSettings $settings = null)
+    public function __construct(string $identifier, int $rootPageId, array $configuration, ?SiteSettings $settings = null, ?SiteTypoScript $typoscript = null, ?SiteTSconfig $tsConfig = null)
     {
         $this->identifier = $identifier;
         $this->rootPageId = $rootPageId;
         if ($settings === null) {
-            $settings = new SiteSettings($configuration['settings'] ?? []);
+            // @todo deprecate null settings argument
+            $settings = SiteSettings::createFromSettingsTree($configuration['settings'] ?? []);
         }
         $this->settings = $settings;
+        $this->typoscript = $typoscript;
+        $this->tsConfig = $tsConfig;
+        $this->rawConfiguration = $configuration;
         // Merge settings back in configuration for backwards-compatibility
         $configuration['settings'] = $this->settings->getAll();
         $this->configuration = $configuration;
@@ -106,6 +133,7 @@ class Site implements SiteInterface
         );
         $this->base = new Uri($this->sanitizeBaseUrl($baseUrl));
 
+        $this->sets = $configuration['dependencies'] ?? [];
         foreach ($configuration['languages'] as $languageConfiguration) {
             $languageUid = (int)$languageConfiguration['languageId'];
             // site language has defined its own base, this is the case most of the time.
@@ -214,6 +242,16 @@ class Site implements SiteInterface
     }
 
     /**
+     * Returns configured sets of this site
+     *
+     * @return list<string>
+     */
+    public function getSets(): array
+    {
+        return $this->sets;
+    }
+
+    /**
      * Returns all available languages of this site, even the ones disabled for frontend usages
      *
      * @return array<LanguageRef, SiteLanguage>
@@ -261,7 +299,7 @@ class Site implements SiteInterface
 
         // Do not add the ones that are not allowed by the user
         foreach ($this->languages as $language) {
-            if ($user->checkLanguageAccess($language->getLanguageId())) {
+            if ($user->checkLanguageAccess($language)) {
                 $availableLanguages[$language->getLanguageId()] = $language;
             }
         }
@@ -283,6 +321,8 @@ class Site implements SiteInterface
                 return GeneralUtility::makeInstance(FluidPageErrorHandler::class, $statusCode, $errorHandlerConfiguration);
             case self::ERRORHANDLER_TYPE_PAGE:
                 return GeneralUtility::makeInstance(PageContentErrorHandler::class, $statusCode, $errorHandlerConfiguration);
+            case self::ERRORHANDLER_TYPE_LOGIN_REDIRECT:
+                return GeneralUtility::makeInstance(RedirectLoginErrorHandler::class, $statusCode, $errorHandlerConfiguration);
             case self::ERRORHANDLER_TYPE_PHP:
                 $handler = GeneralUtility::makeInstance($errorHandlerConfiguration['errorPhpClassFQCN'], $statusCode, $errorHandlerConfiguration);
                 // Check if the interface is implemented
@@ -302,9 +342,35 @@ class Site implements SiteInterface
         return $this->configuration;
     }
 
+    public function getRawConfiguration(): array
+    {
+        return $this->rawConfiguration;
+    }
+
     public function getSettings(): SiteSettings
     {
         return $this->settings;
+    }
+
+    /**
+     * @internal
+     */
+    public function isTypoScriptRoot(): bool
+    {
+        return $this->sets !== [] || $this->typoscript !== null || $this->tsConfig !== null;
+    }
+
+    public function getTypoScript(): ?SiteTypoScript
+    {
+        return $this->typoscript;
+    }
+
+    /**
+     * @internal
+     */
+    public function getTSconfig(): ?SiteTSconfig
+    {
+        return $this->tsConfig;
     }
 
     /**
@@ -348,8 +414,6 @@ class Site implements SiteInterface
 
     /**
      * Returns the applicable router for this site. This might be configurable in the future.
-     *
-     * @param Context|null $context
      */
     public function getRouter(?Context $context = null): RouterInterface
     {

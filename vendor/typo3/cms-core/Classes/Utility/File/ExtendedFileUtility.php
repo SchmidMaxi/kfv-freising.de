@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -25,7 +27,7 @@ use TYPO3\CMS\Core\Http\ApplicationType;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Messaging\FlashMessage;
 use TYPO3\CMS\Core\Messaging\FlashMessageService;
-use TYPO3\CMS\Core\Resource\DuplicationBehavior;
+use TYPO3\CMS\Core\Resource\Enum\DuplicationBehavior;
 use TYPO3\CMS\Core\Resource\Event\AfterFileCommandProcessedEvent;
 use TYPO3\CMS\Core\Resource\Exception;
 use TYPO3\CMS\Core\Resource\Exception\ExistingTargetFileNameException;
@@ -53,7 +55,6 @@ use TYPO3\CMS\Core\SysLog\Action\File as SystemLogFileAction;
 use TYPO3\CMS\Core\SysLog\Error as SystemLogErrorClassification;
 use TYPO3\CMS\Core\SysLog\Type as SystemLogType;
 use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
-use TYPO3\CMS\Core\Type\Exception\InvalidEnumerationValueException;
 use TYPO3\CMS\Core\Utility\Exception\NotImplementedMethodException;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -66,7 +67,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  * This class contains functions primarily used by tce_file.php (TYPO3 Core Engine for file manipulation)
  * Functions include copying, moving, deleting, uploading and so on...
  *
- * All fileoperations must be within the filemount paths of the user.
+ * All fileoperations must be within the file mount paths of the user.
  *
  * @internal Since TYPO3 v10, this class should not be used anymore outside of TYPO3 Core, and is considered internal,
  * as the FAL API should be used instead.
@@ -74,12 +75,9 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 class ExtendedFileUtility extends BasicFileUtility
 {
     /**
-     * Defines behaviour when uploading files with names that already exist; possible values are
-     * the values of the \TYPO3\CMS\Core\Resource\DuplicationBehavior enumeration
-     *
-     * @var DuplicationBehavior
+     * Defines behaviour when uploading files with names that already exist;
      */
-    protected $existingFilesConflictMode;
+    protected DuplicationBehavior $existingFilesConflictMode;
 
     /**
      * This array is self-explaining (look in the class below).
@@ -136,34 +134,18 @@ class ExtendedFileUtility extends BasicFileUtility
 
     /**
      * Get existingFilesConflictMode
-     *
-     * @return string
      */
-    public function getExistingFilesConflictMode()
+    public function getExistingFilesConflictMode(): string
     {
-        return (string)$this->existingFilesConflictMode;
+        return $this->existingFilesConflictMode->value;
     }
 
     /**
      * Set existingFilesConflictMode
-     *
-     * @param DuplicationBehavior|string $existingFilesConflictMode Instance or constant of \TYPO3\CMS\Core\Resource\DuplicationBehavior
-     * @throws Exception
      */
-    public function setExistingFilesConflictMode($existingFilesConflictMode)
+    public function setExistingFilesConflictMode(DuplicationBehavior $existingFilesConflictMode): void
     {
-        try {
-            $this->existingFilesConflictMode = DuplicationBehavior::cast($existingFilesConflictMode);
-        } catch (InvalidEnumerationValueException $e) {
-            throw new Exception(
-                sprintf(
-                    'Invalid argument, received: "%s", expected a value from enumeration \TYPO3\CMS\Core\Resource\DuplicationBehavior (%s)',
-                    $existingFilesConflictMode,
-                    implode(', ', DuplicationBehavior::getConstants())
-                ),
-                1476046229
-            );
-        }
+        $this->existingFilesConflictMode = $existingFilesConflictMode;
     }
 
     /**
@@ -277,7 +259,7 @@ class ExtendedFileUtility extends BasicFileUtility
                         }
 
                         GeneralUtility::makeInstance(EventDispatcherInterface::class)->dispatch(
-                            new AfterFileCommandProcessedEvent([$action => $cmdArr], $result[$action][$key], (string)$this->existingFilesConflictMode)
+                            new AfterFileCommandProcessedEvent([$action => $cmdArr], $result[$action][$key], $this->existingFilesConflictMode->value)
                         );
                     }
                 }
@@ -297,7 +279,7 @@ class ExtendedFileUtility extends BasicFileUtility
         if (!is_object($this->getBackendUser())) {
             return;
         }
-        $this->getBackendUser()->writelog(SystemLogType::FILE, $action, $severity, 0, $message, $context);
+        $this->getBackendUser()->writelog(SystemLogType::FILE, $action, $severity, null, $message, $context);
     }
 
     /**
@@ -307,7 +289,7 @@ class ExtendedFileUtility extends BasicFileUtility
      * @param ContextualFeedbackSeverity $severity
      * @throws \InvalidArgumentException
      */
-    protected function addMessageToFlashMessageQueue($localizationKey, array $replaceMarkers = [], $severity = ContextualFeedbackSeverity::ERROR)
+    protected function addMessageToFlashMessageQueue($localizationKey, array $replaceMarkers = [], ContextualFeedbackSeverity $severity = ContextualFeedbackSeverity::ERROR)
     {
         if (($GLOBALS['TYPO3_REQUEST'] ?? null) instanceof ServerRequestInterface
             && ApplicationType::fromRequest($GLOBALS['TYPO3_REQUEST'])->isBackend()
@@ -578,13 +560,8 @@ class ExtendedFileUtility extends BasicFileUtility
 
     /**
      * Gets a File or a Folder object from an identifier [storage]:[fileId]
-     *
-     * @param string $identifier
-     * @return File|Folder
-     * @throws Exception\InsufficientFileAccessPermissionsException
-     * @throws Exception\InvalidFileException
      */
-    protected function getFileObject($identifier)
+    protected function getFileObject(string $identifier)
     {
         $object = $this->fileFactory->retrieveFileOrFolderObject($identifier);
         if ($object === null) {
@@ -913,9 +890,8 @@ class ExtendedFileUtility extends BasicFileUtility
      * + example "2:targetpath/targetfolder/"
      *
      * @param array $cmds Command details as described above
-     * @return string Returns the new filename upon success
      */
-    public function func_newfile($cmds)
+    public function func_newfile($cmds): File|false|null
     {
         $targetFolderObject = $this->getFileObject($cmds['target']);
         if (!$targetFolderObject instanceof Folder) {
@@ -1062,8 +1038,8 @@ class ExtendedFileUtility extends BasicFileUtility
                 'size' => $uploadedFileData['size'][$i],
             ];
             try {
-                $fileObject = $targetFolderObject->addUploadedFile($fileInfo, (string)$this->existingFilesConflictMode);
-                if ($this->existingFilesConflictMode->equals(DuplicationBehavior::REPLACE)) {
+                $fileObject = $targetFolderObject->addUploadedFile($fileInfo, $this->existingFilesConflictMode);
+                if ($this->existingFilesConflictMode === DuplicationBehavior::REPLACE) {
                     $this->getIndexer($fileObject->getStorage())->updateIndexEntry($fileObject);
                 }
                 $resultObjects[] = $fileObject;

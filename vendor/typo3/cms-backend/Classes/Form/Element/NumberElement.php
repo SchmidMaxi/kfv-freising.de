@@ -74,8 +74,6 @@ class NumberElement extends AbstractFormElement
         $fieldName = $this->data['fieldName'];
         $parameterArray = $this->data['parameterArray'];
         $resultArray = $this->initializeResultArray();
-        // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-        $resultArray['labelHasBeenHandled'] = true;
         $config = $parameterArray['fieldConf']['config'];
 
         $format = $config['format'] ?? 'integer';
@@ -108,7 +106,7 @@ class NumberElement extends AbstractFormElement
             $html[] = '<div class="formengine-field-item t3js-formengine-field-item">';
             $html[] =   $fieldInformationHtml;
             $html[] =   '<div class="form-wizards-wrap">';
-            $html[] =       '<div class="form-wizards-element">';
+            $html[] =       '<div class="form-wizards-item-element">';
             $html[] =           '<div class="form-control-wrap" style="max-width: ' . $width . 'px">';
             $html[] =               '<input class="form-control" id="' . htmlspecialchars($fieldId) . '" name="' . htmlspecialchars($itemName) . '" value="' . htmlspecialchars((string)$itemValue) . '" type="text" disabled>';
             $html[] =           '</div>';
@@ -189,9 +187,9 @@ class NumberElement extends AbstractFormElement
             ];
             $rangeAttributes = [
                 'type' => 'range',
-                'class' => 'slider',
-                'min' => (string)(int)($config['range']['lower'] ?? 0),
-                'max' => (string)(int)($config['range']['upper'] ?? 10000),
+                'class' => 'form-range-input',
+                'min' => (string)(float)($config['range']['lower'] ?? 0),
+                'max' => (string)(float)($config['range']['upper'] ?? 10000),
                 'step' => (string)($config['slider']['step'] ?? 1),
                 'style' => 'width: ' . (int)($config['slider']['width'] ?? 400) . 'px',
                 'title' => (string)$itemValue,
@@ -199,7 +197,7 @@ class NumberElement extends AbstractFormElement
             ];
 
             $valueSliderHtml[] = '<typo3-formengine-valueslider ' . GeneralUtility::implodeAttributes($valueSliderConfiguration, true) . '>';
-            $valueSliderHtml[] = '<div class="slider-wrapper">';
+            $valueSliderHtml[] = '<div class="form-range">';
             $valueSliderHtml[] = '<input ' . GeneralUtility::implodeAttributes($rangeAttributes, true) . '>';
             $valueSliderHtml[] = '</div>';
             $valueSliderHtml[] = '</typo3-formengine-valuepicker>';
@@ -216,10 +214,10 @@ class NumberElement extends AbstractFormElement
         $resultArray = $this->mergeChildReturnIntoExistingResult($resultArray, $fieldWizardResult, false);
 
         if (isset($config['range']['lower'])) {
-            $attributes['min'] = (string)(int)$config['range']['lower'];
+            $attributes['min'] = (string)(float)$config['range']['lower'];
         }
         if (isset($config['range']['upper'])) {
-            $attributes['max'] = (string)(int)$config['range']['upper'];
+            $attributes['max'] = (string)(float)$config['range']['upper'];
         }
 
         if ($format === 'decimal') {
@@ -229,21 +227,23 @@ class NumberElement extends AbstractFormElement
         $mainFieldHtml = [];
         $mainFieldHtml[] = '<div class="form-control-wrap" style="max-width: ' . $width . 'px">';
         $mainFieldHtml[] =  '<div class="form-wizards-wrap">';
-        $mainFieldHtml[] =      '<div class="form-wizards-element">';
+        $mainFieldHtml[] =      '<div class="form-wizards-item-element">';
         $mainFieldHtml[] =          '<input type="number" ' . GeneralUtility::implodeAttributes($attributes, true) . ' />';
         $mainFieldHtml[] =          '<input type="hidden" name="' . $itemName . '" value="' . htmlspecialchars((string)$itemValue) . '" />';
         $mainFieldHtml[] =      '</div>';
         if (!empty($valuePickerHtml) || !empty($valueSliderHtml) || !empty($fieldControlHtml)) {
-            $mainFieldHtml[] =      '<div class="form-wizards-items-aside form-wizards-items-aside--field-control">';
-            $mainFieldHtml[] =          '<div class="btn-group">';
-            $mainFieldHtml[] =              implode(LF, $valuePickerHtml);
-            $mainFieldHtml[] =              implode(LF, $valueSliderHtml);
-            $mainFieldHtml[] =              $fieldControlHtml;
-            $mainFieldHtml[] =          '</div>';
+            $mainFieldHtml[] =      '<div class="form-wizards-item-aside form-wizards-item-aside--field-control">';
+            if (!empty($valuePickerHtml)) {
+                $mainFieldHtml[] = '<div class="btn-group">' . implode(LF, $valuePickerHtml) . '</div>';
+            }
+            $mainFieldHtml[] = implode(LF, $valueSliderHtml);
+            if (!empty($fieldControlHtml)) {
+                $mainFieldHtml[] = '<div class="btn-group">' . $fieldControlHtml . '</div>';
+            }
             $mainFieldHtml[] =      '</div>';
         }
         if (!empty($fieldWizardHtml)) {
-            $mainFieldHtml[] = '<div class="form-wizards-items-bottom">';
+            $mainFieldHtml[] = '<div class="form-wizards-item-bottom">';
             $mainFieldHtml[] = $fieldWizardHtml;
             $mainFieldHtml[] = '</div>';
         }

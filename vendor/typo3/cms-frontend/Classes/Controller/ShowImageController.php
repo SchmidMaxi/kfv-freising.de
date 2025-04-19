@@ -19,7 +19,9 @@ namespace TYPO3\CMS\Frontend\Controller;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Core\Configuration\Features;
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Exception;
 use TYPO3\CMS\Core\Http\Response;
 use TYPO3\CMS\Core\Resource\File;
@@ -46,6 +48,7 @@ use TYPO3\CMS\Core\Utility\MathUtility;
  *
  * @internal this is a concrete TYPO3 implementation and solely used for EXT:frontend and not part of TYPO3's Core API.
  */
+#[Autoconfigure(public: true)]
 class ShowImageController
 {
     protected const ALLOWED_PARAMETER_NAMES = ['width', 'height', 'crop', 'bodyTag', 'title'];
@@ -76,7 +79,7 @@ class ShowImageController
     protected $crop;
 
     /**
-     * @var int
+     * @var int|null
      */
     protected $frame;
 
@@ -106,11 +109,6 @@ class ShowImageController
 </html>
 EOF;
 
-    /**
-     * @var string
-     */
-    protected $imageTag = '<img src="###publicUrl###" alt="###alt###" title="###title###" width="###width###" height="###height###" />';
-
     public function __construct(
         protected readonly Features $features
     ) {}
@@ -136,7 +134,8 @@ EOF;
 
         /* For backwards compatibility the HMAC is transported within the md5 param */
         $hmacParameter = $this->request->getQueryParams()['md5'] ?? null;
-        $hmac = GeneralUtility::hmac(implode('|', [$fileUid, $parametersEncoded]));
+        $hashService = GeneralUtility::makeInstance(HashService::class);
+        $hmac = $hashService->hmac(implode('|', [$fileUid, $parametersEncoded]), 'tx_cms_showpic');
         if (!is_string($hmacParameter) || !hash_equals($hmac, $hmacParameter)) {
             throw new \InvalidArgumentException('hash does not match', 1476048456);
         }
@@ -174,17 +173,17 @@ EOF;
     public function main()
     {
         $processedImage = $this->processImage();
-        $imageTagMarkers = [
-            '###publicUrl###' => htmlspecialchars($processedImage->getPublicUrl() ?? ''),
-            '###alt###' => htmlspecialchars($this->file->getProperty('alternative') ?: $this->title),
-            '###title###' => htmlspecialchars($this->file->getProperty('title') ?: $this->title),
-            '###width###' => htmlspecialchars((string)$processedImage->getProperty('width')),
-            '###height###' => htmlspecialchars((string)$processedImage->getProperty('height')),
+        $imageAttributes = [
+            'src' => $processedImage->getPublicUrl() ?? '',
+            'alt' => $this->file->getProperty('alternative') ?: $this->title,
+            'title' => $this->file->getProperty('title') ?: $this->title,
+            'width' => (string)$processedImage->getProperty('width'),
+            'height' => (string)$processedImage->getProperty('height'),
         ];
-        $this->imageTag = str_replace(array_keys($imageTagMarkers), array_values($imageTagMarkers), $this->imageTag);
+
         $markerArray = [
             '###TITLE###' => htmlspecialchars($this->file->getProperty('title') ?: $this->title),
-            '###IMAGE###' => $this->imageTag,
+            '###IMAGE###' => sprintf('<img %s>', GeneralUtility::implodeAttributes($imageAttributes, true)),
             '###BODY###' => $this->bodyTag,
         ];
 

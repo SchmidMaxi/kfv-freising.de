@@ -53,7 +53,7 @@ class DefaultFactory
                 'children' => [
                     [
                         'name' => 'typo3temp',
-                        'type' => DirectoryNode::class,
+                        'type' => LinkOrDirectoryNode::class,
                         'targetPermission' => $directoryPermission,
                         'children' => [
                             [
@@ -65,7 +65,7 @@ class DefaultFactory
                             $this->getTemporaryAssetsFolderStructure(),
                             [
                                 'name' => 'var',
-                                'type' => DirectoryNode::class,
+                                'type' => LinkOrDirectoryNode::class,
                                 'targetPermission' => $directoryPermission,
                                 'children' => [
                                     [
@@ -98,33 +98,6 @@ class DefaultFactory
                             ],
                         ],
                     ],
-                    [
-                        'name' => 'typo3conf',
-                        'type' => DirectoryNode::class,
-                        'targetPermission' => $directoryPermission,
-                        'children' => [
-                            [
-                                'name' => 'ext',
-                                'type' => DirectoryNode::class,
-                                'targetPermission' => $directoryPermission,
-                            ],
-                            [
-                                'name' => 'l10n',
-                                'type' => DirectoryNode::class,
-                                'targetPermission' => $directoryPermission,
-                            ],
-                            [
-                                'name' => 'sites',
-                                'type' => DirectoryNode::class,
-                                'targetPermission' => $directoryPermission,
-                            ],
-                            [
-                                'name' => 'system',
-                                'type' => DirectoryNode::class,
-                                'targetPermission' => $directoryPermission,
-                            ],
-                        ],
-                    ],
                     $this->getFileadminStructure(),
                 ],
             ];
@@ -143,6 +116,36 @@ class DefaultFactory
                     'type' => FileNode::class,
                     'targetPermission' => $filePermission,
                     'targetContentFile' => self::TEMPLATE_PATH . '/root-web-config',
+                ];
+            }
+
+            if (!Environment::isComposerMode()) {
+                $structure['children'][] = [
+                    'name' => 'typo3conf',
+                    'type' => DirectoryNode::class,
+                    'targetPermission' => $directoryPermission,
+                    'children' => [
+                        [
+                            'name' => 'ext',
+                            'type' => DirectoryNode::class,
+                            'targetPermission' => $directoryPermission,
+                        ],
+                        [
+                            'name' => 'l10n',
+                            'type' => DirectoryNode::class,
+                            'targetPermission' => $directoryPermission,
+                        ],
+                        [
+                            'name' => 'sites',
+                            'type' => DirectoryNode::class,
+                            'targetPermission' => $directoryPermission,
+                        ],
+                        [
+                            'name' => 'system',
+                            'type' => DirectoryNode::class,
+                            'targetPermission' => $directoryPermission,
+                        ],
+                    ],
                 ];
             }
         } else {
@@ -164,11 +167,6 @@ class DefaultFactory
                         $this->getTemporaryAssetsFolderStructure(),
                     ],
                 ],
-                [
-                    'name' => 'typo3conf',
-                    'type' => DirectoryNode::class,
-                    'targetPermission' => $directoryPermission,
-                ],
                 $this->getFileadminStructure(),
             ];
 
@@ -186,6 +184,14 @@ class DefaultFactory
                     'type' => FileNode::class,
                     'targetPermission' => $filePermission,
                     'targetContentFile' => self::TEMPLATE_PATH . '/root-web-config',
+                ];
+            }
+
+            if (!Environment::isComposerMode()) {
+                $publicPathSubStructure[] = [
+                    'name' => 'typo3conf',
+                    'type' => DirectoryNode::class,
+                    'targetPermission' => $directoryPermission,
                 ];
             }
 
@@ -283,7 +289,7 @@ class DefaultFactory
         $directoryPermission = $GLOBALS['TYPO3_CONF_VARS']['SYS']['folderCreateMask'];
         return [
             'name' => !empty($GLOBALS['TYPO3_CONF_VARS']['BE']['fileadminDir']) ? rtrim($GLOBALS['TYPO3_CONF_VARS']['BE']['fileadminDir'], '/') : 'fileadmin',
-            'type' => DirectoryNode::class,
+            'type' => LinkOrDirectoryNode::class,
             'targetPermission' => $directoryPermission,
             'children' => [
                 [
@@ -313,7 +319,7 @@ class DefaultFactory
                 ],
                 [
                     'name' => 'user_upload',
-                    'type' => DirectoryNode::class,
+                    'type' => LinkOrDirectoryNode::class,
                     'targetPermission' => $directoryPermission,
                     'children' => [
                         [

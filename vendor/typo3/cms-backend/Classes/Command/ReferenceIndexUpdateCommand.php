@@ -15,6 +15,7 @@
 
 namespace TYPO3\CMS\Backend\Command;
 
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -28,6 +29,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 /**
  * Core function to check/update the Reference Index
  */
+#[AsCommand('referenceindex:update', 'Update the reference index of TYPO3')]
 class ReferenceIndexUpdateCommand extends Command
 {
     /**
@@ -51,7 +53,7 @@ class ReferenceIndexUpdateCommand extends Command
         Bootstrap::initializeBackendAuthentication();
         $io = new SymfonyStyle($input, $output);
 
-        $isTestOnly = $input->getOption('check');
+        $isTestOnly = (bool)$input->getOption('check');
 
         $progressListener = GeneralUtility::makeInstance(ReferenceIndexProgressListener::class);
         $progressListener->initialize($io);

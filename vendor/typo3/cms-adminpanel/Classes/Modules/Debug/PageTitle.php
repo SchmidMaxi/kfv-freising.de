@@ -18,25 +18,31 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Adminpanel\Modules\Debug;
 
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Adminpanel\Log\InMemoryLogWriter;
 use TYPO3\CMS\Adminpanel\ModuleApi\AbstractSubModule;
 use TYPO3\CMS\Adminpanel\ModuleApi\DataProviderInterface;
 use TYPO3\CMS\Adminpanel\ModuleApi\ModuleData;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Fluid\View\StandaloneView;
-use TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController;
+use TYPO3\CMS\Core\View\ViewFactoryData;
+use TYPO3\CMS\Core\View\ViewFactoryInterface;
 
 /**
  * Admin Panel Page Title module for showing the Page title providers
  *
  * @internal
  */
+#[Autoconfigure(public: true)]
 class PageTitle extends AbstractSubModule implements DataProviderInterface
 {
     /**
      * Log component
      */
     protected const LOG_COMPONENT = 'TYPO3.CMS.Core.PageTitle.PageTitleProviderManager';
+
+    public function __construct(
+        private readonly ViewFactoryInterface $viewFactory,
+    ) {}
 
     /**
      * Identifier for this Sub-module,
@@ -62,13 +68,12 @@ class PageTitle extends AbstractSubModule implements DataProviderInterface
         $data = [
             'cacheEnabled' => true,
         ];
-        if ($this->isNoCacheEnabled()) {
+        if (!$this->isCachingAllowed($request)) {
             $data = [
                 'orderedProviders' => [],
                 'usedProvider' => null,
                 'skippedProviders' => [],
             ];
-
             $logRecords = GeneralUtility::makeInstance(InMemoryLogWriter::class)->getLogEntries();
             foreach ($logRecords as $logEntry) {
                 if ($logEntry->getComponent() === self::LOG_COMPONENT) {
@@ -91,22 +96,19 @@ class PageTitle extends AbstractSubModule implements DataProviderInterface
      */
     public function getContent(ModuleData $data): string
     {
-        $view = new StandaloneView();
-        $view->setTemplatePathAndFilename(
-            'EXT:adminpanel/Resources/Private/Templates/Modules/Debug/PageTitle.html'
+        $viewFactoryData = new ViewFactoryData(
+            templateRootPaths: ['EXT:adminpanel/Resources/Private/Templates'],
+            partialRootPaths: ['EXT:adminpanel/Resources/Private/Partials'],
+            layoutRootPaths: ['EXT:adminpanel/Resources/Private/Layouts'],
         );
+        $view = $this->viewFactory->create($viewFactoryData);
         $view->assignMultiple($data->getArrayCopy());
         $view->assign('languageKey', $this->getBackendUser()->user['lang'] ?? null);
-        return $view->render();
+        return $view->render('Modules/Debug/PageTitle');
     }
 
-    protected function isNoCacheEnabled(): bool
+    protected function isCachingAllowed(ServerRequestInterface $request): bool
     {
-        return (bool)$this->getTypoScriptFrontendController()->no_cache;
-    }
-
-    protected function getTypoScriptFrontendController(): TypoScriptFrontendController
-    {
-        return $GLOBALS['TSFE'];
+        return $request->getAttribute('frontend.cache.instruction')->isCachingAllowed();
     }
 }

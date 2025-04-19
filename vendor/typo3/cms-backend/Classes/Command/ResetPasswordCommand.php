@@ -37,20 +37,8 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  */
 class ResetPasswordCommand extends Command
 {
-    /**
-     * @var Context
-     */
-    private $context;
-
-    /**
-     * @var PasswordReset
-     */
-    private $passwordReset;
-
-    public function __construct(Context $context, PasswordReset $passwordReset)
+    public function __construct(private readonly Context $context, private readonly PasswordReset $passwordReset)
     {
-        $this->context = $context;
-        $this->passwordReset = $passwordReset;
         parent::__construct();
     }
 
@@ -137,7 +125,7 @@ class ResetPasswordCommand extends Command
 
     /**
      * This is a workaround to use "PublicPath . /typo3/index.php" instead of "publicPath . /typo3/sysext/core/bin/typo3"
-     * so the the web root is detected properly in normalizedParams.
+     * so the web root is detected properly in normalizedParams.
      */
     protected function simulateEnvironmentForBackendEntryPoint(): array
     {

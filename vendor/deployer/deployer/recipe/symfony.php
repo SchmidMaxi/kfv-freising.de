@@ -1,4 +1,5 @@
 <?php
+
 namespace Deployer;
 
 require_once __DIR__ . '/common.php';
@@ -16,13 +17,13 @@ set('shared_dirs', [
 ]);
 
 set('shared_files', [
-    '.env.local'
+    '.env.local',
 ]);
 
 set('writable_dirs', [
     'var',
-    'var/cache', 
-    'var/log', 
+    'var/cache',
+    'var/log',
     'var/sessions',
 ]);
 
@@ -60,6 +61,13 @@ task('deploy:cache:clear', function () {
     if (false !== strpos(get('composer_options', ''), '--no-scripts')) {
         run('{{bin/console}} cache:clear {{console_options}}');
     }
+});
+
+desc('Optimize environment variables');
+task('deploy:dump-env', function () {
+    within('{{release_or_current_path}}', function () {
+        run('{{bin/composer}} dump-env "${APP_ENV:-prod}"');
+    });
 });
 
 desc('Deploys project');

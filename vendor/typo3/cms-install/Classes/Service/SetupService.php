@@ -20,7 +20,8 @@ namespace TYPO3\CMS\Install\Service;
 use TYPO3\CMS\Core\Configuration\ConfigurationManager;
 use TYPO3\CMS\Core\Configuration\Exception\SiteConfigurationWriteException;
 use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
-use TYPO3\CMS\Core\Configuration\SiteConfiguration;
+use TYPO3\CMS\Core\Configuration\Loader\YamlFileLoader;
+use TYPO3\CMS\Core\Configuration\SiteWriter;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Crypto\PasswordHashing\Argon2idPasswordHash;
 use TYPO3\CMS\Core\Crypto\PasswordHashing\Argon2iPasswordHash;
@@ -33,6 +34,7 @@ use TYPO3\CMS\Core\Messaging\FlashMessage;
 use TYPO3\CMS\Core\Package\FailsafePackageManager;
 use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Install\Command\BackendUserGroupType;
 use TYPO3\CMS\Install\Configuration\FeatureManager;
 use TYPO3\CMS\Install\FolderStructure\DefaultFactory;
 use TYPO3\CMS\Install\Service\Exception\ConfigurationDirectoryDoesNotExistException;
@@ -40,15 +42,17 @@ use TYPO3\CMS\Install\Service\Exception\ConfigurationFileAlreadyExistsException;
 use TYPO3\CMS\Install\WebserverType;
 
 /**
- * Service class helping to manage parts of the setup process (set configuration, create backend user, create a basic site)
+ * Service class helping to manage parts of the setup process (set configuration,
+ * create backend user, create a basic site, create default backend groups, etc.)
  * @internal This class is only meant to be used within EXT:install and is not part of the TYPO3 Core API.
  */
-class SetupService
+readonly class SetupService
 {
     public function __construct(
-        private readonly ConfigurationManager $configurationManager,
-        private readonly SiteConfiguration $siteConfiguration,
-        private readonly FailsafePackageManager $packageManager,
+        private ConfigurationManager $configurationManager,
+        private SiteWriter $siteWriter,
+        private YamlFileLoader $yamlFileLoader,
+        private FailsafePackageManager $packageManager,
     ) {}
 
     /**
@@ -71,10 +75,10 @@ class SetupService
      * Creates a site configuration with one language "English" which is the de-facto default language for TYPO3 in general.
      * @throws SiteConfigurationWriteException
      */
-    public function createSiteConfiguration(string $identifier, int $rootPageId, string $siteUrl)
+    public function createSiteConfiguration(string $identifier, int $rootPageId, string $siteUrl): void
     {
         // Create a default site configuration called "main" as best practice
-        $this->siteConfiguration->createNewBasicSite($identifier, $rootPageId, $siteUrl);
+        $this->siteWriter->createNewBasicSite($identifier, $rootPageId, $siteUrl);
     }
 
     /**
@@ -124,7 +128,7 @@ class SetupService
 
         $databaseConnection = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable('be_users');
         $databaseConnection->insert('be_users', $adminUserFields);
-        $adminUserUid = (int)$databaseConnection->lastInsertId('be_users');
+        $adminUserUid = (int)$databaseConnection->lastInsertId();
 
         $maintainerIds = $this->configurationManager->getConfigurationValueByPath('SYS/systemMaintainers') ?? [];
         sort($maintainerIds);
@@ -200,7 +204,7 @@ class SetupService
                 'perms_everybody' => 1,
             ]
         );
-        $pageUid = $databaseConnectionForPages->lastInsertId('pages');
+        $pageUid = $databaseConnectionForPages->lastInsertId();
 
         // add a root sys_template with fluid_styled_content and a default PAGE typoscript snippet
         $connectionPool->getConnectionForTable('sys_template')->insert(
@@ -242,8 +246,175 @@ For each website you need a TypoScript record on the main page of your website (
         return $pageUid;
     }
 
+    /**
+     * Initializes backend user group presets. Currently hard-coded to editor and advanced editor.
+     * When more backend user group presets are added, please refactor (maybe DTO).
+     *
+     * @return string[]
+     */
+    public function createBackendUserGroups(bool $createEditor = true, bool $createAdvancedEditor = true, bool $force = false): array
+    {
+        $messages = [];
+        $connectionPool = GeneralUtility::makeInstance(ConnectionPool::class);
+        $this->createFileMount('1:/user_upload/', 'User Upload');
+        if ($createEditor) {
+            if (!$force && $this->countBackendGroupsByTitle($connectionPool, BackendUserGroupType::EDITOR->value) > 0) {
+                $messages[] = sprintf('Group "%s" could not be created. A backend user group of that name already exists and option --force was not set. ', BackendUserGroupType::EDITOR->value);
+            } else {
+                $connectionPool->getConnectionForTable('be_groups')->insert(
+                    'be_groups',
+                    [
+                        'title' => BackendUserGroupType::EDITOR->value,
+                        'description' => 'Editors have access to basic content element and modules in the backend.',
+                        'tstamp' => time(),
+                        'crdate' => time(),
+                    ]
+                );
+                $editorGroupUid = (int)$connectionPool->getConnectionForTable('be_groups')->lastInsertId();
+                $editorPermissionPreset = $this->yamlFileLoader->load('EXT:install/Configuration/PermissionPreset/be_groups_editor.yaml');
+                $this->applyPermissionPreset($editorPermissionPreset, 'be_groups', $editorGroupUid);
+            }
+        }
+        if ($createAdvancedEditor) {
+            if (!$force && $this->countBackendGroupsByTitle($connectionPool, BackendUserGroupType::ADVANCED_EDITOR->value) > 0) {
+                $messages[] = sprintf('Group "%s" could not be created. A backend user group of that name already exists and option --force was not set. ', BackendUserGroupType::ADVANCED_EDITOR->value);
+            } else {
+                $connectionPool->getConnectionForTable('be_groups')->insert(
+                    'be_groups',
+                    [
+                        'title' => BackendUserGroupType::ADVANCED_EDITOR->value,
+                        'description' => 'Advanced Editors have access to all content elements and non administrative modules in the backend.',
+                        'tstamp' => time(),
+                        'crdate' => time(),
+                    ]
+                );
+                $advancedEditorGroupUid = (int)$connectionPool->getConnectionForTable('be_groups')->lastInsertId();
+                $advancedEditorPermissionPreset = $this->yamlFileLoader->load('EXT:install/Configuration/PermissionPreset/be_groups_advanced_editor.yaml');
+                $this->applyPermissionPreset($advancedEditorPermissionPreset, 'be_groups', $advancedEditorGroupUid);
+            }
+        }
+        return $messages;
+    }
+
+    private function applyPermissionPreset(array $permissionPreset, string $table, int $recordId): void
+    {
+        $mappedPermissions = [];
+        if (isset($permissionPreset['dbMountpoints']) && is_array($permissionPreset['dbMountpoints'])) {
+            $mappedPermissions['db_mountpoints'] = implode(',', $permissionPreset['dbMountpoints']);
+        }
+        if (isset($permissionPreset['fileMountpoints']) && is_array($permissionPreset['fileMountpoints'])) {
+            $fileMountIds = [];
+            foreach ($permissionPreset['fileMountpoints'] as $fileMountpoint) {
+                $fileMountpointId = $this->getFileMount($fileMountpoint);
+                if ($fileMountpointId > 0) {
+                    $fileMountIds[] = $fileMountpointId;
+                }
+            }
+            $mappedPermissions['file_mountpoints'] = implode(',', $fileMountIds);
+        }
+        if (isset($permissionPreset['groupMods']) && is_array($permissionPreset['groupMods'])) {
+            $mappedPermissions['groupMods'] = implode(',', $permissionPreset['groupMods']);
+        }
+        if (isset($permissionPreset['pageTypesSelect']) && is_array($permissionPreset['pageTypesSelect'])) {
+            $mappedPermissions['pagetypes_select'] = implode(',', $permissionPreset['pageTypesSelect']);
+        }
+        if (isset($permissionPreset['tablesModify']) && is_array($permissionPreset['tablesModify'])) {
+            $mappedPermissions['tables_modify'] = implode(',', $permissionPreset['tablesModify']);
+        }
+        if (isset($permissionPreset['tablesSelect']) && is_array($permissionPreset['tablesSelect'])) {
+            $mappedPermissions['tables_select'] = implode(',', $permissionPreset['tablesSelect']);
+        }
+        if (isset($permissionPreset['nonExcludeFields']) && is_array($permissionPreset['nonExcludeFields'])) {
+            $nonExcludeFields = [];
+            foreach ($permissionPreset['nonExcludeFields'] as $tableName => $fields) {
+                foreach ($fields as $field) {
+                    $nonExcludeFields[] = "$tableName:$field";
+                }
+            }
+            if ($nonExcludeFields !== []) {
+                $mappedPermissions['non_exclude_fields'] = implode(',', $nonExcludeFields);
+            }
+        }
+        if (isset($permissionPreset['explicitAllowDeny']) && is_array($permissionPreset['explicitAllowDeny'])) {
+            $explicitAllowDeny = [];
+            foreach ($permissionPreset['explicitAllowDeny'] as $tableName => $columns) {
+                foreach ($columns as $column => $values) {
+                    foreach ($values as $value) {
+                        $explicitAllowDeny[] = "$tableName:$column:$value";
+                    }
+                }
+            }
+            if ($explicitAllowDeny !== []) {
+                $mappedPermissions['explicit_allowdeny'] = implode(',', $explicitAllowDeny);
+            }
+        }
+
+        $databaseConnection = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable($table);
+        if (
+            // availableWidgets is only available if typo3/cms-dashboard is installed
+            $databaseConnection->getSchemaInformation()->introspectTable($table)->hasColumn('availableWidgets')
+            && isset($permissionPreset['availableWidgets'])
+            && is_array($permissionPreset['availableWidgets'])
+        ) {
+            $mappedPermissions['availableWidgets'] = implode(',', $permissionPreset['availableWidgets']);
+        }
+        if ($mappedPermissions !== []) {
+            $databaseConnection->update(
+                $table,
+                $mappedPermissions,
+                ['uid' => $recordId]
+            );
+        }
+    }
+
     private function makePathRelativeToProjectDirectory(string $absolutePath): string
     {
         return str_replace(Environment::getProjectPath(), '', $absolutePath);
+    }
+
+    private function countBackendGroupsByTitle(ConnectionPool $connectionPool, string $title): int
+    {
+        $queryBuilder = $connectionPool->getQueryBuilderForTable('be_groups');
+        return (int)$queryBuilder->count('*')
+            ->from('be_groups')
+            ->where(
+                $queryBuilder->expr()->eq('title', $queryBuilder->createNamedParameter($title))
+            )->executeQuery()->fetchOne();
+    }
+
+    private function createFileMount(string $identifier, string $title): int
+    {
+        $connectionPool = GeneralUtility::makeInstance(ConnectionPool::class);
+        $queryBuilder = $connectionPool->getQueryBuilderForTable('sys_filemounts');
+        $row = $queryBuilder->select('uid')
+            ->from('sys_filemounts')
+            ->where($queryBuilder->expr()->eq('identifier', $queryBuilder->createNamedParameter($identifier)))
+            ->executeQuery()
+            ->fetchAssociative();
+        if (is_array($row)) {
+            return (int)$row['uid'];
+        }
+        $queryBuilder = $connectionPool->getQueryBuilderForTable('sys_filemounts');
+        $queryBuilder->insert('sys_filemounts')->values(
+            [
+                'pid' => 0,
+                'tstamp' => time(),
+                'title' => $title,
+                'identifier' => $identifier,
+            ]
+        )->executeStatement();
+        return (int)$connectionPool->getConnectionForTable('sys_filemounts')->lastInsertId();
+    }
+
+    private function getFileMount(string $identifier): int
+    {
+        $connectionPool = GeneralUtility::makeInstance(ConnectionPool::class);
+        $queryBuilder = $connectionPool->getQueryBuilderForTable('sys_filemounts');
+        $row = $queryBuilder->select('uid')
+            ->from('sys_filemounts')
+            ->where($queryBuilder->expr()->eq('identifier', $queryBuilder->createNamedParameter($identifier)))
+            ->executeQuery()
+            ->fetchAssociative();
+        return (int)($row['uid'] ?? 0);
     }
 }

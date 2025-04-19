@@ -119,6 +119,7 @@ $tca = [
                     ['label' => 'LLL:EXT:seo/Resources/Private/Language/locallang_tca.xlf:pages.sitemap_changefreq.yearly', 'value' => 'yearly'],
                     ['label' => 'LLL:EXT:seo/Resources/Private/Language/locallang_tca.xlf:pages.sitemap_changefreq.never', 'value' => 'never'],
                 ],
+                'dbFieldLength' => 10,
             ],
         ],
         'sitemap_priority' => [
@@ -188,20 +189,7 @@ $tca = [
                 'behaviour' => [
                     'allowLanguageSynchronization' => true,
                 ],
-                // Use the imageoverlayPalette instead of the basicoverlayPalette
                 'overrideChildTca' => [
-                    'types' => [
-                        '0' => [
-                            'showitem' => '
-                                --palette--;;imageoverlayPalette,
-                                --palette--;;filePalette',
-                        ],
-                        \TYPO3\CMS\Core\Resource\File::FILETYPE_IMAGE => [
-                            'showitem' => '
-                                --palette--;;imageoverlayPalette,
-                                --palette--;;filePalette',
-                        ],
-                    ],
                     'columns' => [
                         'crop' => $openGraphCropConfiguration,
                     ],
@@ -238,20 +226,7 @@ $tca = [
                 'behaviour' => [
                     'allowLanguageSynchronization' => true,
                 ],
-                // Use the imageoverlayPalette instead of the basicoverlayPalette
                 'overrideChildTca' => [
-                    'types' => [
-                        '0' => [
-                            'showitem' => '
-                                --palette--;;imageoverlayPalette,
-                                --palette--;;filePalette',
-                        ],
-                        \TYPO3\CMS\Core\Resource\File::FILETYPE_IMAGE => [
-                            'showitem' => '
-                                --palette--;;imageoverlayPalette,
-                                --palette--;;filePalette',
-                        ],
-                    ],
                     'columns' => [
                         'crop' => $openGraphCropConfiguration,
                     ],
@@ -264,11 +239,13 @@ $tca = [
             'config' => [
                 'type' => 'select',
                 'renderType' => 'selectSingle',
-                'default' => 'summary',
+                'default' => '',
                 'items' => [
+                    ['label' => '', 'value' => ''],
                     ['label' => 'LLL:EXT:seo/Resources/Private/Language/locallang_tca.xlf:pages.twitter_card.summary', 'value' => 'summary'],
                     ['label' => 'LLL:EXT:seo/Resources/Private/Language/locallang_tca.xlf:pages.twitter_card.summary_large_image', 'value' => 'summary_large_image'],
                 ],
+                'dbFieldLength' => 255,
             ],
         ],
     ],
@@ -290,4 +267,4 @@ $GLOBALS['TCA']['pages'] = array_replace_recursive($GLOBALS['TCA']['pages'], $tc
     'after:title'
 );
 
-\TYPO3\CMS\Core\Utility\ExtensionManagementUtility::addFieldsToPalette('pages', 'seo', '--linebreak--, description;LLL:EXT:frontend/Resources/Private/Language/locallang_tca.xlf:pages.description_formlabel', 'after:seo_title');
+\TYPO3\CMS\Core\Utility\ExtensionManagementUtility::addFieldsToPalette('pages', 'seo', '--linebreak--, description', 'after:seo_title');

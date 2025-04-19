@@ -18,8 +18,9 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Backend\Form\NodeExpansion;
 
 use TYPO3\CMS\Backend\Form\AbstractNode;
-use TYPO3\CMS\Core\Imaging\Icon;
+use TYPO3\CMS\Backend\Form\NodeFactory;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Service\DependencyOrderingService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -39,6 +40,12 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  */
 class FieldControl extends AbstractNode
 {
+    public function __construct(
+        private readonly NodeFactory $nodeFactory,
+        private readonly IconFactory $iconFactory,
+        private readonly DependencyOrderingService $dependencyOrderingService,
+    ) {}
+
     /**
      * Order the list of field wizards to be rendered with the ordering service,
      * then call each wizard element through the node factory and merge their
@@ -55,10 +62,8 @@ class FieldControl extends AbstractNode
 
         $languageService = $this->getLanguageService();
 
-        $iconFactory = GeneralUtility::makeInstance(IconFactory::class);
         $fieldControl = $this->data['renderData']['fieldControl'];
-        $orderingService = GeneralUtility::makeInstance(DependencyOrderingService::class);
-        $orderedFieldControl = $orderingService->orderByDependencies($fieldControl, 'before', 'after');
+        $orderedFieldControl = $this->dependencyOrderingService->orderByDependencies($fieldControl);
 
         foreach ($orderedFieldControl as $anOrderedFieldControl => $orderedFieldControlConfiguration) {
             if (isset($orderedFieldControlConfiguration['disabled']) && $orderedFieldControlConfiguration['disabled']
@@ -78,13 +83,6 @@ class FieldControl extends AbstractNode
             $options['renderType'] = $fieldControl[$anOrderedFieldControl]['renderType'];
             $options['renderData']['fieldControlOptions'] = $orderedFieldControlConfiguration['options'] ?? [];
             $controlResult = $this->nodeFactory->create($options)->render();
-
-            if (!is_array($controlResult)) {
-                throw new \RuntimeException(
-                    'Field controls must return an array',
-                    1484838560
-                );
-            }
 
             // If the controlResult is empty (this control rendered nothing), continue to next one
             if (empty($controlResult)) {
@@ -128,7 +126,7 @@ class FieldControl extends AbstractNode
 
             $html = [];
             $html[] = '<a ' . GeneralUtility::implodeAttributes($linkAttributes, true) . '>';
-            $html[] =     $iconFactory->getIcon($icon, Icon::SIZE_SMALL)->setTitle($title)->render();
+            $html[] =     $this->iconFactory->getIcon($icon, IconSize::SMALL)->setTitle($title)->render();
             $html[] = '</a>';
 
             $finalControlResult = $this->initializeResultArray();

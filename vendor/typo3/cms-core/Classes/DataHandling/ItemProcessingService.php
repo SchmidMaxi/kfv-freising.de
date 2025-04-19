@@ -15,6 +15,7 @@
 
 namespace TYPO3\CMS\Core\DataHandling;
 
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Exception\SiteNotFoundException;
 use TYPO3\CMS\Core\Localization\LanguageService;
@@ -30,6 +31,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 /**
  * Provides services around item processing
  */
+#[Autoconfigure(public: true)]
 class ItemProcessingService
 {
     public function __construct(
@@ -67,12 +69,12 @@ class ItemProcessingService
         // If it does, display an error message and return items unchanged.
         try {
             $params['items'] = array_map(
-                fn(array $item) => SelectItem::fromTcaItemArray($item, $params['config']['type']),
+                static fn(array $item): SelectItem => SelectItem::fromTcaItemArray($item, $params['config']['type']),
                 $params['items']
             );
             GeneralUtility::callUserFunction($tcaConfig['itemsProcFunc'], $params, $this);
             $params['items'] = array_map(
-                fn($item) => $item instanceof SelectItem ? $item : SelectItem::fromTcaItemArray($item, $params['config']['type']),
+                static fn($item): SelectItem => $item instanceof SelectItem ? $item : SelectItem::fromTcaItemArray($item, $params['config']['type']),
                 $params['items']
             );
         } catch (\Exception $exception) {

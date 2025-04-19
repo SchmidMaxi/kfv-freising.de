@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Workspaces\Command;
 
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -33,7 +34,10 @@ use TYPO3\CMS\Core\Utility\MathUtility;
 
 /**
  * Fetches all versions in the database, and checks for integrity
+ *
+ * @internal
  */
+#[AsCommand('cleanup:versions', 'Find all versioned records and possibly cleans up invalid records in the database.')]
 class WorkspaceVersionRecordsCommand extends Command
 {
     /**
@@ -42,14 +46,8 @@ class WorkspaceVersionRecordsCommand extends Command
      */
     protected $allWorkspaces = [0 => 'Live Workspace'];
 
-    /**
-     * @var ConnectionPool
-     */
-    private $connectionPool;
-
-    public function __construct(ConnectionPool $connectionPool)
+    public function __construct(private readonly ConnectionPool $connectionPool)
     {
-        $this->connectionPool = $connectionPool;
         parent::__construct();
     }
 

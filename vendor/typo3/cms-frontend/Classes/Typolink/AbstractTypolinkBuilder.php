@@ -17,17 +17,12 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Frontend\Typolink;
 
-use TYPO3\CMS\Core\Context\Context;
-use TYPO3\CMS\Core\Domain\Repository\PageRepository;
 use TYPO3\CMS\Core\Http\NormalizedParams;
-use TYPO3\CMS\Core\Routing\PageArguments;
 use TYPO3\CMS\Core\Site\Entity\NullSite;
 use TYPO3\CMS\Core\Site\Entity\Site;
 use TYPO3\CMS\Core\Site\Entity\SiteLanguage;
 use TYPO3\CMS\Core\Site\SiteFinder;
-use TYPO3\CMS\Core\TypoScript\TemplateService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Frontend\Authentication\FrontendUserAuthentication;
 use TYPO3\CMS\Frontend\ContentObject\ContentObjectRenderer;
 use TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController;
 
@@ -70,8 +65,9 @@ abstract class AbstractTypolinkBuilder
      */
     protected function forceAbsoluteUrl(string $url, array $configuration): string
     {
-        $tsfe = $this->getTypoScriptFrontendController();
-        if ($tsfe->config['config']['forceAbsoluteUrls'] ?? false) {
+        $request = $this->contentObjectRenderer->getRequest();
+        $frontendTypoScriptConfigArray = $request->getAttribute('frontend.typoscript')?->getConfigArray();
+        if ($frontendTypoScriptConfigArray['forceAbsoluteUrls'] ?? false) {
             $forceAbsoluteUrl = true;
         } else {
             $forceAbsoluteUrl = !empty($configuration['forceAbsoluteUrl']);
@@ -86,7 +82,7 @@ abstract class AbstractTypolinkBuilder
             $isUrlModified = false;
             // Set scheme and host if not yet part of the URL
             if (empty($urlParts['host'])) {
-                $normalizedParams = $this->contentObjectRenderer->getRequest()->getAttribute('normalizedParams');
+                $normalizedParams = $request->getAttribute('normalizedParams');
                 // @todo: This fallback should vanish mid-term: typolink has a dependency to ServerRequest
                 //        and should expect the normalizedParams argument is properly set as well. When for
                 //        instance CLI triggers this code, it should have set up a proper request.
@@ -97,7 +93,7 @@ abstract class AbstractTypolinkBuilder
                 // absRefPrefix has been prepended to $url beforehand
                 // so we only modify the path if no absRefPrefix has been set
                 // otherwise we would destroy the path
-                if ($tsfe->absRefPrefix === '') {
+                if ($this->getTypoScriptFrontendController()->absRefPrefix === '') {
                     $urlParts['path'] = $normalizedParams->getSitePath() . ltrim($urlParts['path'], '/');
                 }
                 $isUrlModified = true;
@@ -180,14 +176,14 @@ abstract class AbstractTypolinkBuilder
         if (isset($conf[$name]) && $conf[$name] !== '') {
             $target = $conf[$name];
         } elseif (!($conf['directImageLink'] ?? false)) {
-            $tsfe = $this->getTypoScriptFrontendController();
+            $frontendTypoScriptConfigArray = $this->contentObjectRenderer->getRequest()->getAttribute('frontend.typoscript')?->getConfigArray();
             switch ($name) {
                 case 'extTarget':
                 case 'fileTarget':
-                    $target = (string)($tsfe->config['config'][$name] ?? '');
+                    $target = (string)($frontendTypoScriptConfigArray[$name] ?? '');
                     break;
                 case 'target':
-                    $target = (string)($tsfe->config['config']['intTarget'] ?? '');
+                    $target = (string)($frontendTypoScriptConfigArray['intTarget'] ?? '');
                     break;
             }
         }
@@ -197,7 +193,7 @@ abstract class AbstractTypolinkBuilder
         return $target;
     }
 
-    public function getTypoScriptFrontendController(): TypoScriptFrontendController
+    protected function getTypoScriptFrontendController(): TypoScriptFrontendController
     {
         if ($this->typoScriptFrontendController instanceof TypoScriptFrontendController) {
             return $this->typoScriptFrontendController;
@@ -222,24 +218,11 @@ abstract class AbstractTypolinkBuilder
         if (!$language instanceof SiteLanguage) {
             $language = $site->getDefaultLanguage();
         }
+        $request = $request->withAttribute('language', $language);
 
-        $pageArguments = $request->getAttribute('routing');
-        if (!($pageArguments instanceof PageArguments)) {
-            $id = $request->getQueryParams()['id'] ?? $request->getParsedBody()['id'] ?? $site->getRootPageId();
-            $type = $request->getQueryParams()['type'] ?? $request->getParsedBody()['type'] ?? '0';
-            $pageArguments = new PageArguments((int)$id, (string)$type, []);
-        }
-        $this->typoScriptFrontendController = GeneralUtility::makeInstance(
-            TypoScriptFrontendController::class,
-            GeneralUtility::makeInstance(Context::class),
-            $site,
-            $language,
-            $pageArguments,
-            GeneralUtility::makeInstance(FrontendUserAuthentication::class)
-        );
-        $this->typoScriptFrontendController->sys_page = GeneralUtility::makeInstance(PageRepository::class);
-        // @deprecated since v12, will be removed with v13
-        $this->typoScriptFrontendController->tmpl = GeneralUtility::makeInstance(TemplateService::class);
+        $this->typoScriptFrontendController = GeneralUtility::makeInstance(TypoScriptFrontendController::class);
+        $this->typoScriptFrontendController->initializePageRenderer($request);
+        $this->typoScriptFrontendController->initializeLanguageService($request);
         return $this->typoScriptFrontendController;
     }
 }

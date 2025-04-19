@@ -20,6 +20,7 @@ namespace TYPO3\CMS\Workspaces\Hook;
 use TYPO3\CMS\Backend\Form\Event\ModifyEditFormUserAccessEvent;
 use TYPO3\CMS\Backend\Routing\Event\BeforePagePreviewUriGeneratedEvent;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
+use TYPO3\CMS\Core\Attribute\AsEventListener;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Messaging\FlashMessage;
@@ -38,6 +39,7 @@ class BackendUtilityHook
      * Hooks into the PagePreviewUri and redirects to the workspace preview
      * only if we're in a workspace and if the frontend-preview is disabled.
      */
+    #[AsEventListener('typo3-workspaces/link-modifier')]
     public function createPageUriForWorkspaceVersion(BeforePagePreviewUriGeneratedEvent $event): void
     {
         if ($this->getBackendUser()->workspace === 0) {
@@ -65,6 +67,7 @@ class BackendUtilityHook
     /**
      * Use that hook to show an info message in case someone starts editing a staged element
      */
+    #[AsEventListener('typo3-workspaces/display-editing-staged-element-information')]
     public function displayEditingStagedElementInformation(ModifyEditFormUserAccessEvent $event): void
     {
         $tableName = $event->getTableName();
@@ -78,7 +81,7 @@ class BackendUtilityHook
         }
 
         $stages = GeneralUtility::makeInstance(StagesService::class);
-        $stageName = $stages->getStageTitle($record['t3ver_stage']);
+        $stageName = $stages->getStageTitle((int)$record['t3ver_stage']);
         $editingName = $stages->getStageTitle(StagesService::STAGE_EDIT_ID);
         $message = ($languageService = $this->getLanguageService()) !== null
             ? $languageService->sL('LLL:EXT:workspaces/Resources/Private/Language/locallang.xlf:info.elementAlreadyModified')

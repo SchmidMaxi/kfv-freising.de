@@ -1,4 +1,5 @@
 <?php
+
 /*
 
 ## Configuration options
@@ -29,10 +30,10 @@ after('deploy:success', 'grafana:annotation');
 ```
 
 */
+
 namespace Deployer;
 
 use Deployer\Utility\Httpie;
-
 
 desc('Creates Grafana annotation of deployment');
 task('grafana:annotation', function () {

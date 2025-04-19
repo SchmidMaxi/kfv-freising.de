@@ -21,7 +21,6 @@ use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Core\Http\ApplicationType;
 use TYPO3\CMS\Core\LinkHandling\EmailLinkHandler;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Fluid\Core\Rendering\RenderingContext;
 use TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController;
 use TYPO3\CMS\Frontend\Typolink\LinkFactory;
 use TYPO3\CMS\Frontend\Typolink\UnableToLinkException;
@@ -87,11 +86,6 @@ final class EmailViewHelper extends AbstractTagBasedViewHelper
         $this->registerArgument('bcc', 'string', 'The email address(es) for BCC of the email link');
         $this->registerArgument('subject', 'string', 'A prefilled subject for the email link');
         $this->registerArgument('body', 'string', 'A prefilled body for the email link');
-        $this->registerUniversalTagAttributes();
-        $this->registerTagAttribute('name', 'string', 'Specifies the name of an anchor');
-        $this->registerTagAttribute('rel', 'string', 'Specifies the relationship between the current document and the linked document');
-        $this->registerTagAttribute('rev', 'string', 'Specifies the relationship between the linked document and the current document');
-        $this->registerTagAttribute('target', 'string', 'Specifies where to open the linked document');
     }
 
     public function render(): string
@@ -100,10 +94,9 @@ final class EmailViewHelper extends AbstractTagBasedViewHelper
         $linkHref = GeneralUtility::makeInstance(EmailLinkHandler::class)->asString($this->arguments);
         $attributes = [];
         $linkText = htmlspecialchars($email);
-        /** @var RenderingContext $renderingContext */
-        $renderingContext = $this->renderingContext;
-        $request = $renderingContext->getRequest();
-        if ($request instanceof ServerRequestInterface && ApplicationType::fromRequest($request)->isFrontend()) {
+        if ($this->renderingContext->hasAttribute(ServerRequestInterface::class)
+            && ApplicationType::fromRequest($this->renderingContext->getAttribute(ServerRequestInterface::class))->isFrontend()
+        ) {
             // If there is no request, backend is assumed.
             /** @var TypoScriptFrontendController $frontend */
             $frontend = $GLOBALS['TSFE'];
@@ -118,7 +111,7 @@ final class EmailViewHelper extends AbstractTagBasedViewHelper
         }
         $tagContent = $this->renderChildren();
         if ($tagContent !== null) {
-            $linkText = $tagContent;
+            $linkText = (string)$tagContent;
         }
         $this->tag->setContent($linkText);
         $this->tag->addAttribute('href', $linkHref);

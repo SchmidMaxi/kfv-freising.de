@@ -52,7 +52,7 @@ final class MessengerMiddlewarePass implements CompilerPassInterface
             }
         }
         $busFactory->setArgument('$middlewares', array_map(
-            fn(array $busMiddlewares): IteratorArgument => new IteratorArgument($busMiddlewares),
+            static fn(array $busMiddlewares): IteratorArgument => new IteratorArgument($busMiddlewares),
             $middlewares
         ));
     }
@@ -64,7 +64,6 @@ final class MessengerMiddlewarePass implements CompilerPassInterface
     {
         $unorderedMiddlewares = [];
         foreach ($container->findTaggedServiceIds($this->tagName) as $serviceName => $tags) {
-            $service = $container->findDefinition($serviceName);
             foreach ($tags as $attributes) {
                 $bus = $attributes['bus'] ?? 'default';
                 $unorderedMiddlewares[$bus][$serviceName] = [

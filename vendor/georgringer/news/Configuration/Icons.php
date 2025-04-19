@@ -1,12 +1,15 @@
 <?php
 
+use TYPO3\CMS\Core\Imaging\IconProvider\SvgIconProvider;
+
 $iconList = [];
-foreach (['apps-pagetree-folder-contains-news' => 'ext-news-folder-tree.svg',
+foreach ([
+    'apps-pagetree-folder-contains-news' => 'ext-news-folder-tree.svg',
     'apps-pagetree-page-contains-news' => 'ext-news-page-tree.svg',
     'ext-news-wizard-icon' => 'plugin-list-with-detail.svg',
     'ext-news-plugin-news-list' => 'plugin-list-with-detail.svg',
     'ext-news-plugin-news-list-sticky' => 'plugin-list.svg',
-    'ext-news-plugin-detail' => 'plugin-detail.svg',
+    'ext-news-plugin-news-detail' => 'plugin-detail.svg',
     'ext-news-plugin-news-date-menu' => 'plugin-date-menu.svg',
     'ext-news-plugin-news-search-form' => 'plugin-search-form.svg',
     'ext-news-plugin-news-search-result' => 'plugin-search-results.svg',
@@ -23,9 +26,10 @@ foreach (['apps-pagetree-folder-contains-news' => 'ext-news-folder-tree.svg',
     'ext-news-patreon' => 'donation_patreon.svg',
     'ext-news-amazon' => 'donation_amazon.svg',
     'ext-news-doublecheck' => 'double_check.svg',
+    'ext-news-module-administration' => 'module_administration.svg',
 ] as $identifier => $path) {
     $iconList[$identifier] = [
-        'provider' => \TYPO3\CMS\Core\Imaging\IconProvider\SvgIconProvider::class,
+        'provider' => SvgIconProvider::class,
         'source' => 'EXT:news/Resources/Public/Icons/' . $path,
     ];
 }

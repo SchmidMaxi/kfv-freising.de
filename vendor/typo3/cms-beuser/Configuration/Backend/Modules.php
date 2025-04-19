@@ -13,7 +13,7 @@ return [
         'access' => 'admin',
         'path' => '/module/system/permissions',
         'iconIdentifier' => 'module-permission',
-        'navigationComponent' => '@typo3/backend/page-tree/page-tree-element',
+        'navigationComponent' => '@typo3/backend/tree/page-tree-element',
         'labels' => 'LLL:EXT:beuser/Resources/Private/Language/locallang_mod_permission.xlf',
         'aliases' => ['system_BeuserTxPermission'],
         'routes' => [
@@ -26,10 +26,11 @@ return [
         'parent' => 'system',
         'position' => ['after' => 'permissions_pages'],
         'access' => 'admin',
+        'path' => '/module/system/user-management',
         'iconIdentifier' => 'module-beuser',
         'labels' => 'LLL:EXT:beuser/Resources/Private/Language/locallang_mod.xlf',
-        'extensionName' => 'Beuser',
         'aliases' => ['system_BeuserTxBeuser'],
+        'extensionName' => 'Beuser',
         'controllerActions' => [
             BackendUserController::class => [
                 'index',

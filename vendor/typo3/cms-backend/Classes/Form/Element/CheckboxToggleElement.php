@@ -20,7 +20,7 @@ namespace TYPO3\CMS\Backend\Form\Element;
 use TYPO3\CMS\Core\Utility\StringUtility;
 
 /**
- * Generation of TCEform elements of the type "check"
+ * Render elements of TCA type="check" with renderType="checkboxToggle".
  */
 class CheckboxToggleElement extends AbstractFormElement
 {
@@ -66,8 +66,6 @@ class CheckboxToggleElement extends AbstractFormElement
     public function render(): array
     {
         $resultArray = $this->initializeResultArray();
-        // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-        $resultArray['labelHasBeenHandled'] = true;
 
         $elementHtml = '';
         $disabled = false;
@@ -130,11 +128,11 @@ class CheckboxToggleElement extends AbstractFormElement
         $html[] = '<div class="formengine-field-item t3js-formengine-field-item">';
         $html[] = $fieldInformationHtml;
         $html[] =   '<div class="form-wizards-wrap">';
-        $html[] =       '<div class="form-wizards-element">';
+        $html[] =       '<div class="form-wizards-item-element">';
         $html[] =           $elementHtml;
         $html[] =       '</div>';
         if (!$disabled && !empty($fieldWizardHtml)) {
-            $html[] =   '<div class="form-wizards-items-bottom">';
+            $html[] =   '<div class="form-wizards-item-bottom">';
             $html[] =       $fieldWizardHtml;
             $html[] =   '</div>';
         }
@@ -161,7 +159,7 @@ class CheckboxToggleElement extends AbstractFormElement
         $languageService = $this->getLanguageService();
         $parentLabel = $additionalInformation['fieldConf']['label'] ?? '';
         $config = $additionalInformation['fieldConf']['config'];
-        $inline = !empty($config['cols']) && $config['cols'] === 'inline';
+        $inline = ($config['cols'] ?? '') === 'inline';
         $invert = isset($config['items'][0]['invertStateDisplay']) && $config['items'][0]['invertStateDisplay'] === true;
         $checkboxParameters = $this->checkBoxParams(
             $additionalInformation['itemFormElName'],
@@ -171,8 +169,7 @@ class CheckboxToggleElement extends AbstractFormElement
             $additionalInformation['fieldChangeFunc'] ?? [],
             $invert
         );
-        $uniqueId = StringUtility::getUniqueId('_');
-        $checkboxId = $additionalInformation['itemFormElID'] . '_' . $itemCounter . $uniqueId;
+        $checkboxId = htmlspecialchars(StringUtility::getUniqueId('formengine-check-toggle-') . '-' . $itemCounter);
         return '
             <div class="form-check form-switch' . ($inline ? ' form-check-inline' : '') . (!$disabled ? '' : ' disabled') . '">
                 <input type="checkbox"

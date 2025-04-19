@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -108,7 +110,7 @@ class InlineStackProcessor
      * @param array $config Given config extracted from ajax call
      * @todo: Review this construct - Why can't the ajax call fetch these data on its own and transfers it to client instead?
      */
-    public function injectAjaxConfiguration(array $config)
+    public function setAjaxConfiguration(array $config)
     {
         $level = $this->calculateStructureLevel(-1);
         if (empty($config) || $level === false) {

@@ -27,31 +27,18 @@ use TYPO3\CMS\Extbase\Utility\TypeHandlingUtility;
 class ObjectStorageConverter extends AbstractTypeConverter
 {
     /**
-     * @var string[]
-     * @deprecated will be removed in TYPO3 v13.0, as this is defined in Services.yaml.
-     */
-    protected $sourceTypes = ['string', 'array'];
-
-    /**
-     * @var string
-     * @deprecated will be removed in TYPO3 v13.0, as this is defined in Services.yaml.
-     */
-    protected $targetType = ObjectStorage::class;
-
-    /**
-     * @var int
-     * @deprecated will be removed in TYPO3 v13.0, as this is defined in Services.yaml.
-     */
-    protected $priority = 10;
-
-    /**
      * Actually convert from $source to $targetType, taking into account the fully
      * built $convertedChildProperties and $configuration.
      *
      * @param mixed $source
+     * @internal only to be used within Extbase, not part of TYPO3 Core API.
      */
-    public function convertFrom($source, string $targetType, array $convertedChildProperties = [], ?PropertyMappingConfigurationInterface $configuration = null): ObjectStorage
-    {
+    public function convertFrom(
+        $source,
+        string $targetType,
+        array $convertedChildProperties = [],
+        ?PropertyMappingConfigurationInterface $configuration = null
+    ): ObjectStorage {
         $objectStorage = new ObjectStorage();
         foreach ($convertedChildProperties as $subProperty) {
             $objectStorage->attach($subProperty);
@@ -77,8 +64,11 @@ class ObjectStorageConverter extends AbstractTypeConverter
      *
      * @param string $targetType
      */
-    public function getTypeOfChildProperty($targetType, string $propertyName, PropertyMappingConfigurationInterface $configuration): string
-    {
+    public function getTypeOfChildProperty(
+        $targetType,
+        string $propertyName,
+        PropertyMappingConfigurationInterface $configuration
+    ): string {
         $parsedTargetType = TypeHandlingUtility::parseType($targetType);
         return $parsedTargetType['elementType'];
     }

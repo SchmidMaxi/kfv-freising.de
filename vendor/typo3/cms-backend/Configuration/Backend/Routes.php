@@ -267,14 +267,9 @@ return [
             'enable' => true,
             'parameters' => [
                 'edit' => true,
+                'columnsOnly' => true,
             ],
         ],
-    ],
-
-    // Thumbnails
-    'thumbnails' => [
-        'path' => '/thumbnails',
-        'target' => Controller\File\ThumbnailController::class . '::render',
     ],
 
     // Image processing

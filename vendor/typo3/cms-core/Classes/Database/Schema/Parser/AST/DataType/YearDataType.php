@@ -19,11 +19,7 @@ namespace TYPO3\CMS\Core\Database\Schema\Parser\AST\DataType;
 
 /**
  * Node representing the YEAR SQL column type
+ *
+ * @internal
  */
-class YearDataType extends AbstractDataType
-{
-    /**
-     * YearDataType constructor.
-     */
-    public function __construct() {}
-}
+final class YearDataType extends AbstractDataType {}

@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Form\Mvc\Property\TypeConverter;
 
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Crypto\Random;
 use TYPO3\CMS\Core\Http\UploadedFile;
 use TYPO3\CMS\Core\Log\LogManager;
@@ -28,20 +29,18 @@ use TYPO3\CMS\Core\Resource\ResourceFactory;
 use TYPO3\CMS\Core\Resource\Security\FileNameValidator;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\StringUtility;
-use TYPO3\CMS\Extbase\Domain\Model\AbstractFileFolder;
+use TYPO3\CMS\Extbase\Domain\Model\FileReference;
 use TYPO3\CMS\Extbase\Error\Error;
 use TYPO3\CMS\Extbase\Persistence\PersistenceManagerInterface;
 use TYPO3\CMS\Extbase\Property\PropertyMappingConfigurationInterface;
 use TYPO3\CMS\Extbase\Property\TypeConverter\AbstractTypeConverter;
-use TYPO3\CMS\Extbase\Security\Cryptography\HashService;
 use TYPO3\CMS\Extbase\Validation\Validator\AbstractValidator;
 use TYPO3\CMS\Form\Mvc\Property\Exception\TypeConverterException;
+use TYPO3\CMS\Form\Security\HashScope;
 use TYPO3\CMS\Form\Service\TranslationService;
 use TYPO3\CMS\Form\Slot\ResourcePublicationSlot;
 
 /**
- * Class UploadedFileReferenceConverter
- *
  * Scope: frontend
  * @internal
  */
@@ -80,23 +79,6 @@ class UploadedFileReferenceConverter extends AbstractTypeConverter
     protected $defaultConflictMode = 'rename';
 
     /**
-     * @var array
-     */
-    protected $sourceTypes = ['array'];
-
-    /**
-     * @var string
-     */
-    protected $targetType = PseudoFileReference::class;
-
-    /**
-     * Take precedence over the available FileReferenceConverter
-     *
-     * @var int
-     */
-    protected $priority = 12;
-
-    /**
      * @var PseudoFileReference[]
      */
     protected $convertedResources = [];
@@ -107,7 +89,7 @@ class UploadedFileReferenceConverter extends AbstractTypeConverter
     protected $resourceFactory;
 
     /**
-     * @var \TYPO3\CMS\Extbase\Security\Cryptography\HashService
+     * @var HashService
      */
     protected $hashService;
 
@@ -146,7 +128,7 @@ class UploadedFileReferenceConverter extends AbstractTypeConverter
      *
      * @param array|UploadedFile $source
      * @param string $targetType
-     * @return AbstractFileFolder|Error|null
+     * @return File|FileReference|Folder|Error|null
      * @internal
      */
     public function convertFrom($source, $targetType, array $convertedChildProperties = [], ?PropertyMappingConfigurationInterface $configuration = null)
@@ -161,13 +143,13 @@ class UploadedFileReferenceConverter extends AbstractTypeConverter
                 try {
                     // File references use numeric resource pointers, direct
                     // file relations are using "file:" prefix (e.g. "file:5")
-                    $resourcePointer = $this->hashService->validateAndStripHmac($source['submittedFile']['resourcePointer']);
+                    $resourcePointer = $this->hashService->validateAndStripHmac($source['submittedFile']['resourcePointer'], HashScope::ResourcePointer->prefix());
                     if (str_starts_with($resourcePointer, 'file:')) {
                         $fileUid = (int)substr($resourcePointer, 5);
                         $resource = $this->createFileReferenceFromFalFileObject($this->resourceFactory->getFileObject($fileUid));
                     } else {
                         $resource = $this->createFileReferenceFromFalFileReferenceObject(
-                            $this->resourceFactory->getFileReferenceObject($resourcePointer),
+                            $this->resourceFactory->getFileReferenceObject((int)$resourcePointer),
                             (int)$resourcePointer
                         );
                     }
@@ -237,13 +219,14 @@ class UploadedFileReferenceConverter extends AbstractTypeConverter
 
         $uploadFolder = $this->provideUploadFolder($uploadFolderId);
         // current folder name, derived from public random seed (`formSession`)
-        $currentName = 'form_' . GeneralUtility::hmac($seed, self::class);
+        $currentName = 'form_' . $this->hashService->hmac($seed, self::class);
         $uploadFolder = $this->provideTargetFolder($uploadFolder, $currentName);
         // sub-folder in $uploadFolder with 160 bit of derived entropy (.../form_<40-chars-hash>/actual.file)
+        /** @var File $uploadedFile */
         $uploadedFile = $uploadFolder->addUploadedFile($uploadInfo, $conflictMode);
 
         $resourcePointer = isset($uploadInfo['submittedFile']['resourcePointer']) && !str_contains($uploadInfo['submittedFile']['resourcePointer'], 'file:')
-            ? (int)$this->hashService->validateAndStripHmac($uploadInfo['submittedFile']['resourcePointer'])
+            ? (int)$this->hashService->validateAndStripHmac($uploadInfo['submittedFile']['resourcePointer'], HashScope::ResourcePointer->prefix())
             : null;
 
         $fileReferenceModel = $this->createFileReferenceFromFalFileObject($uploadedFile, $resourcePointer);

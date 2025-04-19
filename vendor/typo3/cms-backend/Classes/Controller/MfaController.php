@@ -177,7 +177,7 @@ class MfaController extends AbstractMfaController
      */
     protected function getAlternativeProviders(MfaProviderManifestInterface $mfaProvider): array
     {
-        return array_filter($this->allowedProviders, function ($provider) use ($mfaProvider) {
+        return array_filter($this->allowedProviders, function (MfaProviderManifestInterface $provider) use ($mfaProvider): bool {
             return $provider !== $mfaProvider
                 && $provider->isActive(MfaProviderPropertyManager::create($provider, $this->getBackendUser()));
         });
@@ -212,7 +212,7 @@ class MfaController extends AbstractMfaController
         $this->logger->debug($message, $data);
         if ($user->writeStdLog) {
             // Write to sys_log if enabled
-            $user->writelog(SystemLogType::LOGIN, $action, $error, 1, $message, $data);
+            $user->writelog(SystemLogType::LOGIN, $action, $error, null, $message, $data);
         }
     }
 

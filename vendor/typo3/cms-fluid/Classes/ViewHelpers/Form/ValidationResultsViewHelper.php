@@ -17,11 +17,11 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Fluid\ViewHelpers\Form;
 
-use TYPO3\CMS\Extbase\Mvc\ExtbaseRequestParameters;
-use TYPO3\CMS\Fluid\Core\Rendering\RenderingContext;
-use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Extbase\Mvc\RequestInterface;
+use TYPO3Fluid\Fluid\Core\Variables\ScopedVariableProvider;
+use TYPO3Fluid\Fluid\Core\Variables\StandardVariableProvider;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
-use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
 
 /**
  * Validation results ViewHelper
@@ -73,8 +73,6 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
  */
 final class ValidationResultsViewHelper extends AbstractViewHelper
 {
-    use CompileWithRenderStatic;
-
     /**
      * As this ViewHelper renders HTML, the output must not be escaped.
      *
@@ -91,22 +89,24 @@ final class ValidationResultsViewHelper extends AbstractViewHelper
     /**
      * @return mixed @todo: Really mixed here, not string?
      */
-    public static function renderStatic(array $arguments, \Closure $renderChildrenClosure, RenderingContextInterface $renderingContext)
+    public function render()
     {
-        $templateVariableContainer = $renderingContext->getVariableProvider();
-        $for = $arguments['for'];
-        $as = $arguments['as'];
-
-        /** @var RenderingContext $renderingContext */
-        /** @var ExtbaseRequestParameters $extbaseRequestParameters */
-        $extbaseRequestParameters = $renderingContext->getRequest()->getAttribute('extbase');
+        $for = $this->arguments['for'];
+        $as = $this->arguments['as'];
+        if (!$this->renderingContext->hasAttribute(ServerRequestInterface::class)
+            || !$this->renderingContext->getAttribute(ServerRequestInterface::class) instanceof RequestInterface
+        ) {
+            throw new \RuntimeException('ValidationResultsViewHelper needs an extbase request to work.', 1724244193);
+        }
+        $extbaseRequestParameters = $this->renderingContext->getAttribute(ServerRequestInterface::class)->getAttribute('extbase');
         $validationResults = $extbaseRequestParameters->getOriginalRequestMappingResults();
         if ($validationResults !== null && $for !== '') {
             $validationResults = $validationResults->forProperty($for);
         }
-        $templateVariableContainer->add($as, $validationResults);
-        $output = $renderChildrenClosure();
-        $templateVariableContainer->remove($as);
+        $variableProvider = new ScopedVariableProvider($this->renderingContext->getVariableProvider(), new StandardVariableProvider([$as => $validationResults]));
+        $this->renderingContext->setVariableProvider($variableProvider);
+        $output = $this->renderChildren();
+        $this->renderingContext->setVariableProvider($variableProvider->getGlobalVariableProvider());
         return $output;
     }
 }

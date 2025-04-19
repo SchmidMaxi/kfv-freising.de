@@ -45,12 +45,17 @@ class ExtensionUtility
      * @param string $pluginType either \TYPO3\CMS\Extbase\Utility\ExtensionUtility::PLUGIN_TYPE_PLUGIN (default) or \TYPO3\CMS\Extbase\Utility\ExtensionUtility::PLUGIN_TYPE_CONTENT_ELEMENT
      * @throws \InvalidArgumentException
      */
-    public static function configurePlugin($extensionName, $pluginName, array $controllerActions, array $nonCacheableControllerActions = [], $pluginType = self::PLUGIN_TYPE_PLUGIN)
+    public static function configurePlugin($extensionName, $pluginName, array $controllerActions, array $nonCacheableControllerActions = [], ?string $pluginType = null)
     {
         self::checkPluginNameFormat($pluginName);
         self::checkExtensionNameFormat($extensionName);
 
         $extensionName = str_replace(' ', '', ucwords(str_replace('_', ' ', $extensionName)));
+
+        $pluginType ??= self::PLUGIN_TYPE_PLUGIN;
+        if ($pluginType === 'list_type') {
+            trigger_error('Plugin subtype "list_type" has been deprecated and will be removed in TYPO3 v14.0. Register the plugin "' . $pluginName . '" as "CType" instead. Affected extension: ' . $extensionName, E_USER_DEPRECATED);
+        }
 
         $pluginSignature = strtolower($extensionName . '_' . $pluginName);
 
@@ -122,11 +127,11 @@ tt_content.' . $pluginSignature . ' {
      * @param string $pluginName must be a unique id for your plugin in UpperCamelCase (the string length of the extension key added to the length of the plugin name should be less than 32!)
      * @param string $pluginTitle is a speaking title of the plugin that will be displayed in the drop down menu in the backend
      * @param string $pluginIcon is an icon identifier or file path prepended with "EXT:", that will be displayed in the drop down menu in the backend (optional)
-     * @param string $group add this plugin to a plugin group, should be something like "news" or the like, "default" as regular
+     * @param string $group add this plugin to a plugin group, should be something like "news" or the like, "plugins" as regular
      * @param string $pluginDescription additional description
      * @throws \InvalidArgumentException
      */
-    public static function registerPlugin($extensionName, $pluginName, $pluginTitle, $pluginIcon = null, $group = 'default', string $pluginDescription = ''): string
+    public static function registerPlugin($extensionName, $pluginName, $pluginTitle, $pluginIcon = null, $group = 'plugins', string $pluginDescription = ''): string
     {
         self::checkPluginNameFormat($pluginName);
         self::checkExtensionNameFormat($extensionName);
@@ -157,18 +162,6 @@ tt_content.' . $pluginSignature . ' {
         );
         return $pluginSignature;
     }
-
-    /**
-     * To allow extension authors to support multiple versions, this method is kept until
-     * TYPO3 v13, but is no longer used nor evaluated from TYPO3 v12.0. To register modules,
-     * place the configuration in your extensions' Configuration/Backend/Modules.php file.
-     *
-     * The method deliberately does not throw a deprecation warning in order to keep the noise
-     * of deprecation warnings small.
-     *
-     * @deprecated The functionality has been removed in v12. The method will be removed in TYPO3 v13.
-     */
-    public static function registerModule($extensionName, $mainModuleName = '', $subModuleName = '', $position = '', array $controllerActions = [], array $moduleConfiguration = []) {}
 
     /**
      * @internal only used for TYPO3 Core
@@ -228,20 +221,6 @@ tt_content.' . $pluginSignature . ' {
             $controllerActions[$controllerClassName] = $actionsListArray;
         }
         return $controllerActions;
-    }
-
-    /**
-     * Register a type converter by class name.
-     *
-     * @param string $typeConverterClassName
-     * @deprecated will be removed in TYPO3 v13.0. Register type converters via Services.yaml in your extension(s).
-     */
-    public static function registerTypeConverter($typeConverterClassName)
-    {
-        trigger_error(
-            'Method ' . __METHOD__ . ' does no longer has any effect and will completely be removed with TYPO3 v13. Register type converters via Services.yaml instead.',
-            E_USER_DEPRECATED
-        );
     }
 
     /**

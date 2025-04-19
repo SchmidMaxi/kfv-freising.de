@@ -19,11 +19,13 @@ namespace TYPO3\CMS\Backend\Controller;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Form\FormDataCompiler;
 use TYPO3\CMS\Backend\Form\FormDataGroup\TcaDatabaseRecord;
 use TYPO3\CMS\Backend\Form\InlineStackProcessor;
 use TYPO3\CMS\Backend\Form\NodeFactory;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
 use TYPO3\CMS\Core\Http\JsonResponse;
 use TYPO3\CMS\Core\Messaging\FlashMessageService;
@@ -36,8 +38,15 @@ use TYPO3\CMS\Core\Utility\MathUtility;
 /**
  * Handle FormEngine inline ajax calls
  */
+#[AsController]
 class FormInlineAjaxController extends AbstractFormEngineAjaxController
 {
+    public function __construct(
+        private readonly FormDataCompiler $formDataCompiler,
+        private readonly HashService $hashService,
+        private readonly NodeFactory $nodeFactory,
+    ) {}
+
     /**
      * Create a new inline child via AJAX.
      */
@@ -64,7 +73,7 @@ class FormInlineAjaxController extends AbstractFormEngineAjaxController
         // Parse the DOM identifier, add the levels to the structure stack
         $inlineStackProcessor = GeneralUtility::makeInstance(InlineStackProcessor::class);
         $inlineStackProcessor->initializeByParsingDomObjectIdString($domObjectId);
-        $inlineStackProcessor->injectAjaxConfiguration($parentConfig);
+        $inlineStackProcessor->setAjaxConfiguration($parentConfig);
         $inlineTopMostParent = $inlineStackProcessor->getStructureLevel(0);
 
         // Parent, this table embeds the child table
@@ -82,7 +91,6 @@ class FormInlineAjaxController extends AbstractFormEngineAjaxController
 
         $childTableName = $parentConfig['foreign_table'];
 
-        $formDataCompiler = GeneralUtility::makeInstance(FormDataCompiler::class);
         $formDataCompilerInput = [
             'request' => $request,
             'command' => 'new',
@@ -102,7 +110,7 @@ class FormInlineAjaxController extends AbstractFormEngineAjaxController
         if ($childChildUid) {
             $formDataCompilerInput['inlineChildChildUid'] = $childChildUid;
         }
-        $childData = $formDataCompiler->compile($formDataCompilerInput, GeneralUtility::makeInstance(TcaDatabaseRecord::class));
+        $childData = $this->formDataCompiler->compile($formDataCompilerInput, GeneralUtility::makeInstance(TcaDatabaseRecord::class));
 
         if (($parentConfig['foreign_selector'] ?? false) && ($parentConfig['appearance']['useCombination'] ?? false)) {
             // We have a foreign_selector. So, we just created a new record on an intermediate table in $childData.
@@ -116,7 +124,6 @@ class FormInlineAjaxController extends AbstractFormEngineAjaxController
                 ];
                 $childData['combinationChild'] = $this->compileChildChild($request, $childData, $parentConfig, $inlineStackProcessor->getStructure());
             } else {
-                $formDataCompiler = GeneralUtility::makeInstance(FormDataCompiler::class);
                 $formDataCompilerInput = [
                     'request' => $request,
                     'command' => 'new',
@@ -127,20 +134,18 @@ class FormInlineAjaxController extends AbstractFormEngineAjaxController
                     'inlineStructure' => $inlineStackProcessor->getStructure(),
                     'inlineFirstPid' => $inlineFirstPid,
                 ];
-                $childData['combinationChild'] = $formDataCompiler->compile($formDataCompilerInput, GeneralUtility::makeInstance(TcaDatabaseRecord::class));
+                $childData['combinationChild'] = $this->formDataCompiler->compile($formDataCompilerInput, GeneralUtility::makeInstance(TcaDatabaseRecord::class));
             }
         }
 
         $childData['inlineParentUid'] = $parent['uid'];
         $childData['renderType'] = 'inlineRecordContainer';
-        $nodeFactory = GeneralUtility::makeInstance(NodeFactory::class);
-        $childResult = $nodeFactory->create($childData)->render();
+        $childResult = $this->nodeFactory->create($childData)->render();
 
         $jsonArray = [
             'data' => '',
             'stylesheetFiles' => [],
-            'scriptItems' => GeneralUtility::makeInstance(JavaScriptItems::class),
-            'scriptCall' => [],
+            'scriptItems' => new JavaScriptItems(),
             'compilerInput' => [
                 'uid' => $childData['databaseRow']['uid'],
                 'childChildUid' => $childChildUid,
@@ -167,7 +172,7 @@ class FormInlineAjaxController extends AbstractFormEngineAjaxController
         // Parse the DOM identifier, add the levels to the structure stack
         $inlineStackProcessor = GeneralUtility::makeInstance(InlineStackProcessor::class);
         $inlineStackProcessor->initializeByParsingDomObjectIdString($domObjectId);
-        $inlineStackProcessor->injectAjaxConfiguration($parentConfig);
+        $inlineStackProcessor->setAjaxConfiguration($parentConfig);
 
         // Parent, this table embeds the child table
         $parent = $inlineStackProcessor->getStructureLevel(-1);
@@ -202,14 +207,12 @@ class FormInlineAjaxController extends AbstractFormEngineAjaxController
 
         $childData['inlineParentUid'] = (int)$parent['uid'];
         $childData['renderType'] = 'inlineRecordContainer';
-        $nodeFactory = GeneralUtility::makeInstance(NodeFactory::class);
-        $childResult = $nodeFactory->create($childData)->render();
+        $childResult = $this->nodeFactory->create($childData)->render();
 
         $jsonArray = [
             'data' => '',
             'stylesheetFiles' => [],
-            'scriptItems' => GeneralUtility::makeInstance(JavaScriptItems::class),
-            'scriptCall' => [],
+            'scriptItems' => new JavaScriptItems(),
         ];
 
         $jsonArray = $this->mergeChildResultIntoJsonResult($jsonArray, $childResult);
@@ -234,13 +237,13 @@ class FormInlineAjaxController extends AbstractFormEngineAjaxController
         $inlineStackProcessor = GeneralUtility::makeInstance(InlineStackProcessor::class);
         // Parse the DOM identifier (string), add the levels to the structure stack (array), load the TCA config:
         $inlineStackProcessor->initializeByParsingDomObjectIdString($domObjectId);
-        $inlineStackProcessor->injectAjaxConfiguration($parentConfig);
+        $inlineStackProcessor->setAjaxConfiguration($parentConfig);
         $inlineFirstPid = $this->getInlineFirstPidFromDomObjectId($domObjectId);
 
         $jsonArray = [
             'data' => '',
             'stylesheetFiles' => [],
-            'scriptItems' => GeneralUtility::makeInstance(JavaScriptItems::class),
+            'scriptItems' => new JavaScriptItems(),
             'compilerInput' => [
                 'localize' => [],
             ],
@@ -269,8 +272,7 @@ class FormInlineAjaxController extends AbstractFormEngineAjaxController
                 'inlineCompileExistingChildren' => false,
             ];
             // Full TcaDatabaseRecord is required here to have the list of connected uids $oldItemList
-            $formDataCompiler = GeneralUtility::makeInstance(FormDataCompiler::class);
-            $parentData = $formDataCompiler->compile($formDataCompilerInputForParent, GeneralUtility::makeInstance(TcaDatabaseRecord::class));
+            $parentData = $this->formDataCompiler->compile($formDataCompilerInputForParent, GeneralUtility::makeInstance(TcaDatabaseRecord::class));
             $parentConfig = $parentData['processedTca']['columns'][$parentFieldName]['config'];
             $parentLanguageField = $parentData['processedTca']['ctrl']['languageField'];
             $parentLanguage = $parentData['databaseRow'][$parentLanguageField];
@@ -334,8 +336,7 @@ class FormInlineAjaxController extends AbstractFormEngineAjaxController
 
                 $childData['inlineParentUid'] = (int)$parent['uid'];
                 $childData['renderType'] = 'inlineRecordContainer';
-                $nodeFactory = GeneralUtility::makeInstance(NodeFactory::class);
-                $childResult = $nodeFactory->create($childData)->render();
+                $childResult = $this->nodeFactory->create($childData)->render();
 
                 $jsonArray = $this->mergeChildResultIntoJsonResult($jsonArray, $childResult);
 
@@ -444,7 +445,6 @@ class FormInlineAjaxController extends AbstractFormEngineAjaxController
         $child = $inlineStackProcessor->getUnstableStructure();
         $childTableName = $child['table'];
 
-        $formDataCompiler = GeneralUtility::makeInstance(FormDataCompiler::class);
         $formDataCompilerInput = [
             'request' => $request,
             'command' => 'edit',
@@ -471,7 +471,7 @@ class FormInlineAjaxController extends AbstractFormEngineAjaxController
         // For foreign_selector with useCombination $mainChild is the mm record
         // and $combinationChild is the child-child. For "normal" relations, $mainChild
         // is just the normal child record and $combinationChild is empty.
-        $mainChild = $formDataCompiler->compile($formDataCompilerInput, GeneralUtility::makeInstance(TcaDatabaseRecord::class));
+        $mainChild = $this->formDataCompiler->compile($formDataCompilerInput, GeneralUtility::makeInstance(TcaDatabaseRecord::class));
         if (($parentConfig['foreign_selector'] ?? false) && ($parentConfig['appearance']['useCombination'] ?? false)) {
             // This kicks in if opening an existing mainChild that has a child-child set
             $mainChild['combinationChild'] = $this->compileChildChild($request, $mainChild, $parentConfig, $inlineStructure);
@@ -492,7 +492,6 @@ class FormInlineAjaxController extends AbstractFormEngineAjaxController
     {
         // foreign_selector on intermediate is probably type=select, so data provider of this table resolved that to the uid already
         $childChildUid = $child['databaseRow'][$parentConfig['foreign_selector']][0];
-        $formDataCompiler = GeneralUtility::makeInstance(FormDataCompiler::class);
         $formDataCompilerInput = [
             'request' => $request,
             'command' => 'edit',
@@ -508,7 +507,7 @@ class FormInlineAjaxController extends AbstractFormEngineAjaxController
             'inlineTopMostParentTableName' => $child['inlineTopMostParentTableName'],
             'inlineTopMostParentFieldName' => $child['inlineTopMostParentFieldName'],
         ];
-        return $formDataCompiler->compile($formDataCompilerInput, GeneralUtility::makeInstance(TcaDatabaseRecord::class));
+        return $this->formDataCompiler->compile($formDataCompilerInput, GeneralUtility::makeInstance(TcaDatabaseRecord::class));
     }
 
     /**
@@ -532,10 +531,6 @@ class FormInlineAjaxController extends AbstractFormEngineAjaxController
         if (!empty($childResult['inlineData'])) {
             $jsonResult['inlineData'] = $childResult['inlineData'];
         }
-        // @todo deprecate with TYPO3 v12.0
-        foreach ($childResult['additionalJavaScriptPost'] as $singleAdditionalJavaScriptPost) {
-            $jsonResult['scriptCall'][] = $singleAdditionalJavaScriptPost;
-        }
         if (!empty($childResult['additionalInlineLanguageLabelFiles'])) {
             $labels = [];
             foreach ($childResult['additionalInlineLanguageLabelFiles'] as $additionalInlineLanguageLabelFile) {
@@ -547,8 +542,6 @@ class FormInlineAjaxController extends AbstractFormEngineAjaxController
             $scriptItems->addGlobalAssignment(['TYPO3' => ['lang' => $labels]]);
         }
         $this->addJavaScriptModulesToJavaScriptItems($childResult['javaScriptModules'] ?? [], $scriptItems);
-        /** @deprecated will be removed in TYPO3 v13.0 */
-        $this->addJavaScriptModulesToJavaScriptItems($childResult['requireJsModules'] ?? [], $scriptItems, true);
 
         return $jsonResult;
     }
@@ -654,7 +647,7 @@ class FormInlineAjaxController extends AbstractFormEngineAjaxController
         if (empty($context['config'])) {
             throw new \RuntimeException('Empty context config section given', 1489751362);
         }
-        if (!hash_equals(GeneralUtility::hmac((string)$context['config'], 'InlineContext'), (string)$context['hmac'])) {
+        if (!hash_equals($this->hashService->hmac((string)$context['config'], 'InlineContext'), (string)$context['hmac'])) {
             throw new \RuntimeException('Hash does not validate', 1489751363);
         }
         return json_decode($context['config'], true);

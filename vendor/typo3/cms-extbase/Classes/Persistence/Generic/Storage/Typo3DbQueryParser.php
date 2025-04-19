@@ -17,8 +17,12 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Extbase\Persistence\Generic\Storage;
 
+use Doctrine\DBAL\ArrayParameterType;
+use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
+use Doctrine\DBAL\Types\Type;
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Context\LanguageAspect;
@@ -63,6 +67,7 @@ use TYPO3\CMS\Extbase\Persistence\QueryInterface;
  * QueryParser, converting the qom to string representation
  * @internal only to be used within Extbase, not part of TYPO3 Core API.
  */
+#[Autoconfigure(public: true, shared: false)]
 class Typo3DbQueryParser
 {
     protected DataMapper $dataMapper;
@@ -168,10 +173,8 @@ class Typo3DbQueryParser
 
     /**
      * Creates the queryBuilder object whether it is a regular select or a JOIN
-     *
-     * @param Qom\SourceInterface $source The source
      */
-    protected function initializeQueryBuilder(SourceInterface $source)
+    protected function initializeQueryBuilder(SourceInterface $source): void
     {
         if ($source instanceof SelectorInterface) {
             $className = $source->getNodeTypeName();
@@ -208,13 +211,8 @@ class Typo3DbQueryParser
 
     /**
      * Transforms a constraint into SQL and parameter arrays
-     *
-     * @param Qom\ConstraintInterface $constraint The constraint
-     * @param Qom\SourceInterface $source The source
-     * @return CompositeExpression|string
-     * @throws \RuntimeException
      */
-    protected function parseConstraint(ConstraintInterface $constraint, SourceInterface $source)
+    protected function parseConstraint(ConstraintInterface $constraint, SourceInterface $source): CompositeExpression|string
     {
         if ($constraint instanceof AndInterface) {
             return $this->queryBuilder->expr()->and(
@@ -241,10 +239,9 @@ class Typo3DbQueryParser
      * Transforms orderings into SQL.
      *
      * @param array $orderings An array of orderings (Qom\Ordering)
-     * @param Qom\SourceInterface $source The source
      * @throws UnsupportedOrderException
      */
-    protected function parseOrderings(array $orderings, SourceInterface $source)
+    protected function parseOrderings(array $orderings, SourceInterface $source): void
     {
         foreach ($orderings as $propertyName => $order) {
             if ($order !== QueryInterface::ORDER_ASCENDING && $order !== QueryInterface::ORDER_DESCENDING) {
@@ -308,14 +305,10 @@ class Typo3DbQueryParser
     /**
      * Parse a Comparison into SQL and parameter arrays.
      *
-     * @param Qom\ComparisonInterface $comparison The comparison to parse
-     * @param Qom\SourceInterface $source The source
-     * @return string
-     * @throws \RuntimeException
      * @throws RepositoryException
      * @throws BadConstraintException
      */
-    protected function parseComparison(ComparisonInterface $comparison, SourceInterface $source)
+    protected function parseComparison(ComparisonInterface $comparison, SourceInterface $source): string
     {
         if ($comparison->getOperator() === QueryInterface::OPERATOR_CONTAINS) {
             if ($comparison->getOperand2() === null) {
@@ -386,7 +379,7 @@ class Typo3DbQueryParser
                 }
                 return $this->queryBuilder->expr()->inSet(
                     $tableName . '.' . $columnName,
-                    $this->queryBuilder->quote($value)
+                    $this->queryBuilder->quote((string)$value)
                 );
             }
             throw new RepositoryException('Unsupported or non-existing property name "' . $propertyName . '" used in relation matching.', 1327065745);
@@ -397,12 +390,10 @@ class Typo3DbQueryParser
     /**
      * Parse a DynamicOperand into SQL and parameter arrays.
      *
-     * @param Qom\SourceInterface $source The source
-     * @return string
      * @throws Exception
      * @throws BadConstraintException
      */
-    protected function parseDynamicOperand(ComparisonInterface $comparison, SourceInterface $source)
+    protected function parseDynamicOperand(ComparisonInterface $comparison, SourceInterface $source): string
     {
         $value = $comparison->getOperand2();
         $fieldName = $this->parseOperand($comparison->getOperand1(), $source);
@@ -485,11 +476,8 @@ class Typo3DbQueryParser
     /**
      * Maps plain value of operand to PDO types to help Doctrine and/or the database driver process the value
      * correctly when building the query.
-     *
-     * @param mixed $value The parameter value
-     * @throws \InvalidArgumentException
      */
-    protected function getParameterType($value): int
+    protected function getParameterType(mixed $value): ParameterType
     {
         $parameterType = gettype($value);
         switch ($parameterType) {
@@ -511,11 +499,11 @@ class Typo3DbQueryParser
      * one of the \PDO::PARAM_* types by specifying the $forceType argument.
      *
      * @param mixed $value The input value that should be sent to the database
-     * @param int|null $forceType The \PDO::PARAM_* type that should be forced
+     * @param ParameterType|Type|ArrayParameterType|null $forceType The \TYPO3\CMS\Core\Database\Connection::PARAM_* type that should be forced
      * @return string The placeholder string to be used in the query
      * @see \TYPO3\CMS\Extbase\Persistence\Generic\Mapper\DataMapper::getPlainValue()
      */
-    protected function createTypedNamedParameter($value, ?int $forceType = null): string
+    protected function createTypedNamedParameter(mixed $value, ParameterType|Type|ArrayParameterType|null $forceType = null): string
     {
         if ($value instanceof DomainObjectInterface
             && $value->_hasProperty(AbstractDomainObject::PROPERTY_LOCALIZED_UID)
@@ -531,12 +519,7 @@ class Typo3DbQueryParser
         return $placeholder;
     }
 
-    /**
-     * @param Qom\SourceInterface $source The source
-     * @return string
-     * @throws \InvalidArgumentException
-     */
-    protected function parseOperand(DynamicOperandInterface $operand, SourceInterface $source)
+    protected function parseOperand(DynamicOperandInterface $operand, SourceInterface $source): string
     {
         $tableName = null;
         if ($operand instanceof LowerCaseInterface) {
@@ -689,14 +672,14 @@ class Typo3DbQueryParser
         if (($GLOBALS['TYPO3_REQUEST'] ?? null) instanceof ServerRequestInterface
             && ApplicationType::fromRequest($GLOBALS['TYPO3_REQUEST'])->isFrontend()
         ) {
-            $statement = $this->getFrontendConstraintStatement($tableName, $ignoreEnableFields, $enableFieldsToBeIgnored, $includeDeleted);
+            $statement = $this->getFrontendConstraintStatement($tableName, $tableAlias, $ignoreEnableFields, $enableFieldsToBeIgnored, $includeDeleted);
         } else {
             // applicationType backend
             $statement = $this->getBackendConstraintStatement($tableName, $ignoreEnableFields, $includeDeleted);
-        }
-        if (!empty($statement)) {
-            $statement = $this->replaceTableNameWithAlias($statement, $tableName, $tableAlias);
-            $statement = strtolower(substr($statement, 1, 3)) === 'and' ? substr($statement, 5) : $statement;
+            if (!empty($statement)) {
+                $statement = $this->replaceTableNameWithAlias($statement, $tableName, $tableAlias);
+                $statement = strtolower(substr($statement, 1, 3)) === 'and' ? substr($statement, 5) : $statement;
+            }
         }
         return $statement;
     }
@@ -704,25 +687,28 @@ class Typo3DbQueryParser
     /**
      * Returns constraint statement for frontend context
      *
-     * @param string $tableName
      * @param bool $ignoreEnableFields A flag indicating whether the enable fields should be ignored
      * @param array $enableFieldsToBeIgnored If $ignoreEnableFields is true, this array specifies enable fields to be ignored. If it is NULL or an empty array (default) all enable fields are ignored.
      * @param bool $includeDeleted A flag indicating whether deleted records should be included
-     * @return string
      * @throws InconsistentQuerySettingsException
      */
-    protected function getFrontendConstraintStatement($tableName, $ignoreEnableFields, array $enableFieldsToBeIgnored, $includeDeleted)
+    protected function getFrontendConstraintStatement(string $tableName, string $tableAlias, bool $ignoreEnableFields, array $enableFieldsToBeIgnored, bool $includeDeleted): string
     {
         $statement = '';
         if ($ignoreEnableFields && !$includeDeleted) {
             if (!empty($enableFieldsToBeIgnored)) {
-                // array_combine() is necessary because of the way \TYPO3\CMS\Core\Domain\Repository\PageRepository::enableFields() is implemented
-                $statement .= $this->getPageRepository()->enableFields($tableName, -1, array_combine($enableFieldsToBeIgnored, $enableFieldsToBeIgnored));
+                $constraints = $this->getPageRepository()->getDefaultConstraints($tableName, $enableFieldsToBeIgnored, $tableAlias);
+                if ($constraints !== []) {
+                    $statement = implode(' AND ', $constraints);
+                }
             } elseif (!empty($GLOBALS['TCA'][$tableName]['ctrl']['delete'])) {
-                $statement .= ' AND ' . $tableName . '.' . $GLOBALS['TCA'][$tableName]['ctrl']['delete'] . '=0';
+                $statement = $tableAlias . '.' . $GLOBALS['TCA'][$tableName]['ctrl']['delete'] . '=0';
             }
         } elseif (!$ignoreEnableFields && !$includeDeleted) {
-            $statement .= $this->getPageRepository()->enableFields($tableName);
+            $constraints = $this->getPageRepository()->getDefaultConstraints($tableName, [], $tableAlias);
+            if ($constraints !== []) {
+                $statement = implode(' AND ', $constraints);
+            }
         } elseif (!$ignoreEnableFields) {
             throw new InconsistentQuerySettingsException('Query setting "ignoreEnableFields=FALSE" can not be used together with "includeDeleted=TRUE" in frontend context.', 1460975922);
         }
@@ -776,14 +762,14 @@ class Typo3DbQueryParser
         if (!$transOrigPointerField || !$languageAspect->getContentId()) {
             return $this->queryBuilder->expr()->in(
                 $tableAlias . '.' . $languageField,
-                [(int)$languageAspect->getContentId(), -1]
+                [$languageAspect->getContentId(), -1]
             );
         }
 
         if (!$languageAspect->doOverlays()) {
             return $this->queryBuilder->expr()->in(
                 $tableAlias . '.' . $languageField,
-                [(int)$languageAspect->getContentId(), -1]
+                [$languageAspect->getContentId(), -1]
             );
         }
 
@@ -896,11 +882,8 @@ class Typo3DbQueryParser
 
     /**
      * Transforms a Join into SQL and parameter arrays
-     *
-     * @param Qom\JoinInterface $join The join
-     * @param string $leftTableAlias The alias from the table to main
      */
-    protected function parseJoin(JoinInterface $join, $leftTableAlias)
+    protected function parseJoin(JoinInterface $join, string $leftTableAlias): void
     {
         $leftSource = $join->getLeft();
         $leftClassName = $leftSource->getNodeTypeName();
@@ -942,25 +925,21 @@ class Typo3DbQueryParser
      * @param string $fullPropertyPath The full property path that is related to the given table.
      * @return string The generated table alias.
      */
-    protected function getUniqueAlias($tableName, $fullPropertyPath = null)
+    protected function getUniqueAlias($tableName, $fullPropertyPath = null): string
     {
         if (isset($fullPropertyPath) && isset($this->tablePropertyMap[$fullPropertyPath])) {
             return $this->tablePropertyMap[$fullPropertyPath];
         }
-
         $alias = $tableName;
         $i = 0;
         while (isset($this->tableAliasMap[$alias])) {
             $alias = $tableName . $i;
             $i++;
         }
-
         $this->tableAliasMap[$alias] = $tableName;
-
         if (isset($fullPropertyPath)) {
             $this->tablePropertyMap[$fullPropertyPath] = $alias;
         }
-
         return $alias;
     }
 
@@ -971,7 +950,7 @@ class Typo3DbQueryParser
      * @param string $className The name of the parent class, will be set to the child class after processing.
      * @param string $tableName The name of the parent table, will be set to the table alias that is used in the union statement.
      * @param string $propertyPath The remaining property path, will be cut of by one part during the process.
-     * @param string $fullPropertyPath The full path the the current property, will be used to make table names unique.
+     * @param string $fullPropertyPath The full path the current property, will be used to make table names unique.
      * @throws Exception
      * @throws InvalidRelationConfigurationException
      * @throws MissingColumnMapException
@@ -1064,7 +1043,7 @@ class Typo3DbQueryParser
                 $relationTableAlias . '.' . $columnMap->getChildKeyFieldName(),
                 $this->queryBuilder->quoteIdentifier($childTableAlias . '.uid')
             );
-            $this->queryBuilder->leftJoin($relationTableAlias, $childTableName, $childTableAlias, (string)$joinConditionExpression);
+            $this->queryBuilder->leftJoin($relationTableAlias, $childTableName, $childTableAlias, $joinConditionExpression);
             $this->unionTableAliasCache[] = $childTableAlias;
             $this->suggestDistinctQuery = true;
         } else {

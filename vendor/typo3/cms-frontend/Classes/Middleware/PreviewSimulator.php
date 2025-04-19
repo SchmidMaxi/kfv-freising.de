@@ -25,6 +25,7 @@ use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Context\DateTimeAspect;
 use TYPO3\CMS\Core\Context\LanguageAspectFactory;
 use TYPO3\CMS\Core\Context\VisibilityAspect;
+use TYPO3\CMS\Core\Domain\DateTimeFactory;
 use TYPO3\CMS\Core\Domain\Repository\PageRepository;
 use TYPO3\CMS\Core\Routing\PageArguments;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -75,6 +76,7 @@ class PreviewSimulator implements MiddlewareInterface
             $showHiddenRecords = $visibilityAspect->includeHidden();
             $isPreview = $simulatingDate || $simulatingGroup || $showHiddenRecords || $showHiddenPages || $isOfflineWorkspace || $rootlineRequiresPreviewFlag;
             if ($this->context->hasAspect('frontend.preview')) {
+                /** @var PreviewAspect $previewAspect */
                 $previewAspect = $this->context->getAspect('frontend.preview');
                 $isPreview = $previewAspect->isPreview() || $isPreview;
             }
@@ -169,18 +171,15 @@ class PreviewSimulator implements MiddlewareInterface
             'date',
             GeneralUtility::makeInstance(
                 DateTimeAspect::class,
-                (new \DateTimeImmutable())->setTimestamp($queryTime)
+                DateTimeFactory::createFromTimestamp($queryTime)
             )
         );
         return true;
     }
 
     /**
-     * Simulate user group for preview functionality
-     * When previewing a page with a usergroup restriction, the parameter ADMCMD_simUser = <groupId> will be added
-     * to the preview url. Simulation happens.
-     * legacy: via TSFE member variables (->fe_user->user[<groupColumn>])
-     * new: via Context::UserAspect
+     * Simulate user group for preview functionality. When previewing a page with a user group restriction,
+     * the parameter ADMCMD_simUser = <groupId> will be added to the preview url. Simulation happens.
      * This functionality needs to be loaded after BackendAuthenticator as it is only relevant for
      * logged in backend users and needs to be done before any page resolving starts.
      */
@@ -190,9 +189,8 @@ class PreviewSimulator implements MiddlewareInterface
         if (!$simulateUserGroup) {
             return false;
         }
-
         $frontendUser = $request->getAttribute('frontend.user');
-        $frontendUser->user[$frontendUser->usergroup_column] = $simulateUserGroup;
+        $frontendUser->user[$frontendUser->usergroup_column] = (string)$simulateUserGroup;
         $frontendUser->userGroups[$simulateUserGroup] = [
             'uid' => $simulateUserGroup,
             'title' => '_PREVIEW_',

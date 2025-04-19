@@ -67,14 +67,16 @@
                                     />
                                 </f:case>
                                 <f:case value="color">
-                                    <input
-                                        class="form-control t3js-color-input"
-                                        type="text"
-                                        id="{constantItem.idName}"
-                                        rel="{constantItem.idName}"
-                                        name="data[{constantItem.name}]"
-                                        value="{constantItem.value}"
-                                    />
+                                    <typo3-backend-color-picker>
+                                        <input
+                                            class="form-control"
+                                            type="text"
+                                            id="{constantItem.idName}"
+                                            rel="{constantItem.idName}"
+                                            name="data[{constantItem.name}]"
+                                            value="{constantItem.value}"
+                                        />
+                                    </typo3-backend-color-picker>
                                 </f:case>
                                 <f:case value="wrap">
                                     <input
@@ -84,7 +86,7 @@
                                         name="data[{constantItem.name}][left]"
                                         value="{constantItem.wrapStart}"
                                     />
-                                    <span class="input-group-addon input-group-icon">|</span>
+                                    <span class="input-group-text input-group-icon">|</span>
                                     <input
                                         class="form-control form-control-adapt"
                                         type="text"
@@ -94,7 +96,7 @@
                                 </f:case>
                                 <f:case value="offset">
                                     <f:for each="{constantItem.labelValueArray}" as="labelAndValue" iteration="iterator">
-                                        <span class="input-group-addon input-group-icon">{labelAndValue.label}</span>
+                                        <span class="input-group-text input-group-icon">{labelAndValue.label}</span>
                                         <input
                                             type="text"
                                             class="form-control form-control-adapt"
@@ -170,7 +172,16 @@
                                     <core:icon identifier="actions-open" />
                                 </span>
                             </button>
-                            <input class="form-control" type="number" placeholder="{constantItem.default_value}" disabled readonly>
+                            <f:if condition="{constantItem.type} == 'color'">
+                                <f:then>
+                                    <typo3-backend-color-picker color="{constantItem.default_value}">
+                                        <input class="form-control" type="number" placeholder="{constantItem.default_value}" disabled readonly>
+                                    </typo3-backend-color-picker>
+                                </f:then>
+                                <f:else>
+                                    <input class="form-control" type="number" placeholder="{constantItem.default_value}" disabled readonly>
+                                </f:else>
+                            </f:if>
                         </div>
                     </div>
                 </fieldset>

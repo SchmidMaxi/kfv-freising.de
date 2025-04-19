@@ -7,12 +7,10 @@
 
 namespace TYPO3Fluid\Fluid\ViewHelpers;
 
-use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
 use TYPO3Fluid\Fluid\Core\Variables\ScopedVariableProvider;
 use TYPO3Fluid\Fluid\Core\Variables\StandardVariableProvider;
 use TYPO3Fluid\Fluid\Core\ViewHelper;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
-use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
 
 /**
  * Grouped loop ViewHelper.
@@ -89,8 +87,6 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
  */
 class GroupedForViewHelper extends AbstractViewHelper
 {
-    use CompileWithRenderStatic;
-
     /**
      * @var bool
      */
@@ -98,7 +94,6 @@ class GroupedForViewHelper extends AbstractViewHelper
 
     public function initializeArguments()
     {
-        parent::initializeArguments();
         $this->registerArgument('each', 'array', 'The array or \SplObjectStorage to iterated over', true);
         $this->registerArgument('as', 'string', 'The name of the iteration variable', true);
         $this->registerArgument('groupBy', 'string', 'Group by this property', true);
@@ -106,17 +101,14 @@ class GroupedForViewHelper extends AbstractViewHelper
     }
 
     /**
-     * @param array $arguments
-     * @param \Closure $renderChildrenClosure
-     * @param RenderingContextInterface $renderingContext
      * @return mixed
      */
-    public static function renderStatic(array $arguments, \Closure $renderChildrenClosure, RenderingContextInterface $renderingContext)
+    public function render()
     {
-        $each = $arguments['each'];
-        $as = $arguments['as'];
-        $groupBy = $arguments['groupBy'];
-        $groupKey = $arguments['groupKey'];
+        $each = $this->arguments['each'];
+        $as = $this->arguments['as'];
+        $groupBy = $this->arguments['groupBy'];
+        $groupKey = $this->arguments['groupKey'];
         $output = '';
         if ($each === null) {
             return '';
@@ -127,24 +119,19 @@ class GroupedForViewHelper extends AbstractViewHelper
             }
             $each = iterator_to_array($each);
         }
-
         $groups = static::groupElements($each, $groupBy);
-
-        $globalVariableProvider = $renderingContext->getVariableProvider();
+        $globalVariableProvider = $this->renderingContext->getVariableProvider();
         $localVariableProvider = new StandardVariableProvider();
-        $renderingContext->setVariableProvider(new ScopedVariableProvider(
+        $this->renderingContext->setVariableProvider(new ScopedVariableProvider(
             $globalVariableProvider,
             $localVariableProvider,
         ));
-
         foreach ($groups['values'] as $currentGroupIndex => $group) {
             $localVariableProvider->add($groupKey, $groups['keys'][$currentGroupIndex]);
             $localVariableProvider->add($as, $group);
-            $output .= $renderChildrenClosure();
+            $output .= $this->renderChildren();
         }
-
-        $renderingContext->setVariableProvider($globalVariableProvider);
-
+        $this->renderingContext->setVariableProvider($globalVariableProvider);
         return $output;
     }
 

@@ -33,16 +33,15 @@ use TYPO3\CMS\Core\Resource\ResourceInterface;
 use TYPO3\CMS\Core\SysLog\Action\File as SystemLogFileAction;
 use TYPO3\CMS\Core\SysLog\Error as SystemLogErrorClassification;
 use TYPO3\CMS\Core\SysLog\Type as SystemLogType;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
  * @internal
  */
 #[AsController]
-final class ResourceController
+final readonly class ResourceController
 {
     public function __construct(
-        private readonly ResourceFactory $resourceFactory,
+        private ResourceFactory $resourceFactory,
     ) {}
 
     public function renameResourceAction(ServerRequestInterface $request): ResponseInterface
@@ -106,7 +105,7 @@ final class ResourceController
             )
         );
         // Next to the flash message, also log the action to be consistent with the use in ExtendedFileUtiltiy
-        $this->getBackendUser()->writelog(SystemLogType::FILE, SystemLogFileAction::RENAME, $success ? SystemLogErrorClassification::MESSAGE : SystemLogErrorClassification::USER_ERROR, 0, $message, []);
+        $this->getBackendUser()->writelog(SystemLogType::FILE, SystemLogFileAction::RENAME, $success ? SystemLogErrorClassification::MESSAGE : SystemLogErrorClassification::USER_ERROR, null, $message, []);
         return [
             'success' => $success,
             'status' => $flashMessageQueue,
@@ -126,7 +125,6 @@ final class ResourceController
         return [
             'type' => $resource instanceof File ? 'file' : 'folder',
             'identifier' => $resource instanceof File || $resource instanceof Folder ? $resource->getCombinedIdentifier() : null,
-            'stateIdentifier' => $resource->getStorage()->getUid() . '_' . GeneralUtility::md5int($resource->getIdentifier()),
             'name' => $resource->getName(),
             'uid' => $resource instanceof File ? $resource->getUid() : null,
             'metaUid' => $resource instanceof File ? $resource->getMetaData()->offsetGet('uid') : null,

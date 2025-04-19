@@ -22,6 +22,7 @@ use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use Symfony\Component\Mailer\Exception\TransportException;
 use Symfony\Component\Mime\Exception\RfcComplianceException;
+use TYPO3\CMS\Core\Attribute\AsEventListener;
 use TYPO3\CMS\Core\Authentication\AbstractUserAuthentication;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Authentication\Event\AfterUserLoggedInEvent;
@@ -63,6 +64,7 @@ final class EmailLoginNotification implements LoggerAwareInterface
     /**
      * Sends an email notification to warning_email_address and/or the logged-in user's email address.
      */
+    #[AsEventListener('typo3/cms-backend/login-notification')]
     public function emailAtLogin(AfterUserLoggedInEvent $event): void
     {
         if (!$event->getUser() instanceof BackendUserAuthentication) {
@@ -121,6 +123,15 @@ final class EmailLoginNotification implements LoggerAwareInterface
             ]);
         } catch (RfcComplianceException $e) {
             $this->logger->warning('Could not send notification email to "{recipient}" due to invalid email address', [
+                'recipient' => $recipient,
+                'userId' => $user->user['uid'] ?? 0,
+                'recipientList' => $recipients,
+                'exception' => $e,
+            ]);
+        } catch (\Exception $e) {
+            // Catch all other exceptions, otherwise a failed email login notification will keep
+            // a user from logging in. See https://forge.typo3.org/issues/103546
+            $this->logger->error('Could not send notification email to "{recipient}" due to a PHP exception', [
                 'recipient' => $recipient,
                 'userId' => $user->user['uid'] ?? 0,
                 'recipientList' => $recipients,

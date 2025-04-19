@@ -17,8 +17,8 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Backend\View;
 
-use Psr\Log\LoggerAwareInterface;
-use Psr\Log\LoggerAwareTrait;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\PathUtility;
@@ -28,20 +28,17 @@ use TYPO3\CMS\Core\Utility\PathUtility;
  *
  * @internal
  */
-class AuthenticationStyleInformation implements LoggerAwareInterface
+#[Autoconfigure(public: true)]
+readonly class AuthenticationStyleInformation
 {
-    use LoggerAwareTrait;
-
-    protected array $backendExtensionConfiguration;
-
-    public function __construct(ExtensionConfiguration $extensionConfiguration)
-    {
-        $this->backendExtensionConfiguration = (array)$extensionConfiguration->get('backend');
-    }
+    public function __construct(
+        private ExtensionConfiguration $extensionConfiguration,
+        private LoggerInterface $logger,
+    ) {}
 
     public function getBackgroundImageStyles(): string
     {
-        $backgroundImage = (string)($this->backendExtensionConfiguration['loginBackgroundImage'] ?? '');
+        $backgroundImage = (string)($this->getBackendExtensionConfiguration()['loginBackgroundImage'] ?? '');
         if ($backgroundImage === '') {
             return '';
         }
@@ -49,7 +46,7 @@ class AuthenticationStyleInformation implements LoggerAwareInterface
         $backgroundImageUri = $this->getUriForFileName($backgroundImage);
         if ($backgroundImageUri === '') {
             $this->logger->warning('The configured TYPO3 backend login background image "{image_url}" can\'t be resolved. Please check if the file exists and the extension is activated.', [
-                'image_url' => $backgroundImageUri,
+                'image_url' => $backgroundImage,
             ]);
             return '';
         }
@@ -65,28 +62,36 @@ class AuthenticationStyleInformation implements LoggerAwareInterface
 
     public function getHighlightColorStyles(): string
     {
-        $highlightColor = (string)($this->backendExtensionConfiguration['loginHighlightColor'] ?? '');
+        $highlightColor = (string)($this->getBackendExtensionConfiguration()['loginHighlightColor'] ?? '');
         if ($highlightColor === '') {
             return '';
         }
-
+        $highlightColor = GeneralUtility::sanitizeCssVariableValue($highlightColor);
         return '
-            .btn-login.disabled, .btn-login[disabled], fieldset[disabled] .btn-login,
-            .btn-login.disabled:hover, .btn-login[disabled]:hover, fieldset[disabled] .btn-login:hover,
-            .btn-login.disabled:focus, .btn-login[disabled]:focus, fieldset[disabled] .btn-login:focus,
-            .btn-login.disabled.focus, .btn-login[disabled].focus, fieldset[disabled] .btn-login.focus,
-            .btn-login.disabled:active, .btn-login[disabled]:active, fieldset[disabled] .btn-login:active,
-            .btn-login.disabled.active, .btn-login[disabled].active, fieldset[disabled] .btn-login.active,
-            .btn-login:hover, .btn-login:focus, .btn-login:active,
-            .btn-login:active:hover, .btn-login:active:focus,
-            .btn-login { background-color: ' . GeneralUtility::sanitizeCssVariableValue($highlightColor) . '; }
-            .card-login .card-footer { border-color: ' . GeneralUtility::sanitizeCssVariableValue($highlightColor) . '; }
+            .typo3-login {
+                --typo3-login-highlight: ' . $highlightColor . ';
+            }
+            .btn-login {
+                --typo3-btn-color: #fff;
+                --typo3-btn-bg: ' . $highlightColor . ';
+                --typo3-btn-border-color: hsl(from ' . $highlightColor . ' h s calc(l - 5));
+                --typo3-btn-hover-color: #fff;
+                --typo3-btn-hover-bg: hsl(from ' . $highlightColor . ' h s calc(l - 3));
+                --typo3-btn-hover-border-color: hsl(from ' . $highlightColor . ' h s calc(l - 8));
+                --typo3-btn-focus-color: #fff;
+                --typo3-btn-focus-bg: hsl(from ' . $highlightColor . ' h s calc(l - 6));
+                --typo3-btn-focus-border-color: hsl(from ' . $highlightColor . ' h s calc(l - 11));
+                --typo3-btn-disabled-color: #fff;
+                --typo3-btn-disabled-bg: ' . $highlightColor . ';
+                --typo3-btn-disabled-border-color: hsl(from ' . $highlightColor . ' h s calc(l - 5));
+            }
+            .card-login .card-footer { border-color: ' . $highlightColor . '; }
         ';
     }
 
     public function getFooterNote(): string
     {
-        $footerNote = (string)($this->backendExtensionConfiguration['loginFootnote'] ?? '');
+        $footerNote = (string)($this->getBackendExtensionConfiguration()['loginFootnote'] ?? '');
         if ($footerNote === '') {
             return '';
         }
@@ -96,47 +101,17 @@ class AuthenticationStyleInformation implements LoggerAwareInterface
 
     public function getLogo(): string
     {
-        $logo = ($this->backendExtensionConfiguration['loginLogo'] ?? '');
-        if ($logo === '') {
-            return '';
-        }
-        $logoUri = $this->getUriForFileName($logo);
-        if ($logoUri === '') {
-            $this->logger->warning('The configured TYPO3 backend login logo "{logo_url}" can\'t be resolved. Please check if the file exists and the extension is activated.', [
-                'logo_url' => $logoUri,
-            ]);
-            return '';
-        }
-
-        return $logoUri;
+        return $this->getBackendExtensionConfiguration()['loginLogo'] ?? '';
     }
 
     public function getLogoAlt(): string
     {
-        return trim((string)($this->backendExtensionConfiguration['loginLogoAlt'] ?? ''));
+        return trim((string)($this->getBackendExtensionConfiguration()['loginLogoAlt'] ?? ''));
     }
 
     public function getDefaultLogo(): string
     {
-        // Use TYPO3 logo depending on highlight color
-        $logo = ((string)($this->backendExtensionConfiguration['loginHighlightColor'] ?? '') !== '')
-            ? 'EXT:core/Resources/Public/Images/typo3_black.svg'
-            : 'EXT:core/Resources/Public/Images/typo3_orange.svg';
-
-        return $this->getUriForFileName($logo);
-    }
-
-    public function getDefaultLogoStyles(): string
-    {
-        return '.typo3-login-logo .typo3-login-image { max-width: 150px; height:100%;}';
-    }
-
-    public function getSupportingImages(): array
-    {
-        return [
-            'capslock' => $this->getUriForFileName('EXT:backend/Resources/Public/Images/icon_capslock.svg'),
-            'typo3' => $this->getUriForFileName('EXT:core/Resources/Public/Images/typo3_orange.svg'),
-        ];
+        return 'EXT:core/Resources/Public/Images/typo3_variable.svg';
     }
 
     /**
@@ -148,7 +123,7 @@ class AuthenticationStyleInformation implements LoggerAwareInterface
      * @return string Returns the filename of $filename if valid, otherwise blank string.
      * @internal
      */
-    protected function getUriForFileName(string $filename): string
+    public function getUriForFileName(string $filename): string
     {
         // Check if it's already a URL
         if (preg_match('/^(https?:)?\/\//', $filename)) {
@@ -160,5 +135,10 @@ class AuthenticationStyleInformation implements LoggerAwareInterface
             $filename = PathUtility::getAbsoluteWebPath($absoluteFilename);
         }
         return $filename;
+    }
+
+    protected function getBackendExtensionConfiguration(): array
+    {
+        return (array)$this->extensionConfiguration->get('backend');
     }
 }

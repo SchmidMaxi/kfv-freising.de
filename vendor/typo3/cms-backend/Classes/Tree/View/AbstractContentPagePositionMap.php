@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Backend\Tree\View;
 
+use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Backend\View\BackendLayoutView;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
@@ -71,7 +72,7 @@ abstract class AbstractContentPagePositionMap
      * @param int $pid page id onto which to insert content element.
      * @return string HTML
      */
-    public function printContentElementColumns(int $pid): string
+    public function printContentElementColumns(int $pid, array $pageInfo, ServerRequestInterface $request): string
     {
         $lines = [];
         $columnsConfiguration = $this->getColumnsConfiguration($pid);
@@ -194,10 +195,10 @@ abstract class AbstractContentPagePositionMap
                             $tableCellAttributes['class'] = 'hidden';
                         } else {
                             $cellContent = '
-                                <p>
+                                <p class="column-title">
                                     ' . $columnTitle . ' <em>(' . htmlspecialchars($lang->sL('LLL:EXT:backend/Resources/Private/Language/locallang_layout.xlf:noAccess')) . ')</em>
                                 </p>';
-                            $tableCellAttributes['class'] .= ' bg-danger bg-opacity-25';
+                            $tableCellAttributes['class'] .= ' danger';
                         }
                     } elseif ($isUnassigned) {
                         if ($hideRestrictedColumns) {
@@ -209,14 +210,14 @@ abstract class AbstractContentPagePositionMap
                                     ' . htmlspecialchars($lang->sL($columnConfig['name']) ?: '') . '
                                     ' . ' (' . htmlspecialchars($lang->sL('LLL:EXT:backend/Resources/Private/Language/locallang_layout.xlf:notAssigned')) . ')' . '
                                 </em>';
-                            $tableCellAttributes['class'] .= ' bg-warning bg-opacity-25';
+                            $tableCellAttributes['class'] .= ' warning';
                         }
                     } else {
                         // If not restricted and not unassigned, wrap column title and render list (if available)
-                        $cellContent = '<p>' . $columnTitle . '</p>';
+                        $cellContent = '<p class="column-title">' . $columnTitle . '</p>';
                         if (!empty($lines[$columnKey])) {
                             $cellContent .= '
-                                <ul class="list-unstyled m-0">
+                                <ul>
                                     ' . implode(LF, array_map(static fn(string $line): string => '<li>' . $line . '</li>', $lines[$columnKey])) . '
                                 </ul>';
                         }
@@ -231,7 +232,9 @@ abstract class AbstractContentPagePositionMap
             }
 
             // Create the table content
-            $tableContent = '<tbody>' . implode(LF, $tableRows) . '</tbody>';
+            $tableContent =
+                '<colgroup>' . str_repeat('<col span="1" style="width: calc(100% / ' . $colCount . ')">', $colCount) . '</colgroup>'
+                . '<tbody>' . implode(LF, $tableRows) . '</tbody>';
         } else {
             // Build position map based on TCA colPos configuration
             $tableCells = [];
@@ -246,17 +249,17 @@ abstract class AbstractContentPagePositionMap
                 $columnTitle = '<strong>' . htmlspecialchars($tcaColumnConfiguration['title']) . '</strong>';
                 if ($tcaColumnConfiguration['isRestricted']) {
                     // If this colPos is restricted, add an information to the column title and color the cell
-                    $tableCellClasses .= ' bg-danger bg-opacity-25';
+                    $tableCellClasses .= ' danger';
                     $cellContent = '
-                        <p>
+                        <p class="column-title">
                             ' . $columnTitle . ' <em>(' . htmlspecialchars($lang->sL('LLL:EXT:backend/Resources/Private/Language/locallang_layout.xlf:noAccess')) . ')</em>
                         </p>';
                 } else {
                     // If not restricted, wrap column title and render list (if available)
-                    $cellContent = '<p>' . $columnTitle . '</p>';
+                    $cellContent = '<p class="column-title">' . $columnTitle . '</p>';
                     if (!empty($lines[$tcaColumnConfiguration['colPos']])) {
                         $cellContent .= '
-                            <ul class="list-unstyled">
+                            <ul>
                                 ' . implode(LF, array_map(static fn(string $line): string => '<li>' . $line . '</li>', $lines[$tcaColumnConfiguration['colPos']])) . '
                             </ul>';
                     }
@@ -272,39 +275,37 @@ abstract class AbstractContentPagePositionMap
 
         // Return the record map (table)
         return '
-            <div class="table-fit">
-                <table class="table table-bordered table-vertical-top">
-                    ' . $tableContent . '
-                </table>
-            </div>';
+            <table class="page-position-grid">
+                ' . $tableContent . '
+            </table>';
     }
 
     /**
      * Fetch TCA colPos list from BackendLayoutView and prepare for map generation.
      * This also takes the "colPos_list" TSconfig into account.
      */
-    protected function getColumnsConfiguration(int $id): array
+    protected function getColumnsConfiguration(int $pageId): array
     {
-        $columnsConfiguration = $this->backendLayoutView->getColPosListItemsParsed($id);
-        if ($columnsConfiguration === []) {
+        $backendLayout = $this->backendLayoutView->getBackendLayoutForPage($pageId);
+        if (!$backendLayout) {
             return [];
         }
 
+        $items = [];
         // Prepare the columns configuration (using named keys, etc.)
-        foreach ($columnsConfiguration as &$item) {
-            $item = [
-                'title' => $item['label'] ?? '',
-                'colPos' => (int)($item['value'] ?? 0),
+        foreach ($backendLayout->getUsedColumns() as $colPos => $label) {
+            $items[] = [
+                'title' => $label,
+                'colPos' => (int)$colPos,
                 'isRestricted' => false,
             ];
         }
-        unset($item);
 
-        $sharedColPosList = trim(BackendUtility::getPagesTSconfig($id)['mod.']['SHARED.']['colPos_list'] ?? '');
+        $sharedColPosList = trim(BackendUtility::getPagesTSconfig($pageId)['mod.']['SHARED.']['colPos_list'] ?? '');
         if ($sharedColPosList !== '') {
             $activeColPosArray = array_unique(GeneralUtility::intExplode(',', $sharedColPosList));
-            if (!empty($columnsConfiguration) && !empty($activeColPosArray)) {
-                foreach ($columnsConfiguration as &$item) {
+            if (!empty($items) && !empty($activeColPosArray)) {
+                foreach ($items as &$item) {
                     if (!in_array((int)$item['colPos'], $activeColPosArray, true)) {
                         $item['isRestricted'] = true;
                     }
@@ -313,7 +314,7 @@ abstract class AbstractContentPagePositionMap
             }
         }
 
-        return $columnsConfiguration;
+        return $items;
     }
 
     protected function getBackendUser(): BackendUserAuthentication

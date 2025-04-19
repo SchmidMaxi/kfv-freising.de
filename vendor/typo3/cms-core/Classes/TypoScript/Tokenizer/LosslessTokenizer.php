@@ -109,6 +109,7 @@ final class LosslessTokenizer implements TokenizerInterface
             } elseif (str_starts_with($this->currentLineString, '@import')) {
                 $this->parseImportLine();
             } elseif (str_starts_with($this->currentLineString, '<INCLUDE_TYPOSCRIPT:')) {
+                // @deprecated: Remove together with related code in v14, search for keyword INCLUDE_TYPOSCRIPT
                 $this->parseImportOld();
             } else {
                 $this->parseIdentifier();
@@ -414,6 +415,8 @@ final class LosslessTokenizer implements TokenizerInterface
     /**
      * Parse everything behind <INCLUDE_TYPOSCRIPT: at least until end of line or
      * more if there is a multiline comment at end.
+     *
+     * @deprecated: Remove together with related code in v14, search for keyword INCLUDE_TYPOSCRIPT
      */
     private function parseImportOld(): void
     {
@@ -825,6 +828,7 @@ final class LosslessTokenizer implements TokenizerInterface
         $functionBodyPart = '';
         $functionBodyCharCount = 0;
         $functionValueStream = new TokenStream();
+        $parenthesesLevel = 0;
         while (true) {
             $nextChar = $functionChars[$functionBodyStartPosition + $functionBodyCharCount] ?? null;
             if ($nextChar === null) {
@@ -835,13 +839,24 @@ final class LosslessTokenizer implements TokenizerInterface
                 $this->lineStream->append((new InvalidLine())->setTokenStream($this->tokenStream));
                 return;
             }
+            if ($nextChar === '(') {
+                // In case of a function call like "appendString(something(somethingelse))"
+                // we shall only stop processing when the last bracket was evaluated.
+                $parenthesesLevel++;
+            }
             if ($nextChar === ')') {
-                if ($functionBodyCharCount) {
-                    [$functionValueStream, $this->tokenStream] = $this->parseValueForConstants($functionValueStream, $this->tokenStream, $functionBodyPart, $this->currentLineNumber, $this->currentColumnInLine, $functionBodyStartPosition);
+                if ($parenthesesLevel > 0) {
+                    $parenthesesLevel--;
+                    // Continue collecting characters from the (...) argument stream.
+                    // Also, ")" will be appended, thus intentionally no "break" occurs.
+                } else {
+                    if ($functionBodyCharCount) {
+                        [$functionValueStream, $this->tokenStream] = $this->parseValueForConstants($functionValueStream, $this->tokenStream, $functionBodyPart, $this->currentLineNumber, $this->currentColumnInLine, $functionBodyStartPosition);
+                    }
+                    $this->tokenStream->append(new Token(TokenType::T_FUNCTION_VALUE_STOP, ')', $this->currentLineNumber, $this->currentColumnInLine + $functionNameCharCount + $functionBodyCharCount));
+                    $functionBodyCharCount++;
+                    break;
                 }
-                $this->tokenStream->append(new Token(TokenType::T_FUNCTION_VALUE_STOP, ')', $this->currentLineNumber, $this->currentColumnInLine + $functionNameCharCount + $functionBodyCharCount));
-                $functionBodyCharCount++;
-                break;
             }
             $functionBodyPart .= $nextChar;
             $functionBodyCharCount++;

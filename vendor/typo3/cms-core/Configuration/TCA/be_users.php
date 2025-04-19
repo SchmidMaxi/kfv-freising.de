@@ -40,15 +40,6 @@ return [
                 'autocomplete' => false,
             ],
         ],
-        'description' => [
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.description',
-            'config' => [
-                'type' => 'text',
-                'rows' => 5,
-                'cols' => 30,
-                'max' => 2000,
-            ],
-        ],
         'password' => [
             'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_users.password',
             'config' => [
@@ -73,6 +64,7 @@ return [
                 'renderType' => 'selectMultipleSideBySide',
                 'foreign_table' => 'be_groups',
                 'size' => 5,
+                'dbFieldLength' => 512,
                 'fieldControl' => [
                     'editPopup' => [
                         'disabled' => false,
@@ -100,7 +92,7 @@ return [
             'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_users.avatar',
             'config' => [
                 'type' => 'file',
-                'maxitems' => 1,
+                'relationship' => 'manyToOne',
                 'allowed' => 'common-image-types',
             ],
         ],
@@ -163,21 +155,6 @@ return [
                 'max' => 80,
             ],
         ],
-        'disable' => [
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.enabled',
-            'displayCond' => 'USER:' . \TYPO3\CMS\Core\Hooks\TcaDisplayConditions::class . '->isRecordCurrentUser:false',
-            'config' => [
-                'type' => 'check',
-                'renderType' => 'checkboxToggle',
-                'items' => [
-                    [
-                        'label' => '',
-                        'invertStateDisplay' => true,
-                    ],
-                ],
-                'default' => 1,
-            ],
-        ],
         'admin' => [
             'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_users.admin',
             'config' => [
@@ -234,6 +211,7 @@ return [
         ],
         'workspace_perms' => [
             'displayCond' => 'USER:TYPO3\CMS\Core\Hooks\TcaDisplayConditions->isExtensionInstalled:workspaces',
+            'description' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:workspace_perms.description',
             'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:workspace_perms',
             'config' => [
                 'type' => 'check',
@@ -241,23 +219,6 @@ return [
                 'default' => 1,
                 'items' => [
                     ['label' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:workspace_perms_live'],
-                ],
-            ],
-        ],
-        'starttime' => [
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.starttime',
-            'config' => [
-                'type' => 'datetime',
-                'default' => 0,
-            ],
-        ],
-        'endtime' => [
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.endtime',
-            'config' => [
-                'type' => 'datetime',
-                'default' => 0,
-                'range' => [
-                    'upper' => mktime(0, 0, 0, 1, 1, 2038),
                 ],
             ],
         ],
@@ -294,6 +255,7 @@ return [
                 'type' => 'select',
                 'renderType' => 'selectCheckBox',
                 'itemsProcFunc' => \TYPO3\CMS\Core\Localization\TcaSystemLanguageCollector::class . '->populateAvailableSiteLanguages',
+                'dbFieldLength' => 255,
             ],
         ],
         'TSconfig' => [
@@ -334,10 +296,10 @@ return [
                 admin, username, password, mfa, usergroup, lang, lastlogin,
             --div--;LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_users.tabs.personal_data,
                 realName, email, avatar,
-            --div--;LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_users.tabs.rights,
-                userMods, allowed_languages,
+            --div--;LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_users.tabs.permissions,
+                userMods, allowed_languages, workspace_perms,
             --div--;LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_users.tabs.mounts_and_workspaces,
-                workspace_perms, db_mountpoints, options, file_mountpoints, file_permissions, category_perms,
+                db_mountpoints, options, file_mountpoints, file_permissions, category_perms,
             --div--;LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_users.tabs.options,
                 TSconfig,
             --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:access,

@@ -11,6 +11,8 @@ use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\DependencyInjection\ChildDefinition;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
+use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use TYPO3\CMS\Core\Attribute\AsEventListener;
 
 return static function (ContainerConfigurator $container, ContainerBuilder $containerBuilder) {
     $containerBuilder->registerForAutoconfiguration(SingletonInterface::class)->addTag('typo3.singleton');
@@ -19,6 +21,38 @@ return static function (ContainerConfigurator $container, ContainerBuilder $cont
     // Services, to be read from container-aware dispatchers (on demand), therefore marked 'public'
     $containerBuilder->registerForAutoconfiguration(MiddlewareInterface::class)->addTag('typo3.middleware');
     $containerBuilder->registerForAutoconfiguration(RequestHandlerInterface::class)->addTag('typo3.request_handler');
+
+    $containerBuilder->registerAttributeForAutoconfiguration(
+        AsEventListener::class,
+        static function (ChildDefinition $definition, AsEventListener $attribute, \Reflector $reflector): void {
+            $definition->addTag(
+                AsEventListener::TAG_NAME,
+                [
+                    'identifier' => $attribute->identifier,
+                    'event' => $attribute->event,
+                    'method' => $attribute->method ?? ($reflector instanceof \ReflectionMethod ? $reflector->getName() : null),
+                    'before' => $attribute->before,
+                    'after' => $attribute->after,
+                ]
+            );
+        }
+    );
+
+    $containerBuilder->registerAttributeForAutoconfiguration(
+        AsMessageHandler::class,
+        static function (ChildDefinition $definition, AsMessageHandler $attribute, \Reflector $reflector): void {
+            $definition->addTag(
+                'messenger.message_handler',
+                [
+                    'bus' => $attribute->bus,
+                    'fromTransport' => $attribute->fromTransport,
+                    'handles' => $attribute->handles,
+                    'method' => $attribute->method ?? ($reflector instanceof \ReflectionMethod ? $reflector->getName() : null),
+                    'priority' => $attribute->priority,
+                ]
+            );
+        }
+    );
 
     $containerBuilder->registerAttributeForAutoconfiguration(
         AsCommand::class,

@@ -17,7 +17,8 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Install\Service;
 
-use Doctrine\DBAL\Platforms\MySQLPlatform;
+use Doctrine\DBAL\Platforms\MariaDBPlatform as DoctrineMariaDBPlatform;
+use Doctrine\DBAL\Platforms\MySQLPlatform as DoctrineMySQLPlatform;
 use Doctrine\DBAL\Schema\Column;
 use Doctrine\DBAL\Schema\Table;
 use TYPO3\CMS\Core\Database\ConnectionPool;
@@ -31,6 +32,10 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  */
 class DatabaseUpgradeWizardsService
 {
+    public function __construct(
+        private readonly SchemaMigrator $schemaMigrator,
+    ) {}
+
     /**
      * Get a list of tables, single columns and indexes to add.
      *
@@ -44,13 +49,10 @@ class DatabaseUpgradeWizardsService
     {
         $sqlReader = GeneralUtility::makeInstance(SqlReader::class);
         $databaseDefinitions = $sqlReader->getCreateTableStatementArray($sqlReader->getTablesDefinitionString());
-
-        $schemaMigrator = GeneralUtility::makeInstance(SchemaMigrator::class);
-        $databaseDifferences = $schemaMigrator->getSchemaDiffs($databaseDefinitions);
-
+        $databaseDifferences = $this->schemaMigrator->getSchemaDiffs($databaseDefinitions);
         $adds = [];
         foreach ($databaseDifferences as $schemaDiff) {
-            foreach ($schemaDiff->newTables as $newTable) {
+            foreach ($schemaDiff->getCreatedTables() as $newTable) {
                 /** @var Table $newTable */
                 if (!is_array($adds['tables'] ?? false)) {
                     $adds['tables'] = [];
@@ -59,24 +61,24 @@ class DatabaseUpgradeWizardsService
                     'table' => $newTable->getName(),
                 ];
             }
-            foreach ($schemaDiff->changedTables as $changedTable) {
-                foreach ($changedTable->addedColumns as $addedColumn) {
+            foreach ($schemaDiff->getAlteredTables() as $changedTable) {
+                foreach ($changedTable->getAddedColumns() as $addedColumn) {
                     /** @var Column $addedColumn */
                     if (!is_array($adds['columns'] ?? false)) {
                         $adds['columns'] = [];
                     }
                     $adds['columns'][] = [
-                        'table' => $changedTable->name,
+                        'table' => $changedTable->getOldTable()->getName(),
                         'field' => $addedColumn->getName(),
                     ];
                 }
-                foreach ($changedTable->addedIndexes as $addedIndex) {
+                foreach ($changedTable->getAddedIndexes() as $addedIndex) {
                     /** $var Index $addedIndex */
                     if (!is_array($adds['indexes'] ?? false)) {
                         $adds['indexes'] = [];
                     }
                     $adds['indexes'][] = [
-                        'table' => $changedTable->name,
+                        'table' => $changedTable->getOldTable()->getName(),
                         'index' => $addedIndex->getName(),
                     ];
                 }
@@ -95,8 +97,7 @@ class DatabaseUpgradeWizardsService
     {
         $sqlReader = GeneralUtility::makeInstance(SqlReader::class);
         $databaseDefinitions = $sqlReader->getCreateTableStatementArray($sqlReader->getTablesDefinitionString());
-        $schemaMigrator = GeneralUtility::makeInstance(SchemaMigrator::class);
-        return $schemaMigrator->install($databaseDefinitions, true);
+        return $this->schemaMigrator->install($databaseDefinitions, true);
     }
 
     /**
@@ -109,8 +110,8 @@ class DatabaseUpgradeWizardsService
         $connection = GeneralUtility::makeInstance(ConnectionPool::class)
             ->getConnectionByName(ConnectionPool::DEFAULT_CONNECTION_NAME);
 
-        $isDefaultConnectionMysql = ($connection->getDatabasePlatform() instanceof MySQLPlatform);
-
+        $platform = $connection->getDatabasePlatform();
+        $isDefaultConnectionMysql = $platform instanceof DoctrineMariaDBPlatform || $platform instanceof DoctrineMySQLPlatform;
         if (!$isDefaultConnectionMysql) {
             // Not tested on non mysql
             $charsetOk = true;
@@ -142,6 +143,6 @@ class DatabaseUpgradeWizardsService
         $connection = GeneralUtility::makeInstance(ConnectionPool::class)
             ->getConnectionByName(ConnectionPool::DEFAULT_CONNECTION_NAME);
         $sql = 'ALTER DATABASE ' . $connection->quoteIdentifier($connection->getDatabase()) . ' CHARACTER SET utf8';
-        $connection->exec($sql);
+        $connection->executeStatement($sql);
     }
 }

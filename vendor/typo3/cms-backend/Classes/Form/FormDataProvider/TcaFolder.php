@@ -27,8 +27,12 @@ use TYPO3\CMS\Core\Utility\MathUtility;
 /**
  * Resolve databaseRow field content for type=folder
  */
-class TcaFolder implements FormDataProviderInterface
+readonly class TcaFolder implements FormDataProviderInterface
 {
+    public function __construct(
+        private ResourceFactory $resourceFactory,
+    ) {}
+
     /**
      * Initialize new row with default values from various sources
      *
@@ -64,7 +68,7 @@ class TcaFolder implements FormDataProviderInterface
                     continue;
                 }
                 try {
-                    $folderObject = GeneralUtility::makeInstance(ResourceFactory::class)->retrieveFileOrFolderObject($folder);
+                    $folderObject = $this->resourceFactory->retrieveFileOrFolderObject($folder);
                     if ($folderObject instanceof Folder) {
                         $items[] = [
                             'folder' => $folder,

@@ -10,4 +10,4 @@
  *
  * The TYPO3 project - inspiring people to share!
  */
-import RegularEvent from"@typo3/core/event/regular-event.js";class DebounceEvent extends RegularEvent{constructor(e,t,l=250,n=!1){super(e,t),this.callback=this.debounce(this.callback,l,n)}debounce(e,t,l){let n=null;return function(...u){const c=l&&!n;clearTimeout(n),c?(e.apply(this,u),n=setTimeout((()=>{n=null}),t)):n=setTimeout((()=>{n=null,l||e.apply(this,u)}),t)}}}export default DebounceEvent;
+import c from"@typo3/core/event/regular-event.js";class n extends c{constructor(t,l,e=250){super(t,l),this.callback=this.debounce(this.callback,e)}debounce(t,l){let e=null;return function(...u){clearTimeout(e),e=setTimeout(()=>{e=null,t.apply(this,u)},l)}}}export{n as default};

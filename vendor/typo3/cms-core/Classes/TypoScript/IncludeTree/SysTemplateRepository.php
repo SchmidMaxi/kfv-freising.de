@@ -17,9 +17,9 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Core\TypoScript\IncludeTree;
 
-use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
@@ -35,12 +35,13 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  *
  * @internal: Internal structure. There is optimization potential and especially getSysTemplateRowsByRootline() will probably vanish later.
  */
-final class SysTemplateRepository
+#[Autoconfigure(public: true)]
+final readonly class SysTemplateRepository
 {
     public function __construct(
-        private readonly EventDispatcherInterface $eventDispatcher,
-        private readonly ConnectionPool $connectionPool,
-        private readonly Context $context,
+        private EventDispatcherInterface $eventDispatcher,
+        private ConnectionPool $connectionPool,
+        private Context $context,
     ) {}
 
     /**
@@ -60,6 +61,10 @@ final class SysTemplateRepository
      */
     public function getSysTemplateRowsByRootline(array $rootline, ?ServerRequestInterface $request = null): array
     {
+        if ($rootline === []) {
+            return [];
+        }
+
         // Site-root node first!
         $rootLinePageIds = array_reverse(array_column($rootline, 'uid'));
         $sysTemplateRows = [];
@@ -68,15 +73,17 @@ final class SysTemplateRepository
         $queryBuilder->select('sys_template.*')->from('sys_template');
         // Build a value list as joined table to have sorting based on list sorting
         $valueList = [];
-        // @todo: Use type/int cast from expression builder to handle this dbms aware
-        //        when support for this has been extracted from CTE PoC patch (sbuerk).
-        $isPostgres = $queryBuilder->getConnection()->getDatabasePlatform() instanceof PostgreSQLPlatform;
-        $pattern = $isPostgres ? '%s::int as uid, %s::int as sorting' : '%s as uid, %s as sorting';
         foreach ($rootLinePageIds as $sorting => $rootLinePageId) {
             $valueList[] = sprintf(
-                $pattern,
-                $queryBuilder->createNamedParameter($rootLinePageId, Connection::PARAM_INT),
-                $queryBuilder->createNamedParameter($sorting, Connection::PARAM_INT)
+                '%s, %s',
+                $queryBuilder->expr()->castInt(
+                    $queryBuilder->createNamedParameter($rootLinePageId, Connection::PARAM_INT),
+                    'uid',
+                ),
+                $queryBuilder->expr()->castInt(
+                    $queryBuilder->createNamedParameter($sorting, Connection::PARAM_INT),
+                    'sorting',
+                )
             );
         }
         $valueList = 'SELECT ' . implode(' UNION ALL SELECT ', $valueList);
@@ -143,15 +150,17 @@ final class SysTemplateRepository
         }
         // Build a value list as joined table to have sorting based on list sorting
         $valueList = [];
-        // @todo: Use type/int cast from expression builder to handle this dbms aware
-        //        when support for this has been extracted from CTE PoC patch (sbuerk).
-        $isPostgres = $queryBuilder->getConnection()->getDatabasePlatform() instanceof PostgreSQLPlatform;
-        $pattern = $isPostgres ? '%s::int as uid, %s::int as sorting' : '%s as uid, %s as sorting';
         foreach ($rootLinePageIds as $sorting => $rootLinePageId) {
             $valueList[] = sprintf(
-                $pattern,
-                $queryBuilder->createNamedParameter($rootLinePageId, Connection::PARAM_INT),
-                $queryBuilder->createNamedParameter($sorting, Connection::PARAM_INT)
+                '%s, %s',
+                $queryBuilder->expr()->castInt(
+                    $queryBuilder->createNamedParameter($rootLinePageId, Connection::PARAM_INT),
+                    'uid',
+                ),
+                $queryBuilder->expr()->castInt(
+                    $queryBuilder->createNamedParameter($sorting, Connection::PARAM_INT),
+                    'sorting',
+                ),
             );
         }
         $valueList = 'SELECT ' . implode(' UNION ALL SELECT ', $valueList);

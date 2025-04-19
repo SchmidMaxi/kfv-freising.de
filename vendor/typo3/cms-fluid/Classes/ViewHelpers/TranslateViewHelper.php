@@ -23,11 +23,8 @@ use TYPO3\CMS\Core\Localization\Locales;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Mvc\RequestInterface as ExtbaseRequestInterface;
 use TYPO3\CMS\Extbase\Utility\LocalizationUtility;
-use TYPO3\CMS\Fluid\Core\Rendering\RenderingContext;
-use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
 use TYPO3Fluid\Fluid\Core\ViewHelper\Exception;
-use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
 
 /**
  * Translate a key from locallang. The files are loaded from the folder
@@ -86,7 +83,7 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
  * ``%s`` conversions, using `PHP sprintf() notation <https://www.php.net/sprintf>`__ in the
  * language file::
  *
- *    <trans-unit id="someKey" resname="someKey">
+ *    <trans-unit id="someKey">
  *        <source>Some text about a %s and a %s.</source>
  *    </trans-unit>
  *
@@ -113,8 +110,6 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
  */
 final class TranslateViewHelper extends AbstractViewHelper
 {
-    use CompileWithRenderStatic;
-
     /**
      * Output is escaped already. We must not escape children, to avoid double encoding.
      *
@@ -130,8 +125,6 @@ final class TranslateViewHelper extends AbstractViewHelper
         $this->registerArgument('arguments', 'array', 'Arguments to be replaced in the resulting string');
         $this->registerArgument('extensionName', 'string', 'UpperCamelCased extension key (for example BlogExample)');
         $this->registerArgument('languageKey', 'string', 'Language key ("da" for example) or "default" to use. Also a Locale object is possible. If empty, use current locale from the request.');
-        // @deprecated will be removed in TYPO3 v13.0. Deprecation is triggered in LocalizationUtility
-        $this->registerArgument('alternativeLanguageKeys', 'array', 'Alternative language keys if no translation does exist. Ignored in non-extbase context. Deprecated, will be removed in TYPO3 v13.0');
     }
 
     /**
@@ -140,29 +133,25 @@ final class TranslateViewHelper extends AbstractViewHelper
      * @throws Exception
      * @throws \RuntimeException
      */
-    public static function renderStatic(array $arguments, \Closure $renderChildrenClosure, RenderingContextInterface $renderingContext): string
+    public function render(): string
     {
-        $key = $arguments['key'];
-        $id = $arguments['id'];
-        $default = (string)($arguments['default'] ?? $renderChildrenClosure() ?? '');
-        $extensionName = $arguments['extensionName'];
-        $translateArguments = $arguments['arguments'];
-
+        $key = $this->arguments['key'];
+        $id = $this->arguments['id'];
+        $default = (string)($this->arguments['default'] ?? $this->renderChildren() ?? '');
+        $extensionName = $this->arguments['extensionName'];
+        $translateArguments = $this->arguments['arguments'];
         // Use key if id is empty.
         if ($id === null) {
             $id = $key;
         }
-
         $id = (string)$id;
         if ($id === '') {
             throw new Exception('An argument "key" or "id" has to be provided', 1351584844);
         }
-
         $request = null;
-        if ($renderingContext instanceof RenderingContext) {
-            $request = $renderingContext->getRequest();
+        if ($this->renderingContext->hasAttribute(ServerRequestInterface::class)) {
+            $request = $this->renderingContext->getAttribute(ServerRequestInterface::class);
         }
-
         if (empty($extensionName)) {
             if ($request instanceof ExtbaseRequestInterface) {
                 $extensionName = $request->getControllerExtensionName();
@@ -184,8 +173,8 @@ final class TranslateViewHelper extends AbstractViewHelper
             }
         }
         try {
-            $locale = self::getUsedLocale($arguments['languageKey'], $request);
-            $value = LocalizationUtility::translate($id, $extensionName, $translateArguments, $locale, $arguments['alternativeLanguageKeys'] ?? null);
+            $locale = self::getUsedLocale($this->arguments['languageKey'], $request);
+            $value = LocalizationUtility::translate($id, $extensionName, $translateArguments, $locale);
         } catch (\InvalidArgumentException) {
             // @todo: Switch to more specific Exceptions here - for instance those thrown when a package was not found, see #95957
             $value = null;

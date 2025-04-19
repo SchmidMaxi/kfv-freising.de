@@ -17,7 +17,7 @@ namespace TYPO3\CMS\Core\Resource\Processing;
 
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
-use TYPO3\CMS\Core\Imaging\GraphicalFunctions;
+use TYPO3\CMS\Core\Type\File\ImageInfo;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
@@ -68,12 +68,19 @@ class LocalImageProcessor implements ProcessorInterface, LoggerAwareInterface
                 $task->getTargetFile()->setUsesOriginalFile();
             } elseif (!empty($result['filePath']) && file_exists($result['filePath'])) {
                 $task->setExecuted(true);
-                $imageDimensions = $this->getGraphicalFunctionsObject()->getImageDimensions($result['filePath']);
-                $task->getTargetFile()->setName($task->getTargetFileName());
+                $imageInformation = GeneralUtility::makeInstance(ImageInfo::class, $result['filePath']);
+                if (($result['remapProcessedTargetFileExtension'] ?? null) !== null) {
+                    // Processing changed the target filename extension to something else.
+                    // We need to react on this, because otherwise the file contents will not
+                    // match the file extension.
+                    $task->getTargetFile()->setName($task->getTargetFileName() . '.' . $result['remapProcessedTargetFileExtension']);
+                } else {
+                    $task->getTargetFile()->setName($task->getTargetFileName());
+                }
                 $task->getTargetFile()->updateProperties([
-                    'width' => $imageDimensions[0] ?? 0,
-                    'height' => $imageDimensions[1] ?? 0,
-                    'size' => filesize($result['filePath']),
+                    'width' => $imageInformation->getWidth(),
+                    'height' => $imageInformation->getHeight(),
+                    'size' => $imageInformation->getSize(),
                     'checksum' => $task->getConfigurationChecksum(),
                 ]);
                 $task->getTargetFile()->updateWithLocalFile($result['filePath']);
@@ -91,12 +98,10 @@ class LocalImageProcessor implements ProcessorInterface, LoggerAwareInterface
     }
 
     /**
-     * Check if the to be processed target file already exists
-     * if exist take info from that file and mark task as done
-     *
-     * @return bool
+     * Check if the target file that is to be processed already exists.
+     * If it exists, use the metadata from that file and mark task as done.
      */
-    protected function checkForExistingTargetFile(TaskInterface $task)
+    protected function checkForExistingTargetFile(TaskInterface $task): bool
     {
         // the storage of the processed file, not of the original file!
         $storage = $task->getTargetFile()->getStorage();
@@ -112,11 +117,11 @@ class LocalImageProcessor implements ProcessorInterface, LoggerAwareInterface
             // have no API for fetching file metadata from a remote file.
             $localProcessedFile = $storage->getFileForLocalProcessing($task->getTargetFile(), false);
             $task->setExecuted(true);
-            $imageDimensions = $this->getGraphicalFunctionsObject()->getImageDimensions($localProcessedFile);
+            $imageInformation = GeneralUtility::makeInstance(ImageInfo::class, $localProcessedFile);
             $properties = [
-                'width' => $imageDimensions[0] ?? 0,
-                'height' => $imageDimensions[1] ?? 0,
-                'size' => filesize($localProcessedFile),
+                'width' => $imageInformation->getWidth(),
+                'height' => $imageInformation->getHeight(),
+                'size' => $imageInformation->getSize(),
                 'checksum' => $task->getConfigurationChecksum(),
             ];
             $task->getTargetFile()->updateProperties($properties);
@@ -145,10 +150,5 @@ class LocalImageProcessor implements ProcessorInterface, LoggerAwareInterface
         }
 
         return $helper;
-    }
-
-    protected function getGraphicalFunctionsObject(): GraphicalFunctions
-    {
-        return GeneralUtility::makeInstance(GraphicalFunctions::class);
     }
 }

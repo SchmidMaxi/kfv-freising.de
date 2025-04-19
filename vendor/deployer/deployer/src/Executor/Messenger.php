@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 /* (c) Anton Medvedev <anton@medv.io>
  *
@@ -51,9 +53,10 @@ class Messenger
         $this->startTime = round(microtime(true) * 1000);
         if (getenv('GITHUB_WORKFLOW')) {
             $this->output->writeln("::group::task {$task->getName()}");
-        } else if (getenv('GITLAB_CI')) {
-            $start = round($this->startTime/1000);
-            $this->output->writeln("\e[0Ksection_start:{$start}:{$start}[collapsed=true]\r\e[0K{$task->getName()}");
+        } elseif (getenv('GITLAB_CI')) {
+            $sectionId = md5($task->getName());
+            $start = round($this->startTime / 1000);
+            $this->output->writeln("\e[0Ksection_start:{$start}:{$sectionId}\r\e[0K{$task->getName()}");
         } else {
             $this->output->writeln("<fg=cyan;options=bold>task</> {$task->getName()}");
         }
@@ -77,11 +80,11 @@ class Messenger
 
         if (getenv('GITHUB_WORKFLOW')) {
             $this->output->writeln("::endgroup::");
-        } else if (getenv('GITLAB_CI')) {
-            $endTime = round($endTime/1000);
-            $start = round($this->startTime/1000);
-            $this->output->writeln("\e[0Ksection_end:{$endTime}:{$start}\r\e[0K");
-        } else if ($this->output->isVeryVerbose()) {
+        } elseif (getenv('GITLAB_CI')) {
+            $sectionId = md5($task->getName());
+            $endTime = round($endTime / 1000);
+            $this->output->writeln("\e[0Ksection_end:{$endTime}:{$sectionId}\r\e[0K");
+        } elseif ($this->output->isVeryVerbose()) {
             $this->output->writeln("<fg=yellow;options=bold>done</> {$task->getName()} $taskTime");
         }
         if ($error) {

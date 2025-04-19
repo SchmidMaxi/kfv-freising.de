@@ -18,10 +18,14 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Extbase\Mvc\View;
 
 use Psr\Container\ContainerInterface;
-use TYPO3Fluid\Fluid\View\ViewInterface;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Core\View\ViewInterface;
+use TYPO3\CMS\Fluid\View\FluidViewAdapter;
+use TYPO3Fluid\Fluid\View\AbstractTemplateView;
 
 /**
  * @internal only to be used within Extbase, not part of TYPO3 Core API.
+ * @deprecated since TYPO3 v13, will be removed in v14.
  */
 class GenericViewResolver implements ViewResolverInterface
 {
@@ -47,6 +51,10 @@ class GenericViewResolver implements ViewResolverInterface
 
     public function resolve(string $controllerObjectName, string $actionName, string $format): ViewInterface
     {
-        return $this->container->get($this->defaultViewClass);
+        $view = $this->container->get($this->defaultViewClass);
+        if ($view instanceof AbstractTemplateView) {
+            return GeneralUtility::makeInstance(FluidViewAdapter::class, $view);
+        }
+        return $view;
     }
 }

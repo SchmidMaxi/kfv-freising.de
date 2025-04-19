@@ -17,18 +17,22 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Backend\EventListener;
 
+use TYPO3\CMS\Backend\Controller\Event\AfterBackendPageRenderEvent;
+use TYPO3\CMS\Backend\Search\LiveSearch\BackendModuleProvider;
 use TYPO3\CMS\Backend\Search\LiveSearch\DatabaseRecordProvider;
 use TYPO3\CMS\Backend\Search\LiveSearch\PageRecordProvider;
+use TYPO3\CMS\Core\Attribute\AsEventListener;
 use TYPO3\CMS\Core\Page\JavaScriptModuleInstruction;
 use TYPO3\CMS\Core\Page\PageRenderer;
 
 /**
  * Adds custom renderers for the backend live search
  */
-final class AfterBackendPageRenderEventListener
+final readonly class AfterBackendPageRenderEventListener
 {
-    public function __construct(private readonly PageRenderer $pageRenderer) {}
+    public function __construct(private PageRenderer $pageRenderer) {}
 
+    #[AsEventListener(event: AfterBackendPageRenderEvent::class)]
     public function __invoke(): void
     {
         $javaScriptRenderer = $this->pageRenderer->getJavaScriptRenderer();
@@ -39,6 +43,10 @@ final class AfterBackendPageRenderEventListener
         $javaScriptRenderer->addJavaScriptModuleInstruction(
             JavaScriptModuleInstruction::create('@typo3/backend/live-search/result-types/page-result-type.js', 'registerRenderer')
                 ->invoke(null, PageRecordProvider::class)
+        );
+        $javaScriptRenderer->addJavaScriptModuleInstruction(
+            JavaScriptModuleInstruction::create('@typo3/backend/live-search/result-types/backend-module-result-type.js', 'registerType')
+                ->invoke(null, BackendModuleProvider::class)
         );
     }
 }

@@ -19,6 +19,7 @@ namespace TYPO3\CMS\Extensionmanager\Remote;
 
 use Psr\Http\Message\ResponseInterface;
 use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Domain\DateTimeFactory;
 use TYPO3\CMS\Core\Http\RequestFactory;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extensionmanager\Domain\Repository\BulkExtensionRepositoryWriter;
@@ -37,20 +38,9 @@ use TYPO3\CMS\Extensionmanager\Utility\FileHandlingUtility;
  */
 class TerExtensionRemote implements ExtensionDownloaderRemoteInterface, ListableRemoteInterface
 {
-    /**
-     * @var string
-     */
-    protected $identifier;
-
-    /**
-     * @var string
-     */
-    protected $localExtensionListCacheFile;
-
-    /**
-     * @var string
-     */
-    protected $remoteBase = 'https://extensions.typo3.org/fileadmin/ter/';
+    protected string $identifier;
+    protected string $localExtensionListCacheFile;
+    protected string $remoteBase = 'https://extensions.typo3.org/fileadmin/ter/';
 
     public function __construct(string $identifier, array $options = [])
     {
@@ -108,7 +98,7 @@ class TerExtensionRemote implements ExtensionDownloaderRemoteInterface, Listable
     {
         if (file_exists($this->localExtensionListCacheFile) && filesize($this->localExtensionListCacheFile) > 0) {
             $mtime = filemtime($this->localExtensionListCacheFile);
-            return (new \DateTimeImmutable())->setTimestamp($mtime);
+            return DateTimeFactory::createFromTimestamp($mtime);
         }
         // Select a very old date (hint: easter egg)
         return new \DateTimeImmutable('1975-04-13');
@@ -163,7 +153,7 @@ class TerExtensionRemote implements ExtensionDownloaderRemoteInterface, Listable
         }
         $extensionData = $this->decodeExchangeData($downloadedContent);
         if (!empty($extensionData['extKey']) && is_string($extensionData['extKey'])) {
-            $fileHandler->unpackExtensionFromExtensionDataArray($extensionData['extKey'], $extensionData, $pathType);
+            $fileHandler->unpackExtensionFromExtensionDataArray($extensionData['extKey'], $extensionData);
         } else {
             throw new VerificationFailedException('Downloaded t3x file could not be extracted', 1334426698);
         }

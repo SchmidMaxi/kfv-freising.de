@@ -19,6 +19,7 @@ namespace TYPO3\CMS\Core\TypoScript\IncludeTree\Visitor;
 
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use Symfony\Component\ExpressionLanguage\SyntaxError;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Context\Context;
@@ -26,9 +27,9 @@ use TYPO3\CMS\Core\Context\UserAspect;
 use TYPO3\CMS\Core\Context\WorkspaceAspect;
 use TYPO3\CMS\Core\ExpressionLanguage\RequestWrapper;
 use TYPO3\CMS\Core\ExpressionLanguage\Resolver;
+use TYPO3\CMS\Core\Page\PageLayoutResolver;
 use TYPO3\CMS\Core\TypoScript\IncludeTree\IncludeNode\IncludeConditionInterface;
 use TYPO3\CMS\Core\TypoScript\IncludeTree\IncludeNode\IncludeInterface;
-use TYPO3\CMS\Frontend\Page\PageLayoutResolver;
 
 /**
  * A visitor that looks at IncludeConditionInterface nodes and
@@ -40,6 +41,9 @@ use TYPO3\CMS\Frontend\Page\PageLayoutResolver;
  *
  * @internal: Internal tree structure.
  */
+
+// This visitor creates state and should not be re-used
+#[Autoconfigure(public: true, shared: false)]
 final class IncludeTreeConditionMatcherVisitor implements IncludeTreeVisitorInterface, LoggerAwareInterface
 {
     use LoggerAwareTrait;
@@ -122,7 +126,7 @@ final class IncludeTreeConditionMatcherVisitor implements IncludeTreeVisitorInte
             // the 'nearest' parent. However, here it is always passed sorted, so it is a top-down rootLine. Hence, this needs to be once
             // again reversed at this point.
             $bottomUpFullRootLine = array_reverse($fullRootLine);
-            $tree->pagelayout = $this->pageLayoutResolver->getLayoutForPage($variables['page'], $bottomUpFullRootLine);
+            $tree->pagelayout = $this->pageLayoutResolver->getLayoutIdentifierForPage($variables['page'], $bottomUpFullRootLine);
             $enrichedVariables['tree'] = $tree;
         }
 
@@ -130,6 +134,8 @@ final class IncludeTreeConditionMatcherVisitor implements IncludeTreeVisitorInte
         // if not, create an instance from ServerRequestInterface and set it.
         if (isset($variables['request']) && !($variables['request'] instanceof RequestWrapper)) {
             $variables['request'] = new RequestWrapper($variables['request']);
+        } elseif (!isset($variables['request'])) {
+            $variables['request'] = new RequestWrapper(null);
         }
 
         // We do not expose pageId, rootLine and fullRootLine to conditions directly.
@@ -162,9 +168,19 @@ final class IncludeTreeConditionMatcherVisitor implements IncludeTreeVisitorInte
         $conditionExpression = $include->getConditionToken()->getValue();
         try {
             $verdict = (bool)$this->resolver->evaluate($conditionExpression);
-        } catch (SyntaxError) {
-            $this->logger->error('Expression could not be parsed.', ['expression' => $conditionExpression]);
+        } catch (SyntaxError $e) {
+            $this->logger->error('TypoScript condition [{expression}] could not be parsed: {error}', [
+                'expression' => $conditionExpression,
+                'error' => $e->getMessage(),
+                'exception' => $e,
+            ]);
             $verdict = false;
+        } catch (\RuntimeException $e) {
+            throw new \RuntimeException(
+                sprintf('TypoScript condition [%s] could not be evaluated: %s', $conditionExpression, $e->getMessage()),
+                1731486757,
+                $e
+            );
         }
         if ($include->isConditionNegated()) {
             // Honor ConditionElseInclude "[ELSE]" which negates the verdict of the main condition.

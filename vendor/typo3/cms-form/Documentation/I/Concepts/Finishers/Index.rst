@@ -545,9 +545,9 @@ following to the backend yaml setup:
                   25:
                      identifier: 'CustomFinisher'
                      editors:
-                        __inheritances:
-                           10: 'mixins.formElementMixins.BaseCollectionEditorsMixin'
                         100:
+                          identifier: header
+                          templateName: Inspector-CollectionElementHeaderEditor
                           label: "Custom Finisher"
                         # custom field (input, required)
                         110:
@@ -567,7 +567,9 @@ following to the backend yaml setup:
                           propertyValidators:
                             10: 'NotEmpty'
                             20: 'FormElementIdentifierWithinCurlyBracesInclusive'
-
+                        9999:
+                          identifier: removeButton
+                          templateName: Inspector-RemoveElementEditor
           finishersDefinition:
             CustomFinisher:
               formEditor:
@@ -590,10 +592,13 @@ following to the backend yaml setup:
                     config:
                       type: 'text'
 
-Make sure the setup file is registered in the backend:
+Make sure the setup file is registered for the backend in a :file:`EXT:my_extension/ext_localconf.php` file:
 
-.. code-block:: typoscript
+..  code-block:: php
+    :caption: EXT:my_extension/ext_localconf.php
 
-   module.tx_form.settings.yamlConfigurations {
-      123456789 = EXT:yourExtension/Configuration/Form/Backend.yaml
-   }
+    ExtensionManagementUtility::addTypoScriptSetup('
+        module.tx_form.settings.yamlConfigurations {
+            123456789 = EXT:yourExtension/Configuration/Form/Backend.yaml
+        }
+    ');

@@ -15,9 +15,8 @@
 
 namespace TYPO3\CMS\Backend\Form\Container;
 
-use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -28,12 +27,16 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  */
 class FlexFormContainerContainer extends AbstractContainer
 {
+    public function __construct(
+        private readonly IconFactory $iconFactory,
+    ) {}
+
     /**
      * Entry method
      *
      * @return array As defined in initializeResultArray() of AbstractNode
      */
-    public function render()
+    public function render(): array
     {
         $languageService = $this->getLanguageService();
 
@@ -41,30 +44,24 @@ class FlexFormContainerContainer extends AbstractContainer
         $row = $this->data['databaseRow'];
         $fieldName = $this->data['fieldName'];
         $flexFormFormPrefix = $this->data['flexFormFormPrefix'];
-        $flexFormContainerElementCollapsed = $this->data['flexFormContainerElementCollapsed'];
         $flexFormDataStructureArray = $this->data['flexFormDataStructureArray'];
 
-        $iconFactory = GeneralUtility::makeInstance(IconFactory::class);
         $flexFormContainerIdentifier = $this->data['flexFormContainerIdentifier'];
         $actionFieldName = 'data[' . $table . '][' . $row['uid'] . '][' . $fieldName . ']'
             . $flexFormFormPrefix
             . '[' . $flexFormContainerIdentifier . ']'
             . '[_ACTION]';
-        $toggleFieldName = 'data[' . $table . '][' . $row['uid'] . '][' . $fieldName . ']'
-            . $flexFormFormPrefix
-            . '[' . $flexFormContainerIdentifier . ']'
-            . '[_TOGGLE]';
 
         $moveAndDeleteContent = [];
         $userHasAccessToDefaultLanguage = $this->getBackendUserAuthentication()->checkLanguageAccess(0);
         if ($userHasAccessToDefaultLanguage) {
             $moveAndDeleteContent[] = ''
                 . '<button type="button" class="btn btn-default t3js-delete">'
-                . $iconFactory->getIcon('actions-edit-delete', Icon::SIZE_SMALL)->setTitle($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_common.xlf:delete'))->render()
+                . $this->iconFactory->getIcon('actions-edit-delete', IconSize::SMALL)->setTitle($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_common.xlf:delete'))->render()
                 . '</button>';
             $moveAndDeleteContent[] = ''
                 . '<button type="button" class="btn btn-default t3js-sortable-handle sortableHandle">'
-                . $iconFactory->getIcon('actions-move-move', Icon::SIZE_SMALL)->setTitle($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:sortable.dragmove'))->render()
+                . $this->iconFactory->getIcon('actions-move-move', IconSize::SMALL)->setTitle($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:sortable.dragmove'))->render()
                 . '</button>';
         }
 
@@ -100,13 +97,13 @@ class FlexFormContainerContainer extends AbstractContainer
             'class' => 'form-irre-header-cell form-irre-header-button',
             'type' => 'button',
             'aria-controls' => $flexFormDomContainerId,
-            'aria-expanded' => $flexFormContainerElementCollapsed ? 'false' : 'true',
+            'aria-expanded' => 'false',
         ];
 
         $html = [];
         $html[] = '<div ' . GeneralUtility::implodeAttributes($containerAttributes, true) . '>';
         $html[] =    '<div ' . GeneralUtility::implodeAttributes($panelHeaderAttributes, true) . '>';
-        $html[] =        '<div class="form-irre-header ' . ($flexFormContainerElementCollapsed ? ' collapsed' : '') . '">';
+        $html[] =        '<div class="form-irre-header collapsed">';
         $html[] =            '<div class="form-irre-header-cell form-irre-header-icon">';
         $html[] =                '<span class="caret"></span>';
         $html[] =            '</div>';
@@ -123,28 +120,16 @@ class FlexFormContainerContainer extends AbstractContainer
         $html[] =            '</div>';
         $html[] =        '</div>';
         $html[] =    '</div>';
-        $html[] =    '<div id="' . htmlspecialchars($flexFormDomContainerId) . '" class="panel-collapse collapse t3js-flex-section-content ' . ($flexFormContainerElementCollapsed ? '' : 'show') . '">';
+        $html[] =    '<div id="' . htmlspecialchars($flexFormDomContainerId) . '" class="panel-collapse collapse t3js-flex-section-content">';
         $html[] =        $containerContentResult['html'];
         $html[] =    '</div>';
         $html[] =    '<input class="t3js-flex-control-action" type="hidden" name="' . htmlspecialchars($actionFieldName) . '" value="" />';
-        $html[] =    '<input';
-        $html[] =        'class="t3js-flex-control-toggle"';
-        $html[] =        'type="hidden"';
-        $html[] =        'id="flexform-toggle-container-' . htmlspecialchars($flexFormContainerIdentifier) . '"';
-        $html[] =        'name="' . htmlspecialchars($toggleFieldName) . '"';
-        $html[] =        'value="' . ($flexFormContainerElementCollapsed ? '1' : '0') . '"';
-        $html[] =    '/>';
         $html[] = '</div>';
 
         $resultArray['html'] = implode(LF, $html);
         $resultArray = $this->mergeChildReturnIntoExistingResult($resultArray, $containerContentResult, false);
 
         return $resultArray;
-    }
-
-    protected function getBackendUserAuthentication(): BackendUserAuthentication
-    {
-        return $GLOBALS['BE_USER'];
     }
 
     protected function getLanguageService(): LanguageService

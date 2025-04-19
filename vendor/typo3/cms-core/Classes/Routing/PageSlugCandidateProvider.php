@@ -41,20 +41,9 @@ use TYPO3\CMS\Core\Utility\RootlineUtility;
  */
 class PageSlugCandidateProvider
 {
-    /**
-     * @var Site
-     */
-    protected $site;
-
-    /**
-     * @var Context
-     */
-    protected $context;
-
-    /**
-     * @var EnhancerFactory
-     */
-    protected $enhancerFactory;
+    protected Site $site;
+    protected Context $context;
+    protected EnhancerFactory $enhancerFactory;
 
     public function __construct(Context $context, Site $site, ?EnhancerFactory $enhancerFactory)
     {
@@ -258,10 +247,10 @@ class PageSlugCandidateProvider
             }
 
             $mountedPage = null;
-            if ($mountPageInformation) {
+            if (is_array($mountPageInformation)) {
                 // Add the MPvar to the row, so it can be used later-on in the PageRouter / PageArguments
                 $row['MPvar'] = $mountPageInformation['MPvar'];
-                $mountedPage = $pageRepository->getPage_noCheck($mountPageInformation['mount_pid_rec']['uid']);
+                $mountedPage = $pageRepository->getPage_noCheck((int)$mountPageInformation['mount_pid_rec']['uid']);
                 // Ensure to fetch the slug in the translated page
                 $mountedPage = $pageRepository->getLanguageOverlay('pages', $mountedPage, new LanguageAspect($languageId, $languageId));
                 // Mount wasn't connected properly, so it is skipped
@@ -296,7 +285,7 @@ class PageSlugCandidateProvider
             }
 
             // Add possible sub-pages prepended with the MountPoint page slug
-            if ($mountPageInformation) {
+            if (is_array($mountPageInformation)) {
                 /** @var array $mountedPage */
                 $siteOfMountedPage = $siteFinder->getSiteByPageId((int)$mountedPage['uid']);
                 $morePageCandidates = $this->findPageCandidatesOfMountPoint(
@@ -396,7 +385,7 @@ class PageSlugCandidateProvider
             $rootLine = GeneralUtility::makeInstance(
                 RootlineUtility::class,
                 $pageCandidate['uid'],
-                (string)$pageCandidate['MPvar'],
+                (string)($pageCandidate['MPvar'] ?? $pageCandidate['mount_pid_ol']),
                 $this->context
             )->get();
             foreach ($rootLine as $pageInRootLine) {

@@ -20,8 +20,8 @@ namespace TYPO3\CMS\Backend\ContextMenu\ItemProviders;
 use TYPO3\CMS\Backend\Routing\PreviewUriBuilder;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
+use TYPO3\CMS\Core\Authentication\JsConfirmation;
 use TYPO3\CMS\Core\Domain\Repository\PageRepository;
-use TYPO3\CMS\Core\Type\Bitmask\JsConfirmation;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Versioning\VersionState;
@@ -586,10 +586,7 @@ class RecordProvider extends AbstractProvider
      */
     protected function isDeletePlaceholder(): bool
     {
-        if (!isset($this->record['t3ver_state'])) {
-            return false;
-        }
-        return VersionState::cast($this->record['t3ver_state'])->equals(VersionState::DELETE_PLACEHOLDER);
+        return VersionState::tryFrom($this->record['t3ver_state'] ?? 0) === VersionState::DELETE_PLACEHOLDER;
     }
 
     /**
@@ -636,7 +633,6 @@ class RecordProvider extends AbstractProvider
         return !in_array((int)$this->pageRecord['doktype'], [
             PageRepository::DOKTYPE_SPACER,
             PageRepository::DOKTYPE_SYSFOLDER,
-            PageRepository::DOKTYPE_RECYCLER,
         ], true);
     }
 

@@ -16,9 +16,10 @@
 namespace TYPO3\CMS\Backend\Form\Element;
 
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Core\Utility\StringUtility;
 
 /**
- * Render elements of type radio
+ * Render elements of type="radio".
  */
 class RadioElement extends AbstractFormElement
 {
@@ -61,11 +62,9 @@ class RadioElement extends AbstractFormElement
      *
      * @return array As defined in initializeResultArray() of AbstractNode
      */
-    public function render()
+    public function render(): array
     {
         $resultArray = $this->initializeResultArray();
-        // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-        $resultArray['labelHasBeenHandled'] = true;
 
         $disabled = '';
         if ($this->data['parameterArray']['fieldConf']['config']['readOnly'] ?? false) {
@@ -84,11 +83,11 @@ class RadioElement extends AbstractFormElement
         $html[] = '<div class="formengine-field-item t3js-formengine-field-item">';
         $html[] = $fieldInformationHtml;
         $html[] =   '<div class="form-wizards-wrap">';
-        $html[] =       '<div class="form-wizards-element">';
+        $html[] =       '<div class="form-wizards-item-element">';
         foreach ($this->data['parameterArray']['fieldConf']['config']['items'] as $itemNumber => $itemLabelAndValue) {
             $label = $itemLabelAndValue['label'];
             $value = $itemLabelAndValue['value'];
-            $radioId = htmlspecialchars($this->data['parameterArray']['itemFormElID'] . '_' . $itemNumber);
+            $radioId = htmlspecialchars(StringUtility::getUniqueId('formengine-radio-') . '-' . $itemNumber);
             $radioElementAttrs = array_merge(
                 [
                     'type' => 'radio',
@@ -111,7 +110,7 @@ class RadioElement extends AbstractFormElement
         }
         $html[] =       '</div>';
         if (!$disabled && !empty($fieldWizardHtml)) {
-            $html[] =   '<div class="form-wizards-items-bottom">';
+            $html[] =   '<div class="form-wizards-item-bottom">';
             $html[] =       $fieldWizardHtml;
             $html[] =   '</div>';
         }

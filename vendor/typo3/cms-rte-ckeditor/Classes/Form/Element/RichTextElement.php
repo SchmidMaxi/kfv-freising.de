@@ -19,7 +19,6 @@ namespace TYPO3\CMS\RteCKEditor\Form\Element;
 
 use Psr\EventDispatcher\EventDispatcherInterface;
 use TYPO3\CMS\Backend\Form\Element\AbstractFormElement;
-use TYPO3\CMS\Backend\Form\NodeFactory;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Localization\Locales;
@@ -79,21 +78,11 @@ class RichTextElement extends AbstractFormElement
      */
     protected $rteConfiguration = [];
 
-    /**
-     * @var EventDispatcherInterface
-     */
-    protected $eventDispatcher;
-
-    /**
-     * Container objects give $nodeFactory down to other containers.
-     *
-     * @param EventDispatcherInterface|null $eventDispatcher
-     */
-    public function __construct(NodeFactory $nodeFactory, array $data, ?EventDispatcherInterface $eventDispatcher = null)
-    {
-        parent::__construct($nodeFactory, $data);
-        $this->eventDispatcher = $eventDispatcher ?? GeneralUtility::makeInstance(EventDispatcherInterface::class);
-    }
+    public function __construct(
+        private readonly EventDispatcherInterface $eventDispatcher,
+        private readonly UriBuilder $uriBuilder,
+        private readonly Locales $locales,
+    ) {}
 
     /**
      * Renders the ckeditor element
@@ -103,8 +92,6 @@ class RichTextElement extends AbstractFormElement
     public function render(): array
     {
         $resultArray = $this->initializeResultArray();
-        // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-        $resultArray['labelHasBeenHandled'] = true;
         $parameterArray = $this->data['parameterArray'];
         $config = $parameterArray['fieldConf']['config'];
 
@@ -131,12 +118,15 @@ class RichTextElement extends AbstractFormElement
         $ckeditorAttributes = GeneralUtility::implodeAttributes([
             'id' => $fieldId . 'ckeditor5',
             'options' => GeneralUtility::jsonEncodeForHtmlAttribute($ckeditorConfiguration, false),
-            'form-engine' => GeneralUtility::jsonEncodeForHtmlAttribute([
-                'id' => $fieldId,
-                'name' => $itemFormElementName,
-                'value' => $value,
-                'validationRules' => $this->getValidationDataAsJsonString($config),
-            ], false),
+        ], true);
+
+        $textareaAttributes = GeneralUtility::implodeAttributes([
+            'slot' => 'textarea',
+            'id' => $fieldId,
+            'name' => $itemFormElementName,
+            'rows' => '18',
+            'class' => 'form-control',
+            'data-formengine-validation-rules' => $this->getValidationDataAsJsonString($config),
         ], true);
 
         $html = [];
@@ -144,19 +134,22 @@ class RichTextElement extends AbstractFormElement
         $html[] =   $fieldInformationHtml;
         $html[] =   '<div class="form-control-wrap">';
         $html[] =       '<div class="form-wizards-wrap">';
-        $html[] =           '<div class="form-wizards-element">';
+        $html[] =           '<div class="form-wizards-item-element">';
         $html[] =               '<typo3-rte-ckeditor-ckeditor5 ' . $ckeditorAttributes . '>';
+        $html[] =                 '<textarea ' . $textareaAttributes . '>';
+        $html[] =                   htmlspecialchars($value);
+        $html[] =                 '</textarea>';
         $html[] =               '</typo3-rte-ckeditor-ckeditor5>';
         $html[] =           '</div>';
         if (!empty($fieldControlHtml)) {
-            $html[] =           '<div class="form-wizards-items-aside form-wizards-items-aside--field-control">';
+            $html[] =           '<div class="form-wizards-item-aside form-wizards-item-aside--field-control">';
             $html[] =               '<div class="btn-group">';
             $html[] =                   $fieldControlHtml;
             $html[] =               '</div>';
             $html[] =           '</div>';
         }
         if (!empty($fieldWizardHtml)) {
-            $html[] = '<div class="form-wizards-items-bottom">';
+            $html[] = '<div class="form-wizards-item-bottom">';
             $html[] = $fieldWizardHtml;
             $html[] = '</div>';
         }
@@ -200,10 +193,8 @@ class RichTextElement extends AbstractFormElement
         }
         $languageCodeParts = explode('_', $contentLanguage);
         $contentLanguage = strtolower($languageCodeParts[0]) . (!empty($languageCodeParts[1]) ? '_' . strtoupper($languageCodeParts[1]) : '');
-        // Find the configured language in the list of localization locales
-        $locales = GeneralUtility::makeInstance(Locales::class);
-        // If not found, default to 'en'
-        if ($contentLanguage === 'default' || !$locales->isValidLanguageKey($contentLanguage)) {
+        // Find the configured language in the list of localization locales, if not found, default to 'en'.
+        if ($contentLanguage === 'default' || !$this->locales->isValidLanguageKey($contentLanguage)) {
             $contentLanguage = 'en';
         }
         return $contentLanguage;
@@ -251,7 +242,6 @@ class RichTextElement extends AbstractFormElement
         ];
 
         $pluginConfiguration = [];
-        $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
         foreach ($externalPlugins as $pluginName => $configuration) {
             $pluginConfiguration[$pluginName] = [
                 'configName' => $configuration['configName'] ?? $pluginName,
@@ -261,7 +251,7 @@ class RichTextElement extends AbstractFormElement
             unset($configuration['resource']);
 
             if ($configuration['route'] ?? null) {
-                $configuration['routeUrl'] = (string)$uriBuilder->buildUriFromRoute($configuration['route'], $urlParameters);
+                $configuration['routeUrl'] = (string)$this->uriBuilder->buildUriFromRoute($configuration['route'], $urlParameters);
             }
 
             $pluginConfiguration[$pluginName]['config'] = $configuration;
@@ -323,6 +313,7 @@ class RichTextElement extends AbstractFormElement
         // Of course this can be overridden by the editor configuration below
         $configuration = [
             'customConfig' => '',
+            'label' => $this->data['parameterArray']['fieldConf']['label'] ?? '',
         ];
 
         if ($this->data['parameterArray']['fieldConf']['config']['readOnly'] ?? false) {
@@ -358,19 +349,6 @@ class RichTextElement extends AbstractFormElement
         // unless explicitly set, the debug mode is enabled in development context
         if (!isset($configuration['debug'])) {
             $configuration['debug'] = ($GLOBALS['TYPO3_CONF_VARS']['BE']['debug'] ?? false) && Environment::getContext()->isDevelopment();
-        }
-
-        // The removePlugins option needs to be assigned as an array in CKEditor5.
-        // While we recommended passing the option already as an array, CKEditor4
-        // needed a comma-separated string. The conversion was only handled if the
-        // Integrator passed an array, which means if someone already provided a
-        // comma-separated string the option was simply passed as is to the Editor.
-        // To avoid javascript errors we are going to migrate it to array for now.
-        // The possibility to pass the option as a string is deprecated and will be
-        // removed with version 13.
-        if (isset($configuration['removePlugins']) && !is_array($configuration['removePlugins'])) {
-            trigger_error('Passing the CKEditor removePlugins option as string is deprecated, use an array instead. Support for passing the option as string will be removed in TYPO3 v13.0.', E_USER_DEPRECATED);
-            $configuration['removePlugins'] = explode(',', $configuration['removePlugins']);
         }
 
         $configuration = $this->eventDispatcher

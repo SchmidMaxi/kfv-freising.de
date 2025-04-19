@@ -1,0 +1,29 @@
+<section id="c{data.uid}" class="section{f:if(condition:files, then:' background-img')} frame frame-{data.frame_class}{f:if(condition: data.space_before_class, then: ' frame-space-before-{data.space_before_class}')}{f:if(condition: data.space_after_class, then: ' frame-space-after-{data.space_after_class}')} bg-{data.color}{f:if(condition:'({data.color} == dark) || ({data.color} == primary)', then:' text-white')}">
+  <f:if condition="{files}">
+    <f:then>
+      <div class="container">
+        <div class="row">
+          <div class="col-12 col-lg-6 content-column">
+            <f:for each="{children_200}" as="record">
+              <f:format.raw>
+                {record.renderedContent}
+              </f:format.raw>
+            </f:for>
+          </div>
+          <div class="col-12 col-lg-6">
+            <div class="gradient" style="--color:var(--bs-{data.color}-rgb)">
+              <f:image image="{files.0}" class="background-image" maxWidth="800" loading="{settings.media.lazyLoading}" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </f:then>
+    <f:else>
+      <f:for each="{children_200}" as="record">
+        <f:format.raw>
+          {record.renderedContent}
+        </f:format.raw>
+      </f:for>
+    </f:else>
+  </f:if>
+</section>

@@ -17,9 +17,8 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Backend\ViewHelpers\TypoScript;
 
-use cogpowered\FineDiff\Diff;
-use cogpowered\FineDiff\Granularity\Word;
-use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
+use TYPO3\CMS\Core\Utility\DiffUtility;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
 
 /**
@@ -29,8 +28,6 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
  */
 final class FineDiffViewHelper extends AbstractViewHelper
 {
-    protected $escapeOutput = false;
-
     public function initializeArguments(): void
     {
         parent::initializeArguments();
@@ -38,9 +35,9 @@ final class FineDiffViewHelper extends AbstractViewHelper
         $this->registerArgument('to', 'string', 'Target string', true, '');
     }
 
-    public static function renderStatic(array $arguments, \Closure $renderChildrenClosure, RenderingContextInterface $renderingContext): string
+    public function render(): string
     {
-        $diff = new Diff(new Word());
-        return $diff->render($arguments['from'], $arguments['to']);
+        $diffUtility = GeneralUtility::makeInstance(DiffUtility::class);
+        return $diffUtility->diff($this->arguments['from'], $this->arguments['to']);
     }
 }

@@ -16,13 +16,9 @@
 namespace TYPO3\CMS\Backend\Form\Container;
 
 use TYPO3\CMS\Backend\Utility\BackendUtility;
-use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
-use TYPO3\CMS\Core\Type\Bitmask\Permission;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3Fluid\Fluid\View\TemplateView;
 
 /**
  * Render header and footer row.
@@ -34,12 +30,16 @@ use TYPO3Fluid\Fluid\View\TemplateView;
  */
 class OuterWrapContainer extends AbstractContainer
 {
+    public function __construct(
+        private readonly IconFactory $iconFactory,
+    ) {}
+
     /**
      * Entry method
      *
      * @return array As defined in initializeResultArray() of AbstractNode
      */
-    public function render()
+    public function render(): array
     {
         $languageService = $this->getLanguageService();
         $backendUser = $this->getBackendUserAuthentication();
@@ -57,17 +57,8 @@ class OuterWrapContainer extends AbstractContainer
 
         $childHtml = $result['html'];
 
-        $recordPath = '';
-        // @todo: what is this >= 0 check for? wsol cases?!
-        if ($this->data['effectivePid'] >= 0) {
-            $permissionsClause = $backendUser->getPagePermsClause(Permission::PAGE_SHOW);
-            $recordPath = BackendUtility::getRecordPath($this->data['effectivePid'], $permissionsClause, 15);
-        }
-
-        $iconFactory = GeneralUtility::makeInstance(IconFactory::class);
-        $icon = $iconFactory
-            ->getIconForRecord($table, $row, Icon::SIZE_SMALL)
-            ->setTitle($recordPath)
+        $icon = $this->iconFactory
+            ->getIconForRecord($table, $row, IconSize::SMALL)
             ->render();
 
         // @todo: Could this be done in a more clever way? Does it work at all?
@@ -90,7 +81,6 @@ class OuterWrapContainer extends AbstractContainer
                 $pageTitle = sprintf($label, $tableTitle, $pageTitle);
             }
         } else {
-            $icon = BackendUtility::wrapClickMenuOnIcon($icon, $table, $row['uid'], '', $row);
             $newOrUid = ' <span class="typo3-TCEforms-recUid">[' . htmlspecialchars($row['uid']) . ']</span>';
 
             // @todo: getRecordTitlePrep applies an htmlspecialchars here
@@ -118,16 +108,11 @@ class OuterWrapContainer extends AbstractContainer
             }
         }
 
-        // @todo: It's unfortunate we're using Typo3Fluid TemplateView directly here. We can't
-        //        inject BackendViewFactory here since __construct() is polluted by NodeInterface.
-        //        Remove __construct() from NodeInterface to have DI, then use BackendViewFactory here.
-        $view = GeneralUtility::makeInstance(TemplateView::class);
-        $templatePaths = $view->getRenderingContext()->getTemplatePaths();
-        $templatePaths->setTemplateRootPaths([GeneralUtility::getFileAbsFileName('EXT:backend/Resources/Private/Templates')]);
+        $view = $this->backendViewFactory->create($this->data['request']);
 
         $descriptionColumn = !empty($this->data['processedTca']['ctrl']['descriptionColumn'])
             ? $this->data['processedTca']['ctrl']['descriptionColumn'] : null;
-        if ($descriptionColumn !== null) {
+        if ($descriptionColumn !== null && isset($this->data['databaseRow'][$descriptionColumn])) {
             $view->assign('recordDescription', $this->data['databaseRow'][$descriptionColumn]);
         }
         $readOnlyRecord = !empty($this->data['processedTca']['ctrl']['readOnly'])
@@ -163,8 +148,4 @@ class OuterWrapContainer extends AbstractContainer
         return $GLOBALS['LANG'];
     }
 
-    protected function getBackendUserAuthentication(): BackendUserAuthentication
-    {
-        return $GLOBALS['BE_USER'];
-    }
 }

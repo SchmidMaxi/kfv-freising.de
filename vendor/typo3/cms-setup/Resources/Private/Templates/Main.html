@@ -32,13 +32,20 @@
         spellcheck="false"
     >
         <div role="tabpanel">
-            <ul class="nav nav-tabs t3js-tabs" role="tablist" id="tabs-{menuId}" data-store-last-tab="1">
+            <ul class="nav nav-tabs form-section-tabs t3js-tabs" role="tablist" id="tabs-{menuId}" data-store-last-tab="1">
                 <f:for each="{menuItems}" as="item" iteration="iteration">
                     <f:if condition="{item.content}">
                         <li role="presentation" class="t3js-tabmenu-item nav-item">
-                            <a href="#{menuId}-{iteration.cycle}" class="nav-link {f:if(condition: '{iteration.cycle} == 1', then: ' active')}" aria-controls="{menuId}-{iteration.cycle}" role="tab" data-bs-toggle="tab">
+                            <button
+                                type="button"
+                                class="nav-link {f:if(condition: '{iteration.cycle} == 1', then: ' active')}"
+                                data-bs-toggle="tab"
+                                data-bs-target="#{menuId}-{iteration.cycle}"
+                                aria-controls="{menuId}-{iteration.cycle}"
+                                role="tab"
+                            >
                                 {item.label}
-                            </a>
+                            </button>
                         </li>
                     </f:if>
                 </f:for>

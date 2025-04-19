@@ -20,6 +20,7 @@ namespace TYPO3\CMS\Setup\Controller;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Backend\Avatar\DefaultAvatarProvider;
 use TYPO3\CMS\Backend\Module\ModuleProvider;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
@@ -35,8 +36,8 @@ use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
 use TYPO3\CMS\Core\FormProtection\FormProtectionFactory;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
 use TYPO3\CMS\Core\Localization\Locales;
@@ -60,6 +61,7 @@ use TYPO3\CMS\Setup\Event\AddJavaScriptModulesEvent;
  *
  * @internal This is a specific Backend Controller implementation and is not considered part of the Public TYPO3 API.
  */
+#[AsController]
 class SetupModuleController
 {
     protected const PASSWORD_NOT_UPDATED = 0;
@@ -71,6 +73,10 @@ class SetupModuleController
     protected array $overrideConf = [];
     protected bool $languageUpdate = false;
     protected bool $pagetreeNeedsRefresh = false;
+    protected bool $colorSchemeChanged = false;
+    protected bool $themeChanged = false;
+    protected bool $backendTitleFormatChanged = false;
+
     protected array $tsFieldConf = [];
     protected int $passwordIsUpdated = self::PASSWORD_NOT_UPDATED;
     protected bool $passwordIsSubmitted = false;
@@ -112,8 +118,28 @@ class SetupModuleController
     {
         $view = $this->initialize($request);
         $this->storeIncomingData($request);
-        if ($this->pagetreeNeedsRefresh) {
+        if ($this->pagetreeNeedsRefresh || $this->settingsAreResetToDefault) {
             BackendUtility::setUpdateSignal('updatePageTree');
+        }
+        if ($this->colorSchemeChanged || $this->settingsAreResetToDefault) {
+            BackendUtility::setUpdateSignal('updateColorScheme', $this->getBackendUser()->uc['colorScheme'] ?? 'auto');
+        }
+        if ($this->themeChanged || $this->settingsAreResetToDefault) {
+            BackendUtility::setUpdateSignal('updateTheme', $this->getBackendUser()->uc['theme'] ?? 'modern');
+        }
+        if ($this->backendTitleFormatChanged || $this->settingsAreResetToDefault) {
+            BackendUtility::setUpdateSignal('updateTitleFormat', $this->getBackendUser()->uc['backendTitleFormat'] ?? 'titleFirst');
+        }
+        if ($this->languageUpdate) {
+            $this->getLanguageService()->init($this->getBackendUser()->user['lang'] ?? 'default');
+            $locale = $this->getLanguageService()->getLocale();
+            if ($locale !== null) {
+                $parameters = [
+                    'language' => $locale->getLanguageCode(),
+                    'direction' => $locale->isRightToLeftLanguageDirection() ? 'rtl' : null,
+                ];
+                BackendUtility::setUpdateSignal('updateBackendLanguage', $parameters);
+            }
         }
         $formProtection = $this->formProtectionFactory->createFromRequest($request);
         $this->addFlashMessages($view);
@@ -163,10 +189,6 @@ class SetupModuleController
         foreach ($event->getJavaScriptModules() as $specifier) {
             $this->pageRenderer->loadJavaScriptModule($specifier);
         }
-        foreach ($event->getModules() as $moduleName) {
-            // The deprecation is added in AddJavaScriptModulesEvent::addModule, and therefore silenced here.
-            $this->pageRenderer->loadRequireJsModule($moduleName, null, true);
-        }
     }
 
     /**
@@ -200,6 +222,16 @@ class SetupModuleController
             if (isset($d['titleLen']) && $d['titleLen'] !== $backendUser->uc['titleLen']) {
                 $this->pagetreeNeedsRefresh = true;
             }
+            if (isset($d['colorScheme']) && $d['colorScheme'] !== ($backendUser->uc['colorScheme'] ?? null)) {
+                $this->colorSchemeChanged = true;
+            }
+            if (isset($d['theme']) && $d['theme'] !== ($backendUser->uc['theme'] ?? null)) {
+                $this->themeChanged = true;
+            }
+            if (isset($d['backendTitleFormat']) && $d['backendTitleFormat'] !== ($backendUser->uc['backendTitleFormat'] ?? null)) {
+                $this->backendTitleFormatChanged = true;
+            }
+
             if ($d['setValuesToDefault']) {
                 // If every value should be default
                 $backendUser->resetUC();
@@ -235,7 +267,7 @@ class SetupModuleController
                     $params = ['be_user_data' => &$be_user_data];
                     GeneralUtility::callUserFunction($function, $params, $this);
                 }
-                $this->passwordIsSubmitted = (string)$be_user_data['password'] !== '';
+                $this->passwordIsSubmitted = (string)($be_user_data['password'] ?? '') !== '';
                 $passwordIsConfirmed = $this->passwordIsSubmitted && $be_user_data['password'] === $be_user_data['password2'];
 
                 // Validate password against password policy
@@ -308,7 +340,7 @@ class SetupModuleController
             // If something in the uc-array of the user has changed, we save the array...
             if ($save_before != $save_after) {
                 $backendUser->writeUC();
-                $backendUser->writelog(SystemLogType::SETTING, SystemLogSettingAction::CHANGE, SystemLogErrorClassification::MESSAGE, 1, 'Personal settings changed', []);
+                $backendUser->writelog(SystemLogType::SETTING, SystemLogSettingAction::CHANGE, SystemLogErrorClassification::MESSAGE, null, 'Personal settings changed', []);
                 $this->setupIsUpdated = true;
             }
             // Persist data if something has changed:
@@ -346,7 +378,7 @@ class SetupModuleController
             ->setValue('1')
             ->setForm('SetupModuleController')
             ->setShowLabelText(true)
-            ->setIcon($this->iconFactory->getIcon('actions-document-save', Icon::SIZE_SMALL));
+            ->setIcon($this->iconFactory->getIcon('actions-document-save', IconSize::SMALL));
 
         $buttonBar->addButton($saveButton);
         $shortcutButton = $buttonBar->makeShortcutButton()
@@ -558,7 +590,7 @@ class SetupModuleController
                         . '" class="btn btn-default"'
                         . ' title="' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:setup/Resources/Private/Language/locallang.xlf:avatar.openFileBrowser')) . '"'
                         . ' data-setup-avatar-url="' . htmlspecialchars((string)$this->uriBuilder->buildUriFromRoute('wizard_element_browser', ['mode' => 'file', 'bparams' => '|||allowed=' . ($GLOBALS['TYPO3_CONF_VARS']['GFX']['imagefile_ext'] ?? '') . '~disallowed=|-0-be_users-avatar-avatar'])) . '"'
-                        . '>' . $this->iconFactory->getIcon('actions-insert-record', Icon::SIZE_SMALL)
+                        . '>' . $this->iconFactory->getIcon('actions-insert-record', IconSize::SMALL)
                         . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:setup/Resources/Private/Language/locallang.xlf:avatar.openFileBrowser'))
                         . '</button>';
                     if ($avatarFileUid) {
@@ -567,7 +599,7 @@ class SetupModuleController
                         $html .= '<button type="button" id="clear_button_' . htmlspecialchars($fieldName)
                         . '" class="btn btn-default"'
                         . ' title="' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:setup/Resources/Private/Language/locallang.xlf:avatar.clear')) . '" '
-                        . '>' . $this->iconFactory->getIcon('actions-delete', Icon::SIZE_SMALL)
+                        . '>' . $this->iconFactory->getIcon('actions-delete', IconSize::SMALL)
                         . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:setup/Resources/Private/Language/locallang.xlf:avatar.clear'))
                         . '</button>';
                     }
@@ -610,26 +642,26 @@ class SetupModuleController
             }
             if ($type === 'check') {
                 $htmlPrepended = '<div class="formengine-field-item t3js-formengine-field-item"><div class="form-wizards-wrap">'
-                    . '<div class="form-wizards-element"><div class="form-check form-switch">';
+                    . '<div class="form-wizards-item-element"><div class="form-check form-switch">';
                 $htmlAppended = '</div></div></div></div>';
             }
             if ($type === 'select' || $type === 'language') {
                 $htmlPrepended = '<div class="formengine-field-item t3js-formengine-field-item"><div class="form-control-wrap">'
-                    . '<div class="form-wizards-wrap"><div class="form-wizards-element"><div class="input-group">';
+                    . '<div class="form-wizards-wrap"><div class="form-wizards-item-element"><div class="input-group">';
                 $htmlAppended = '</div></div></div></div></div>';
             }
             if ($type === 'text' || $type === 'number' || $type === 'email' || $type === 'password') {
                 $htmlPrepended = '<div class="formengine-field-item t3js-formengine-field-item"><div class="form-control-wrap">'
-                    . '<div class="form-wizards-wrap"><div class="form-wizards-element">';
+                    . '<div class="form-wizards-wrap"><div class="form-wizards-item-element">';
                 $htmlAppended = '</div></div></div></div>';
             }
 
-            $code[] = '<fieldset class="form-section"><div class="row"><div class="form-group col-md-12">'
+            $code[] = '<fieldset class="form-section"><div class="form-group">'
                 . $label
                 . $htmlPrepended
                 . $html
                 . $htmlAppended
-                . '</div></div></fieldset>';
+                . '</div></fieldset>';
         }
 
         $result[] = [
@@ -659,7 +691,14 @@ class SetupModuleController
             if (!$this->locales->isLanguageKeyAvailable($languageCode)) {
                 continue;
             }
-            $labelIdentifier = $officialLanguages->getLabelIdentifier($languageCode);
+            // TYPO3 + Ecosystem wrongly uses "ch" as Chinese, but it should be Chamorro (see #106125)
+            // Ideally, we should remove "ch" from the system, marked as chinese, and then "go for it".
+            // Chinese Simplified is "zh-CN"
+            if ($languageCode === 'ch') {
+                $labelIdentifier = $languageService->sL('LLL:EXT:setup/Resources/Private/Language/locallang.xlf:warning.chineseSimplified');
+            } else {
+                $labelIdentifier = $officialLanguages->getLabelIdentifier($languageCode);
+            }
             $localizedName = htmlspecialchars($languageService->sL($labelIdentifier) ?: $name);
             $defaultName = $defaultLanguageLabelService->sL($labelIdentifier);
             if ($defaultName === $localizedName || $defaultName === '') {
@@ -915,9 +954,6 @@ class SetupModuleController
         }
         if ($this->settingsAreResetToDefault) {
             $view->addFlashMessage($languageService->sL('LLL:EXT:setup/Resources/Private/Language/locallang.xlf:settingsAreReset'), $languageService->sL('LLL:EXT:setup/Resources/Private/Language/locallang.xlf:resetConfiguration'));
-        }
-        if ($this->setupIsUpdated || $this->settingsAreResetToDefault) {
-            $view->addFlashMessage($languageService->sL('LLL:EXT:setup/Resources/Private/Language/locallang.xlf:activateChanges'), '', ContextualFeedbackSeverity::INFO);
         }
         if ($this->passwordIsSubmitted) {
             switch ($this->passwordIsUpdated) {

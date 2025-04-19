@@ -104,7 +104,7 @@ use TYPO3\CMS\Form\Domain\Model\FormElements\FormElementInterface;
  *
  *   Don't be confused. If you use the FormRuntime accessor feature within
  *   options.databaseColumnMappings, the functionality is nearly equal
- *   to the the options.elements configuration.
+ *   to the options.elements configuration.
  *
  * options.databaseColumnMappings.<databaseColumnName>.skipIfValueIsEmpty (default: false)
  * ---------------------------------------------------------------------
@@ -312,7 +312,7 @@ class SaveToDatabaseFinisher extends AbstractFinisher
                 );
             } else {
                 $this->databaseConnection->insert($table, $databaseData);
-                $insertedUid = (int)$this->databaseConnection->lastInsertId($table);
+                $insertedUid = (int)$this->databaseConnection->lastInsertId();
                 $this->finisherContext->getFinisherVariableProvider()->add(
                     $this->shortFinisherIdentifier,
                     'insertedUids.' . $iterationCount,

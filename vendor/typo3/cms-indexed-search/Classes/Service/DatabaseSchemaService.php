@@ -15,6 +15,7 @@
 
 namespace TYPO3\CMS\IndexedSearch\Service;
 
+use TYPO3\CMS\Core\Attribute\AsEventListener;
 use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
 use TYPO3\CMS\Core\Database\Event\AlterTableDefinitionStatementsEvent;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -29,6 +30,7 @@ final class DatabaseSchemaService
      * An event listener to inject the required mysql fulltext definition
      * to schema migration.
      */
+    #[AsEventListener('indexed-search')]
     public function addMysqlFulltextIndex(AlterTableDefinitionStatementsEvent $event): void
     {
         $useMysqlFulltext = (bool)GeneralUtility::makeInstance(ExtensionConfiguration::class)->get('indexed_search', 'useMysqlFulltext');
@@ -36,9 +38,7 @@ final class DatabaseSchemaService
             // @todo: With MySQL 5.7 fulltext index on InnoDB is possible, check for that and keep inno if so.
             $event->addSqlData('CREATE TABLE index_fulltext ('
                 . LF . 'fulltextdata mediumtext,'
-                . LF . 'metaphonedata mediumtext,'
                 . LF . 'FULLTEXT fulltextdata (fulltextdata),'
-                . LF . 'FULLTEXT metaphonedata (metaphonedata)'
                 . LF . ') ENGINE=MyISAM;');
         }
     }

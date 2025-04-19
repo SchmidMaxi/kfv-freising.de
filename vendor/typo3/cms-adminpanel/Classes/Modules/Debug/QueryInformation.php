@@ -18,21 +18,28 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Adminpanel\Modules\Debug;
 
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Adminpanel\Log\DoctrineSqlLoggingMiddleware;
 use TYPO3\CMS\Adminpanel\ModuleApi\AbstractSubModule;
 use TYPO3\CMS\Adminpanel\ModuleApi\DataProviderInterface;
 use TYPO3\CMS\Adminpanel\ModuleApi\ModuleData;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Fluid\View\StandaloneView;
+use TYPO3\CMS\Core\View\ViewFactoryData;
+use TYPO3\CMS\Core\View\ViewFactoryInterface;
 
 /**
  * Admin Panel Query Information module for showing SQL Queries
  *
  * @internal
  */
+#[Autoconfigure(public: true)]
 class QueryInformation extends AbstractSubModule implements DataProviderInterface
 {
+    public function __construct(
+        private readonly ViewFactoryInterface $viewFactory,
+    ) {}
+
     /**
      * Identifier for this Sub-module,
      * for example "preview" or "cache"
@@ -77,13 +84,15 @@ class QueryInformation extends AbstractSubModule implements DataProviderInterfac
 
     public function getContent(ModuleData $data): string
     {
-        $view = new StandaloneView();
-        $view->setTemplatePathAndFilename(
-            'EXT:adminpanel/Resources/Private/Templates/Modules/Debug/QueryInformation.html'
+        $viewFactoryData = new ViewFactoryData(
+            templateRootPaths: ['EXT:adminpanel/Resources/Private/Templates'],
+            partialRootPaths: ['EXT:adminpanel/Resources/Private/Partials'],
+            layoutRootPaths: ['EXT:adminpanel/Resources/Private/Layouts'],
         );
+        $view = $this->viewFactory->create($viewFactoryData);
         $view->assignMultiple($data->getArrayCopy());
         $view->assign('languageKey', $this->getBackendUser()->user['lang'] ?? null);
-        return $view->render();
+        return $view->render('Modules/Debug/QueryInformation');
     }
 
     protected function groupQueries(array $queries): array

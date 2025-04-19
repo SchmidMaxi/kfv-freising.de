@@ -59,44 +59,6 @@ class ResourceUtility
     }
 
     /**
-     * @param array<string, string> $attributes
-     */
-    public static function getAdditionalResourcesForModule(ResourceProviderInterface $module, array $attributes = []): array
-    {
-        $result = [
-            'js' => '',
-            'css' => '',
-        ];
-        foreach ($module->getJavaScriptFiles() as $file) {
-            $result['js'] .= static::getJsTag($file, $attributes);
-        }
-        foreach ($module->getCssFiles() as $file) {
-            $result['css'] .= static::getCssTag($file, $attributes);
-        }
-        return $result;
-    }
-
-    /**
-     * Returns a link tag with the admin panel stylesheet
-     * defined using TBE_STYLES
-     * @deprecated will be removed in TYPO3 v13.0.
-     */
-    protected static function getAdminPanelStylesheet(): string
-    {
-        $result = '';
-        if (!empty($GLOBALS['TBE_STYLES']['stylesheets']['admPanel'])) {
-            trigger_error(
-                '$GLOBALS[\'TBE_STYLES\'][\'stylesheets\'][\'admPanel\'] will be removed in TYPO3 v13.0. Use Admin Panel Module API ModuleInterface->getCssFiles() instead.',
-                E_USER_DEPRECATED
-            );
-            $stylesheet = GeneralUtility::locationHeaderUrl($GLOBALS['TBE_STYLES']['stylesheets']['admPanel']);
-            $result = '<link rel="stylesheet" href="' .
-                      htmlspecialchars($stylesheet, ENT_QUOTES | ENT_HTML5) . '" />';
-        }
-        return $result;
-    }
-
-    /**
      * Get a css tag for file - with absolute web path resolving
      *
      * @param array<string, string|ConsumableNonce> $attributes
@@ -143,7 +105,7 @@ class ResourceUtility
         $css = self::getCssTag($cssFileLocation, $attributes);
 
         return [
-            'css' => $css . self::getAdminPanelStylesheet(),
+            'css' => $css,
             'js' => $js,
         ];
     }

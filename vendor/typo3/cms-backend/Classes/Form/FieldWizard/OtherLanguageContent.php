@@ -19,8 +19,8 @@ namespace TYPO3\CMS\Backend\Form\FieldWizard;
 
 use TYPO3\CMS\Backend\Form\AbstractNode;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
@@ -30,6 +30,10 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  */
 class OtherLanguageContent extends AbstractNode
 {
+    public function __construct(
+        private readonly IconFactory $iconFactory,
+    ) {}
+
     /**
      * Render other language content if enabled.
      */
@@ -54,7 +58,6 @@ class OtherLanguageContent extends AbstractNode
             return $result;
         }
 
-        $iconFactory = GeneralUtility::makeInstance(IconFactory::class);
         $table = $this->data['tableName'];
         $html = [];
         $defaultLanguageValue = BackendUtility::getProcessedValue(
@@ -66,12 +69,13 @@ class OtherLanguageContent extends AbstractNode
             false,
             $defaultLanguageRow['uid'],
             true,
-            $defaultLanguageRow['pid']
+            $defaultLanguageRow['pid'],
+            $defaultLanguageRow
         ) ?? '';
         if ($defaultLanguageValue !== '') {
             $iconIdentifier = ($this->data['systemLanguageRows'][0]['flagIconIdentifier'] ?? false) ?: 'flags-multiple';
             $html[] = '<div class="t3-form-original-language">';
-            $html[] =   $iconFactory->getIcon($iconIdentifier, Icon::SIZE_SMALL)->render();
+            $html[] =   $this->iconFactory->getIcon($iconIdentifier, IconSize::SMALL)->render();
             $html[] =   $this->previewFieldValue($defaultLanguageValue);
             $html[] = '</div>';
         }
@@ -82,11 +86,16 @@ class OtherLanguageContent extends AbstractNode
                 $fieldName,
                 $previewLanguage[$fieldName],
                 0,
-                true
+                true,
+                false,
+                0,
+                true,
+                0,
+                $previewLanguage
             ) ?? '';
             if ($defaultLanguageValue !== '') {
                 $html[] = '<div class="t3-form-original-language">';
-                $html[] =   $iconFactory->getIcon($this->data['systemLanguageRows'][$previewLanguage['sys_language_uid']]['flagIconIdentifier'], Icon::SIZE_SMALL)->render();
+                $html[] =   $this->iconFactory->getIcon($this->data['systemLanguageRows'][$previewLanguage['sys_language_uid']]['flagIconIdentifier'], IconSize::SMALL)->render();
                 $html[] =   $this->previewFieldValue($defaultLanguageValue);
                 $html[] = '</div>';
             }

@@ -81,6 +81,11 @@ abstract class AbstractTableConfigurationTreeDataProvider extends AbstractTreeDa
     protected array $availableItems = [];
 
     /**
+     * @var int[]
+     */
+    protected array $startingPoints = [0];
+
+    /**
      * Sets the id of the tree
      *
      * @param string $treeId
@@ -151,32 +156,9 @@ abstract class AbstractTableConfigurationTreeDataProvider extends AbstractTreeDa
     }
 
     /**
-     * Sets the list for expanded nodes
-     *
-     * @param string $expandedList
+     * Init the tree data
      */
-    public function setExpandedList($expandedList)
-    {
-        $this->expandedList = $expandedList;
-    }
-
-    /**
-     * Gets the list for expanded nodes
-     *
-     * @return string
-     */
-    public function getExpandedList()
-    {
-        return $this->expandedList;
-    }
-
-    /**
-     * Read the list for expanded nodes from user settings
-     */
-    public function initializeTreeData()
-    {
-        $this->expandedList = $GLOBALS['BE_USER']->uc['tcaTrees'][$this->treeId] ?? '';
-    }
+    public function initializeTreeData() {}
 
     /**
      * Sets the list for selected nodes
@@ -260,5 +242,21 @@ abstract class AbstractTableConfigurationTreeDataProvider extends AbstractTreeDa
     public function setAvailableItems(array $availableItems)
     {
         $this->availableItems = $availableItems;
+    }
+
+    /**
+     * @param int[] $startingPoints
+     */
+    public function setStartingPoints(array $startingPoints): void
+    {
+        $this->startingPoints = $startingPoints;
+    }
+
+    /**
+     * @return int[]
+     */
+    public function getStartingPoints(): array
+    {
+        return $this->startingPoints;
     }
 }

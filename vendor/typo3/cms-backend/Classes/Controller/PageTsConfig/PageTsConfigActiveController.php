@@ -153,7 +153,7 @@ final class PageTsConfigActiveController
         // Set enabled conditions in page TSconfig include tree and let it handle constant substitutions in page TSconfig conditions.
         $pageTsConfigConditions = $this->handleToggledPageTsConfigConditions($pagesTsConfigTree, $moduleData, $parsedBody, $siteSettingsFlat);
         $conditionEnforcerVisitor = new IncludeTreeConditionEnforcerVisitor();
-        $conditionEnforcerVisitor->setEnabledConditions(array_column(array_filter($pageTsConfigConditions, static fn($condition) => $condition['active']), 'value'));
+        $conditionEnforcerVisitor->setEnabledConditions(array_column(array_filter($pageTsConfigConditions, static fn(array $condition): bool => (bool)$condition['active']), 'value'));
         $treeTraverser = new IncludeTreeTraverser();
         $treeTraverser->traverse($pagesTsConfigTree, [$conditionEnforcerVisitor]);
 
@@ -185,7 +185,7 @@ final class PageTsConfigActiveController
             'siteSettingsAst' => $siteSettingsAst,
             'pageTsConfigAst' => $pageTsConfigAst,
             'pageTsConfigConditions' => $pageTsConfigConditions,
-            'pageTsConfigConditionsActiveCount' => count(array_filter($pageTsConfigConditions, static fn($condition) => $condition['active'])),
+            'pageTsConfigConditionsActiveCount' => count(array_filter($pageTsConfigConditions, static fn(array $condition): bool => (bool)$condition['active'])),
         ]);
         return $view->renderResponse('PageTsConfig/Active');
     }

@@ -1,14 +1,16 @@
 <?php
+
 /**
  * ## Usage
  *
- * Add {{repository}} to your _deploy.php_ file:
+ * Add `repository` to your _deploy.php_ file:
  *
  * ```php
  * set('repository', 'git@github.com:shopware/production.git');
  * ```
  *
  * configure host:
+ * ```php
  * host('SSH-HOSTNAME')
  *     ->set('remote_user', 'SSH-USER')
  *     ->set('deploy_path', '/var/www/shopware') // This is the path, where deployer will create its directory structure
@@ -17,12 +19,14 @@
  *     ->set('writable_mode', 'chmod')
  *     ->set('writable_recursive', true)
  *     ->set('become', 'www-data'); // You might want to change user to execute remote tasks because of access rights of created cache files
- * 
+ * ```
+ *
  * :::note
  * Please remember that the installation must be modified so that it can be
  * [build without database](https://developer.shopware.com/docs/guides/hosting/installation-updates/deployments/build-w-o-db#compiling-the-storefront-without-database).
  * :::
  */
+
 namespace Deployer;
 
 require_once __DIR__ . '/common.php';
@@ -141,12 +145,22 @@ task('sw:deploy', [
 desc('Deploys your project');
 task('deploy', [
     'deploy:prepare',
+    'sw:writable:jwt',
     'sw:deploy',
     'deploy:clear_paths',
     'sw:cache:warmup',
-    'sw:writable:jwt',
     'deploy:publish',
 ]);
+
+task('deploy:update_code')->setCallback(static function () {
+    upload('.', '{{release_path}}', [
+        'options' => [
+            '--exclude=.git',
+            '--exclude=deploy.php',
+            '--exclude=node_modules',
+        ],
+    ]);
+});
 
 task('sw-build-without-db:get-remote-config', static function () {
     if (!test('[ -d {{current_path}} ]')) {

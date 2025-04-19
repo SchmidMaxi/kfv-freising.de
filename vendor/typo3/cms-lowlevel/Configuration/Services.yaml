@@ -7,53 +7,12 @@ services:
   TYPO3\CMS\Lowlevel\:
     resource: '../Classes/*'
 
-  TYPO3\CMS\Lowlevel\Controller\ConfigurationController:
-    tags: ['backend.controller']
-  TYPO3\CMS\Lowlevel\Controller\DatabaseIntegrityController:
-    tags: ['backend.controller']
-
   TYPO3\CMS\Lowlevel\Command\ListSysLogCommand:
     tags:
       - name: 'console.command'
         command: 'syslog:list'
         description: 'Show entries from the sys_log database table of the last 24 hours.'
         schedulable: false
-
-  TYPO3\CMS\Lowlevel\Command\MissingRelationsCommand:
-    tags:
-      - name: 'console.command'
-        command: 'cleanup:missingrelations'
-        description: 'Find all record references pointing to a non-existing record'
-
-  TYPO3\CMS\Lowlevel\Command\DeletedRecordsCommand:
-    tags:
-      - name: 'console.command'
-        command: 'cleanup:deletedrecords'
-        description: 'Permanently deletes all records marked as "deleted" in the database.'
-
-  TYPO3\CMS\Lowlevel\Command\OrphanRecordsCommand:
-    tags:
-      - name: 'console.command'
-        command: 'cleanup:orphanrecords'
-        description: 'Find and delete records that have lost their connection with the page tree.'
-
-  TYPO3\CMS\Lowlevel\Command\CleanFlexFormsCommand:
-    tags:
-      - name: 'console.command'
-        command: 'cleanup:flexforms'
-        description: 'Updates all database records which have a FlexForm field and the XML data does not match the chosen datastructure.'
-
-  TYPO3\CMS\Lowlevel\Command\CleanUpLocalProcessedFilesCommand:
-    tags:
-      - name: 'console.command'
-        command: 'cleanup:localprocessedfiles'
-        description: 'Delete processed files and their database records.'
-
-  TYPO3\CMS\Lowlevel\ConfigurationModuleProvider\ProviderRegistry:
-    public: true
-
-  TYPO3\CMS\Lowlevel\HookProvider\ModifyBlindedConfigurationOptionsHookProvider:
-    tags: ['event.listener']
 
   lowlevel.configuration.module.provider.confvars:
     class: 'TYPO3\CMS\Lowlevel\ConfigurationModuleProvider\GlobalVariableProvider'
@@ -81,18 +40,8 @@ services:
         identifier: 'services'
         label: 'LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:t3services'
         globalVariableKey: 'T3_SERVICES'
-        before: 'tbeStyles'
-        after: 'tca'
-
-  lowlevel.configuration.module.provider.tbestyles:
-    class: 'TYPO3\CMS\Lowlevel\ConfigurationModuleProvider\GlobalVariableProvider'
-    tags:
-      - name: 'lowlevel.configuration.module.provider'
-        identifier: 'tbeStyles'
-        label: 'LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:tbeStyles'
-        globalVariableKey: 'TBE_STYLES'
         before: 'userSettings'
-        after: 'services'
+        after: 'tca'
 
   lowlevel.configuration.module.provider.usersettings:
     class: 'TYPO3\CMS\Lowlevel\ConfigurationModuleProvider\GlobalVariableProvider'
@@ -102,7 +51,7 @@ services:
         label: 'LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:usersettings'
         globalVariableKey: 'TYPO3_USER_SETTINGS'
         before: 'pagesTypes'
-        after: 'tbeStyles'
+        after: 'services'
 
   lowlevel.configuration.module.provider.pagestypes:
     class: 'TYPO3\CMS\Lowlevel\ConfigurationModuleProvider\PageDoktypeProvider'
@@ -227,3 +176,11 @@ services:
         identifier: 'symfonyExpressionLanguage'
         label: 'LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:symfonyExpressionLanguage'
         after: 'toolbaritems'
+
+  lowlevel.configuration.module.provider.doctrine-driver-middlewares:
+    class: 'TYPO3\CMS\Lowlevel\ConfigurationModuleProvider\ConnectionDriverMiddlewaresProvider'
+    tags:
+      - name: 'lowlevel.configuration.module.provider'
+        identifier: 'doctrineDbalDriverMiddlewares'
+        label: 'LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:doctrineDbalDriverMiddlewares'
+        after: 'expressionlanguage'

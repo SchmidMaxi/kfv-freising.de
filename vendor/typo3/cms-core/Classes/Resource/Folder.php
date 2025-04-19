@@ -15,7 +15,12 @@
 
 namespace TYPO3\CMS\Core\Resource;
 
+use Psr\Http\Message\UploadedFileInterface;
+use TYPO3\CMS\Core\Resource\Enum\DuplicationBehavior;
+use TYPO3\CMS\Core\Resource\Exception\ExistingTargetFileNameException;
+use TYPO3\CMS\Core\Resource\Exception\ExistingTargetFolderException;
 use TYPO3\CMS\Core\Resource\Exception\InsufficientFolderAccessPermissionsException;
+use TYPO3\CMS\Core\Resource\Exception\InsufficientFolderWritePermissionsException;
 use TYPO3\CMS\Core\Resource\Exception\ResourcePermissionsUnavailableException;
 use TYPO3\CMS\Core\Resource\Search\FileSearchDemand;
 use TYPO3\CMS\Core\Resource\Search\Result\FileSearchResultInterface;
@@ -89,12 +94,7 @@ class Folder implements FolderInterface
         $this->name = $name;
     }
 
-    /**
-     * Returns the name of this folder.
-     *
-     * @return string
-     */
-    public function getName()
+    public function getName(): string
     {
         return $this->name;
     }
@@ -109,7 +109,7 @@ class Folder implements FolderInterface
     public function getReadablePath($rootId = null)
     {
         if ($rootId === null) {
-            // Find first matching filemount and use that as root
+            // Find first matching file mount and use that as root
             foreach ($this->storage->getFileMounts() as $fileMount) {
                 if ($this->storage->isWithinFolder($fileMount['folder'], $this)) {
                     $rootId = $fileMount['folder']->getIdentifier();
@@ -144,12 +144,7 @@ class Folder implements FolderInterface
         $this->name = $name;
     }
 
-    /**
-     * Returns the storage this folder belongs to.
-     *
-     * @return ResourceStorage
-     */
-    public function getStorage()
+    public function getStorage(): ResourceStorage
     {
         return $this->storage;
     }
@@ -158,19 +153,14 @@ class Folder implements FolderInterface
      * Returns the path of this folder inside the storage. It depends on the
      * type of storage whether this is a real path or just some unique identifier.
      *
-     * @return string
+     * @return non-empty-string
      */
-    public function getIdentifier()
+    public function getIdentifier(): string
     {
         return $this->identifier;
     }
 
-    /**
-     * Get hashed identifier
-     *
-     * @return string
-     */
-    public function getHashedIdentifier()
+    public function getHashedIdentifier(): string
     {
         return $this->storage->hashFileIdentifier($this->identifier);
     }
@@ -265,11 +255,9 @@ class Folder implements FolderInterface
     /**
      * Returns the object for a subfolder of the current folder, if it exists.
      *
-     * @param string $name Name of the subfolder
-     * @return Folder
      * @throws \InvalidArgumentException
      */
-    public function getSubfolder($name)
+    public function getSubfolder(string $name): Folder
     {
         if (!$this->storage->hasFolderInFolder($name, $this)) {
             throw new \InvalidArgumentException('Folder "' . $name . '" does not exist in "' . $this->identifier . '"', 1329836110);
@@ -282,9 +270,9 @@ class Folder implements FolderInterface
      * @param int $numberOfItems The number of items to return
      * @param int $filterMode The filter mode to use for the filelist.
      * @param bool $recursive
-     * @return array<string|int, Folder>
+     * @phpstan-return array<array-key, Folder>
      */
-    public function getSubfolders($start = 0, $numberOfItems = 0, $filterMode = self::FILTER_MODE_USE_OWN_AND_STORAGE_FILTERS, $recursive = false)
+    public function getSubfolders($start = 0, $numberOfItems = 0, $filterMode = self::FILTER_MODE_USE_OWN_AND_STORAGE_FILTERS, $recursive = false): array
     {
         [$backedUpFilters, $useFilters] = $this->prepareFiltersInStorage($filterMode);
         $folderObjects = $this->storage->getFoldersInFolder($this, $start, $numberOfItems, $useFilters, $recursive);
@@ -298,34 +286,54 @@ class Folder implements FolderInterface
      *
      * @param string $localFilePath
      * @param string $fileName
-     * @param string $conflictMode a value of the \TYPO3\CMS\Core\Resource\DuplicationBehavior enumeration
+     * @param string|DuplicationBehavior $conflictMode
      * @return File The file object
+     * @throws ExistingTargetFileNameException
+     * @todo change $conflictMode parameter type to DuplicationBehavior in TYPO3 v14.0
      */
     public function addFile($localFilePath, $fileName = null, $conflictMode = DuplicationBehavior::CANCEL)
     {
         $fileName = $fileName ?: PathUtility::basename($localFilePath);
+
+        if (!$conflictMode instanceof DuplicationBehavior) {
+            trigger_error(
+                'Using the non-native enumeration TYPO3\CMS\Core\Resource\DuplicationBehavior in Folder->addFile()'
+                . ' will stop working in TYPO3 v14.0. Use native TYPO3\CMS\Core\Resource\Enum\DuplicationBehavior instead.',
+                E_USER_DEPRECATED
+            );
+            $conflictMode = DuplicationBehavior::tryFrom($conflictMode) ?? DuplicationBehavior::getDefaultDuplicationBehaviour();
+        }
+
         return $this->storage->addFile($localFilePath, $this, $fileName, $conflictMode);
     }
 
     /**
      * Adds an uploaded file into the Storage.
      *
-     * @param array $uploadedFileData contains information about the uploaded file given by $_FILES['file1']
-     * @param string $conflictMode a value of the \TYPO3\CMS\Core\Resource\DuplicationBehavior enumeration
-     * @return File The file object
+     * @param array|UploadedFileInterface $uploadedFileData Information about the uploaded file given by $_FILES['file1']
+     *                                                      or a PSR-7 UploadedFileInterface object
+     * @param string|DuplicationBehavior $conflictMode
+     * @return FileInterface The file object
+     * @todo change $conflictMode parameter type to DuplicationBehavior in TYPO3 v14.0
      */
-    public function addUploadedFile(array $uploadedFileData, $conflictMode = DuplicationBehavior::CANCEL)
+    public function addUploadedFile(array|UploadedFileInterface $uploadedFileData, $conflictMode = DuplicationBehavior::CANCEL)
     {
-        return $this->storage->addUploadedFile($uploadedFileData, $this, $uploadedFileData['name'], $conflictMode);
+        if (!$conflictMode instanceof DuplicationBehavior) {
+            trigger_error(
+                'Using the non-native enumeration TYPO3\CMS\Core\Resource\DuplicationBehavior in Folder->addUploadedFile()'
+                . ' will stop working in TYPO3 v14.0. Use native TYPO3\CMS\Core\Resource\Enum\DuplicationBehavior instead.',
+                E_USER_DEPRECATED
+            );
+            $conflictMode = DuplicationBehavior::tryFrom($conflictMode) ?? DuplicationBehavior::getDefaultDuplicationBehaviour();
+        }
+
+        return $this->storage->addUploadedFile($uploadedFileData, $this, null, $conflictMode);
     }
 
     /**
      * Renames this folder.
-     *
-     * @param string $newName
-     * @return Folder
      */
-    public function rename($newName)
+    public function rename(string $newName): self
     {
         return $this->storage->renameFolder($this, $newName);
     }
@@ -334,9 +342,8 @@ class Folder implements FolderInterface
      * Deletes this folder from its storage. This also means that this object becomes useless.
      *
      * @param bool $deleteRecursively
-     * @return bool TRUE if deletion succeeded
      */
-    public function delete($deleteRecursively = true)
+    public function delete($deleteRecursively = true): bool
     {
         return $this->storage->deleteFolder($this, $deleteRecursively);
     }
@@ -357,6 +364,8 @@ class Folder implements FolderInterface
      *
      * @param string $folderName
      * @return Folder The new folder object
+     * @throws ExistingTargetFolderException
+     * @throws InsufficientFolderWritePermissionsException
      */
     public function createFolder($folderName)
     {
@@ -368,11 +377,21 @@ class Folder implements FolderInterface
      *
      * @param Folder $targetFolder Target folder to copy to.
      * @param string $targetFolderName an optional destination fileName
-     * @param string $conflictMode a value of the \TYPO3\CMS\Core\Resource\DuplicationBehavior enumeration
+     * @param string|DuplicationBehavior $conflictMode
      * @return Folder New (copied) folder object.
+     * @todo change $conflictMode parameter type to DuplicationBehavior in TYPO3 v14.0
      */
     public function copyTo(Folder $targetFolder, $targetFolderName = null, $conflictMode = DuplicationBehavior::RENAME)
     {
+        if (!$conflictMode instanceof DuplicationBehavior) {
+            trigger_error(
+                'Using the non-native enumeration TYPO3\CMS\Core\Resource\DuplicationBehavior in Folder->copyTo()'
+                . ' will stop working in TYPO3 v14.0. Use native TYPO3\CMS\Core\Resource\Enum\DuplicationBehavior instead.',
+                E_USER_DEPRECATED
+            );
+            $conflictMode = DuplicationBehavior::tryFrom($conflictMode) ?? DuplicationBehavior::getDefaultDuplicationBehaviour();
+        }
+
         return $targetFolder->getStorage()->copyFolder($this, $targetFolder, $targetFolderName, $conflictMode);
     }
 
@@ -381,31 +400,36 @@ class Folder implements FolderInterface
      *
      * @param Folder $targetFolder Target folder to move to.
      * @param string $targetFolderName an optional destination fileName
-     * @param string $conflictMode a value of the \TYPO3\CMS\Core\Resource\DuplicationBehavior enumeration
+     * @param string|DuplicationBehavior $conflictMode
      * @return Folder New (copied) folder object.
+     * @todo change $conflictMode parameter type to DuplicationBehavior in TYPO3 v14.0
      */
     public function moveTo(Folder $targetFolder, $targetFolderName = null, $conflictMode = DuplicationBehavior::RENAME)
     {
+        if (!$conflictMode instanceof DuplicationBehavior) {
+            trigger_error(
+                'Using the non-native enumeration TYPO3\CMS\Core\Resource\DuplicationBehavior in Folder->moveTo()'
+                . ' will stop working in TYPO3 v14.0. Use native TYPO3\CMS\Core\Resource\Enum\DuplicationBehavior instead.',
+                E_USER_DEPRECATED
+            );
+            $conflictMode = DuplicationBehavior::tryFrom($conflictMode) ?? DuplicationBehavior::getDefaultDuplicationBehaviour();
+        }
+
         return $targetFolder->getStorage()->moveFolder($this, $targetFolder, $targetFolderName, $conflictMode);
     }
 
     /**
      * Checks if a file exists in this folder
-     *
-     * @param string $name
-     * @return bool
      */
-    public function hasFile($name)
+    public function hasFile(string $name): bool
     {
         return $this->storage->hasFileInFolder($name, $this);
     }
 
     /**
      * Fetches a file from a folder, must be a direct descendant of a folder.
-     *
-     * @return File|ProcessedFile|null
      */
-    public function getFile(string $fileName)
+    public function getFile(string $fileName): ?FileInterface
     {
         if ($this->storage->hasFileInFolder($fileName, $this)) {
             return $this->storage->getFileInFolder($fileName, $this);
@@ -415,11 +439,8 @@ class Folder implements FolderInterface
 
     /**
      * Checks if a folder exists in this folder.
-     *
-     * @param string $name
-     * @return bool
      */
-    public function hasFolder($name)
+    public function hasFolder(string $name): bool
     {
         return $this->storage->hasFolderInFolder($name, $this);
     }
@@ -539,30 +560,25 @@ class Folder implements FolderInterface
      *
      * The parent folder of the root folder is the root folder.
      *
-     * @return FolderInterface
      * @throws InsufficientFolderAccessPermissionsException
      */
-    public function getParentFolder()
+    public function getParentFolder(): FolderInterface
     {
         return $this->getStorage()->getFolder($this->getStorage()->getFolderIdentifierFromFileIdentifier($this->getIdentifier()));
     }
 
     /**
      * Returns the modification time of the file as Unix timestamp
-     *
-     * @return int
      */
-    public function getModificationTime()
+    public function getModificationTime(): int
     {
         return (int)$this->storage->getFolderInfo($this)['mtime'];
     }
 
     /**
      * Returns the creation time of the file as Unix timestamp
-     *
-     * @return int
      */
-    public function getCreationTime()
+    public function getCreationTime(): int
     {
         return (int)$this->storage->getFolderInfo($this)['ctime'];
     }

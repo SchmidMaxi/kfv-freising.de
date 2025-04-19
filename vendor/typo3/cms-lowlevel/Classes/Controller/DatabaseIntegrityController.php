@@ -18,26 +18,30 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Lowlevel\Controller;
 
 use Doctrine\DBAL\Exception as DBALException;
-use Doctrine\DBAL\Platforms\AbstractMySQLPlatform;
-use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
+use Doctrine\DBAL\Platforms\MariaDBPlatform as DoctrineMariaDBPlatform;
+use Doctrine\DBAL\Platforms\MySQLPlatform as DoctrineMySQLPlatform;
+use Doctrine\DBAL\Platforms\PostgreSQLPlatform as DoctrinePostgreSQLPlatform;
+use Doctrine\DBAL\Types\Type;
 use Doctrine\DBAL\Types\Types;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
-use TYPO3\CMS\Backend\Routing\Route;
+use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\Components\ButtonBar;
 use TYPO3\CMS\Backend\Template\ModuleTemplate;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
-use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Database\Platform\PlatformHelper;
 use TYPO3\CMS\Core\Database\Query\QueryHelper;
 use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\Database\ReferenceIndex;
-use TYPO3\CMS\Core\Imaging\Icon;
+use TYPO3\CMS\Core\DataHandling\PageDoktypeRegistry;
+use TYPO3\CMS\Core\DataHandling\TableColumnType;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\DateFormatter;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Localization\Locale;
@@ -45,6 +49,11 @@ use TYPO3\CMS\Core\Localization\Locales;
 use TYPO3\CMS\Core\Messaging\FlashMessage;
 use TYPO3\CMS\Core\Messaging\FlashMessageRendererResolver;
 use TYPO3\CMS\Core\Messaging\FlashMessageService;
+use TYPO3\CMS\Core\Schema\Capability\LabelCapability;
+use TYPO3\CMS\Core\Schema\Capability\TcaSchemaCapability;
+use TYPO3\CMS\Core\Schema\Struct\SelectItem;
+use TYPO3\CMS\Core\Schema\TcaSchema;
+use TYPO3\CMS\Core\Schema\TcaSchemaFactory;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
 use TYPO3\CMS\Core\Utility\CsvUtility;
@@ -62,6 +71,7 @@ use TYPO3\CMS\Lowlevel\Integrity\DatabaseIntegrityCheck;
  *
  * @internal This class is a specific Backend controller implementation and is not part of the TYPO3's Core API.
  */
+#[AsController]
 class DatabaseIntegrityController
 {
     /**
@@ -75,14 +85,13 @@ class DatabaseIntegrityController
     protected array $MOD_SETTINGS = [];
 
     protected string $formName = '';
-    protected string $moduleName = '';
+    protected string $moduleName = 'system_dbint';
 
     /**
      * If the current user is an admin and $GLOBALS['TYPO3_CONF_VARS']['BE']['debug']
      * is set to true, the names of fields and tables are displayed.
      */
     protected bool $showFieldAndTableNames = false;
-    protected array $hookArray = [];
     protected string $table = '';
     protected bool $enablePrefix = false;
     protected int $noDownloadB = 0;
@@ -221,10 +230,12 @@ class DatabaseIntegrityController
     public function __construct(
         protected IconFactory $iconFactory,
         protected readonly UriBuilder $uriBuilder,
-        protected readonly ModuleTemplateFactory $moduleTemplateFactory
-    ) {
-        $this->moduleName = 'system_dbint';
-    }
+        protected readonly ModuleTemplateFactory $moduleTemplateFactory,
+        protected readonly PlatformHelper $platformHelper,
+        protected readonly TcaSchemaFactory $tcaSchemaFactory,
+        protected readonly FlashMessageRendererResolver $flashMessageRendererResolver,
+        protected readonly PageDoktypeRegistry $pageDoktypeRegistry,
+    ) {}
 
     public function handleRequest(ServerRequestInterface $request): ResponseInterface
     {
@@ -266,14 +277,14 @@ class DatabaseIntegrityController
         // Values NOT in this array will not be saved in the settings-array for the module.
         $this->MOD_MENU = [
             'function' => [
-                'refindex' => htmlspecialchars($lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:manageRefIndex')),
-                'records' => htmlspecialchars($lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:recordStatistics')),
-                'relations' => htmlspecialchars($lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:databaseRelations')),
-                'search' => htmlspecialchars($lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch')),
+                'refindex' => $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:manageRefIndex'),
+                'records' => $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:recordStatistics'),
+                'relations' => $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:databaseRelations'),
+                'search' => $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch'),
             ],
             'search' => [
-                'raw' => htmlspecialchars($lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:rawSearch')),
-                'query' => htmlspecialchars($lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:advancedQuery')),
+                'raw' => $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:rawSearch'),
+                'query' => $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:advancedQuery'),
             ],
             'search_query_smallparts' => '',
             'search_result_labels' => '',
@@ -303,26 +314,27 @@ class DatabaseIntegrityController
             'storeQueryConfigs' => '',
             // Used to store the available Query configs in memory
             'search_query_makeQuery' => [
-                'all' => htmlspecialchars($lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:selectRecords')),
-                'count' => htmlspecialchars($lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:countResults')),
-                'explain' => htmlspecialchars($lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:explainQuery')),
-                'csv' => htmlspecialchars($lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:csvExport')),
+                'all' => $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:selectRecords'),
+                'count' => $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:countResults'),
+                'explain' => $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:explainQuery'),
+                'csv' => $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:csvExport'),
             ],
             'sword' => '',
         ];
 
         // EXPLAIN is no ANSI SQL, for now this is only executed on mysql
         $connection = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionByName(ConnectionPool::DEFAULT_CONNECTION_NAME);
-        if (!$connection->getDatabasePlatform() instanceof AbstractMySQLPlatform) {
+        $platform = $connection->getDatabasePlatform();
+        if (!($platform instanceof DoctrineMariaDBPlatform || $platform instanceof DoctrineMySQLPlatform)) {
             unset($this->MOD_MENU['search_query_makeQuery']['explain']);
         }
 
         // CLEAN SETTINGS
-        $OLD_MOD_SETTINGS = BackendUtility::getModuleData($this->MOD_MENU, [], 'system_dbint', 'ses');
-        $this->MOD_SETTINGS = BackendUtility::getModuleData($this->MOD_MENU, $parsedBody['SET'] ?? $queryParams['SET'] ?? [], 'system_dbint', 'ses');
+        $OLD_MOD_SETTINGS = BackendUtility::getModuleData($this->MOD_MENU, [], $this->moduleName, 'ses');
+        $this->MOD_SETTINGS = BackendUtility::getModuleData($this->MOD_MENU, $parsedBody['SET'] ?? $queryParams['SET'] ?? [], $this->moduleName, 'ses');
         $queryConfig = $parsedBody['queryConfig'] ?? $queryParams['queryConfig'] ?? false;
         if ($queryConfig) {
-            $this->MOD_SETTINGS = BackendUtility::getModuleData($this->MOD_MENU, ['queryConfig' => serialize($queryConfig)], 'system_dbint', 'ses');
+            $this->MOD_SETTINGS = BackendUtility::getModuleData($this->MOD_MENU, ['queryConfig' => serialize($queryConfig)], $this->moduleName, 'ses');
         }
         $setLimitToStart = false;
         foreach ($OLD_MOD_SETTINGS as $key => $val) {
@@ -344,7 +356,7 @@ class DatabaseIntegrityController
             } else {
                 $this->MOD_SETTINGS['queryLimit'] = '0';
             }
-            $this->MOD_SETTINGS = BackendUtility::getModuleData($this->MOD_MENU, $this->MOD_SETTINGS, 'system_dbint', 'ses');
+            $this->MOD_SETTINGS = BackendUtility::getModuleData($this->MOD_MENU, $this->MOD_SETTINGS, $this->moduleName, 'ses');
         }
     }
 
@@ -355,7 +367,7 @@ class DatabaseIntegrityController
     {
         $buttonBar = $moduleTemplate->getDocHeaderComponent()->getButtonBar();
         $shortCutButton = $buttonBar->makeShortcutButton()
-            ->setRouteIdentifier('system_dbint')
+            ->setRouteIdentifier($this->moduleName)
             ->setDisplayName($this->MOD_MENU['function'][$this->MOD_SETTINGS['function']])
             ->setArguments([
                 'SET' => [
@@ -378,7 +390,7 @@ class DatabaseIntegrityController
                 ->makeMenuItem()
                 ->setHref(
                     (string)$this->uriBuilder->buildUriFromRoute(
-                        'system_dbint',
+                        $this->moduleName,
                         [
                             'id' => 0,
                             'SET' => [
@@ -402,7 +414,7 @@ class DatabaseIntegrityController
     protected function referenceIndexAction(ModuleTemplate $view, ServerRequestInterface $request): ResponseInterface
     {
         $isUpdate = $request->getParsedBody()['update'] ?? false;
-        $isCheckOnly = $request->getParsedBody()['checkOnly'] ?? false;
+        $isCheckOnly = (bool)($request->getParsedBody()['checkOnly'] ?? false);
         $referenceIndexResult = [];
         if ($isUpdate || $isCheckOnly) {
             $referenceIndexResult = GeneralUtility::makeInstance(ReferenceIndex::class)->updateIndex($isCheckOnly);
@@ -426,25 +438,47 @@ class DatabaseIntegrityController
         $lang = $this->getLanguageService();
         $this->showFieldAndTableNames = $this->getBackendUserAuthentication()->shallDisplayDebugInformation();
         $searchMode = $this->MOD_SETTINGS['search'];
-        $this->setFormName('queryform');
-        $submenu = '';
-        $submenu .= '<div class="form-row">';
-        $submenu .= '<div class="form-group">' . self::getDropdownMenu(0, 'SET[search]', $searchMode, $this->MOD_MENU['search'], $request) . '</div>';
-        if ($this->MOD_SETTINGS['search'] === 'query') {
-            $submenu .= '<div class="form-group">' . self::getDropdownMenu(0, 'SET[search_query_makeQuery]', $this->MOD_SETTINGS['search_query_makeQuery'], $this->MOD_MENU['search_query_makeQuery'], $request) . '</div>';
+
+        $searchTypeSelect = '';
+        $searchTypeSelect .= '<div class="form-group">';
+        $searchTypeSelect .=   '<label for="search" class="form-label">' . $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.form.field.searchType.label') . '</label>';
+        $searchTypeSelect .=   '<div class="input-group">' . $this->getDropdownMenu('SET[search]', $searchMode, $this->MOD_MENU['search'], $request) . '</div>';
+        $searchTypeSelect .= '</div>';
+
+        $queryTypeSelect = '';
+        $queryOptions = '';
+        if ($searchMode === 'query') {
+            $queryTypeSelect .= '<div class="form-group">';
+            $queryTypeSelect .=   '<label for="search-search-query-make-query" class="form-label">' . $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.form.field.makeQuery.label') . '</label>';
+            $queryTypeSelect .=   '<div class="input-group">' . $this->getDropdownMenu('SET[search_query_makeQuery]', $this->MOD_SETTINGS['search_query_makeQuery'], $this->MOD_MENU['search_query_makeQuery'], $request) . '</div>';
+            $queryTypeSelect .= '</div>';
+
+            $queryOptions .= '<div class="form-row">';
+            $queryOptions .=   '<div class="form-group">';
+            $queryOptions .=     '<fieldset>';
+            $queryOptions .=       '<legend class="form-label">' . $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.section.queryOptions') . '</legend>';
+            $queryOptions .=       '<div class="form-check form-switch form-check-size-input">' . $this->getFuncCheck('SET[search_query_smallparts]', $this->MOD_SETTINGS['search_query_smallparts'] ?? '', $request, 'id="checkSearch_query_smallparts"')
+                . '<label class="form-check-label" for="checkSearch_query_smallparts">' . $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:showSQL') . '</label></div>';
+            $queryOptions .=       '<div class="form-check form-switch form-check-size-input">' . $this->getFuncCheck('SET[search_result_labels]', $this->MOD_SETTINGS['search_result_labels'] ?? '', $request, 'id="checkSearch_result_labels"')
+                . '<label class="form-check-label" for="checkSearch_result_labels">' . $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:useFormattedStrings') . '</label></div>';
+            $queryOptions .=       '<div class="form-check form-switch form-check-size-input">' . $this->getFuncCheck('SET[labels_noprefix]', $this->MOD_SETTINGS['labels_noprefix'] ?? '', $request, 'id="checkLabels_noprefix"')
+                . '<label class="form-check-label" for="checkLabels_noprefix">' . $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:dontUseOrigValues') . '</label></div>';
+            $queryOptions .=       '<div class="form-check form-switch form-check-size-input">' . $this->getFuncCheck('SET[options_sortlabel]', $this->MOD_SETTINGS['options_sortlabel'] ?? '', $request, 'id="checkOptions_sortlabel"')
+                . '<label class="form-check-label" for="checkOptions_sortlabel">' . $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:sortOptions') . '</label></div>';
+            $queryOptions .=       '<div class="form-check form-switch form-check-size-input">' . $this->getFuncCheck('SET[show_deleted]', $this->MOD_SETTINGS['show_deleted'] ?? 0, $request, 'id="checkShow_deleted"')
+                . '<label class="form-check-label" for="checkShow_deleted">' . $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:showDeleted') . '</label></div>';
+            $queryOptions .=     '</fieldset>';
+            $queryOptions .=   '</div>';
+            $queryOptions .= '</div>';
         }
-        $submenu .= '</div>';
-        if ($this->MOD_SETTINGS['search'] === 'query') {
-            $submenu .= '<div class="form-group">';
-            $submenu .= '<div class="form-check">' . self::getFuncCheck(0, 'SET[search_query_smallparts]', $this->MOD_SETTINGS['search_query_smallparts'] ?? '', $request, '', '', 'id="checkSearch_query_smallparts"') . '<label class="form-check-label" for="checkSearch_query_smallparts">' . $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:showSQL') . '</label></div>';
-            $submenu .= '<div class="form-check">' . self::getFuncCheck(0, 'SET[search_result_labels]', $this->MOD_SETTINGS['search_result_labels'] ?? '', $request, '', '', 'id="checkSearch_result_labels"') . '<label class="form-check-label" for="checkSearch_result_labels">' . $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:useFormattedStrings') . '</label></div>';
-            $submenu .= '<div class="form-check">' . self::getFuncCheck(0, 'SET[labels_noprefix]', $this->MOD_SETTINGS['labels_noprefix'] ?? '', $request, '', '', 'id="checkLabels_noprefix"') . '<label class="form-check-label" for="checkLabels_noprefix">' . $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:dontUseOrigValues') . '</label></div>';
-            $submenu .= '<div class="form-check">' . self::getFuncCheck(0, 'SET[options_sortlabel]', $this->MOD_SETTINGS['options_sortlabel'] ?? '', $request, '', '', 'id="checkOptions_sortlabel"') . '<label class="form-check-label" for="checkOptions_sortlabel">' . $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:sortOptions') . '</label></div>';
-            $submenu .= '<div class="form-check">' . self::getFuncCheck(0, 'SET[show_deleted]', $this->MOD_SETTINGS['show_deleted'] ?? 0, $request, '', '', 'id="checkShow_deleted"') . '<label class="form-check-label" for="checkShow_deleted">' . $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:showDeleted') . '</label></div>';
-            $submenu .= '</div>';
-        }
-        $view->assign('submenu', $submenu);
-        $view->assign('searchMode', $searchMode);
+
+        $view->assignMultiple([
+            'queryOptions' => $queryOptions,
+            'queryTypeSelect' => $queryTypeSelect,
+            'searchMode' => $searchMode,
+            'searchTypeSelect' => $searchTypeSelect,
+        ]);
+
         switch ($searchMode) {
             case 'query':
                 $view->assign('queryMaker', $this->queryMaker($request));
@@ -452,7 +486,6 @@ class DatabaseIntegrityController
             case 'raw':
             default:
                 $view->assign('sword', (string)($this->MOD_SETTINGS['sword'] ?? ''));
-                $view->assign('searchOptions', $this->form());
                 $view->assign('results', $this->search($request));
                 $view->assign('isSearching', $request->getMethod() === 'POST');
         }
@@ -460,40 +493,44 @@ class DatabaseIntegrityController
         return $view->renderResponse('CustomSearch');
     }
 
-    protected function setFormName(string $formName): void
-    {
-        $this->formName = trim($formName);
-    }
-
     protected function queryMaker(ServerRequestInterface $request): string
     {
+        $lang = $this->getLanguageService();
         $output = '';
-        $this->hookArray = $GLOBALS['TYPO3_CONF_VARS']['EXTCONF']['t3lib_fullsearch'] ?? [];
         $msg = $this->procesStoreControl($request);
         $userTsConfig = $this->getBackendUserAuthentication()->getTSConfig();
         if (!($userTsConfig['mod.']['dbint.']['disableStoreControl'] ?? false)) {
-            $output .= '<h2 class="headline-spaced">Load/Save Query</h2>';
-            $output .= $this->makeStoreControl();
-            $output .= $msg;
+            $output .= '<div class="card">';
+            $output .=   '<div class="card-body">';
+            $output .=     '<h2 class="card-title">' . $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.section.queryStorage') . '</h2>';
+            $output .=       $this->makeStoreControl();
+            $output .=     '<div class="card-text">' . $msg . '</div>';
+            $output .=   '</div>';
+            $output .= '</div>';
         }
+
         // Query Maker:
         $this->init('queryConfig', $this->MOD_SETTINGS['queryTable'] ?? '', '', $this->MOD_SETTINGS);
-        if ($this->formName) {
-            $this->setFormName($this->formName);
-        }
-        $output .= '<h2>Make query</h2>';
-        $output .= $this->makeSelectorTable($this->MOD_SETTINGS, $request);
+
+        $output .=  '<h2>' . $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.section.querySettings') . '</h2>';
+        $output .= '<div class="task-form">';
+        $output .=   '<fieldset class="form-section">';
+        $output .=     $this->makeSelectorTable($this->MOD_SETTINGS, $request);
+        $output .=   '</fieldset>';
+        $output .= '</div>';
         $mQ = $this->MOD_SETTINGS['search_query_makeQuery'] ?? '';
+
         // Make form elements:
-        if ($this->table && is_array($GLOBALS['TCA'][$this->table])) {
+        if ($this->table && $this->tcaSchemaFactory->has($this->table)) {
             if ($mQ) {
                 // Show query
                 $this->enablePrefix = true;
                 $queryString = $this->getQuery($this->queryConfig);
                 $selectQueryString = $this->getSelectQuery($queryString);
                 $connection = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable($this->table);
+                $platform = $connection->getDatabasePlatform();
 
-                $isConnectionMysql = str_starts_with($connection->getServerVersion(), 'MySQL');
+                $isConnectionMysql = ($platform instanceof DoctrineMariaDBPlatform || $platform instanceof DoctrineMySQLPlatform);
                 $fullQueryString = '';
                 try {
                     if ($mQ === 'explain' && $isConnectionMysql) {
@@ -517,7 +554,7 @@ class DatabaseIntegrityController
                         $dataRows = $connection->executeQuery($selectQueryString)->fetchAllAssociative();
                     }
                     if (!($userTsConfig['mod.']['dbint.']['disableShowSQLQuery'] ?? false)) {
-                        $output .= '<h2>SQL query</h2>';
+                        $output .= '<h2>' . $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.section.querySQL') . '</h2>';
                         $output .= '<pre class="language-sql">';
                         $output .=   '<code class="language-sql">';
                         $output .=     htmlspecialchars($fullQueryString);
@@ -533,16 +570,16 @@ class DatabaseIntegrityController
                     }
                 } catch (DBALException $e) {
                     if (!($userTsConfig['mod.']['dbint.']['disableShowSQLQuery'] ?? false)) {
-                        $output .= '<h2>SQL query</h2>';
+                        $output .= '<h2>' . $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.section.querySQL') . '</h2>';
                         $output .= '<pre class="language-sql">';
                         $output .=   '<code class="language-sql">';
                         $output .=     htmlspecialchars($fullQueryString);
                         $output .=   '</code>';
                         $output .= '</pre>';
                     }
-                    $output .= '<h2>SQL error</h2>';
+                    $output .= '<h2>' . $lang->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.section.querySQL.error') . '</h2>';
                     $output .= '<div class="alert alert-danger">';
-                    $output .= '<p class="alert-message"><strong>Error:</strong> ' . htmlspecialchars($e->getMessage()) . '</p>';
+                    $output .=   '<p class="alert-message"><strong>Error:</strong> ' . htmlspecialchars($e->getMessage()) . '</p>';
                     $output .= '</div>';
                 }
             }
@@ -559,7 +596,11 @@ class DatabaseIntegrityController
         if (empty($this->MOD_SETTINGS['show_deleted'])) {
             $queryBuilder->getRestrictions()->add(GeneralUtility::makeInstance(DeletedRestriction::class));
         }
-        $deleteField = $GLOBALS['TCA'][$this->table]['ctrl']['delete'] ?? '';
+        $deleteField = '';
+        $schema = $this->tcaSchemaFactory->get($this->table);
+        if ($schema->hasCapability(TcaSchemaCapability::SoftDelete)) {
+            $deleteField = $schema->getCapability(TcaSchemaCapability::SoftDelete)->getFieldName();
+        }
         $fieldList = GeneralUtility::trimExplode(
             ',',
             $this->extFieldLists['queryFields']
@@ -650,7 +691,7 @@ class DatabaseIntegrityController
         if ($id && $depth > 0) {
             $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('pages');
             $queryBuilder->getRestrictions()->removeAll()->add(GeneralUtility::makeInstance(DeletedRestriction::class));
-            $statement = $queryBuilder->select('uid')
+            $queryBuilder->select('uid')
                 ->from('pages')
                 ->where(
                     $queryBuilder->expr()->eq('pid', $queryBuilder->createNamedParameter($id, Connection::PARAM_INT)),
@@ -684,32 +725,28 @@ class DatabaseIntegrityController
      */
     protected function getQueryResultCode(string $type, array $dataRows, string $table, ServerRequestInterface $request): array
     {
+        $languageService = $this->getLanguageService();
         $out = '';
         $cPR = [];
+        $cPR['header'] = $languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.section.result');
         switch ($type) {
             case 'count':
-                $cPR['header'] = 'Count';
-                $cPR['content'] = '<p><strong>' . (int)$dataRows[0] . '</strong> records selected.</p>';
+                $cPR['content'] = '<p><strong>' . (int)$dataRows[0] . '</strong> ' . $languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.type.count.resultsFound') . '</p>';
                 break;
             case 'all':
                 $rowArr = [];
                 $dataRow = null;
                 foreach ($dataRows as $dataRow) {
-                    $rowArr[] = $this->resultRowDisplay($dataRow, $GLOBALS['TCA'][$table], $table, $request);
-                }
-                if (is_array($this->hookArray['beforeResultTable'] ?? false)) {
-                    foreach ($this->hookArray['beforeResultTable'] as $_funcRef) {
-                        $out .= GeneralUtility::callUserFunction($_funcRef, $this->MOD_SETTINGS);
-                    }
+                    $rowArr[] = $this->resultRowDisplay($dataRow, $table, $request);
                 }
                 if (!empty($rowArr)) {
-                    $cPR['header'] = 'Result';
                     $out .= '<div class="table-fit">';
                     $out .= '<table class="table table-striped table-hover">';
-                    $out .= $this->resultRowTitles((array)$dataRow, $GLOBALS['TCA'][$table]) . implode(LF, $rowArr);
+                    $out .= $this->resultRowTitles((array)$dataRow, $table) . implode(LF, $rowArr);
                     $out .= '</table>';
                     $out .= '</div>';
                 } else {
+                    $out .= '<p>' . $languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.type.all.noResultsFound') . '</p>';
                     $this->renderNoResultsFoundMessage();
                 }
 
@@ -723,10 +760,9 @@ class DatabaseIntegrityController
                         $rowArr[] = $this->csvValues(array_keys($dataRow));
                         $first = 0;
                     }
-                    $rowArr[] = $this->csvValues($dataRow, ',', '"', $GLOBALS['TCA'][$table], $table);
+                    $rowArr[] = $this->csvValues($dataRow, $table);
                 }
                 if (!empty($rowArr)) {
-                    $cPR['header'] = 'Result';
                     $out .= '<div class="form-group">';
                     $out .= '<textarea class="form-control" name="whatever" rows="20" class="font-monospace" style="width:100%">';
                     $out .= htmlspecialchars(implode(LF, $rowArr));
@@ -734,7 +770,7 @@ class DatabaseIntegrityController
                     $out .= '</div>';
                     if (!$this->noDownloadB) {
                         $out .= '<button class="btn btn-default" type="submit" name="download_file" value="Click to download file">';
-                        $out .=    $this->iconFactory->getIcon('actions-file-csv-download', Icon::SIZE_SMALL)->render();
+                        $out .=    $this->iconFactory->getIcon('actions-file-csv-download', IconSize::SMALL)->render();
                         $out .= '  Click to download file';
                         $out .= '</button>';
                     }
@@ -749,6 +785,7 @@ class DatabaseIntegrityController
                         die;
                     }
                 } else {
+                    $out .= '<p>' . $languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.type.all.noResultsFound') . '</p>';
                     $this->renderNoResultsFoundMessage();
                 }
                 $cPR['content'] = $out;
@@ -758,35 +795,35 @@ class DatabaseIntegrityController
                 foreach ($dataRows as $dataRow) {
                     $out .= DebugUtility::viewArray($dataRow);
                 }
-                $cPR['header'] = 'Explain SQL query';
                 $cPR['content'] = $out;
         }
 
         return $cPR;
     }
 
-    protected function csvValues(array $row, string $delim = ',', string $quote = '"', array $conf = [], string $table = ''): string
+    protected function csvValues(array $row, string $table = ''): string
     {
         $valueArray = $row;
         if (($this->MOD_SETTINGS['search_result_labels'] ?? false) && $table) {
             foreach ($valueArray as $key => $val) {
-                $valueArray[$key] = $this->getProcessedValueExtra($table, $key, (string)$val, $conf, ';');
+                $valueArray[$key] = $this->getProcessedValueExtra($table, $key, (string)$val, ';');
             }
         }
 
-        return CsvUtility::csvValues($valueArray, $delim, $quote);
+        return CsvUtility::csvValues($valueArray);
     }
 
     /**
      * @param array|null $row Table columns
      */
-    protected function resultRowTitles(?array $row, array $conf): string
+    protected function resultRowTitles(?array $row, string $table): string
     {
         $languageService = $this->getLanguageService();
         $tableHeader = [];
         // Start header row
         $tableHeader[] = '<thead><tr>';
         // Iterate over given columns
+        $schema = $this->tcaSchemaFactory->get($table);
         foreach ($row ?? [] as $fieldName => $fieldValue) {
             if (GeneralUtility::inList($this->MOD_SETTINGS['queryFields'] ?? '', $fieldName)
                 || !($this->MOD_SETTINGS['queryFields'] ?? false)
@@ -794,7 +831,13 @@ class DatabaseIntegrityController
                 && $fieldName !== 'deleted'
             ) {
                 if ($this->MOD_SETTINGS['search_result_labels'] ?? false) {
-                    $title = $languageService->sL(($conf['columns'][$fieldName]['label'] ?? false) ?: $fieldName);
+                    $title  = null;
+                    // Note: "uid" is not part of the regular schema definition. In this case we fallback to the $fieldName.
+                    if ($schema->hasField($fieldName)) {
+                        $title = $schema->getField($fieldName)->getLabel();
+                        $title = $languageService->sL($title);
+                    }
+                    $title = $title ?: $fieldName;
                 } else {
                     $title = $languageService->sL($fieldName);
                 }
@@ -809,7 +852,7 @@ class DatabaseIntegrityController
         return implode(LF, $tableHeader);
     }
 
-    protected function resultRowDisplay(array $row, array $conf, string $table, ServerRequestInterface $request): string
+    protected function resultRowDisplay(array $row, string $table, ServerRequestInterface $request): string
     {
         $languageService = $this->getLanguageService();
         $out = '<tr>';
@@ -820,7 +863,7 @@ class DatabaseIntegrityController
                 && $fieldName !== 'deleted'
             ) {
                 if ($this->MOD_SETTINGS['search_result_labels'] ?? false) {
-                    $fVnew = $this->getProcessedValueExtra($table, $fieldName, (string)$fieldValue, $conf, '<br />');
+                    $fVnew = $this->getProcessedValueExtra($table, $fieldName, (string)$fieldValue, '<br>');
                 } else {
                     $fVnew = htmlspecialchars((string)$fieldValue);
                 }
@@ -828,11 +871,10 @@ class DatabaseIntegrityController
             }
         }
         $out .= '<td class="col-control">';
-        $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
 
         if (!($row['deleted'] ?? false)) {
-            $out .= '<div class="btn-group" role="group">';
-            $url = (string)$uriBuilder->buildUriFromRoute('record_edit', [
+            // "Edit"
+            $editActionUrl = (string)$this->uriBuilder->buildUriFromRoute('record_edit', [
                 'edit' => [
                     $table => [
                         $row['uid'] => 'edit',
@@ -841,20 +883,23 @@ class DatabaseIntegrityController
                 'returnUrl' => $request->getAttribute('normalizedParams')->getRequestUri()
                     . HttpUtility::buildQueryString(['SET' => $request->getParsedBody()['SET'] ?? []], '&'),
             ]);
-            $out .= '<a class="btn btn-default" href="' . htmlspecialchars($url) . '">'
-                . $this->iconFactory->getIcon('actions-open', Icon::SIZE_SMALL)->render()
+            $editAction = '<a class="btn btn-default" href="' . htmlspecialchars($editActionUrl) . '"'
+                . ' title="' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_mod_web_list.xlf:edit')) . '">'
+                . $this->iconFactory->getIcon('actions-open', IconSize::SMALL)->render()
                 . '</a>';
-            $out .= '</div><div class="btn-group" role="group">';
-            $out .= sprintf(
-                '<a class="btn btn-default" href="#" data-dispatch-action="%s" data-dispatch-args-list="%s">%s</a>',
+
+            // "Info"
+            $infoActionTitle = htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_mod_web_list.xlf:showInfo'));
+            $infoAction = sprintf(
+                '<a class="btn btn-default" href="#" title="' . $infoActionTitle . '" data-dispatch-action="%s" data-dispatch-args-list="%s">%s</a>',
                 'TYPO3.InfoWindow.showItem',
                 htmlspecialchars($table . ',' . $row['uid']),
-                $this->iconFactory->getIcon('actions-document-info', Icon::SIZE_SMALL)->render()
+                $this->iconFactory->getIcon('actions-document-info', IconSize::SMALL)->render()
             );
-            $out .= '</div>';
+
+            $out .= '<div class="btn-group" role="group">' . $editAction . $infoAction . '</div>';
         } else {
-            $out .= '<div class="btn-group" role="group">';
-            $out .= '<a class="btn btn-default" href="' . htmlspecialchars((string)$uriBuilder->buildUriFromRoute('tce_db', [
+            $undeleteActionUrl = (string)$this->uriBuilder->buildUriFromRoute('tce_db', [
                 'cmd' => [
                     $table => [
                         $row['uid'] => [
@@ -862,23 +907,20 @@ class DatabaseIntegrityController
                         ],
                     ],
                 ],
-                'redirect' => (string)$uriBuilder->buildUriFromRoute('system_dbint'),
-            ])) . '" title="' . htmlspecialchars($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_t3lib_fullsearch.xlf:undelete_only')) . '">';
-            $out .= $this->iconFactory->getIcon('actions-edit-restore', Icon::SIZE_SMALL)->render() . '</a>';
-            $out .= '</div>';
-        }
-        $_params = [$table => $row];
-        if (is_array($this->hookArray['additionalButtons'] ?? false)) {
-            foreach ($this->hookArray['additionalButtons'] as $_funcRef) {
-                $out .= GeneralUtility::callUserFunction($_funcRef, $_params);
-            }
+                'redirect' => (string)$this->uriBuilder->buildUriFromRoute($this->moduleName),
+            ]);
+            $undeleteAction = '<a class="btn btn-default" href="' . htmlspecialchars($undeleteActionUrl) . '"'
+                . ' title="' . htmlspecialchars($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_t3lib_fullsearch.xlf:undelete_only')) . '">'
+                . $this->iconFactory->getIcon('actions-edit-restore', IconSize::SMALL)->render()
+                . '</a>';
+            $out .= '<div class="btn-group" role="group">' . $undeleteAction . '</div>';
         }
         $out .= '</td></tr>';
 
         return $out;
     }
 
-    protected function getProcessedValueExtra(string $table, string $fieldName, string $fieldValue, array $conf, string $splitString): string
+    protected function getProcessedValueExtra(string $table, string $fieldName, string $fieldValue, string $splitString): string
     {
         $out = '';
         $fields = [];
@@ -889,12 +931,26 @@ class DatabaseIntegrityController
             $locale = new Locale();
         }
         // Analysing the fields in the table.
-        if (is_array($GLOBALS['TCA'][$table] ?? null)) {
-            $fC = $GLOBALS['TCA'][$table]['columns'][$fieldName] ?? null;
-            $fields = $fC['config'] ?? [];
-            $fields['exclude'] = $fC['exclude'] ?? '';
-            if (is_array($fC) && ($fC['label'] ?? false)) {
-                $fields['label'] = preg_replace('/:$/', '', trim($this->getLanguageService()->sL($fC['label'])));
+        if ($this->tcaSchemaFactory->has($table)) {
+            $schema = $this->tcaSchemaFactory->get($table);
+
+            if (!$schema->hasField($fieldName)) {
+                // happens for "uid", "pid", ... fields
+                // We can shortcut this for these fields and jump
+                // straight to the fallback case of an undefined fieldLabel.
+                // @todo: Again, this is so wrong.
+                $fieldLabel = null;
+            } else {
+                $fieldType = $schema->getField($fieldName);
+                $fieldLabel = $fieldType->getLabel();
+                $fields = $fieldType->getConfiguration();
+                $fields['exclude'] = $fields['exclude'] ?? false;
+                if ($fieldLabel) {
+                    $fields['label'] = preg_replace('/:$/', '', trim($this->getLanguageService()->sL($fieldType->getLabel())));
+                }
+            }
+
+            if ($fieldLabel) {
                 switch ($fields['type']) {
                     case 'input':
                         if (GeneralUtility::inList($fields['eval'] ?? '', 'year')) {
@@ -979,7 +1035,7 @@ class DatabaseIntegrityController
             case 'time':
                 if ($fieldValue != -1) {
                     $formatter = new DateFormatter();
-                    if ($splitString === '<br />') {
+                    if ($splitString === '<br>') {
                         $out = $formatter->format((int)$fieldValue, 'HH:mm\'' . $splitString . '\'dd-MM-yyyy', $locale);
                     } else {
                         $out = $formatter->format((int)$fieldValue, 'HH:mm dd-MM-yyyy', $locale);
@@ -1077,8 +1133,8 @@ class DatabaseIntegrityController
                 $from_table_Arr[0] = $fieldSetup['foreign_table'];
             }
             $counter = 0;
-            $useSelectLabels = 0;
-            $useAltSelectLabels = 0;
+            $useSelectLabels = false;
+            $useAltSelectLabels = false;
             $tablePrefix = '';
             $labelFieldSelect = [];
             foreach ($from_table_Arr as $from_table) {
@@ -1086,101 +1142,113 @@ class DatabaseIntegrityController
                     $tablePrefix = $from_table . '_';
                 }
                 $counter = 1;
-                if (is_array($GLOBALS['TCA'][$from_table] ?? null)) {
-                    $labelField = $GLOBALS['TCA'][$from_table]['ctrl']['label'] ?? '';
-                    $altLabelField = $GLOBALS['TCA'][$from_table]['ctrl']['label_alt'] ?? '';
-                    if (is_array($GLOBALS['TCA'][$from_table]['columns'][$labelField]['config']['items'] ?? false)) {
-                        $items = $GLOBALS['TCA'][$from_table]['columns'][$labelField]['config']['items'];
-                        foreach ($items as $labelArray) {
-                            $labelFieldSelect[$labelArray['value']] = $languageService->sL($labelArray['label']);
-                        }
-                        $useSelectLabels = 1;
-                    }
-                    $altLabelFieldSelect = [];
-                    if (is_array($GLOBALS['TCA'][$from_table]['columns'][$altLabelField]['config']['items'] ?? false)) {
-                        $items = $GLOBALS['TCA'][$from_table]['columns'][$altLabelField]['config']['items'];
-                        foreach ($items as $altLabelArray) {
-                            $altLabelFieldSelect[$altLabelArray['value']] = $languageService->sL($altLabelArray['label']);
-                        }
-                        $useAltSelectLabels = 1;
-                    }
+                if (!$this->tcaSchemaFactory->has($from_table)) {
+                    continue;
+                }
+                $selectFields = ['uid'];
+                $schema = $this->tcaSchemaFactory->get($from_table);
+                $labelCapability = $schema->getCapability(TcaSchemaCapability::Label);
+                $labelFieldName = null;
+                $altLabelFieldName = null;
 
-                    if (empty($this->tableArray[$from_table])) {
-                        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($from_table);
-                        $queryBuilder->getRestrictions()->removeAll()->add(GeneralUtility::makeInstance(DeletedRestriction::class));
-                        $selectFields = ['uid', $labelField];
-                        if ($altLabelField) {
-                            $selectFields = array_merge($selectFields, GeneralUtility::trimExplode(',', $altLabelField, true));
-                        }
-                        $queryBuilder->select(...$selectFields)
-                            ->from($from_table)
-                            ->orderBy('uid');
-                        if (!$backendUserAuthentication->isAdmin()) {
-                            $webMounts = $backendUserAuthentication->getWebmounts();
-                            $perms_clause = $backendUserAuthentication->getPagePermsClause(Permission::PAGE_SHOW);
-                            $webMountPageTree = '';
-                            $webMountPageTreePrefix = '';
-                            foreach ($webMounts as $webMount) {
-                                if ($webMountPageTree) {
-                                    $webMountPageTreePrefix = ',';
-                                }
-                                $webMountPageTree .= $webMountPageTreePrefix
-                                    . $this->getTreeList($webMount, 999, 0, $perms_clause);
+                if ($labelCapability->getPrimaryField()) {
+                    $labelField = $labelCapability->getPrimaryField();
+                    $labelFieldName = $labelField->getName();
+                    $selectFields[] = $labelFieldName;
+                    if ($labelField->isType(TableColumnType::SELECT)) {
+                        foreach ($labelField->getConfiguration()['items'] ?? [] as $item) {
+                            $item = SelectItem::fromTcaItemArray($item);
+                            if ($item->isDivider()) {
+                                continue;
                             }
-                            if ($from_table === 'pages') {
-                                $queryBuilder->where(
-                                    QueryHelper::stripLogicalOperatorPrefix($perms_clause),
-                                    $queryBuilder->expr()->in(
-                                        'uid',
-                                        $queryBuilder->createNamedParameter(
-                                            GeneralUtility::intExplode(',', $webMountPageTree),
-                                            Connection::PARAM_INT_ARRAY
-                                        )
-                                    )
-                                );
-                            } else {
-                                $queryBuilder->where(
-                                    $queryBuilder->expr()->in(
-                                        'pid',
-                                        $queryBuilder->createNamedParameter(
-                                            GeneralUtility::intExplode(',', $webMountPageTree),
-                                            Connection::PARAM_INT_ARRAY
-                                        )
-                                    )
-                                );
-                            }
+                            $labelFieldSelect[$item->getValue()] = $languageService->sL($item->getLabel());
                         }
-                        $statement = $queryBuilder->executeQuery();
-                        $this->tableArray[$from_table] = [];
-                        while ($row = $statement->fetchAssociative()) {
-                            $this->tableArray[$from_table][] = $row;
+                        $useSelectLabels = true;
+                    }
+                }
+                $altLabelFieldSelect = [];
+                foreach ($labelCapability->getAdditionalFields() as $altLabelField) {
+                    $selectFields[] = $altLabelField->getName();
+                    if ($altLabelField->isType(TableColumnType::SELECT)) {
+                        foreach ($altLabelField->getConfiguration()['items'] ?? [] as $item) {
+                            $item = SelectItem::fromTcaItemArray($item);
+                            if ($item->isDivider()) {
+                                continue;
+                            }
+                            $altLabelFieldSelect[$item->getValue()] = $languageService->sL($item->getLabel());
+                        }
+                        $altLabelFieldName = $altLabelField->getName();
+                        // We only take the first alt-label field
+                        $useAltSelectLabels = true;
+                        break;
+                    }
+                }
+
+                if (empty($this->tableArray[$from_table])) {
+                    $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($from_table);
+                    $queryBuilder->getRestrictions()->removeAll()->add(GeneralUtility::makeInstance(DeletedRestriction::class));
+                    $queryBuilder->select(...$selectFields)
+                        ->from($from_table)
+                        ->orderBy('uid');
+                    if (!$backendUserAuthentication->isAdmin()) {
+                        $webMounts = $backendUserAuthentication->getWebmounts();
+                        $perms_clause = $backendUserAuthentication->getPagePermsClause(Permission::PAGE_SHOW);
+                        $webMountPageTree = '';
+                        $webMountPageTreePrefix = '';
+                        foreach ($webMounts as $webMount) {
+                            if ($webMountPageTree) {
+                                $webMountPageTreePrefix = ',';
+                            }
+                            $webMountPageTree .= $webMountPageTreePrefix
+                                . $this->getTreeList($webMount, 999, 0, $perms_clause);
+                        }
+                        if ($from_table === 'pages') {
+                            $queryBuilder->where(
+                                QueryHelper::stripLogicalOperatorPrefix($perms_clause),
+                                $queryBuilder->expr()->in(
+                                    'uid',
+                                    $queryBuilder->createNamedParameter(
+                                        GeneralUtility::intExplode(',', $webMountPageTree),
+                                        Connection::PARAM_INT_ARRAY
+                                    )
+                                )
+                            );
+                        } else {
+                            $queryBuilder->where(
+                                $queryBuilder->expr()->in(
+                                    'pid',
+                                    $queryBuilder->createNamedParameter(
+                                        GeneralUtility::intExplode(',', $webMountPageTree),
+                                        Connection::PARAM_INT_ARRAY
+                                    )
+                                )
+                            );
                         }
                     }
+                    $statement = $queryBuilder->executeQuery();
+                    $this->tableArray[$from_table] = [];
+                    while ($row = $statement->fetchAssociative()) {
+                        $this->tableArray[$from_table][] = $row;
+                    }
+                }
 
-                    foreach ($this->tableArray[$from_table] as $key => $val) {
-                        $this->MOD_SETTINGS['labels_noprefix'] =
-                            ($this->MOD_SETTINGS['labels_noprefix'] ?? '') == 1
-                                ? 'on'
-                                : $this->MOD_SETTINGS['labels_noprefix'];
-                        $prefixString =
-                            $this->MOD_SETTINGS['labels_noprefix'] === 'on'
-                                ? ''
-                                : ' [' . $tablePrefix . $val['uid'] . '] ';
+                foreach ($this->tableArray[$from_table] as $val) {
+                    $this->MOD_SETTINGS['labels_noprefix'] =
+                        ($this->MOD_SETTINGS['labels_noprefix'] ?? '') == 1
+                            ? 'on'
+                            : $this->MOD_SETTINGS['labels_noprefix'] ?? '';
+                    $prefixString =
+                        $this->MOD_SETTINGS['labels_noprefix'] === 'on'
+                            ? ''
+                            : ' [' . $tablePrefix . $val['uid'] . '] ';
+                    if (GeneralUtility::inList($fieldValue, $tablePrefix . $val['uid'])
+                        || $fieldValue == $tablePrefix . $val['uid']) {
+                        // Multiple matching records are separated by a newline inside the same HTML cell
                         if ($out !== '') {
                             $out .= $splitString;
                         }
-                        if (GeneralUtility::inList($fieldValue, $tablePrefix . $val['uid'])
-                            || $fieldValue == $tablePrefix . $val['uid']) {
-                            if ($useSelectLabels) {
-                                $out .= htmlspecialchars($prefixString . $labelFieldSelect[$val[$labelField]]);
-                            } elseif ($val[$labelField]) {
-                                $out .= htmlspecialchars($prefixString . $val[$labelField]);
-                            } elseif ($useAltSelectLabels) {
-                                $out .= htmlspecialchars($prefixString . $altLabelFieldSelect[$val[$altLabelField]]);
-                            } else {
-                                $out .= htmlspecialchars($prefixString . $val[$altLabelField]);
-                            }
-                        }
+
+                        $out .= $this->evaluateRelationDisplayWithLabels($useSelectLabels, $useAltSelectLabels, $labelCapability, $altLabelFieldName, $val, $labelFieldSelect, $altLabelFieldSelect, $labelFieldName);
                     }
                 }
             }
@@ -1189,13 +1257,11 @@ class DatabaseIntegrityController
         return $out;
     }
 
-    /**
-     * @throws \InvalidArgumentException
-     * @throws \TYPO3\CMS\Core\Exception
-     */
     private function renderNoResultsFoundMessage(): void
     {
-        $flashMessage = GeneralUtility::makeInstance(FlashMessage::class, 'No rows selected!', '', ContextualFeedbackSeverity::INFO);
+        $languageService = $this->getLanguageService();
+        $flashMessageText = $languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.flashMessage.noResultsFoundMessage');
+        $flashMessage = GeneralUtility::makeInstance(FlashMessage::class, $flashMessageText, '', ContextualFeedbackSeverity::INFO);
         $flashMessageService = GeneralUtility::makeInstance(FlashMessageService::class);
         $defaultFlashMessageQueue = $flashMessageService->getMessageQueueByIdentifier();
         $defaultFlashMessageQueue->enqueue($flashMessage);
@@ -1275,23 +1341,20 @@ class DatabaseIntegrityController
         return $qs;
     }
 
-    /**
-     * @return mixed
-     */
-    protected function cleanInputVal(array $conf, string $suffix = '')
+    protected function cleanInputVal(array $conf, string $suffix = ''): mixed
     {
         $comparison = (int)($conf['comparison'] ?? 0);
         $var = $conf['inputValue' . $suffix] ?? '';
         if ($comparison >> 5 === 0 || ($comparison === 32 || $comparison === 33 || $comparison === 64 || $comparison === 65 || $comparison === 66 || $comparison === 67 || $comparison === 96 || $comparison === 97)) {
-            $inputVal = $var ?? null;
+            $inputVal = $var;
         } elseif ($comparison === 39 || $comparison === 38) {
             // in list:
-            $inputVal = implode(',', GeneralUtility::intExplode(',', (string)($var ?? '')));
+            $inputVal = implode(',', GeneralUtility::intExplode(',', (string)$var));
         } elseif ($comparison === 68 || $comparison === 69 || $comparison === 162 || $comparison === 163) {
             // in list:
-            if (is_array($var ?? false)) {
+            if (is_array($var)) {
                 $inputVal = implode(',', $var);
-            } elseif ($var ?? false) {
+            } elseif ($var) {
                 $inputVal = $var;
             } else {
                 $inputVal = 0;
@@ -1303,7 +1366,7 @@ class DatabaseIntegrityController
         } else {
             // TODO: Six eyes looked at this code and nobody understood completely what is going on here and why we
             // fallback to float casting, the whole class smells like it needs a refactoring.
-            $inputVal = (float)($var ?? 0.0);
+            $inputVal = (float)$var;
         }
 
         return $inputVal;
@@ -1335,19 +1398,24 @@ class DatabaseIntegrityController
         return $formattedDate && $formattedDate->format($format) === $date;
     }
 
-    protected function makeSelectorTable(array $modSettings, ServerRequestInterface $request, string $enableList = 'table,fields,query,group,order,limit'): string
+    protected function makeSelectorTable(array $modSettings, ServerRequestInterface $request): string
     {
+        $languageService = $this->getLanguageService();
         $out = [];
-        $enableArr = explode(',', $enableList);
+        $enableArr = ['table', 'fields', 'query', 'group', 'order', 'limit'];
         $userTsConfig = $this->getBackendUserAuthentication()->getTSConfig();
 
         // Make output
+
+        // Open form row
+        $out[] = '<div class="row">';
         if (in_array('table', $enableArr) && !($userTsConfig['mod.']['dbint.']['disableSelectATable'] ?? false)) {
             $out[] = '<div class="form-group">';
-            $out[] =     '<label class="form-label" for="SET[queryTable]">Select a table:</label>';
-            $out[] =     $this->mkTableSelect('SET[queryTable]', $this->table);
+            $out[] =   '<label class="form-label" for="select-table">' . $languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.form.field.queryTable.label') . '</label>';
+            $out[] =   $this->mkTableSelect('SET[queryTable]', $this->table);
             $out[] = '</div>';
         }
+
         if ($this->table) {
             // Init fields:
             $this->setAndCleanUpExternalLists('queryFields', $modSettings['queryFields'] ?? '', 'uid,' . $this->getLabelCol());
@@ -1382,24 +1450,29 @@ class DatabaseIntegrityController
             $this->enableQueryParts = (bool)($modSettings['search_query_smallparts'] ?? false);
             $codeArr = $this->getFormElements();
             $queryCode = $this->printCodeArray($codeArr);
+
             if (in_array('fields', $enableArr) && !($userTsConfig['mod.']['dbint.']['disableSelectFields'] ?? false)) {
                 $out[] = '<div class="form-group">';
-                $out[] =   '<label class="form-label" for="SET[queryFields]">Select fields:</label>';
+                $out[] =   '<label class="form-label" for="select-queryFields">' . $languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.form.field.queryFields.label') . '</label>';
                 $out[] =    $this->mkFieldToInputSelect('SET[queryFields]', $this->extFieldLists['queryFields']);
                 $out[] = '</div>';
             }
             if (in_array('query', $enableArr) && !($userTsConfig['mod.']['dbint.']['disableMakeQuery'] ?? false)) {
                 $out[] = '<div class="form-group">';
-                $out[] =   '<label class="form-label">Make Query:</label>';
+                $out[] =   '<label class="form-label">' . $languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.form.field.query.label') . '</label>';
                 $out[] =    $queryCode;
                 $out[] = '</div>';
             }
+
+            // 'Group by'
             if (in_array('group', $enableArr) && !($userTsConfig['mod.']['dbint.']['disableGroupBy'] ?? false)) {
-                $out[] = '<div class="form-group">';
-                $out[] =   '<label class="form-label" for="SET[queryGroup]">Group By:</label>';
+                $out[] = '<div class="form-group col-sm-6">';
+                $out[] =   '<label class="form-label" for="SET[queryGroup]">' . $languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.form.field.groupBy.label') . '</label>';
                 $out[] =   $this->mkTypeSelect('SET[queryGroup]', $this->extFieldLists['queryGroup'], '');
                 $out[] = '</div>';
             }
+
+            // 'Order by'
             if (in_array('order', $enableArr) && !($userTsConfig['mod.']['dbint.']['disableOrderBy'] ?? false)) {
                 $orderByArr = explode(',', $this->extFieldLists['queryOrder']);
                 $orderBy = [];
@@ -1408,8 +1481,8 @@ class DatabaseIntegrityController
                 $orderBy[] =     $this->mkTypeSelect('SET[queryOrder]', $orderByArr[0], '');
                 $orderBy[] =     '<div class="input-group-text">';
                 $orderBy[] =       '<div class="form-check form-check-type-toggle">';
-                $orderBy[] =         self::getFuncCheck(0, 'SET[queryOrderDesc]', $modSettings['queryOrderDesc'] ?? '', $request, '', '', 'id="checkQueryOrderDesc"');
-                $orderBy[] =         '<label class="form-check-label" for="checkQueryOrderDesc">Descending</label>';
+                $orderBy[] =         $this->getFuncCheck('SET[queryOrderDesc]', $modSettings['queryOrderDesc'] ?? '', $request, 'id="checkQueryOrderDesc"');
+                $orderBy[] =         '<label class="form-check-label" for="checkQueryOrderDesc">' . $languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.form.field.orderBy.descending') . '</label>';
                 $orderBy[] =       '</div>';
                 $orderBy[] =     '</div>';
                 $orderBy[] =   '</div>';
@@ -1421,18 +1494,21 @@ class DatabaseIntegrityController
                     $orderBy[] =     $this->mkTypeSelect('SET[queryOrder2]', $orderByArr[1] ?? '', '');
                     $orderBy[] =     '<div class="input-group-text">';
                     $orderBy[] =       '<div class="form-check form-check-type-toggle">';
-                    $orderBy[] =         self::getFuncCheck(0, 'SET[queryOrder2Desc]', $modSettings['queryOrder2Desc'] ?? false, $request, '', '', 'id="checkQueryOrder2Desc"');
-                    $orderBy[] =         '<label class="form-check-label" for="checkQueryOrder2Desc">Descending</label>';
+                    $orderBy[] =         $this->getFuncCheck('SET[queryOrder2Desc]', $modSettings['queryOrder2Desc'] ?? false, $request, 'id="checkQueryOrder2Desc"');
+                    $orderBy[] =         '<label class="form-check-label" for="checkQueryOrder2Desc">' . $languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.form.field.orderBy.descending') . '</label>';
                     $orderBy[] =       '</div>';
                     $orderBy[] =     '</div>';
                     $orderBy[] =   '</div>';
                     $orderBy[] = '</div>';
                 }
-                $out[] = '<div class="form-group">';
-                $out[] = '  <label class="form-label">Order By:</label>';
-                $out[] =    implode(LF, $orderBy);
+
+                $out[] = '<div class="form-group col-sm-6">';
+                $out[] =   '<label class="form-label">' . $languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.form.field.orderBy.label') . '</label>';
+                $out[] =   implode(LF, $orderBy);
                 $out[] = '</div>';
             }
+
+            // 'Limit'
             if (in_array('limit', $enableArr) && !($userTsConfig['mod.']['dbint.']['disableLimit'] ?? false)) {
                 $limit = [];
                 $limit[] = '<div class="input-group">';
@@ -1459,30 +1535,31 @@ class DatabaseIntegrityController
                     $nextButton = '<input type="button" class="btn btn-default" value="next ' . htmlspecialchars((string)$limitLength) . '" data-value="' . htmlspecialchars($nextLimit . ',' . $limitLength) . '">';
                 }
 
-                $out[] = '<div class="form-group">';
-                $out[] = '  <label class="form-label">Limit:</label>';
-                $out[] = '  <div class="form-row">';
-                $out[] = '    <div class="form-group">';
-                $out[] =        implode(LF, $limit);
-                $out[] = '    </div>';
-                $out[] = '    <div class="form-group">';
-                $out[] = '      <div class="btn-group t3js-limit-submit">';
-                $out[] =          $prevButton;
-                $out[] =          $nextButton;
+                $out[] = '  <div class="form-group">';
+                $out[] = '    <label for="queryLimit" class="form-label">' . $languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.form.field.limit.label') . '</label>';
+                $out[] = '    <div class="form-row">';
+                $out[] = '      <div class="form-group">';
+                $out[] =          implode(LF, $limit);
                 $out[] = '      </div>';
-                $out[] = '    </div>';
-                $out[] = '    <div class="form-group">';
-                $out[] = '      <div class="btn-group t3js-limit-submit">';
-                $out[] = '        <input type="button" class="btn btn-default" data-value="10" value="10">';
-                $out[] = '        <input type="button" class="btn btn-default" data-value="20" value="20">';
-                $out[] = '        <input type="button" class="btn btn-default" data-value="50" value="50">';
-                $out[] = '        <input type="button" class="btn btn-default" data-value="100" value="100">';
+                $out[] = '      <div class="form-group">';
+                $out[] = '        <div class="btn-group t3js-limit-submit">';
+                $out[] =            $prevButton;
+                $out[] =            $nextButton;
+                $out[] = '        </div>';
+                $out[] = '      </div>';
+                $out[] = '      <div class="form-group">';
+                $out[] = '        <div class="btn-group t3js-limit-submit">';
+                $out[] = '          <input type="button" class="btn btn-default" data-value="10" value="10">';
+                $out[] = '          <input type="button" class="btn btn-default" data-value="20" value="20">';
+                $out[] = '          <input type="button" class="btn btn-default" data-value="50" value="50">';
+                $out[] = '          <input type="button" class="btn btn-default" data-value="100" value="100">';
+                $out[] = '        </div>';
                 $out[] = '      </div>';
                 $out[] = '    </div>';
                 $out[] = '  </div>';
-                $out[] = '</div>';
             }
         }
+        $out[] = '</div>';
 
         return implode(LF, $out);
     }
@@ -1490,12 +1567,10 @@ class DatabaseIntegrityController
     protected function cleanUpQueryConfig(array $queryConfig): array
     {
         // Since we don't traverse the array using numeric keys in the upcoming while-loop make sure it's fresh and clean before displaying
-        if (!empty($queryConfig) && is_array($queryConfig)) {
+        if (!empty($queryConfig)) {
             ksort($queryConfig);
-        } elseif (empty($queryConfig[0]['type'])) {
-            // Make sure queryConfig is an array
-            $queryConfig = [];
-            $queryConfig[0] = ['type' => 'FIELD_'];
+        } else {
+            $queryConfig = [['type' => 'FIELD_']];
         }
         // Traverse:
         foreach ($queryConfig as $key => $conf) {
@@ -1510,7 +1585,7 @@ class DatabaseIntegrityController
             }
             switch ($fieldType) {
                 case 'newlevel':
-                    if (!$queryConfig[$key]['nl']) {
+                    if (!isset($conf['nl'])) {
                         $queryConfig[$key]['nl'][0]['type'] = 'FIELD_';
                     }
                     $queryConfig[$key]['nl'] = $this->cleanUpQueryConfig($queryConfig[$key]['nl']);
@@ -1524,7 +1599,7 @@ class DatabaseIntegrityController
                     if ((int)($conf['comparison'] ?? 0) >> 5 !== (int)($this->comp_offsets[$fieldType] ?? 0)) {
                         $conf['comparison'] = (int)($this->comp_offsets[$fieldType] ?? 0) << 5;
                     }
-                    $queryConfig[$key]['comparison'] = $this->verifyComparison($conf['comparison'] ?? '' ? (string)$conf['comparison'] : '0', ($conf['negate'] ?? null) ? 1 : 0);
+                    $queryConfig[$key]['comparison'] = $this->verifyComparison($conf['comparison'] ?? 0 ? (int)$conf['comparison'] : 0, (bool)($conf['negate'] ?? null));
                     $queryConfig[$key]['inputValue'] = $this->cleanInputVal($queryConfig[$key]);
                     $queryConfig[$key]['inputValue1'] = $this->cleanInputVal($queryConfig[$key], '1');
             }
@@ -1548,10 +1623,7 @@ class DatabaseIntegrityController
         return $first;
     }
 
-    /**
-     * @param string $comparison
-     */
-    protected function verifyComparison($comparison, int $neg): int
+    protected function verifyComparison(int $comparison, bool $neg): int
     {
         $compOffSet = $comparison >> 5;
         $first = -1;
@@ -1567,10 +1639,7 @@ class DatabaseIntegrityController
         return $first;
     }
 
-    /**
-     * @param string $queryConfig
-     */
-    protected function getFormElements(int $subLevel = 0, $queryConfig = '', string $parent = ''): array
+    protected function getFormElements(int $subLevel = 0, string|array|null $queryConfig = null, string $parent = ''): array
     {
         $codeArr = [];
         if (!is_array($queryConfig)) {
@@ -1605,7 +1674,8 @@ class DatabaseIntegrityController
                 case 'ignore':
                     break;
                 case 'newlevel':
-                    if (!$queryConfig[$key]['nl']) {
+                    if (!is_array($queryConfig[$key]['nl'] ?? null)) {
+                        $queryConfig[$key]['nl'] = [];
                         $queryConfig[$key]['nl'][0]['type'] = 'FIELD_';
                     }
                     $lineHTML[] = '<input type="hidden" name="' . $fieldPrefix . '[type]" value="newlevel">';
@@ -1643,7 +1713,7 @@ class DatabaseIntegrityController
                 case 'relation':
                     $lineHTML[] = '<div class="form-row">';
                     $lineHTML[] = $this->makeComparisonSelector($subscript, $fieldName, $conf);
-                    $lineHTML[] = '<div class="form-group">';
+                    $lineHTML[] =   '<div class="form-group col col-sm-4">';
                     if ($conf['comparison'] === 68 || $conf['comparison'] === 69 || $conf['comparison'] === 162 || $conf['comparison'] === 163) {
                         $lineHTML[] = '<select class="form-select" name="' . $fieldPrefix . '[inputValue][]" multiple="multiple">';
                     } elseif ($conf['comparison'] === 66 || $conf['comparison'] === 67) {
@@ -1660,16 +1730,16 @@ class DatabaseIntegrityController
                         $lineHTML[] = '<select class="form-select t3js-submit-change" name="' . $fieldPrefix . '[inputValue]">';
                     }
                     if ($conf['comparison'] != 66 && $conf['comparison'] != 67) {
-                        $lineHTML[] = $this->makeOptionList($fieldName, $conf, $this->table);
+                        $lineHTML[] =   $this->makeOptionList($fieldName, $conf, $this->table);
                         $lineHTML[] = '</select>';
                     }
-                    $lineHTML[] = '</div>';
+                    $lineHTML[] =   '</div>';
                     $lineHTML[] = '</div>';
                     break;
                 case 'boolean':
                     $lineHTML[] = '<div class="form-row">';
-                    $lineHTML[] = $this->makeComparisonSelector($subscript, $fieldName, $conf);
-                    $lineHTML[] = '<input type="hidden" value="1" name="' . $fieldPrefix . '[inputValue]">';
+                    $lineHTML[] =   $this->makeComparisonSelector($subscript, $fieldName, $conf);
+                    $lineHTML[] =   '<input type="hidden" value="1" name="' . $fieldPrefix . '[inputValue]">';
                     $lineHTML[] = '</div>';
                     break;
                 default:
@@ -1677,17 +1747,17 @@ class DatabaseIntegrityController
                     $lineHTML[] = $this->makeComparisonSelector($subscript, $fieldName, $conf);
                     if ($conf['comparison'] === 37 || $conf['comparison'] === 36) {
                         // between:
-                        $lineHTML[] = '<div class="form-group">';
+                        $lineHTML[] = '<div class="form-group col col-sm-2">';
                         $lineHTML[] = '  <input class="form-control form-control-clearable t3js-clearable" type="text" value="' . htmlspecialchars($conf['inputValue'] ?? '') . '" name="' . $fieldPrefix . '[inputValue]">';
                         $lineHTML[] = '</div>';
-                        $lineHTML[] = '<div class="form-group">';
+                        $lineHTML[] = '<div class="form-group col col-sm-2">';
                         $lineHTML[] = '  <input class="form-control form-control-clearable t3js-clearable" type="text" value="' . htmlspecialchars($conf['inputValue1'] ?? '') . '" name="' . $fieldPrefix . '[inputValue1]">';
                         $lineHTML[] = '</div>';
                     } else {
                         if (is_array($conf['inputValue'] ?? null)) {
                             $conf['inputValue'] = '';
                         }
-                        $lineHTML[] = '<div class="form-group">';
+                        $lineHTML[] = '<div class="form-group col col-sm-4">';
                         $lineHTML[] = '  <input class="form-control form-control-clearable t3js-clearable" type="text" value="' . htmlspecialchars($conf['inputValue']) . '" name="' . $fieldPrefix . '[inputValue]">';
                         $lineHTML[] = '</div>';
                     }
@@ -1700,29 +1770,29 @@ class DatabaseIntegrityController
                 if ($loopCount) {
                     $lineHTML[] = ''
                         . '<button class="btn btn-default" title="Remove condition" name="qG_del' . htmlspecialchars($subscript) . '">'
-                        . $this->iconFactory->getIcon('actions-delete', Icon::SIZE_SMALL)->render()
+                        . $this->iconFactory->getIcon('actions-delete', IconSize::SMALL)->render()
                         . '</button>';
                 }
                 $lineHTML[] = ''
                     . '<button class="btn btn-default" title="Add condition" name="qG_ins' . htmlspecialchars($subscript) . '">'
-                    . $this->iconFactory->getIcon('actions-plus', Icon::SIZE_SMALL)->render()
+                    . $this->iconFactory->getIcon('actions-plus', IconSize::SMALL)->render()
                     . '</button>';
                 if ($c != 0) {
                     $lineHTML[] = ''
                         . '<button class="btn btn-default" title="Move up" name="qG_up' . htmlspecialchars($subscript) . '">'
-                        . $this->iconFactory->getIcon('actions-chevron-up', Icon::SIZE_SMALL)->render()
+                        . $this->iconFactory->getIcon('actions-chevron-up', IconSize::SMALL)->render()
                         . '</button>';
                 }
                 if ($c != 0 && $fieldType !== 'newlevel') {
                     $lineHTML[] = ''
                         . '<button class="btn btn-default" title="New level" name="qG_nl' . htmlspecialchars($subscript) . '">'
-                        . $this->iconFactory->getIcon('actions-chevron-right', Icon::SIZE_SMALL)->render()
+                        . $this->iconFactory->getIcon('actions-chevron-right', IconSize::SMALL)->render()
                         . '</button>';
                 }
                 if ($fieldType === 'newlevel') {
                     $lineHTML[] = ''
                         . '<button class="btn btn-default" title="Collapse new level" name="qG_remnl' . htmlspecialchars($subscript) . '">'
-                        . $this->iconFactory->getIcon('actions-chevron-left', Icon::SIZE_SMALL)->render()
+                        . $this->iconFactory->getIcon('actions-chevron-left', IconSize::SMALL)->render()
                         . '</button>';
                 }
                 $lineHTML[] = '</div>';
@@ -1749,7 +1819,7 @@ class DatabaseIntegrityController
         $html[] = '	   <input data-formengine-input-name="' . htmlspecialchars($name) . '" value="' . $value . '" class="form-control form-control-clearable t3js-datetimepicker t3js-clearable" data-date-type="' . htmlspecialchars($type) . '" type="text" id="' . $id . '">';
         $html[] = '	   <input name="' . htmlspecialchars($name) . '" value="' . htmlspecialchars($timestamp) . '" type="hidden">';
         $html[] = '	   <button class="btn btn-default" type="button" data-global-event="click" data-action-focus="#' . $id . '">';
-        $html[] =          $this->iconFactory->getIcon('actions-calendar-alternative', Icon::SIZE_SMALL)->render();
+        $html[] =          $this->iconFactory->getIcon('actions-calendar-alternative', IconSize::SMALL)->render();
         $html[] = '    </button>';
         $html[] = '  </div>';
         $html[] = '</div>';
@@ -1851,21 +1921,44 @@ class DatabaseIntegrityController
                     $tablePrefix = $from_table . '_';
                 }
                 $counter = 1;
-                if (is_array($GLOBALS['TCA'][$from_table])) {
-                    $labelField = $GLOBALS['TCA'][$from_table]['ctrl']['label'] ?? '';
-                    $altLabelField = $GLOBALS['TCA'][$from_table]['ctrl']['label_alt'] ?? '';
-                    if ($GLOBALS['TCA'][$from_table]['columns'][$labelField]['config']['items'] ?? false) {
-                        foreach ($GLOBALS['TCA'][$from_table]['columns'][$labelField]['config']['items'] as $labelArray) {
-                            $labelFieldSelect[$labelArray[1]] = $languageService->sL($labelArray[0]);
+                if ($this->tcaSchemaFactory->has($from_table)) {
+                    $schema = $this->tcaSchemaFactory->get($from_table);
+                    $labelCapability = $schema->getCapability(TcaSchemaCapability::Label);
+                    $labelFieldName = null;
+                    $altLabelFieldName = null;
+                    $selectFields = ['uid'];
+
+                    if ($labelCapability->getPrimaryField()) {
+                        $labelField = $labelCapability->getPrimaryField();
+                        $labelFieldName = $labelField->getName();
+                        $selectFields[] = $labelFieldName;
+                        if ($labelField->isType(TableColumnType::SELECT)) {
+                            foreach ($labelField->getConfiguration()['items'] ?? [] as $item) {
+                                $item = SelectItem::fromTcaItemArray($item);
+                                if ($item->isDivider()) {
+                                    continue;
+                                }
+                                $labelFieldSelect[$item->getValue()] = $languageService->sL($item->getLabel());
+                            }
+                            $useSelectLabels = true;
                         }
-                        $useSelectLabels = true;
                     }
                     $altLabelFieldSelect = [];
-                    if ($GLOBALS['TCA'][$from_table]['columns'][$altLabelField]['config']['items'] ?? false) {
-                        foreach ($GLOBALS['TCA'][$from_table]['columns'][$altLabelField]['config']['items'] as $altLabelArray) {
-                            $altLabelFieldSelect[$altLabelArray[1]] = $languageService->sL($altLabelArray[0]);
+                    foreach ($labelCapability->getAdditionalFields() as $altLabelField) {
+                        $selectFields[] = $altLabelField->getName();
+                        if ($altLabelField->isType(TableColumnType::SELECT)) {
+                            foreach ($altLabelField->getConfiguration()['items'] ?? [] as $item) {
+                                $item = SelectItem::fromTcaItemArray($item);
+                                if ($item->isDivider()) {
+                                    continue;
+                                }
+                                $altLabelFieldSelect[$item->getValue()] = $languageService->sL($item->getLabel());
+                            }
+                            $altLabelFieldName = $altLabelField->getName();
+                            // We only take the first alt-label field
+                            $useAltSelectLabels = true;
+                            break;
                         }
-                        $useAltSelectLabels = true;
                     }
 
                     if (!($this->tableArray[$from_table] ?? false)) {
@@ -1873,10 +1966,6 @@ class DatabaseIntegrityController
                         $queryBuilder->getRestrictions()->removeAll();
                         if (empty($this->MOD_SETTINGS['show_deleted'])) {
                             $queryBuilder->getRestrictions()->add(GeneralUtility::makeInstance(DeletedRestriction::class));
-                        }
-                        $selectFields = ['uid', $labelField];
-                        if ($altLabelField) {
-                            $selectFields = array_merge($selectFields, GeneralUtility::trimExplode(',', $altLabelField, true));
                         }
                         $queryBuilder->select(...$selectFields)
                             ->from($from_table)
@@ -1921,15 +2010,7 @@ class DatabaseIntegrityController
                     }
 
                     foreach (($this->tableArray[$from_table] ?? []) as $val) {
-                        if ($useSelectLabels) {
-                            $outArray[$tablePrefix . $val['uid']] = htmlspecialchars($labelFieldSelect[$val[$labelField]]);
-                        } elseif ($val[$labelField]) {
-                            $outArray[$tablePrefix . $val['uid']] = htmlspecialchars($val[$labelField]);
-                        } elseif ($useAltSelectLabels) {
-                            $outArray[$tablePrefix . $val['uid']] = htmlspecialchars($altLabelFieldSelect[$val[$altLabelField]]);
-                        } else {
-                            $outArray[$tablePrefix . $val['uid']] = htmlspecialchars($val[$altLabelField]);
-                        }
+                        $outArray[$tablePrefix . $val['uid']] = $this->evaluateRelationDisplayWithLabels($useSelectLabels, $useAltSelectLabels, $labelCapability, $altLabelFieldName, $val, $labelFieldSelect, $altLabelFieldSelect, $labelFieldName);
                     }
                     if (isset($this->MOD_SETTINGS['options_sortlabel']) && $this->MOD_SETTINGS['options_sortlabel'] && is_array($outArray)) {
                         natcasesort($outArray);
@@ -1948,6 +2029,58 @@ class DatabaseIntegrityController
         }
 
         return implode(LF, $out);
+    }
+
+    /**
+     * Helper method to evaluate a specific field configuration and decide which label to return.
+     * This is used for both the dropdown when choosing a WHERE condition, but also for the record list itself,
+     * when inline relations are resolved in case the option "[search_result_labels]" is set.
+     * @param bool $useSelectLabels - Whether foreign resolving of a primary TCA 'label' field is required
+     * @param bool $useAltSelectLabels - Whether foreign resolving of the FIRST TCA 'label_alt' relation field is required
+     * @param LabelCapability $labelCapability - Schema capability information, used here for the table's label/label_alt evaluation
+     * @param string $altLabelFieldName - The name of the matched first TCA 'label_alt' relation field
+     * @param array $val - The DB SQL result row array
+     * @param array $labelFieldSelect - An array holding the possible select values of a 'label' relation
+     * @param array $altLabelFieldSelect - An array holding the possible select values of a 'label_alt' relation
+     * @param string $labelFieldName - The name of the primary TCA column used for the label
+     * @return string
+     * @todo Please refactor me.
+     */
+    protected function evaluateRelationDisplayWithLabels(bool $useSelectLabels, bool $useAltSelectLabels, LabelCapability $labelCapability, string $altLabelFieldName, array $val, array $labelFieldSelect, array $altLabelFieldSelect, string $labelFieldName): string
+    {
+        // Several checks here to decide whether:
+        // 1. the primary label field contains resolved selectable values,
+        // 2. or a straight field value (no relation) for the primary label field is set,
+        // 3. or a fallback to the FIRST label_alt relation exists (guaranteed that ONE select relation exists!)
+        // 4. or a label_alt configuration is used where NO relations exist (final fallback)
+        // (this piece of code is similar (but not identical) in makeOptionList() AND makeValueList()!
+        if ($useSelectLabels) {
+            return htmlspecialchars($labelFieldSelect[$val[$labelFieldName]]);
+        }
+        if ($val[$labelFieldName]) {
+            return htmlspecialchars($val[$labelFieldName]);
+        }
+        if ($useAltSelectLabels) {
+            if (isset($altLabelFieldSelect[$val[$altLabelFieldName]])) {
+                // For example, altLabelFieldName=CType (for tt_content) and the row's CType is set to "text", this would return a string like "Regular Text element"
+                // Resolved labels are already html-encoded.
+                return $altLabelFieldSelect[$val[$altLabelFieldName]];
+            }
+
+            // For old/invalid item associations (like CType=list), display the hardcoded value here instead the resolved item
+            return '[' . htmlspecialchars($val[$altLabelFieldName]) . ']';
+        }
+        // This case happens when NO relations exist. Iterate existing label_alt configuration and
+        // take the first non-empty value.
+        foreach ($labelCapability->getAdditionalFields() as $altLabelField) {
+            if ($val[$altLabelField->getName()]) {
+                // First altLabelField that matches concludes the output.
+                return htmlspecialchars($val[$altLabelField->getName()]);
+            }
+        }
+        // This happens when NONE of the label_alt fields contained an entry. We still need to be able to
+        // match this field, so we put in a special empty indicator ('').
+        return '';
     }
 
     protected function mkOperatorSelect(string $name, string $op, bool $draw, bool $submit): string
@@ -1969,17 +2102,19 @@ class DatabaseIntegrityController
 
     protected function makeComparisonSelector(string $subscript, string $fieldName, array $conf): string
     {
+        $languageService = $this->getLanguageService();
         $fieldPrefix = $this->name . $subscript;
         $lineHTML = [];
-        $lineHTML[] = '<div class="form-group">';
+        $lineHTML[] = '<div class="form-group col col-sm-4">';
         $lineHTML[] =    $this->mkTypeSelect($fieldPrefix . '[type]', $fieldName);
         $lineHTML[] = '</div>';
-        $lineHTML[] = '<div class="form-group">';
+        $lineHTML[] = '<div class="form-group col">';
         $lineHTML[] = '  <div class="input-group">';
-        $lineHTML[] =      $this->mkCompSelect($fieldPrefix . '[comparison]', (string)$conf['comparison'], ($conf['negate'] ?? null) ? 1 : 0);
-        $lineHTML[] = '    <span class="input-group-addon">';
+        $lineHTML[] =      $this->mkCompSelect($fieldPrefix . '[comparison]', (int)$conf['comparison'], ($conf['negate'] ?? null) ? 1 : 0);
+        $lineHTML[] = '    <span class="input-group-text">';
         $lineHTML[] = '      <div class="form-check form-check-type-toggle">';
-        $lineHTML[] = '        <input type="checkbox" class="form-check-input t3js-submit-click"' . (($conf['negate'] ?? null) ? ' checked' : '') . ' name="' . htmlspecialchars($fieldPrefix) . '[negate]">';
+        $lineHTML[] = '        <input type="checkbox" id="negateComparison" class="form-check-input t3js-submit-click"' . (($conf['negate'] ?? null) ? ' checked' : '') . ' name="' . htmlspecialchars($fieldPrefix) . '[negate]">';
+        $lineHTML[] = '        <label class="form-check-label" for="negateComparison">' . $languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.form.field.queryConfig.comparison.negate') . '</label>';
         $lineHTML[] = '      </div>';
         $lineHTML[] = '    </span>';
         $lineHTML[] = '  </div>';
@@ -1988,7 +2123,7 @@ class DatabaseIntegrityController
         return implode(LF, $lineHTML);
     }
 
-    protected function mkCompSelect(string $name, string $comparison, int $neg): string
+    protected function mkCompSelect(string $name, int $comparison, int $neg): string
     {
         $compOffSet = $comparison >> 5;
         $out = [];
@@ -2006,16 +2141,14 @@ class DatabaseIntegrityController
     protected function printCodeArray(array $codeArr, int $recursionLevel = 0): string
     {
         $out = [];
-        foreach (array_values($codeArr) as $queryComponent) {
+        foreach ($codeArr as $queryComponent) {
             $out[] = '<div class="card">';
             $out[] =     '<div class="card-body">';
             $out[] =         $queryComponent['html'];
 
             if ($this->enableQueryParts) {
                 $out[] = '<pre class="language-sql">';
-                $out[] =   '<code class="language-sql">';
-                $out[] =     htmlspecialchars($queryComponent['query']);
-                $out[] =   '</code>';
+                $out[] =   '<code class="language-sql">' . htmlspecialchars($queryComponent['query']) . '</code>';
                 $out[] = '</pre>';
             }
             if (is_array($queryComponent['sub'] ?? null)) {
@@ -2033,11 +2166,11 @@ class DatabaseIntegrityController
         $out = [];
         $out[] = '<div class="input-group mb-1">';
         $out[] =   $this->updateIcon();
-        $out[] =   '<input type="text" class="form-control form-control-clearable t3js-clearable" value="' . htmlspecialchars($fieldName) . '" name="' . htmlspecialchars($name) . '">';
+        $out[] =   '<input type="text" class="form-control form-control-clearable t3js-clearable" value="' . htmlspecialchars($fieldName) . '" name="' . htmlspecialchars($name) . '" id="select-queryFields">';
         $out[] = '</div>';
         $out[] = '<select class="form-select t3js-addfield" name="_fieldListDummy" size="5" data-field="' . htmlspecialchars($name) . '">';
         foreach ($this->fields as $key => $value) {
-            if (!$value['exclude'] || $this->getBackendUserAuthentication()->check('non_exclude_fields', $this->table . ':' . $key)) {
+            if (!($value['exclude'] ?? false) || $this->getBackendUserAuthentication()->check('non_exclude_fields', $this->table . ':' . $key)) {
                 $label = $this->fields[$key]['label'];
                 if ($this->showFieldAndTableNames) {
                     $label .= ' [' . $key . ']';
@@ -2172,13 +2305,17 @@ class DatabaseIntegrityController
 
     protected function getLabelCol(): string
     {
-        return $GLOBALS['TCA'][$this->table]['ctrl']['label'];
+        $schema = $this->tcaSchemaFactory->get($this->table);
+        if ($schema->hasCapability(TcaSchemaCapability::Label) && $schema->getCapability(TcaSchemaCapability::Label)->hasPrimaryField()) {
+            return $schema->getCapability(TcaSchemaCapability::Label)->getPrimaryField()->getName();
+        }
+        return '';
     }
 
     protected function mkTypeSelect(string $name, string $fieldName, string $prepend = 'FIELD_'): string
     {
         $out = [];
-        $out[] = '<select class="form-select t3js-submit-change" name="' . htmlspecialchars($name) . '">';
+        $out[] = '<select class="form-select t3js-submit-change" name="' . htmlspecialchars($name) . '" id="' . htmlspecialchars($name) . '">';
         $out[] = '<option value=""></option>';
         foreach ($this->fields as $key => $value) {
             if (!($value['exclude'] ?? false) || $this->getBackendUserAuthentication()->check('non_exclude_fields', $this->table . ':' . $key)) {
@@ -2196,7 +2333,7 @@ class DatabaseIntegrityController
 
     protected function updateIcon(): string
     {
-        return '<button class="btn btn-default" title="Update" name="just_update">' . $this->iconFactory->getIcon('actions-refresh', Icon::SIZE_SMALL)->render() . '</button>';
+        return '<button class="btn btn-default" title="Update" name="just_update">' . $this->iconFactory->getIcon('actions-refresh', IconSize::SMALL)->render() . '</button>';
     }
 
     protected function setAndCleanUpExternalLists(string $name, string $list, string $force = ''): void
@@ -2214,8 +2351,9 @@ class DatabaseIntegrityController
     protected function mkTableSelect(string $name, string $cur): string
     {
         $tables = [];
-        foreach ($GLOBALS['TCA'] as $tableName => $value) {
-            $tableTitle = $this->getLanguageService()->sL($GLOBALS['TCA'][$tableName]['ctrl']['title'] ?? '');
+        /** @var TcaSchema $schema */
+        foreach ($this->tcaSchemaFactory->all() as $tableName => $schema) {
+            $tableTitle = $this->getLanguageService()->sL($schema->getRawConfiguration()['title'] ?? '');
             if (!$tableTitle || $this->showFieldAndTableNames) {
                 $tableTitle .= ' [' . $tableName . ']';
             }
@@ -2224,7 +2362,7 @@ class DatabaseIntegrityController
         asort($tables);
 
         $out = [];
-        $out[] = '<select class="form-select t3js-submit-change" name="' . $name . '">';
+        $out[] = '<select class="form-select t3js-submit-change" name="' . $name . '" id="select-table">';
         $out[] = '<option value=""></option>';
         foreach ($tables as $tableName => $label) {
             if ($this->getBackendUserAuthentication()->check('tables_select', $tableName)) {
@@ -2242,105 +2380,102 @@ class DatabaseIntegrityController
     protected function init(string $name, string $table, string $fieldList = '', array $settings = []): void
     {
         // Analysing the fields in the table.
-        if (is_array($GLOBALS['TCA'][$table] ?? false)) {
+        if ($this->tcaSchemaFactory->has($table)) {
             $this->name = $name;
             $this->table = $table;
             $this->fieldList = $fieldList ?: $this->makeFieldList();
             $this->MOD_SETTINGS = $settings;
+            $schema = $this->tcaSchemaFactory->get($this->table);
             $fieldArr = GeneralUtility::trimExplode(',', $this->fieldList, true);
             foreach ($fieldArr as $fieldName) {
-                $fieldConfig = $GLOBALS['TCA'][$this->table]['columns'][$fieldName] ?? [];
-                $this->fields[$fieldName] = $fieldConfig['config'] ?? [];
-                $this->fields[$fieldName]['exclude'] = $fieldConfig['exclude'] ?? '';
-                if (((($this->fields[$fieldName]['type'] ?? '') === 'user') && (!isset($this->fields[$fieldName]['type']['userFunc'])))
-                    || ($this->fields[$fieldName]['type'] ?? '') === 'none'
-                ) {
-                    // Do not list type=none "virtual" fields or query them from db,
-                    // and if type is user without defined userFunc
-                    unset($this->fields[$fieldName]);
-                    continue;
-                }
-                if (is_array($fieldConfig) && ($fieldConfig['label'] ?? false)) {
-                    $this->fields[$fieldName]['label'] = rtrim(trim($this->getLanguageService()->sL($fieldConfig['label'])), ':');
-                    switch ($this->fields[$fieldName]['type']) {
-                        case 'input':
-                            if (preg_match('/int|year/i', ($this->fields[$fieldName]['eval'] ?? ''))) {
-                                $this->fields[$fieldName]['type'] = 'number';
-                            } else {
-                                $this->fields[$fieldName]['type'] = 'text';
-                            }
-                            break;
-                        case 'number':
-                            // Empty on purpose, we have to keep the type "number".
-                            // Falling back to the "default" case would set the type to "text"
-                            break;
-                        case 'datetime':
-                            if (!in_array($this->fields[$fieldName]['dbType'] ?? '', QueryHelper::getDateTimeTypes(), true)) {
-                                $this->fields[$fieldName]['type'] = 'number';
-                            } elseif ($this->fields[$fieldName]['dbType'] === 'time') {
-                                $this->fields[$fieldName]['type'] = 'time';
-                            } else {
-                                $this->fields[$fieldName]['type'] = 'date';
-                            }
-                            break;
-                        case 'check':
-                            if (count($this->fields[$fieldName]['items'] ?? []) <= 1) {
-                                $this->fields[$fieldName]['type'] = 'boolean';
-                            } else {
-                                $this->fields[$fieldName]['type'] = 'binary';
-                            }
-                            break;
-                        case 'radio':
-                            $this->fields[$fieldName]['type'] = 'multiple';
-                            break;
-                        case 'select':
-                        case 'category':
-                            $this->fields[$fieldName]['type'] = 'multiple';
-                            if ($this->fields[$fieldName]['foreign_table'] ?? false) {
-                                $this->fields[$fieldName]['type'] = 'relation';
-                            }
-                            if ($this->fields[$fieldName]['special'] ?? false) {
-                                $this->fields[$fieldName]['type'] = 'text';
-                            }
-                            break;
-                        case 'group':
-                            $this->fields[$fieldName]['type'] = 'relation';
-                            break;
-                        case 'user':
-                        case 'flex':
-                        case 'passthrough':
-                        case 'none':
-                        case 'text':
-                        case 'email':
-                        case 'link':
-                        case 'password':
-                        case 'color':
-                        case 'json':
-                        case 'uuid':
-                        default:
-                            $this->fields[$fieldName]['type'] = 'text';
-                    }
-                } else {
+                if (!$schema->hasField($fieldName)) {
                     $this->fields[$fieldName]['label'] = '[FIELD: ' . $fieldName . ']';
                     switch ($fieldName) {
                         case 'pid':
                             $this->fields[$fieldName]['type'] = 'relation';
                             $this->fields[$fieldName]['allowed'] = 'pages';
                             break;
+                            // @todo: this is so wrong
                         case 'tstamp':
+                            // @todo: this is so wrong
                         case 'crdate':
                             $this->fields[$fieldName]['type'] = 'time';
                             break;
+                            // @todo: this is so wrong
                         case 'deleted':
                             $this->fields[$fieldName]['type'] = 'boolean';
                             break;
                         default:
+                            // @todo: this is so wrong
                             $this->fields[$fieldName]['type'] = 'number';
                     }
+                    continue;
                 }
-
-                uasort($this->fields, static fn($fieldA, $fieldB) => strcmp($fieldA['label'], $fieldB['label']));
+                $fieldType = $schema->getField($fieldName);
+                // Do not list type=none "virtual" fields or query them from db,
+                // and if type=user without defined renderType
+                if ($fieldType->isType(TableColumnType::NONE)) {
+                    continue;
+                }
+                if ($fieldType->isType(TableColumnType::USER) && !isset($fieldType->getConfiguration()['renderType'])) {
+                    continue;
+                }
+                // @todo: catch this in SchemaFactory / TcaMigration all the time.
+                if ($fieldType->getLabel() === '') {
+                    continue;
+                }
+                $this->fields[$fieldName] = $fieldType->getConfiguration();
+                $this->fields[$fieldName]['exclude'] = $fieldType->supportsAccessControl();
+                $this->fields[$fieldName]['label'] = rtrim(trim($this->getLanguageService()->sL($fieldType->getLabel())), ':');
+                switch ($fieldType->getType()) {
+                    case 'input':
+                        if (preg_match('/int|year/i', ($this->fields[$fieldName]['eval'] ?? ''))) {
+                            $this->fields[$fieldName]['type'] = 'number';
+                        } else {
+                            $this->fields[$fieldName]['type'] = 'text';
+                        }
+                        break;
+                    case 'number':
+                        // Empty on purpose, we have to keep the type "number".
+                        // Falling back to the "default" case would set the type to "text"
+                        break;
+                    case 'datetime':
+                        if (!in_array($this->fields[$fieldName]['dbType'] ?? '', QueryHelper::getDateTimeTypes(), true)) {
+                            $this->fields[$fieldName]['type'] = 'number';
+                        } elseif ($this->fields[$fieldName]['dbType'] === 'time') {
+                            $this->fields[$fieldName]['type'] = 'time';
+                        } else {
+                            $this->fields[$fieldName]['type'] = 'date';
+                        }
+                        break;
+                    case 'check':
+                        if (count($this->fields[$fieldName]['items'] ?? []) <= 1) {
+                            $this->fields[$fieldName]['type'] = 'boolean';
+                        } else {
+                            $this->fields[$fieldName]['type'] = 'binary';
+                        }
+                        break;
+                    case 'radio':
+                        $this->fields[$fieldName]['type'] = 'multiple';
+                        break;
+                    case 'select':
+                    case 'category':
+                        $this->fields[$fieldName]['type'] = 'multiple';
+                        if ($this->fields[$fieldName]['foreign_table'] ?? false) {
+                            $this->fields[$fieldName]['type'] = 'relation';
+                        }
+                        if ($this->fields[$fieldName]['special'] ?? false) {
+                            $this->fields[$fieldName]['type'] = 'text';
+                        }
+                        break;
+                    case 'group':
+                        $this->fields[$fieldName]['type'] = 'relation';
+                        break;
+                    default:
+                        $this->fields[$fieldName]['type'] = 'text';
+                }
             }
+            uasort($this->fields, static fn($fieldA, $fieldB) => strcmp($fieldA['label'], $fieldB['label']));
         }
         /*	// EXAMPLE:
         $this->queryConfig = array(
@@ -2382,19 +2517,23 @@ class DatabaseIntegrityController
     protected function makeFieldList(): string
     {
         $fieldListArr = [];
-        if (is_array($GLOBALS['TCA'][$this->table])) {
-            $fieldListArr = array_keys($GLOBALS['TCA'][$this->table]['columns'] ?? []);
+        if ($this->tcaSchemaFactory->has($this->table)) {
+            $schema = $this->tcaSchemaFactory->get($this->table);
+            foreach ($schema->getFields() as $field) {
+                $fieldListArr[] = $field->getName();
+            }
             $fieldListArr[] = 'uid';
             $fieldListArr[] = 'pid';
+            // @todo: this should never be hard-coded (note by benni in 2025)
             $fieldListArr[] = 'deleted';
-            if ($GLOBALS['TCA'][$this->table]['ctrl']['tstamp'] ?? false) {
-                $fieldListArr[] = $GLOBALS['TCA'][$this->table]['ctrl']['tstamp'];
+            if ($schema->hasCapability(TcaSchemaCapability::UpdatedAt)) {
+                $fieldListArr[] = $schema->getCapability(TcaSchemaCapability::UpdatedAt)->getFieldName();
             }
-            if ($GLOBALS['TCA'][$this->table]['ctrl']['crdate'] ?? false) {
-                $fieldListArr[] = $GLOBALS['TCA'][$this->table]['ctrl']['crdate'];
+            if ($schema->hasCapability(TcaSchemaCapability::CreatedAt)) {
+                $fieldListArr[] = $schema->getCapability(TcaSchemaCapability::CreatedAt)->getFieldName();
             }
-            if ($GLOBALS['TCA'][$this->table]['ctrl']['sortby'] ?? false) {
-                $fieldListArr[] = $GLOBALS['TCA'][$this->table]['ctrl']['sortby'];
+            if ($schema->hasCapability(TcaSchemaCapability::SortByField)) {
+                $fieldListArr[] = $schema->getCapability(TcaSchemaCapability::SortByField)->getFieldName();
             }
         }
 
@@ -2403,6 +2542,8 @@ class DatabaseIntegrityController
 
     protected function makeStoreControl(): string
     {
+        $languageService = $this->getLanguageService();
+
         // Load/Save
         $storeArray = $this->initStoreArray();
 
@@ -2414,23 +2555,27 @@ class DatabaseIntegrityController
         $markup = [];
         $markup[] = '<div class="form-row">';
         $markup[] = '  <div class="form-group">';
-        $markup[] = '    <select class="form-select" name="storeControl[STORE]" data-assign-store-control-title>' . implode(LF, $opt) . '</select>';
+        $markup[] = '    <label for="query-store" class="form-label">' . $languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.form.field.queryStore.storage.label') . '</label>';
+        $markup[] = '    <div class="input-group">';
+        $markup[] = '      <select class="form-select" name="storeControl[STORE]" id="query-store" data-assign-store-control-title>' . implode(LF, $opt) . '</select>';
+        $markup[] = '    </div>';
         $markup[] = '  </div>';
         $markup[] = '  <div class="form-group">';
-        $markup[] = '    <input class="form-control" name="storeControl[title]" value="" type="text" max="80">';
+        $markup[] = '    <label for="query-title" class="form-label">' . $languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.form.field.queryStore.title.label') . '</label>';
+        $markup[] = '    <input class="form-control" name="storeControl[title]" id="query-title" value="" type="text" max="80">';
         $markup[] = '  </div>';
         $markup[] = '  <div class="form-group">';
-        $markup[] = '    <button class="btn btn-default" type="submit" name="storeControl[LOAD]" value="Load">';
-        $markup[] =        $this->iconFactory->getIcon('actions-upload', Icon::SIZE_SMALL)->render();
-        $markup[] = '      Load';
+        $markup[] = '    <button class="btn btn-default" type="submit" name="storeControl[LOAD]" value="' . $languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.form.btn.load.label') . '">';
+        $markup[] =        $this->iconFactory->getIcon('actions-upload', IconSize::SMALL)->render();
+        $markup[] =        $languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.form.btn.load.label');
         $markup[] = '    </button>';
-        $markup[] = '    <button class="btn btn-default" type="submit" name="storeControl[SAVE]" value="Save">';
-        $markup[] =        $this->iconFactory->getIcon('actions-save', Icon::SIZE_SMALL)->render();
-        $markup[] = '      Save';
+        $markup[] = '    <button class="btn btn-default" type="submit" name="storeControl[SAVE]" value="' . $languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.form.btn.save.label') . '">';
+        $markup[] =        $this->iconFactory->getIcon('actions-save', IconSize::SMALL)->render();
+        $markup[] =        $languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.form.btn.save.label');
         $markup[] = '    </button>';
-        $markup[] = '    <button class="btn btn-default" type="submit" name="storeControl[REMOVE]" value="Remove">';
-        $markup[] =        $this->iconFactory->getIcon('actions-delete', Icon::SIZE_SMALL)->render();
-        $markup[] = '      Remove';
+        $markup[] = '    <button class="btn btn-default" type="submit" name="storeControl[REMOVE]" value="' . $languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.form.btn.delete.label') . '">';
+        $markup[] =        $this->iconFactory->getIcon('actions-delete', IconSize::SMALL)->render();
+        $markup[] =        $languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.form.btn.delete.label');
         $markup[] = '    </button>';
         $markup[] = '  </div>';
         $markup[] = '</div>';
@@ -2487,7 +2632,7 @@ class DatabaseIntegrityController
                 }
             }
             if (!empty($flashMessage)) {
-                $msg = GeneralUtility::makeInstance(FlashMessageRendererResolver::class)
+                $msg = $this->flashMessageRendererResolver
                     ->resolve()
                     ->render([$flashMessage]);
             }
@@ -2511,14 +2656,11 @@ class DatabaseIntegrityController
 
     protected function cleanStoreQueryConfigs(array $storeQueryConfigs, array $storeArray): array
     {
-        if (is_array($storeQueryConfigs)) {
-            foreach ($storeQueryConfigs as $k => $v) {
-                if (!isset($storeArray[$k])) {
-                    unset($storeQueryConfigs[$k]);
-                }
+        foreach ($storeQueryConfigs as $k => $v) {
+            if (!isset($storeArray[$k])) {
+                unset($storeQueryConfigs[$k]);
             }
         }
-
         return $storeQueryConfigs;
     }
 
@@ -2547,8 +2689,9 @@ class DatabaseIntegrityController
 
     protected function initStoreArray(): array
     {
+        $languageService = $this->getLanguageService();
         $storeArray = [
-            '0' => '[New]',
+            '0' => $languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fullSearch.form.field.queryStore.storage.0'),
         ];
         $savedStoreArray = unserialize($this->MOD_SETTINGS['storeArray'] ?? '', ['allowed_classes' => false]);
         if (is_array($savedStoreArray)) {
@@ -2558,59 +2701,80 @@ class DatabaseIntegrityController
         return $storeArray;
     }
 
-    protected function form(): string
-    {
-        $languageService = $this->getLanguageService();
-        $markup = [];
-        $markup[] = '<h2 id="search-options">' . htmlspecialchars($languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:searchOptions')) . '</h2>';
-        $markup[] = '<div class="form-group">';
-        $markup[] =   '<div class="input-group">';
-        $markup[] =     '<input aria-labelledby="search-options" placeholder="' . htmlspecialchars($languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:search.placeholder')) . '" class="form-control" type="search" id="searchField" name="SET[sword]" value="' . htmlspecialchars($this->MOD_SETTINGS['sword'] ?? '') . '">';
-        $markup[] =     '<button class="btn btn-default" disabled type="submit" name="submitSearch" id="submitSearch" title="' . htmlspecialchars($languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:search.submit')) . '">';
-        $markup[] =       $this->iconFactory->getIcon('actions-search', Icon::SIZE_SMALL)->render();
-        $markup[] =     '</button>';
-        $markup[] =   '</div>';
-        $markup[] = '</div>';
-
-        return implode(LF, $markup);
-    }
-
     protected function search(ServerRequestInterface $request): string
     {
         $swords = $this->MOD_SETTINGS['sword'] ?? '';
+        if ($swords === '') {
+            return '';
+        }
         $out = '';
-        if ($swords) {
-            foreach ($GLOBALS['TCA'] as $table => $value) {
-                // Get fields list
-                $conf = $GLOBALS['TCA'][$table];
-                // Avoid querying tables with no columns
-                if (empty($conf['columns'])) {
+        /** @var TcaSchema $schema */
+        foreach ($this->tcaSchemaFactory->all() as $table => $schema) {
+            // Avoid querying tables with no columns
+            if ($schema->getFields()->count() === 0) {
+                continue;
+            }
+            // Get fields list
+            $connection = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable($table);
+            $identifierQuoteCharacter = $this->platformHelper->getIdentifierQuoteCharacter($connection->getDatabasePlatform());
+            $tableColumns = $connection->createSchemaManager()->listTableColumns($table);
+            $normalizedTableColumns = [];
+            $fields = [];
+            foreach ($tableColumns as $column) {
+                if (!$schema->hasField($column->getName())) {
                     continue;
                 }
-                $connection = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable($table);
-                $tableColumns = $connection->createSchemaManager()->listTableColumns($table);
-                $normalizedTableColumns = [];
-                $fieldsInDatabase = [];
-                foreach ($tableColumns as $column) {
-                    $fieldsInDatabase[] = $column->getName();
-                    $normalizedTableColumns[trim($column->getName(), $connection->getDatabasePlatform()->getIdentifierQuoteCharacter())] = $column;
+                $fields[] = $column->getName();
+                $normalizedTableColumns[trim($column->getName(), $identifierQuoteCharacter)] = $column;
+            }
+            $queryBuilder = $connection->createQueryBuilder();
+            $queryBuilder->getRestrictions()->removeAll()->add(GeneralUtility::makeInstance(DeletedRestriction::class));
+            $queryBuilder->count('*')->from($table);
+            $likes = [];
+            $escapedLikeString = '%' . $queryBuilder->escapeLikeWildcards($swords) . '%';
+            foreach ($fields as $field) {
+                $field = trim($field, $identifierQuoteCharacter);
+                $quotedField = $queryBuilder->quoteIdentifier($field);
+                $column = $normalizedTableColumns[$field] ?? $normalizedTableColumns[$quotedField] ?? null;
+                if ($column !== null
+                    && $connection->getDatabasePlatform() instanceof DoctrinePostgreSQLPlatform
+                    && !in_array(Type::getTypeRegistry()->lookupName($column->getType()), [Types::STRING, Types::ASCII_STRING, Types::JSON], true)
+                ) {
+                    if (Type::getTypeRegistry()->lookupName($column->getType()) === Types::SMALLINT) {
+                        // we need to cast smallint to int first, otherwise text case below won't work
+                        $quotedField .= '::int';
+                    }
+                    $quotedField .= '::text';
                 }
-                $fields = array_intersect(array_keys($conf['columns']), $fieldsInDatabase);
+                $likes[] = $queryBuilder->expr()->comparison(
+                    $quotedField,
+                    'LIKE',
+                    $queryBuilder->createNamedParameter($escapedLikeString)
+                );
+            }
+            $queryBuilder->orWhere(...$likes);
+            $count = $queryBuilder->executeQuery()->fetchOne();
 
+            if ($count > 0) {
                 $queryBuilder = $connection->createQueryBuilder();
                 $queryBuilder->getRestrictions()->removeAll()->add(GeneralUtility::makeInstance(DeletedRestriction::class));
-                $queryBuilder->count('*')->from($table);
+                $queryBuilder
+                    ->select('uid')
+                    ->from($table)
+                    ->setMaxResults(200);
+                if ($schema->hasCapability(TcaSchemaCapability::Label) && $schema->getCapability(TcaSchemaCapability::Label)->hasPrimaryField()) {
+                    $queryBuilder->addSelect($schema->getCapability(TcaSchemaCapability::Label)->getPrimaryField()->getName());
+                }
                 $likes = [];
-                $escapedLikeString = '%' . $queryBuilder->escapeLikeWildcards($swords) . '%';
                 foreach ($fields as $field) {
-                    $field = trim($field, $connection->getDatabasePlatform()->getIdentifierQuoteCharacter());
+                    $field = trim($field, $identifierQuoteCharacter);
                     $quotedField = $queryBuilder->quoteIdentifier($field);
                     $column = $normalizedTableColumns[$field] ?? $normalizedTableColumns[$quotedField] ?? null;
                     if ($column !== null
-                        && $connection->getDatabasePlatform() instanceof PostgreSQLPlatform
-                        && !in_array($column->getType()->getName(), [Types::STRING, Types::ASCII_STRING, Types::JSON], true)
+                        && $connection->getDatabasePlatform() instanceof DoctrinePostgreSQLPlatform
+                        && !in_array(Type::getTypeRegistry()->lookupName($column->getType()), [Types::STRING, Types::ASCII_STRING, Types::JSON], true)
                     ) {
-                        if ($column->getType()->getName() === Types::SMALLINT) {
+                        if (Type::getTypeRegistry()->lookupName($column->getType()) === Types::SMALLINT) {
                             // we need to cast smallint to int first, otherwise text case below won't work
                             $quotedField .= '::int';
                         }
@@ -2622,61 +2786,29 @@ class DatabaseIntegrityController
                         $queryBuilder->createNamedParameter($escapedLikeString)
                     );
                 }
-                $queryBuilder->orWhere(...$likes);
-                $count = $queryBuilder->executeQuery()->fetchOne();
-
-                if ($count > 0) {
-                    $queryBuilder = $connection->createQueryBuilder();
-                    $queryBuilder->getRestrictions()->removeAll()->add(GeneralUtility::makeInstance(DeletedRestriction::class));
-                    $queryBuilder->select('uid', $conf['ctrl']['label'])
-                        ->from($table)
-                        ->setMaxResults(200);
-                    $likes = [];
-                    foreach ($fields as $field) {
-                        $field = trim($field, $connection->getDatabasePlatform()->getIdentifierQuoteCharacter());
-                        $quotedField = $queryBuilder->quoteIdentifier($field);
-                        $column = $normalizedTableColumns[$field] ?? $normalizedTableColumns[$quotedField] ?? null;
-                        if ($column !== null
-                            && $connection->getDatabasePlatform() instanceof PostgreSQLPlatform
-                            && !in_array($column->getType()->getName(), [Types::STRING, Types::ASCII_STRING, Types::JSON], true)
-                        ) {
-                            if ($column->getType()->getName() === Types::SMALLINT) {
-                                // we need to cast smallint to int first, otherwise text case below won't work
-                                $quotedField .= '::int';
-                            }
-                            $quotedField .= '::text';
-                        }
-                        $likes[] = $queryBuilder->expr()->comparison(
-                            $quotedField,
-                            'LIKE',
-                            $queryBuilder->createNamedParameter($escapedLikeString)
-                        );
-                    }
-                    $statement = $queryBuilder->orWhere(...$likes)->executeQuery();
-                    $lastRow = null;
-                    $rowArr = [];
-                    while ($row = $statement->fetchAssociative()) {
-                        $rowArr[] = $this->resultRowDisplay($row, $conf, $table, $request);
-                        $lastRow = $row;
-                    }
-                    $markup = [];
-                    $markup[] = '<div class="panel panel-default">';
-                    $markup[] = '  <div class="panel-heading">';
-                    $markup[] = htmlspecialchars($this->getLanguageService()->sL($conf['ctrl']['title'])) . ' (' . $count . ')';
-                    $markup[] = '  </div>';
-                    $markup[] = '  <div class="table-fit">';
-                    $markup[] = '    <table class="table table-striped table-hover">';
-                    $markup[] = $this->resultRowTitles((array)$lastRow, $conf);
-                    $markup[] = implode(LF, $rowArr);
-                    $markup[] = '    </table>';
-                    $markup[] = '  </div>';
-                    $markup[] = '</div>';
-
-                    $out .= implode(LF, $markup);
+                $statement = $queryBuilder->orWhere(...$likes)->executeQuery();
+                $lastRow = null;
+                $rowArr = [];
+                while ($row = $statement->fetchAssociative()) {
+                    $rowArr[] = $this->resultRowDisplay($row, $table, $request);
+                    $lastRow = $row;
                 }
+                $markup = [];
+                $markup[] = '<div class="panel panel-default">';
+                $markup[] = '  <div class="panel-heading">';
+                $markup[] = htmlspecialchars($this->getLanguageService()->sL($schema->getRawConfiguration()['title'] ?? '')) . ' (' . $count . ')';
+                $markup[] = '  </div>';
+                $markup[] = '  <div class="table-fit">';
+                $markup[] = '    <table class="table table-striped table-hover">';
+                $markup[] = $this->resultRowTitles((array)$lastRow, $table);
+                $markup[] = implode(LF, $rowArr);
+                $markup[] = '    </table>';
+                $markup[] = '  </div>';
+                $markup[] = '</div>';
+
+                $out .= implode(LF, $markup);
             }
         }
-
         return $out;
     }
 
@@ -2692,41 +2824,38 @@ class DatabaseIntegrityController
         // Page stats
         $pageStatistic = [
             'total_pages' => [
-                'icon' => $this->iconFactory->getIconForRecord('pages', [], Icon::SIZE_SMALL)->render(),
+                'icon' => $this->iconFactory->getIconForRecord('pages', [], IconSize::SMALL)->render(),
                 'count' => count($databaseIntegrityCheck->getPageIdArray()),
             ],
             'translated_pages' => [
-                'icon' => $this->iconFactory->getIconForRecord('pages', [], Icon::SIZE_SMALL)->render(),
+                'icon' => $this->iconFactory->getIconForRecord('pages', [], IconSize::SMALL)->render(),
                 'count' => count($databaseIntegrityCheck->getPageTranslatedPageIDArray()),
             ],
             'hidden_pages' => [
-                'icon' => $this->iconFactory->getIconForRecord('pages', ['hidden' => 1], Icon::SIZE_SMALL)->render(),
+                'icon' => $this->iconFactory->getIconForRecord('pages', ['hidden' => 1], IconSize::SMALL)->render(),
                 'count' => $databaseIntegrityCheck->getRecStats()['hidden'] ?? 0,
             ],
             'deleted_pages' => [
-                'icon' => $this->iconFactory->getIconForRecord('pages', ['deleted' => 1], Icon::SIZE_SMALL)->render(),
+                'icon' => $this->iconFactory->getIconForRecord('pages', ['deleted' => 1], IconSize::SMALL)->render(),
                 'count' => isset($databaseIntegrityCheck->getRecStats()['deleted']['pages']) ? count($databaseIntegrityCheck->getRecStats()['deleted']['pages']) : 0,
             ],
         ];
 
         // doktypes stats
         $doktypes = [];
-        $doktype = $GLOBALS['TCA']['pages']['columns']['doktype']['config']['items'];
-        if (is_array($doktype)) {
-            foreach ($doktype as $setup) {
-                if ($setup['value'] !== '--div--') {
-                    $doktypes[] = [
-                        'icon' => $this->iconFactory->getIconForRecord('pages', ['doktype' => $setup['value']], Icon::SIZE_SMALL)->render(),
-                        'title' => $languageService->sL($setup['label']) . ' (' . $setup['value'] . ')',
-                        'count' => (int)($databaseIntegrityCheck->getRecStats()['doktype'][$setup['value']] ?? 0),
-                    ];
-                }
+        foreach ($this->pageDoktypeRegistry->getAllDoktypes() as $doktype) {
+            if ($doktype->isDivider()) {
+                continue;
             }
+            $doktypes[] = [
+                'icon' => $this->iconFactory->getIconForRecord('pages', ['doktype' => $doktype->getValue()], IconSize::SMALL)->render(),
+                'title' => $languageService->sL($doktype->getLabel()) . ' (' . $doktype->getValue() . ')',
+                'count' => (int)($databaseIntegrityCheck->getRecStats()['doktype'][$doktype->getValue()] ?? 0),
+            ];
         }
 
         // Tables and lost records
-        $id_list = '-1,0,' . implode(',', array_keys($databaseIntegrityCheck->getPageIdArray()));
-        $id_list = rtrim($id_list, ',');
+        $id_list = implode(',', array_merge([0], array_keys($databaseIntegrityCheck->getPageIdArray())));
         $databaseIntegrityCheck->lostRecords($id_list);
 
         // Fix a lost record if requested
@@ -2737,56 +2866,52 @@ class DatabaseIntegrityController
         ) {
             $databaseIntegrityCheck = GeneralUtility::makeInstance(DatabaseIntegrityCheck::class);
             $databaseIntegrityCheck->genTree(0);
-            $id_list = '-1,0,' . implode(',', array_keys($databaseIntegrityCheck->getPageIdArray()));
-            $id_list = rtrim($id_list, ',');
+            $id_list = implode(',', array_merge([0], array_keys($databaseIntegrityCheck->getPageIdArray())));
             $databaseIntegrityCheck->lostRecords($id_list);
         }
 
         $tableStatistic = [];
         $countArr = $databaseIntegrityCheck->countRecords($id_list);
-        if (is_array($GLOBALS['TCA'])) {
-            foreach ($GLOBALS['TCA'] as $t => $value) {
-                if ($GLOBALS['TCA'][$t]['ctrl']['hideTable'] ?? false) {
-                    continue;
-                }
-                if ($t === 'pages' && $databaseIntegrityCheck->getLostPagesList() !== '') {
-                    $lostRecordCount = count(explode(',', $databaseIntegrityCheck->getLostPagesList()));
-                } else {
-                    $lostRecordCount = isset($databaseIntegrityCheck->getLRecords()[$t]) ? count($databaseIntegrityCheck->getLRecords()[$t]) : 0;
-                }
-                $recordCount = 0;
-                if ($countArr['all'][$t] ?? false) {
-                    $recordCount = (int)($countArr['non_deleted'][$t] ?? 0) . '/' . $lostRecordCount;
-                }
-                $lostRecordList = [];
-                if (is_array($databaseIntegrityCheck->getLRecords()[$t] ?? false)) {
-                    foreach ($databaseIntegrityCheck->getLRecords()[$t] as $data) {
-                        if (!GeneralUtility::inList($databaseIntegrityCheck->getLostPagesList(), $data['pid'])) {
-                            $fixLink = (string)$this->uriBuilder->buildUriFromRoute(
-                                'system_dbint',
-                                ['SET' => ['function' => 'records'], 'fixLostRecords_table' => $t, 'fixLostRecords_uid' => $data['uid']]
-                            );
-                            $lostRecordList[] =
-                                '<div class="record">' .
-                                    '<a href="' . htmlspecialchars($fixLink) . '" title="' . htmlspecialchars($languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fixLostRecord')) . '">' .
-                                        $this->iconFactory->getIcon('status-dialog-error', Icon::SIZE_SMALL)->render() .
-                                    '</a>uid:' . $data['uid'] . ', pid:' . $data['pid'] . ', ' . htmlspecialchars(GeneralUtility::fixed_lgd_cs(strip_tags($data['title']), 20)) .
-                                '</div>';
-                        } else {
-                            $lostRecordList[] =
-                                '<div class="record-noicon">' .
-                                    'uid:' . $data['uid'] . ', pid:' . $data['pid'] . ', ' . htmlspecialchars(GeneralUtility::fixed_lgd_cs(strip_tags($data['title']), 20)) .
-                                '</div>';
-                        }
-                    }
-                }
-                $tableStatistic[$t] = [
-                    'icon' => $this->iconFactory->getIconForRecord($t, [], Icon::SIZE_SMALL)->render(),
-                    'title' => $languageService->sL($GLOBALS['TCA'][$t]['ctrl']['title']),
-                    'count' => $recordCount,
-                    'lostRecords' => implode(LF, $lostRecordList),
-                ];
+        /** @var TcaSchema $schema */
+        foreach ($this->tcaSchemaFactory->all() as $table => $schema) {
+            if ($schema->getRawConfiguration()['hideTable'] ?? false) {
+                continue;
             }
+            if ($table === 'pages' && $databaseIntegrityCheck->getLostPagesList() !== '') {
+                $lostRecordCount = count(explode(',', $databaseIntegrityCheck->getLostPagesList()));
+            } else {
+                $lostRecordCount = isset($databaseIntegrityCheck->getLRecords()[$table]) ? count($databaseIntegrityCheck->getLRecords()[$table]) : 0;
+            }
+            $recordCount = 0;
+            if ($countArr['all'][$table] ?? false) {
+                $recordCount = (int)($countArr['non_deleted'][$table] ?? 0) . '/' . $lostRecordCount;
+            }
+            $lostRecordList = [];
+            foreach ($databaseIntegrityCheck->getLRecords()[$table] ?? [] as $data) {
+                if (!GeneralUtility::inList($databaseIntegrityCheck->getLostPagesList(), $data['pid'])) {
+                    $fixLink = (string)$this->uriBuilder->buildUriFromRoute(
+                        $this->moduleName,
+                        ['SET' => ['function' => 'records'], 'fixLostRecords_table' => $table, 'fixLostRecords_uid' => $data['uid']]
+                    );
+                    $lostRecordList[] =
+                        '<div class="record">' .
+                            '<a href="' . htmlspecialchars($fixLink) . '" title="' . htmlspecialchars($languageService->sL('LLL:EXT:lowlevel/Resources/Private/Language/locallang.xlf:fixLostRecord')) . '">' .
+                                $this->iconFactory->getIcon('status-dialog-error', IconSize::SMALL)->render() .
+                            '</a>uid:' . $data['uid'] . ', pid:' . $data['pid'] . ', ' . htmlspecialchars(GeneralUtility::fixed_lgd_cs(strip_tags($data['title']), 20)) .
+                        '</div>';
+                } else {
+                    $lostRecordList[] =
+                        '<div class="record-noicon">' .
+                            'uid:' . $data['uid'] . ', pid:' . $data['pid'] . ', ' . htmlspecialchars(GeneralUtility::fixed_lgd_cs(strip_tags($data['title']), 20)) .
+                        '</div>';
+                }
+            }
+            $tableStatistic[$table] = [
+                'icon' => $this->iconFactory->getIconForRecord($table, [], IconSize::SMALL)->render(),
+                'title' => $languageService->sL($schema->getRawConfiguration()['title']),
+                'count' => $recordCount,
+                'lostRecords' => implode(LF, $lostRecordList),
+            ];
         }
 
         $view->assignMultiple([
@@ -2829,33 +2954,23 @@ class DatabaseIntegrityController
     //################################
 
     /**
-     * Returns a selector box to switch the view
-     * Based on BackendUtility::getFuncMenu() but done as new function because it has another purpose.
-     * Mingling with getFuncMenu would harm the docHeader Menu.
+     * Returns a selector box to switch the view.
      *
-     * @param mixed $mainParams The "&id=" parameter value to be sent to the module, but it can be also a parameter array which will be passed instead of the &id=...
      * @param string $elementName The form elements name, probably something like "SET[...]
      * @param string|int $currentValue The value to be selected currently.
-     * @param array $menuItems An array with the menu items for the selector box
-     * @param string $script The script to send the &id to, if empty it's automatically found
-     * @param string $addParams Additional parameters to pass to the script.
-     * @param array $additionalAttributes Additional attributes for the select element
+     * @param mixed $menuItems An array with the menu items for the selector box
      * @return string HTML code for selector box
      */
-    protected static function getDropdownMenu(
-        $mainParams,
-        $elementName,
-        $currentValue,
-        $menuItems,
-        ServerRequestInterface $request,
-        $script = '',
-        $addParams = '',
-        array $additionalAttributes = []
-    ) {
+    protected function getDropdownMenu(
+        string $elementName,
+        string|int $currentValue,
+        mixed $menuItems,
+        ServerRequestInterface $request
+    ): string {
         if (!is_array($menuItems) || count($menuItems) <= 1) {
             return '';
         }
-        $scriptUrl = self::buildScriptUrl($mainParams, $addParams, $request, $script);
+        $scriptUrl = $this->uriBuilder->buildUriFromRequest($request);
         $options = [];
         foreach ($menuItems as $value => $label) {
             $options[] = '<option value="'
@@ -2867,13 +2982,15 @@ class DatabaseIntegrityController
         $dataMenuIdentifier = GeneralUtility::camelCaseToLowerCaseUnderscored($dataMenuIdentifier);
         $dataMenuIdentifier = str_replace('_', '-', $dataMenuIdentifier);
         // relies on module 'TYPO3/CMS/Backend/ActionDispatcher'
-        $attributes = GeneralUtility::implodeAttributes(array_merge([
+        $attributes = GeneralUtility::implodeAttributes([
             'name' => $elementName,
+            'id' => $dataMenuIdentifier,
+            'class' => 'form-select',
             'data-menu-identifier' => $dataMenuIdentifier,
             'data-global-event' => 'change',
             'data-action-navigate' => '$data=~s/$value/',
             'data-navigate-value' => $scriptUrl . '&' . $elementName . '=${value}',
-        ], $additionalAttributes), true);
+        ], true);
 
         return '
             <select class="form-select" ' . $attributes . '>
@@ -2883,28 +3000,20 @@ class DatabaseIntegrityController
 
     /**
      * Checkbox function menu.
-     * Works like ->getFuncMenu() but takes no $menuItem array since this is a simple checkbox.
      *
-     * @param mixed $mainParams $id is the "&id=" parameter value to be sent to the module, but it can be also a parameter array which will be passed instead of the &id=...
      * @param string $elementName The form elements name, probably something like "SET[...]
-     * @param string|bool $currentValue The value to be selected currently.
-     * @param string $script The script to send the &id to, if empty it's automatically found
-     * @param string $addParams Additional parameters to pass to the script.
+     * @param string|bool|int $currentValue The value to be selected currently.
      * @param string $tagParams Additional attributes for the checkbox input tag
      * @return string HTML code for checkbox
-     * @see getFuncMenu()
      */
-    protected static function getFuncCheck(
-        $mainParams,
-        $elementName,
-        $currentValue,
+    protected function getFuncCheck(
+        string $elementName,
+        string|bool|int $currentValue,
         ServerRequestInterface $request,
-        $script = '',
-        $addParams = '',
-        $tagParams = ''
-    ) {
+        string $tagParams = ''
+    ): string {
         // relies on module 'TYPO3/CMS/Backend/ActionDispatcher'
-        $scriptUrl = self::buildScriptUrl($mainParams, $addParams, $request, $script);
+        $scriptUrl = $this->uriBuilder->buildUriFromRequest($request);
         $attributes = GeneralUtility::implodeAttributes([
             'type' => 'checkbox',
             'class' => 'form-check-input',
@@ -2921,35 +3030,5 @@ class DatabaseIntegrityController
             ($currentValue ? ' checked="checked"' : '') .
             ($tagParams ? ' ' . $tagParams : '') .
             ' />';
-    }
-
-    /**
-     * Builds the URL to the current script with given arguments
-     *
-     * @param mixed $mainParams $id is the "&id=" parameter value to be sent to the module, but it can be also a parameter array which will be passed instead of the &id=...
-     * @param string $addParams Additional parameters to pass to the script.
-     * @param string $script The script to send the &id to, if empty it's automatically found
-     * @return string The complete script URL
-     * @todo Check if this can be removed or replaced by routing
-     */
-    protected static function buildScriptUrl($mainParams, string $addParams, ServerRequestInterface $request, string $script = '')
-    {
-        if (!is_array($mainParams)) {
-            $mainParams = ['id' => $mainParams];
-        }
-
-        $route = $request->getAttribute('route');
-        if ($route instanceof Route) {
-            $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
-            $scriptUrl = (string)$uriBuilder->buildUriFromRoute($route->getOption('_identifier'), $mainParams);
-            $scriptUrl .= $addParams;
-        } else {
-            if (!$script) {
-                $script = PathUtility::basename(Environment::getCurrentScript());
-            }
-            $scriptUrl = $script . HttpUtility::buildQueryString($mainParams, '?') . $addParams;
-        }
-
-        return $scriptUrl;
     }
 }

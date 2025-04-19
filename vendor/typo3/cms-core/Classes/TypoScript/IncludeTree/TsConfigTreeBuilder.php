@@ -17,12 +17,18 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Core\TypoScript\IncludeTree;
 
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Cache\Frontend\PhpFrontend;
-use TYPO3\CMS\Core\Configuration\Event\ModifyLoadedPageTsConfigEvent as LegacyModifyLoadedPageTsConfigEvent;
+use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\EventDispatcher\EventDispatcher;
+use TYPO3\CMS\Core\Exception\SiteNotFoundException;
 use TYPO3\CMS\Core\Package\Cache\PackageDependentCacheIdentifier;
 use TYPO3\CMS\Core\Package\PackageManager;
+use TYPO3\CMS\Core\Site\Set\SetRegistry;
+use TYPO3\CMS\Core\Site\SiteFinder;
+use TYPO3\CMS\Core\TypoScript\IncludeTree\Event\BeforeLoadedPageTsConfigEvent;
+use TYPO3\CMS\Core\TypoScript\IncludeTree\Event\BeforeLoadedUserTsConfigEvent;
 use TYPO3\CMS\Core\TypoScript\IncludeTree\Event\ModifyLoadedPageTsConfigEvent;
 use TYPO3\CMS\Core\TypoScript\IncludeTree\IncludeNode\RootInclude;
 use TYPO3\CMS\Core\TypoScript\IncludeTree\IncludeNode\TsConfigInclude;
@@ -37,12 +43,15 @@ use TYPO3\CMS\Core\Utility\PathUtility;
  *
  * @internal
  */
+#[Autoconfigure(public: true)]
 final class TsConfigTreeBuilder
 {
     public function __construct(
         private readonly TreeFromLineStreamBuilder $treeFromTokenStreamBuilder,
         private readonly PackageManager $packageManager,
         private readonly EventDispatcher $eventDispatcher,
+        private readonly SiteFinder $siteFinder,
+        private readonly SetRegistry $setRegistry,
     ) {}
 
     public function getUserTsConfigTree(
@@ -51,13 +60,48 @@ final class TsConfigTreeBuilder
         ?PhpFrontend $cache = null
     ): RootInclude {
         $includeTree = new RootInclude();
+
+        $collectedUserTsConfigArray = [];
+        $gotPackagesUserTsConfigFromCache = false;
+        $cacheIdentifier = (new PackageDependentCacheIdentifier($this->packageManager))
+            ->withPrefix('usertsconfig-packages-strings')
+            ->toString();
+        if ($cache) {
+            $collectedUserTsConfigArrayFromCache = $cache->require($cacheIdentifier);
+            if ($collectedUserTsConfigArrayFromCache) {
+                $gotPackagesUserTsConfigFromCache = true;
+                $collectedUserTsConfigArray = $collectedUserTsConfigArrayFromCache;
+            }
+        }
+        if (!$gotPackagesUserTsConfigFromCache) {
+            $event = $this->eventDispatcher->dispatch(new BeforeLoadedUserTsConfigEvent());
+            $collectedUserTsConfigArray = $event->getTsConfig();
+            foreach ($this->packageManager->getActivePackages() as $package) {
+                $packagePath = $package->getPackagePath();
+                $tsConfigFile = null;
+                if (file_exists($packagePath . 'Configuration/user.tsconfig')) {
+                    $tsConfigFile = $packagePath . 'Configuration/user.tsconfig';
+                } elseif (file_exists($packagePath . 'Configuration/User.tsconfig')) {
+                    $tsConfigFile = $packagePath . 'Configuration/User.tsconfig';
+                }
+                if ($tsConfigFile) {
+                    $typoScriptString = @file_get_contents($tsConfigFile);
+                    if (!empty($typoScriptString)) {
+                        $collectedUserTsConfigArray['userTsConfig-package-' . $package->getPackageKey()] = $typoScriptString;
+                    }
+                }
+            }
+            $cache?->set($cacheIdentifier, 'return unserialize(\'' . addcslashes(serialize($collectedUserTsConfigArray), '\'\\') . '\');');
+        }
+        foreach ($collectedUserTsConfigArray as $key => $typoScriptString) {
+            $includeTree->addChild($this->getTreeFromString((string)$key, $typoScriptString, $tokenizer, $cache));
+        }
+
+        // @deprecated since TYPO3 v13. Remove in v14 along with defaultUserTSconfig and EMU::addUserTSConfig
         if (!empty($GLOBALS['TYPO3_CONF_VARS']['BE']['defaultUserTSconfig'] ?? '')) {
             $includeTree->addChild($this->getTreeFromString('userTsConfig-globals', $GLOBALS['TYPO3_CONF_VARS']['BE']['defaultUserTSconfig'], $tokenizer, $cache));
         }
-        if ($backendUser->isAdmin()) {
-            // @todo: Could we maybe solve this differently somehow? Maybe in ext:adminpanel in FE directly?
-            $includeTree->addChild($this->getTreeFromString('userTsConfig-admpanel', 'admPanel.enable.all = 1', $tokenizer, $cache));
-        }
+
         foreach ($backendUser->userGroupsUID as $groupId) {
             // Loop through all groups and add their 'TSconfig' fields
             if (!empty($backendUser->userGroups[$groupId]['TSconfig'] ?? '')) {
@@ -67,6 +111,7 @@ final class TsConfigTreeBuilder
         if (!empty($backendUser->user['TSconfig'] ?? '')) {
             $includeTree->addChild($this->getTreeFromString('userTsConfig-user', $backendUser->user['TSconfig'], $tokenizer, $cache));
         }
+
         return $includeTree;
     }
 
@@ -75,6 +120,41 @@ final class TsConfigTreeBuilder
         TokenizerInterface $tokenizer,
         ?PhpFrontend $cache = null
     ): RootInclude {
+        $collectedPagesTsConfigArray = [];
+
+        $collectedPagesTsConfigArray += $this->getPackagePageTsConfigTree($cache);
+
+        // @deprecated since TYPO3 v13. Remove in v14 along with defaultPageTSconfig and EMU::addPageTSConfig
+        if (!empty($GLOBALS['TYPO3_CONF_VARS']['BE']['defaultPageTSconfig'] ?? '')) {
+            $collectedPagesTsConfigArray['pagesTsConfig-globals-defaultPageTSconfig'] = ['content' => $GLOBALS['TYPO3_CONF_VARS']['BE']['defaultPageTSconfig']];
+        }
+
+        // HEADS up: rootLine may be modified by getSitePagesTsConfigTree
+        $collectedPagesTsConfigArray += $this->getSitePageTsConfigTree($rootLine, $cache);
+
+        $collectedPagesTsConfigArray += $this->getRootlinePageTsConfigTree($rootLine, $cache);
+
+        $event = $this->eventDispatcher->dispatch(new ModifyLoadedPageTsConfigEvent(
+            array_map(static fn(array $descriptor): string => $descriptor['content'], $collectedPagesTsConfigArray),
+            $rootLine
+        ));
+        $collectedPagesTsConfigContentArray = $event->getTsConfig();
+        foreach ($collectedPagesTsConfigContentArray as $key => $content) {
+            $collectedPagesTsConfigArray[$key]['content'] = $content;
+        }
+
+        $includeTree = new RootInclude();
+        foreach ($collectedPagesTsConfigArray as $key => $descriptor) {
+            $typoScriptString = $descriptor['content'];
+            $filename = $descriptor['filename'] ?? null;
+            $includeTree->addChild($this->getTreeFromString((string)$key, $typoScriptString, $tokenizer, $cache, $filename));
+        }
+        return $includeTree;
+    }
+
+    private function getPackagePageTsConfigTree(
+        ?PhpFrontend $cache = null
+    ): array {
         $collectedPagesTsConfigArray = [];
         $gotPackagesPagesTsConfigFromCache = false;
         $cacheIdentifier = (new PackageDependentCacheIdentifier($this->packageManager))
@@ -88,6 +168,8 @@ final class TsConfigTreeBuilder
             }
         }
         if (!$gotPackagesPagesTsConfigFromCache) {
+            $event = $this->eventDispatcher->dispatch(new BeforeLoadedPageTsConfigEvent());
+            $collectedPagesTsConfigArray = array_map(static fn(string $config): array => ['content' => $config, 'filename' => null], $event->getTsConfig());
             foreach ($this->packageManager->getActivePackages() as $package) {
                 $packagePath = $package->getPackagePath();
                 $tsConfigFile = null;
@@ -108,11 +190,78 @@ final class TsConfigTreeBuilder
             }
             $cache?->set($cacheIdentifier, 'return unserialize(\'' . addcslashes(serialize($collectedPagesTsConfigArray), '\'\\') . '\');');
         }
+        return $collectedPagesTsConfigArray;
+    }
 
-        if (!empty($GLOBALS['TYPO3_CONF_VARS']['BE']['defaultPageTSconfig'] ?? '')) {
-            $collectedPagesTsConfigArray['pagesTsConfig-globals-defaultPageTSconfig'] = ['content' => $GLOBALS['TYPO3_CONF_VARS']['BE']['defaultPageTSconfig']];
+    private function getSitePageTsConfigTree(
+        array &$rootLine,
+        ?PhpFrontend $cache = null
+    ): array {
+        $reverseRootLine = array_reverse($rootLine);
+        $rootlineUntilSite = [];
+        $rootSite = null;
+        foreach ($reverseRootLine as $rootLineEntry) {
+            array_unshift($rootlineUntilSite, $rootLineEntry);
+            $uid = (int)($rootLineEntry['uid'] ?? 0);
+            if ($uid === 0) {
+                continue;
+            }
+            try {
+                $site = $this->siteFinder->getSiteByRootPageId($uid);
+            } catch (SiteNotFoundException) {
+                continue;
+            }
+            if ($site->isTypoScriptRoot()) {
+                $rootSite = $site;
+                $rootLine = $rootlineUntilSite;
+                break;
+            }
         }
 
+        if ($rootSite === null) {
+            return [];
+        }
+
+        $cacheIdentifier = (new PackageDependentCacheIdentifier($this->packageManager))
+            ->withPrefix('pagestsconfig-site')
+            ->withAdditionalHashedIdentifier($rootSite->getIdentifier())
+            ->toString();
+        $pageTsConfig = $cache?->require($cacheIdentifier) ?: null;
+
+        if ($pageTsConfig === null) {
+            $pageTsConfig = [];
+            $sets = $this->setRegistry->getSets(...$rootSite->getSets());
+            foreach ($sets as $set) {
+                if ($set->pagets === null) {
+                    continue;
+                }
+                $filename = GeneralUtility::getFileAbsFileName($set->pagets);
+                if (!file_exists($filename)) {
+                    continue;
+                }
+                $content = @file_get_contents($filename);
+                if (!empty($content)) {
+                    $pageTsConfig['pageTsConfig-set-' . str_replace('/', '-', $set->name)] = [
+                        'filename' => $filename,
+                        'content' => $content,
+                    ];
+                }
+            }
+
+            $pageTsConfig['pageTsConfig-site-' . $rootSite->getIdentifier()] = [
+                'filename' => GeneralUtility::getFileAbsFileName(Environment::getConfigPath() . '/sites/' . $rootSite->getIdentifier() . '/page.tsconfig'),
+                'content' => $rootSite->getTSconfig()->pageTSconfig ?? '',
+            ];
+            $cache?->set($cacheIdentifier, 'return ' . var_export($pageTsConfig, true) . ';');
+        }
+        return $pageTsConfig;
+    }
+
+    private function getRootlinePageTsConfigTree(
+        array $rootLine,
+        ?PhpFrontend $cache = null
+    ): array {
+        $collectedPagesTsConfigArray = [];
         foreach ($rootLine as $page) {
             if (empty($page['uid'])) {
                 // Page 0 can happen when the rootline is given from BE context. It has not TSconfig. Skip this.
@@ -145,33 +294,7 @@ final class TsConfigTreeBuilder
                 $collectedPagesTsConfigArray['pagesTsConfig-page-' . $page['uid'] . '-tsConfig'] = ['content' => $page['TSconfig']];
             }
         }
-
-        // @deprecated since TYPO3 v12, remove together with event class in v13.
-        $event = $this->eventDispatcher->dispatch(new LegacyModifyLoadedPageTsConfigEvent(
-            array_map(static fn(array $descriptor): string => $descriptor['content'], $collectedPagesTsConfigArray),
-            $rootLine
-        ));
-        $collectedPagesTsConfigContentArray = $event->getTsConfig();
-        foreach ($collectedPagesTsConfigContentArray as $key => $content) {
-            $collectedPagesTsConfigArray[$key]['content'] = $content;
-        }
-
-        $event = $this->eventDispatcher->dispatch(new ModifyLoadedPageTsConfigEvent(
-            array_map(static fn(array $descriptor): string => $descriptor['content'], $collectedPagesTsConfigArray),
-            $rootLine
-        ));
-        $collectedPagesTsConfigContentArray = $event->getTsConfig();
-        foreach ($collectedPagesTsConfigContentArray as $key => $content) {
-            $collectedPagesTsConfigArray[$key]['content'] = $content;
-        }
-
-        $includeTree = new RootInclude();
-        foreach ($collectedPagesTsConfigArray as $key => $descriptor) {
-            $typoScriptString = $descriptor['content'];
-            $filename = $descriptor['filename'] ?? null;
-            $includeTree->addChild($this->getTreeFromString((string)$key, $typoScriptString, $tokenizer, $cache, $filename));
-        }
-        return $includeTree;
+        return $collectedPagesTsConfigArray;
     }
 
     private function getTreeFromString(

@@ -46,12 +46,13 @@ class MethodArgumentUnusedMatcher extends AbstractCoreMatcher
     /**
      * Called by PhpParser.
      */
-    public function enterNode(Node $node)
+    public function enterNode(Node $node): null
     {
         // Match method call (not static)
         if (!$this->isFileIgnored($node)
             && !$this->isLineIgnored($node)
             && $node instanceof MethodCall
+            && isset($node->name->name)
             && array_key_exists($node->name->name, $this->flatMatcherDefinitions)
         ) {
             $match = [
@@ -85,5 +86,6 @@ class MethodArgumentUnusedMatcher extends AbstractCoreMatcher
                 $this->matches[] = $match;
             }
         }
+        return null;
     }
 }

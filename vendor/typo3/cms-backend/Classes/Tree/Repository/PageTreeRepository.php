@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Backend\Tree\Repository;
 
+use Psr\EventDispatcher\EventDispatcherInterface;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Database\Connection;
@@ -26,6 +27,7 @@ use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\WorkspaceRestriction;
 use TYPO3\CMS\Core\DataHandling\PlainDataResolver;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Core\Utility\MathUtility;
 use TYPO3\CMS\Core\Versioning\VersionState;
 
 /**
@@ -65,6 +67,8 @@ class PageTreeRepository
     protected readonly array $additionalQueryRestrictions;
 
     protected ?string $additionalWhereClause = null;
+
+    protected EventDispatcherInterface $eventDispatcher;
 
     /**
      * @param int $workspaceId the workspace ID to be checked for.
@@ -110,6 +114,8 @@ class PageTreeRepository
         ], $additionalFieldsToQuery);
         $this->additionalQueryRestrictions = $additionalQueryRestrictions;
 
+        // @todo: use DI in the future
+        $this->eventDispatcher = GeneralUtility::makeInstance(EventDispatcherInterface::class);
         $this->quotedFields = GeneralUtility::makeInstance(ConnectionPool::class)
             ->getQueryBuilderForTable('pages')
             ->quoteIdentifiersForSelect($this->fields);
@@ -166,29 +172,28 @@ class PageTreeRepository
      *
      * @param array $pageTree The page record of the top level page you want to get the page tree of
      * @param int $depth Number of levels to fetch
-     * @param array $entryPointIds entryPointIds to include
+     * @param ?array $entryPointIds entryPointIds to include (null in case no entry-points were provided)
      * @return array An array with page records and their children
      */
-    public function getTreeLevels(array $pageTree, int $depth, array $entryPointIds = []): array
+    public function getTreeLevels(array $pageTree, int $depth, ?array $entryPointIds = null): array
     {
         $groupedAndSortedPagesByPid = [];
-
-        if (count($entryPointIds) > 0) {
+        // the method was called without any entry-point information
+        if ($entryPointIds === null) {
+            $parentPageIds = [$pageTree['uid']];
+            // the method was called with entry-point information, that is not empty
+        } elseif ($entryPointIds !== []) {
             $pageRecords = $this->getPageRecords($entryPointIds);
             $groupedAndSortedPagesByPid[$pageTree['uid']] = $pageRecords;
             $parentPageIds = $entryPointIds;
-        } else {
-            $parentPageIds = [$pageTree['uid']];
         }
-
         for ($i = 0; $i < $depth; $i++) {
+            // stop in case the initial or recursive query did not have any pages
             if (empty($parentPageIds)) {
                 break;
             }
             $pageRecords = $this->getChildPageRecords($parentPageIds);
-
             $groupedAndSortedPagesByPid = $this->groupAndSortPages($pageRecords, $groupedAndSortedPagesByPid);
-
             $parentPageIds = array_column($pageRecords, 'uid');
         }
         $this->addChildrenToPage($pageTree, $groupedAndSortedPagesByPid);
@@ -239,8 +244,8 @@ class PageTreeRepository
             }
         }
 
+        $queryBuilder->getConcreteQueryBuilder()->select(...$this->quotedFields);
         $queryBuilder
-            ->add('select', $this->quotedFields)
             ->from('pages')
             ->where(
                 $queryBuilder->expr()->eq('sys_language_uid', $queryBuilder->createNamedParameter(0, Connection::PARAM_INT))
@@ -277,7 +282,7 @@ class PageTreeRepository
             $movedPages = [];
             foreach ($pageRecords as $pageRecord) {
                 $livePageIds[] = (int)$pageRecord['uid'];
-                if ((int)$pageRecord['t3ver_state'] === VersionState::MOVE_POINTER) {
+                if (VersionState::tryFrom($pageRecord['t3ver_state'] ?? 0) === VersionState::MOVE_POINTER) {
                     $movedPages[$pageRecord['t3ver_oid']] = [
                         'pid' => (int)$pageRecord['pid'],
                         'sorting' => (int)$pageRecord['sorting'],
@@ -299,8 +304,8 @@ class PageTreeRepository
 
             if (!empty($recordIds)) {
                 $queryBuilder->getRestrictions()->removeAll();
+                $queryBuilder->getConcreteQueryBuilder()->select(...$this->quotedFields);
                 $pageRecords = $queryBuilder
-                    ->add('select', $this->quotedFields)
                     ->from('pages')
                     ->where(
                         $queryBuilder->expr()->in('uid', $queryBuilder->createNamedParameter($recordIds, Connection::PARAM_INT_ARRAY))
@@ -312,7 +317,7 @@ class PageTreeRepository
                     ->fetchAllAssociative();
 
                 foreach ($pageRecords as &$pageRecord) {
-                    if ((int)$pageRecord['t3ver_state'] === VersionState::MOVE_POINTER && !empty($movedPages[$pageRecord['t3ver_oid']])) {
+                    if (VersionState::tryFrom($pageRecord['t3ver_state'] ?? 0) === VersionState::MOVE_POINTER && !empty($movedPages[$pageRecord['t3ver_oid']])) {
                         $pageRecord['uid'] = $pageRecord['t3ver_oid'];
                         $pageRecord['sorting'] = (int)$movedPages[$pageRecord['t3ver_oid']]['sorting'];
                         $pageRecord['pid'] = (int)$movedPages[$pageRecord['t3ver_oid']]['pid'];
@@ -365,8 +370,8 @@ class PageTreeRepository
             }
         }
 
+        $queryBuilder->getConcreteQueryBuilder()->select(...$this->quotedFields);
         $query = $queryBuilder
-            ->add('select', $this->quotedFields)
             ->from('pages')
             ->where(
                 // Only show records in default language
@@ -402,7 +407,7 @@ class PageTreeRepository
             foreach ($pageRecords as $pageRecord) {
                 $livePageIds[] = (int)$pageRecord['uid'];
                 $livePagePids[(int)$pageRecord['uid']] = (int)$pageRecord['pid'];
-                if ((int)$pageRecord['t3ver_state'] === VersionState::MOVE_POINTER) {
+                if (VersionState::tryFrom($pageRecord['t3ver_state'] ?? 0) === VersionState::MOVE_POINTER) {
                     $movedPages[$pageRecord['t3ver_oid']] = [
                         'pid' => (int)$pageRecord['pid'],
                         'sorting' => (int)$pageRecord['sorting'],
@@ -422,8 +427,8 @@ class PageTreeRepository
             $recordIds = $resolver->get();
 
             $queryBuilder->getRestrictions()->removeAll();
+            $queryBuilder->getConcreteQueryBuilder()->select(...$this->quotedFields);
             $pageRecords = $queryBuilder
-                ->add('select', $this->quotedFields)
                 ->from('pages')
                 ->where(
                     $queryBuilder->expr()->in('uid', $recordIds)
@@ -441,7 +446,7 @@ class PageTreeRepository
             // This is done in order to avoid fetching records again (e.g. via BackendUtility::workspaceOL()
             if ((int)$pageRecord['t3ver_oid'] > 0) {
                 // When a move pointer is found, the pid+sorting of the versioned record should be used
-                if ((int)$pageRecord['t3ver_state'] === VersionState::MOVE_POINTER && !empty($movedPages[$pageRecord['t3ver_oid']])) {
+                if (VersionState::tryFrom($pageRecord['t3ver_state'] ?? 0) === VersionState::MOVE_POINTER && !empty($movedPages[$pageRecord['t3ver_oid']])) {
                     $parentPageId = (int)$movedPages[$pageRecord['t3ver_oid']]['pid'];
                     $pageRecord['sorting'] = (int)$movedPages[$pageRecord['t3ver_oid']]['sorting'];
                 } else {
@@ -477,6 +482,9 @@ class PageTreeRepository
     {
         $page['_children'] = $groupedAndSortedPagesByPid[(int)$page['uid']] ?? [];
         ksort($page['_children']);
+
+        $event = $this->eventDispatcher->dispatch(new AfterRawPageRowPreparedEvent($page, $this->currentWorkspace));
+        $page = $event->getRawPage();
         foreach ($page['_children'] as &$child) {
             $this->addChildrenToPage($child, $groupedAndSortedPagesByPid);
         }
@@ -533,8 +541,8 @@ class PageTreeRepository
             );
         }
 
+        $queryBuilder->getConcreteQueryBuilder()->select(...$this->quotedFields);
         $queryBuilder = $queryBuilder
-            ->add('select', $this->quotedFields)
             ->from('pages')
             ->where(
                 // Only show records in default language
@@ -544,18 +552,29 @@ class PageTreeRepository
             );
 
         $searchParts = $expressionBuilder->or();
-        if (is_numeric($searchFilter) && $searchFilter > 0) {
+
+        // Extract true integers from search string
+        $searchUids = [];
+        $searchPhrases = GeneralUtility::trimExplode(',', $searchFilter, true);
+        foreach ($searchPhrases as $searchPhrase) {
+            if (MathUtility::canBeInterpretedAsInteger($searchPhrase) && $searchPhrase > 0) {
+                $searchUids[] = (int)$searchPhrase;
+            }
+        }
+        $searchUids = array_unique($searchUids);
+
+        if (!empty($searchUids)) {
             // Ensure that the LIVE id is also found
             if ($this->currentWorkspace > 0) {
                 $uidFilter = $expressionBuilder->or(
                     // Check for UID of live record
                     $expressionBuilder->and(
-                        $expressionBuilder->eq('uid', $queryBuilder->createNamedParameter($searchFilter, Connection::PARAM_INT)),
+                        $expressionBuilder->in('uid', $queryBuilder->createNamedParameter($searchUids, Connection::PARAM_INT_ARRAY)),
                         $expressionBuilder->eq('t3ver_wsid', $queryBuilder->createNamedParameter(0, Connection::PARAM_INT)),
                     ),
                     // Check for UID of live record in versioned record
                     $expressionBuilder->and(
-                        $expressionBuilder->eq('t3ver_oid', $queryBuilder->createNamedParameter($searchFilter, Connection::PARAM_INT)),
+                        $expressionBuilder->in('t3ver_oid', $queryBuilder->createNamedParameter($searchUids, Connection::PARAM_INT_ARRAY)),
                         $expressionBuilder->eq('t3ver_wsid', $queryBuilder->createNamedParameter($this->currentWorkspace, Connection::PARAM_INT)),
                     ),
                     // Check for UID for new or moved versioned record
@@ -566,7 +585,7 @@ class PageTreeRepository
                     )
                 );
             } else {
-                $uidFilter = $expressionBuilder->eq('uid', $queryBuilder->createNamedParameter($searchFilter, Connection::PARAM_INT));
+                $uidFilter = $expressionBuilder->in('uid', $queryBuilder->createNamedParameter($searchUids, Connection::PARAM_INT_ARRAY));
             }
             $searchParts = $searchParts->with($uidFilter);
         }
@@ -598,7 +617,7 @@ class PageTreeRepository
                 if ((int)$pageRecord['t3ver_oid'] > 0) {
                     $livePagePids[(int)$pageRecord['t3ver_oid']] = (int)$pageRecord['pid'];
                 }
-                if ((int)$pageRecord['t3ver_state'] === VersionState::MOVE_POINTER) {
+                if (VersionState::tryFrom($pageRecord['t3ver_state'] ?? 0) === VersionState::MOVE_POINTER) {
                     $movedPages[$pageRecord['t3ver_oid']] = [
                         'pid' => (int)$pageRecord['pid'],
                         'sorting' => (int)$pageRecord['sorting'],
@@ -620,8 +639,8 @@ class PageTreeRepository
             $pageRecords = [];
             if (!empty($recordIds)) {
                 $queryBuilder->getRestrictions()->removeAll();
+                $queryBuilder->getConcreteQueryBuilder()->select(...$this->quotedFields);
                 $queryBuilder
-                    ->add('select', $this->quotedFields)
                     ->from('pages')
                     ->where(
                         $queryBuilder->expr()->in('uid', $queryBuilder->createNamedParameter($recordIds, Connection::PARAM_INT_ARRAY))
@@ -640,11 +659,12 @@ class PageTreeRepository
             // This is done in order to avoid fetching records again (e.g. via BackendUtility::workspaceOL()
             if ((int)$pageRecord['t3ver_oid'] > 0) {
                 // This probably should also remove the live version
-                if ((int)$pageRecord['t3ver_state'] === VersionState::DELETE_PLACEHOLDER) {
+                $versionState = VersionState::tryFrom($pageRecord['t3ver_state'] ?? 0);
+                if ($versionState === VersionState::DELETE_PLACEHOLDER) {
                     continue;
                 }
                 // When a move pointer is found, the pid+sorting of the versioned record be used
-                if ((int)$pageRecord['t3ver_state'] === VersionState::MOVE_POINTER && !empty($movedPages[$pageRecord['t3ver_oid']])) {
+                if ($versionState === VersionState::MOVE_POINTER && !empty($movedPages[$pageRecord['t3ver_oid']])) {
                     $parentPageId = (int)$movedPages[$pageRecord['t3ver_oid']]['pid'];
                     $pageRecord['sorting'] = (int)$movedPages[$pageRecord['t3ver_oid']]['sorting'];
                 } else {
@@ -744,12 +764,10 @@ class PageTreeRepository
 
     /**
      * Group pages by parent page and sort pages based on sorting property
-     *
-     * @param array $groupedAndSortedPagesByPid
      */
     protected function groupAndSortPages(array $pages, array $groupedAndSortedPagesByPid = []): array
     {
-        foreach ($pages as $key => $pageRecord) {
+        foreach ($pages as $pageRecord) {
             $parentPageId = (int)$pageRecord['pid'];
             $sorting = (int)$pageRecord['sorting'];
             // If the page record was already added in another depth level, don't add it another time.

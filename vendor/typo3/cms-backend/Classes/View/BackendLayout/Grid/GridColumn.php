@@ -45,52 +45,31 @@ class GridColumn extends AbstractGridObject
     /**
      * @var GridColumnItem[]
      */
-    protected $items = [];
+    protected array $items = [];
+
+    protected readonly ?int $columnNumber;
+    protected readonly string $columnName;
+    protected readonly string $icon;
+    protected readonly int $colSpan;
+    protected readonly int $rowSpan;
+    protected readonly ?string $identifier;
+    private readonly EventDispatcherInterface $eventDispatcher;
 
     /**
-     * @var int|null
+     * @param array<string, mixed> $definition
      */
-    protected $columnNumber;
-
-    /**
-     * @var string
-     */
-    protected $columnName = 'default';
-
-    /**
-     * @var string|null
-     */
-    protected $icon;
-
-    /**
-     * @var int
-     */
-    protected $colSpan = 1;
-
-    /**
-     * @var int
-     */
-    protected $rowSpan = 1;
-
-    /**
-     * @var array<string, mixed>
-     */
-    protected $definition;
-
-    private EventDispatcherInterface $eventDispatcher;
-
     public function __construct(
-        PageLayoutContext $context,
-        array $definition,
-        protected string $table = 'tt_content'
+        protected PageLayoutContext $context,
+        protected readonly array $definition,
+        protected readonly string $table = 'tt_content'
     ) {
         parent::__construct($context);
-        $this->definition = $definition;
         $this->columnNumber = isset($definition['colPos']) ? (int)$definition['colPos'] : null;
-        $this->columnName = $definition['name'] ?? $this->columnName;
-        $this->icon = $definition['icon'] ?? $this->icon;
-        $this->colSpan = (int)($definition['colspan'] ?? $this->colSpan);
-        $this->rowSpan = (int)($definition['rowspan'] ?? $this->rowSpan);
+        $this->columnName = (string)($definition['name'] ?? 'default');
+        $this->icon = (string)($definition['icon'] ?? '');
+        $this->colSpan = (int)($definition['colspan'] ?? 1);
+        $this->rowSpan = (int)($definition['rowspan'] ?? 1);
+        $this->identifier = isset($definition['identifier']) ? (string)$definition['identifier'] : null;
         $this->eventDispatcher = GeneralUtility::makeInstance(EventDispatcherInterface::class);
     }
 
@@ -130,14 +109,14 @@ class GridColumn extends AbstractGridObject
         return $this->columnName;
     }
 
-    public function getIcon(): ?string
+    public function getIcon(): string
     {
         return $this->icon;
     }
 
     public function getColSpan(): int
     {
-        if ($this->context->getDrawingConfiguration()->getLanguageMode()) {
+        if ($this->context->getDrawingConfiguration()->isLanguageComparisonMode()) {
             return 1;
         }
         return $this->colSpan;
@@ -145,10 +124,20 @@ class GridColumn extends AbstractGridObject
 
     public function getRowSpan(): int
     {
-        if ($this->context->getDrawingConfiguration()->getLanguageMode()) {
+        if ($this->context->getDrawingConfiguration()->isLanguageComparisonMode()) {
             return 1;
         }
         return $this->rowSpan;
+    }
+
+    public function getIdentifier(): ?string
+    {
+        return $this->identifier;
+    }
+
+    public function getIdentifierCleaned(): string
+    {
+        return strtolower((string)preg_replace('/[^a-zA-Z0-9_-]/', '', (string)$this->identifier));
     }
 
     /**
@@ -170,15 +159,19 @@ class GridColumn extends AbstractGridObject
         }
         $pageRecord = $this->context->getPageRecord();
         if (!$this->getBackendUser()->doesUserHaveAccess($pageRecord, Permission::CONTENT_EDIT)
-            || !$this->getBackendUser()->checkLanguageAccess($this->context->getSiteLanguage()->getLanguageId())) {
+            || !$this->getBackendUser()->checkLanguageAccess($this->context->getSiteLanguage())) {
             return null;
         }
-        $pageTitleParamForAltDoc = '&recTitle=' . rawurlencode(
-            BackendUtility::getRecordTitle('pages', $pageRecord, true)
-        );
-        $editParam = '&edit[' . $this->table . '][' . implode(',', $this->getAllContainedItemUids()) . ']=edit' . $pageTitleParamForAltDoc;
         $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
-        return $uriBuilder->buildUriFromRoute('record_edit') . $editParam . '&returnUrl=' . rawurlencode($GLOBALS['TYPO3_REQUEST']->getAttribute('normalizedParams')->getRequestUri());
+        return (string)$uriBuilder->buildUriFromRoute('record_edit', [
+            'edit' => [
+                $this->table => [
+                    implode(',', $this->getAllContainedItemUids()) => 'edit',
+                ],
+            ],
+            'recTitle' => BackendUtility::getRecordTitle('pages', $pageRecord, true),
+            'returnUrl' => $this->context->getCurrentRequest()->getAttribute('normalizedParams')->getRequestUri(),
+        ]);
     }
 
     public function getNewContentUrl(): string
@@ -191,7 +184,7 @@ class GridColumn extends AbstractGridObject
             'sys_language_uid' => $this->context->getSiteLanguage()->getLanguageId(),
             'colPos' => $this->getColumnNumber(),
             'uid_pid' => $pageId,
-            'returnUrl' => $GLOBALS['TYPO3_REQUEST']->getAttribute('normalizedParams')->getRequestUri(),
+            'returnUrl' => $this->context->getCurrentRequest()->getAttribute('normalizedParams')->getRequestUri(),
         ]);
     }
 
@@ -252,7 +245,7 @@ class GridColumn extends AbstractGridObject
         $pageRecord = $this->context->getPageRecord();
         return !$pageRecord['editlock']
             && $this->getBackendUser()->doesUserHaveAccess($pageRecord, Permission::CONTENT_EDIT)
-            && $this->getBackendUser()->checkLanguageAccess($this->context->getSiteLanguage()->getLanguageId());
+            && $this->getBackendUser()->checkLanguageAccess($this->context->getSiteLanguage());
     }
 
     /**

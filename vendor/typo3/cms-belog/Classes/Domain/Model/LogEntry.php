@@ -18,7 +18,6 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Belog\Domain\Model;
 
 use TYPO3\CMS\Core\Log\LogDataTrait;
-use TYPO3\CMS\Extbase\DomainObject\AbstractEntity;
 
 /**
  * A sys log entry
@@ -26,16 +25,14 @@ use TYPO3\CMS\Extbase\DomainObject\AbstractEntity;
  *
  * @internal This class is a TYPO3 Backend implementation and is not considered part of the Public TYPO3 API.
  */
-class LogEntry extends AbstractEntity
+class LogEntry
 {
     use LogDataTrait;
 
     /**
-     * Storage page ID of the log entry
-     *
-     * @var int<0, max>|null
+     * @var int<0, max>
      */
-    protected $pid = 0;
+    protected int $uid = 0;
 
     /**
      * This is not a relation to BeUser model, since the user does
@@ -79,7 +76,7 @@ class LogEntry extends AbstractEntity
     /**
      * Timestamp when the log entry was written
      */
-    protected int $tstamp = 0;
+    protected \DateTimeInterface $tstamp;
 
     /**
      * Type code
@@ -95,11 +92,6 @@ class LogEntry extends AbstractEntity
      * Level.
      */
     protected string $level = '';
-
-    /**
-     * Details number
-     */
-    protected int $detailsNumber = 0;
 
     /**
      * IP address of client
@@ -121,17 +113,9 @@ class LogEntry extends AbstractEntity
      */
     protected int $workspaceUid = 0;
 
-    /**
-     * New ID
-     *
-     * @var string
-     * @todo: should be string|int but extbase chokes on this while mapping - see #98132
-     */
-    protected $newId = 0;
-
-    public function setBackendUserUid(int $beUserUid): void
+    public function getUid(): int
     {
-        $this->backendUserUid = $beUserUid;
+        return $this->uid;
     }
 
     public function getBackendUserUid(): int
@@ -139,19 +123,9 @@ class LogEntry extends AbstractEntity
         return $this->backendUserUid;
     }
 
-    public function setAction(int $action): void
-    {
-        $this->action = $action;
-    }
-
     public function getAction(): int
     {
         return $this->action;
-    }
-
-    public function setRecordUid(int $recordUid): void
-    {
-        $this->recordUid = $recordUid;
     }
 
     public function getRecordUid(): int
@@ -159,19 +133,9 @@ class LogEntry extends AbstractEntity
         return $this->recordUid;
     }
 
-    public function setTableName(string $tableName): void
-    {
-        $this->tableName = $tableName;
-    }
-
     public function getTableName(): string
     {
         return $this->tableName;
-    }
-
-    public function setRecordPid(int $recordPid): void
-    {
-        $this->recordPid = $recordPid;
     }
 
     public function getRecordPid(): int
@@ -198,11 +162,6 @@ class LogEntry extends AbstractEntity
         };
     }
 
-    public function setDetails(string $details): void
-    {
-        $this->details = $details;
-    }
-
     public function getDetails(): string
     {
         if ($this->type === 255) {
@@ -211,19 +170,9 @@ class LogEntry extends AbstractEntity
         return $this->details;
     }
 
-    public function setTstamp(int $tstamp): void
-    {
-        $this->tstamp = $tstamp;
-    }
-
-    public function getTstamp(): int
+    public function getTstamp(): \DateTimeInterface
     {
         return $this->tstamp;
-    }
-
-    public function setType(int $type): void
-    {
-        $this->type = $type;
     }
 
     public function getType(): int
@@ -231,39 +180,14 @@ class LogEntry extends AbstractEntity
         return $this->type;
     }
 
-    public function setChannel(string $channel): void
-    {
-        $this->channel = $channel;
-    }
-
     public function getChannel(): string
     {
         return $this->channel;
     }
 
-    public function setLevel(string $level): void
-    {
-        $this->level = $level;
-    }
-
     public function getLevel(): string
     {
         return $this->level;
-    }
-
-    public function setDetailsNumber(int $detailsNumber): void
-    {
-        $this->detailsNumber = $detailsNumber;
-    }
-
-    public function getDetailsNumber(): int
-    {
-        return $this->detailsNumber;
-    }
-
-    public function setIp(string $ip): void
-    {
-        $this->ip = $ip;
     }
 
     public function getIp(): string
@@ -290,19 +214,9 @@ class LogEntry extends AbstractEntity
         return $this->logData;
     }
 
-    public function setEventPid(int $eventPid): void
-    {
-        $this->eventPid = $eventPid;
-    }
-
     public function getEventPid(): int
     {
         return $this->eventPid;
-    }
-
-    public function setWorkspaceUid(int $workspaceUid): void
-    {
-        $this->workspaceUid = $workspaceUid;
     }
 
     public function getWorkspaceUid(): int
@@ -310,23 +224,25 @@ class LogEntry extends AbstractEntity
         return $this->workspaceUid;
     }
 
-    /**
-     * Set new id
-     *
-     * @param string $newId
-     */
-    public function setNewId($newId): void
+    public static function createFromDatabaseRecord(array $row): self
     {
-        $this->newId = $newId;
-    }
-
-    /**
-     * Get new id
-     *
-     * @return string|int
-     */
-    public function getNewId()
-    {
-        return $this->newId;
+        $obj = new self();
+        $obj->uid = $row['uid'] ?? $obj->uid;
+        $obj->tstamp = new \DateTimeImmutable(date('Y-m-d\TH:i:s', $row['tstamp'] ?? 0));
+        $obj->backendUserUid = $row['userid'] ?? $obj->backendUserUid;
+        $obj->action = $row['action'] ?? $obj->action;
+        $obj->recordUid = $row['recuid'] ?? $obj->recordUid;
+        $obj->tableName = $row['tablename'] ?? $obj->tableName;
+        $obj->recordPid = $row['recpid'] ?? $obj->recordPid;
+        $obj->error = $row['error'] ?? $obj->error;
+        $obj->type = $row['type'] ?? $obj->type;
+        $obj->details = $row['details'] ?? $obj->details;
+        $obj->ip = $row['IP'] ?? $obj->ip;
+        $obj->logData = $row['log_data'] ?? $obj->logData;
+        $obj->eventPid = $row['event_pid'] ?? $obj->eventPid;
+        $obj->workspaceUid = $row['workspace'] ?? $obj->workspaceUid;
+        $obj->channel = $row['channel'] ?? $obj->channel;
+        $obj->level = $row['level'] ?? $obj->level;
+        return $obj;
     }
 }

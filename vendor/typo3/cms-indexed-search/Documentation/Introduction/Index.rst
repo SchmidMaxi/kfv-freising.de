@@ -27,14 +27,6 @@ The Indexed Search Engine provides two major elements to TYPO3:
     factors like where on the page the word was found or the frequency of
     the word on the page.
 
-This is an example of how the search interface on a website looks:
-
-..  figure:: ../Images/FrontendSearchResults.png
-    :alt: Frontend search results
-
-    Search results in the frontend
-
-
 ..  _features-of-the-indexer:
 
 Features of the indexer
@@ -50,7 +42,7 @@ The indexing engine has several features:
 
 -   Wordcounting and frequency used to rate results
 
--   Exact, partially or metaphone search
+-   Exact or partial search
 
 -   Searching freely for sentences (non-indexed).
 
@@ -65,7 +57,7 @@ Features of the search frontend (the plugin)
 The search interface has several options for advanced searching. Any
 of those can be disabled and/or preset with default values:
 
--   Searching whole word, part of word, sounds like, sentence
+-   Searching whole word, part of word, sentence
 
 -   Logical AND and OR search including syntactical recognition of AND, OR
     and NOT as logical keywords. Furthermore sentences encapsulated in
@@ -87,14 +79,6 @@ of those can be disabled and/or preset with default values:
 -   The display of search results can be intelligently divided into
     sections based on the internal page hierarchy. Thus results are
     primarily grouped by relation, then by hit-relevance.
-
-This shows the full range of default options for "advanced search":
-
-..  figure:: ../Images/AdvancedSearchOptions.png
-    :alt: Advanced search options
-
-    All possible advanced search options
-
 
 ..  warning::
 

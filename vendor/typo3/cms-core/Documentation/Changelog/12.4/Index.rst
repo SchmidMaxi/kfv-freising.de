@@ -1,3 +1,4 @@
+:template: changelogOverview.html
 .. include:: /Includes.rst.txt
 
 ============
@@ -25,12 +26,7 @@ None since TYPO3 v12.0 release.
 Features
 ========
 
-.. toctree::
-   :maxdepth: 1
-   :titlesonly:
-   :glob:
-
-   Feature-*
+None since TYPO3 v12.3 release.
 
 Deprecation
 ===========

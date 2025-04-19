@@ -19,6 +19,7 @@ namespace TYPO3\CMS\Viewpage\Controller;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Routing\PreviewUriBuilder;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\Components\ButtonBar;
@@ -29,8 +30,8 @@ use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Context\LanguageAspectFactory;
 use TYPO3\CMS\Core\Domain\Repository\PageRepository;
 use TYPO3\CMS\Core\Exception\SiteNotFoundException;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Directive;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Mutation;
@@ -49,6 +50,7 @@ use TYPO3\CMS\Core\Utility\MathUtility;
  *
  * @internal This is a specific Backend Controller implementation and is not considered part of the Public TYPO3 API.
  */
+#[AsController]
 class ViewModuleController
 {
     public function __construct(
@@ -71,7 +73,6 @@ class ViewModuleController
         $pageInfo = BackendUtility::readPageAccess($pageId, $this->getBackendUser()->getPagePermsClause(Permission::PAGE_SHOW));
 
         $view = $this->moduleTemplateFactory->create($request);
-        $view->setBodyTag('<body class="typo3-module-viewpage">');
         $view->setModuleId('typo3-module-viewpage');
         $view->setTitle(
             $languageService->sL('LLL:EXT:viewpage/Resources/Private/Language/locallang_mod.xlf:mlang_tabs_tab'),
@@ -175,14 +176,14 @@ class ViewModuleController
             ])
             ->setTitle($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.showPage'))
             ->setShowLabelText(true)
-            ->setIcon($this->iconFactory->getIcon('actions-view-page', Icon::SIZE_SMALL));
+            ->setIcon($this->iconFactory->getIcon('actions-view-page', IconSize::SMALL));
         $buttonBar->addButton($showButton);
 
         $refreshButton = $buttonBar->makeLinkButton()
             ->setHref('#')
             ->setClasses('t3js-viewpage-refresh')
             ->setTitle($languageService->sL('LLL:EXT:viewpage/Resources/Private/Language/locallang.xlf:refreshPage'))
-            ->setIcon($this->iconFactory->getIcon('actions-refresh', Icon::SIZE_SMALL));
+            ->setIcon($this->iconFactory->getIcon('actions-refresh', IconSize::SMALL));
         $buttonBar->addButton($refreshButton, ButtonBar::BUTTON_POSITION_RIGHT);
 
         // Shortcut
@@ -277,7 +278,7 @@ class ViewModuleController
     }
 
     /**
-     * Verifies if doktype of given page is valid - not a folder / recycler / ...
+     * Verifies if doktype of given page is valid - not a folder / spacer / ...
      */
     protected function isValidDoktype(int $pageId = 0): bool
     {
@@ -290,7 +291,6 @@ class ViewModuleController
             && !in_array($pageType, [
                 PageRepository::DOKTYPE_SPACER,
                 PageRepository::DOKTYPE_SYSFOLDER,
-                PageRepository::DOKTYPE_RECYCLER,
             ], true);
     }
 

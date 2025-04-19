@@ -19,6 +19,7 @@ namespace TYPO3\CMS\Workspaces\Controller;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Configuration\TranslationConfigurationProvider;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\Components\ButtonBar;
@@ -26,18 +27,20 @@ use TYPO3\CMS\Backend\Template\ModuleTemplate;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Page\PageRenderer;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Versioning\VersionState;
+use TYPO3\CMS\Workspaces\Authorization\WorkspacePublishGate;
 use TYPO3\CMS\Workspaces\Service\StagesService;
 use TYPO3\CMS\Workspaces\Service\WorkspaceService;
 
 /**
  * @internal This is a specific Backend Controller implementation and is not considered part of the Public TYPO3 API.
  */
+#[AsController]
 class ReviewController
 {
     public function __construct(
@@ -47,6 +50,7 @@ class ReviewController
         protected readonly PageRenderer $pageRenderer,
         protected readonly UriBuilder $uriBuilder,
         protected readonly ModuleTemplateFactory $moduleTemplateFactory,
+        protected readonly WorkspacePublishGate $workspacePublishGate,
         protected readonly TranslationConfigurationProvider $translationConfigurationProvider
     ) {}
 
@@ -61,22 +65,21 @@ class ReviewController
         $pageUid = (int)($queryParams['id'] ?? 0);
 
         $icons = [
-            'language' => $this->iconFactory->getIcon('flags-multiple', Icon::SIZE_SMALL)->render(),
-            'integrity' => $this->iconFactory->getIcon('status-dialog-information', Icon::SIZE_SMALL)->render(),
-            'success' => $this->iconFactory->getIcon('status-dialog-ok', Icon::SIZE_SMALL)->render(),
-            'info' => $this->iconFactory->getIcon('status-dialog-information', Icon::SIZE_SMALL)->render(),
-            'warning' => $this->iconFactory->getIcon('status-dialog-warning', Icon::SIZE_SMALL)->render(),
-            'error' => $this->iconFactory->getIcon('status-dialog-error', Icon::SIZE_SMALL)->render(),
+            'language' => $this->iconFactory->getIcon('flags-multiple', IconSize::SMALL)->render(),
+            'integrity' => $this->iconFactory->getIcon('status-dialog-information', IconSize::SMALL)->render(),
+            'success' => $this->iconFactory->getIcon('status-dialog-ok', IconSize::SMALL)->render(),
+            'info' => $this->iconFactory->getIcon('status-dialog-information', IconSize::SMALL)->render(),
+            'warning' => $this->iconFactory->getIcon('status-dialog-warning', IconSize::SMALL)->render(),
+            'error' => $this->iconFactory->getIcon('status-dialog-error', IconSize::SMALL)->render(),
         ];
         $this->pageRenderer->addInlineSetting('Workspaces', 'icons', $icons);
         $this->pageRenderer->addInlineSetting('FormEngine', 'moduleUrl', (string)$this->uriBuilder->buildUriFromRoute('record_edit'));
         $this->pageRenderer->addInlineSetting('RecordHistory', 'moduleUrl', (string)$this->uriBuilder->buildUriFromRoute('record_history'));
         $this->pageRenderer->addInlineSetting('Workspaces', 'id', $pageUid);
-        $this->pageRenderer->addInlineSetting('WebLayout', 'moduleUrl', (string)$this->uriBuilder->buildUriFromRoute(
-            trim($this->getBackendUser()->getTSConfig()['options.']['overridePageModule'] ?? 'web_layout')
-        ));
+        $this->pageRenderer->addInlineSetting('WebLayout', 'moduleUrl', (string)$this->uriBuilder->buildUriFromRoute('web_layout'));
         $this->pageRenderer->loadJavaScriptModule('@typo3/workspaces/backend.js');
         $this->pageRenderer->loadJavaScriptModule('@typo3/backend/multi-record-selection.js');
+        $this->pageRenderer->addInlineLanguageLabelFile('EXT:core/Resources/Private/Language/locallang_core.xlf');
         $this->pageRenderer->addInlineLanguageLabelFile('EXT:workspaces/Resources/Private/Language/locallang.xlf');
 
         $backendUser = $this->getBackendUser();
@@ -112,7 +115,6 @@ class ReviewController
             'isAdmin' => $backendUser->isAdmin(),
             'customWorkspaceExists' => $customWorkspaceExists,
             'showGrid' => $workspaceIsAccessible,
-            'showLegend' => $workspaceIsAccessible,
             'pageUid' => $pageUid,
             'pageTitle' => $pageTitle,
             'activeWorkspaceUid' => $activeWorkspace,
@@ -121,7 +123,7 @@ class ReviewController
             'availableStages' => $this->stagesService->getStagesForWSUser(),
             'availableSelectStages' => $this->getAvailableSelectStages(),
             'stageActions' => $this->getStageActions(),
-            'showEntireWorkspaceDropDown' => !(($backendUser->workspaceRec['publish_access'] ?? 0) & 4),
+            'showEntireWorkspaceDropDown' => !(($backendUser->workspaceRec['publish_access'] ?? 0) & WorkspaceService::PUBLISH_ACCESS_HIDE_ENTIRE_WORKSPACE_ACTION_DROPDOWN),
             'selectedLanguage' => $selectedLanguage,
             'selectedDepth' => (int)$moduleData->get('depth', ($pageUid === 0 ? 999 : 1)),
             'selectedStage' => (int)$moduleData->get('stage'),
@@ -196,7 +198,7 @@ class ReviewController
         if ($pageUid > 0 && $activeWorkspace > 0) {
             $pageRecord = BackendUtility::getRecord('pages', $pageUid);
             BackendUtility::workspaceOL('pages', $pageRecord, $activeWorkspace);
-            if (!VersionState::cast($pageRecord['t3ver_state'])->equals(VersionState::DELETE_PLACEHOLDER)) {
+            if (VersionState::tryFrom($pageRecord['t3ver_state'] ?? 0) !== VersionState::DELETE_PLACEHOLDER) {
                 $canCreatePreviewLink = true;
             }
         }
@@ -207,7 +209,7 @@ class ReviewController
                 ->setClasses('t3js-preview-link')
                 ->setShowLabelText(true)
                 ->setTitle($this->getLanguageService()->sL('LLL:EXT:workspaces/Resources/Private/Language/locallang.xlf:tooltip.generatePagePreview'))
-                ->setIcon($this->iconFactory->getIcon('actions-version-workspaces-preview-link', Icon::SIZE_SMALL));
+                ->setIcon($this->iconFactory->getIcon('actions-version-workspaces-preview-link', IconSize::SMALL));
             $buttonBar->addButton($showButton);
         }
     }
@@ -229,7 +231,7 @@ class ReviewController
                 ->setHref($editWorkspaceRecordUrl)
                 ->setShowLabelText(true)
                 ->setTitle($this->getLanguageService()->sL('LLL:EXT:workspaces/Resources/Private/Language/locallang.xlf:button.editWorkspaceSettings'))
-                ->setIcon($this->iconFactory->getIcon('actions-cog-alt', Icon::SIZE_SMALL));
+                ->setIcon($this->iconFactory->getIcon('actions-cog-alt', IconSize::SMALL));
             $buttonBar->addButton(
                 $editSettingsButton,
                 ButtonBar::BUTTON_POSITION_LEFT,
@@ -291,8 +293,9 @@ class ReviewController
         $actions = [];
         $massActionsEnabled = (bool)($backendUser->getTSConfig()['options.']['workspaces.']['enableMassActions'] ?? true);
         if ($massActionsEnabled) {
-            $publishAccess = $backendUser->workspacePublishAccess($currentWorkspace);
-            if ($publishAccess && !(($backendUser->workspaceRec['publish_access'] ?? 0) & 1)) {
+            if ($this->workspacePublishGate->isGranted($backendUser, $currentWorkspace)
+                && !(($backendUser->workspaceRec['publish_access'] ?? 0) & WorkspaceService::PUBLISH_ACCESS_ONLY_IN_PUBLISH_STAGE)
+            ) {
                 $actions[] = ['action' => 'publish', 'title' => $languageService->sL('LLL:EXT:workspaces/Resources/Private/Language/locallang.xlf:label_doaction_publish')];
             }
             if ($currentWorkspace !== WorkspaceService::LIVE_WORKSPACE_ID) {
@@ -304,7 +307,7 @@ class ReviewController
 
     /**
      * Get stages to be used in the review filter. This basically
-     * adds -99 (all stages) and removes -20 (publish).
+     * adds -99 (all stages) and removes the publishing stage (-20).
      */
     protected function getAvailableSelectStages(): array
     {
@@ -313,9 +316,9 @@ class ReviewController
         return array_merge([
             [
                 'uid' => -99,
-                'label' => $languageService->sL('LLL:EXT:workspaces/Resources/Private/Language/locallang_mod_user_ws.xlf:stage_all'),
+                'label' => $languageService->sL('LLL:EXT:workspaces/Resources/Private/Language/locallang_mod.xlf:stage_all'),
             ],
-        ], array_filter($stages, static fn(array $stage): bool => (int)($stage['uid'] ?? 0) !== -20));
+        ], array_filter($stages, static fn(array $stage): bool => (int)($stage['uid'] ?? 0) !== StagesService::STAGE_PUBLISH_EXECUTE_ID));
     }
 
     protected function getLanguageService(): LanguageService

@@ -37,13 +37,11 @@ use TYPO3\CMS\Extbase\Http\ForwardResponse;
 use TYPO3\CMS\Extbase\Mvc\Controller\ActionController;
 use TYPO3\CMS\Extbase\Mvc\Exception\NoSuchArgumentException;
 use TYPO3\CMS\Extbase\Mvc\ExtbaseRequestParameters;
-use TYPO3\CMS\Extbase\Mvc\RequestInterface;
 use TYPO3\CMS\Extbase\Utility\LocalizationUtility;
 use TYPO3\CMS\FrontendLogin\Configuration\RecoveryConfiguration;
 use TYPO3\CMS\FrontendLogin\Domain\Repository\FrontendUserRepository;
 use TYPO3\CMS\FrontendLogin\Event\PasswordChangeEvent;
 use TYPO3\CMS\FrontendLogin\Service\RecoveryService;
-use TYPO3\CMS\FrontendLogin\Service\ValidatorResolverService;
 
 /**
  * @internal this is a concrete TYPO3 implementation and solely used for EXT:felogin and not part of TYPO3's Core API.
@@ -55,7 +53,7 @@ class PasswordRecoveryController extends ActionController
         protected FrontendUserRepository $userRepository,
         protected RecoveryConfiguration $recoveryConfiguration,
         protected readonly Features $features,
-        protected readonly PageRepository $pageRepository,
+        protected readonly PageRepository $pageRepository
     ) {}
 
     /**
@@ -76,7 +74,7 @@ class PasswordRecoveryController extends ActionController
 
         if ($userData && GeneralUtility::validEmail($userData['email'])) {
             $hash = $this->recoveryConfiguration->getForgotHash();
-            $this->userRepository->updateForgotHashForUserByUid($userData['uid'], GeneralUtility::hmac($hash));
+            $this->userRepository->updateForgotHashForUserByUid($userData['uid'], $this->hashService->hmac($hash, self::class));
             $this->recoveryService->sendRecoveryEmail($this->request, $userData, $hash);
         }
 
@@ -94,15 +92,20 @@ class PasswordRecoveryController extends ActionController
     }
 
     /**
-     * Validate hash and make sure it's not expired. If it is not in the correct format or not set at all, a redirect
-     * to recoveryAction() is made, without further information.
+     * Validate the hash argument and make sure that:
+     *
+     * - it is in the expected format
+     * - it is not expired
+     * - a fe_user with the given hash exists
+     *
+     * If one of the checks fail, a redirect response to the recoveryAction() is returned
      */
-    protected function validateIfHashHasExpired(): ?ResponseInterface
+    protected function validateHashArgument(): ?ResponseInterface
     {
         $hash = $this->request->hasArgument('hash') ? $this->request->getArgument('hash') : '';
         $hash = is_string($hash) ? $hash : '';
 
-        if (!$this->hasValidHash($hash)) {
+        if (!$this->validateHashFormat($hash)) {
             return $this->redirect('recovery', 'PasswordRecovery', 'felogin');
         }
 
@@ -110,18 +113,18 @@ class PasswordRecoveryController extends ActionController
         $currentTimestamp = GeneralUtility::makeInstance(Context::class)->getPropertyFromAspect('date', 'timestamp');
 
         // timestamp is expired or hash can not be assigned to a user
-        if ($currentTimestamp > $timestamp || !$this->userRepository->existsUserWithHash(GeneralUtility::hmac($hash))) {
+        if ($currentTimestamp > $timestamp || !$this->userRepository->existsUserWithHash($this->hashService->hmac($hash, self::class))) {
             /** @var ExtbaseRequestParameters $extbaseRequestParameters */
             $extbaseRequestParameters = clone $this->request->getAttribute('extbase');
-            $result = $extbaseRequestParameters->getOriginalRequestMappingResults();
-            $result->addError(new Error($this->getTranslation('change_password_notvalid_message'), 1554994253));
-            $extbaseRequestParameters->setOriginalRequestMappingResults($result);
+            $originalResult = $extbaseRequestParameters->getOriginalRequestMappingResults();
+            $originalResult->addError(new Error($this->getTranslation('change_password_notvalid_message'), 1554994253));
+            $extbaseRequestParameters->setOriginalRequestMappingResults($originalResult);
             $this->request = $this->request->withAttribute('extbase', $extbaseRequestParameters);
 
             return (new ForwardResponse('recovery'))
                 ->withControllerName('PasswordRecovery')
                 ->withExtensionName('felogin')
-                ->withArgumentsValidationResult($result);
+                ->withArgumentsValidationResult($originalResult);
         }
 
         return null;
@@ -132,36 +135,29 @@ class PasswordRecoveryController extends ActionController
      */
     public function showChangePasswordAction(string $hash = ''): ResponseInterface
     {
-        // Validate the lifetime of the hash
-        if (($response = $this->validateIfHashHasExpired()) instanceof ResponseInterface) {
+        // Validate hash (lifetime, format and fe_user with hash persistence)
+        if (($response = $this->validateHashArgument()) instanceof ResponseInterface) {
             return $response;
-        }
-
-        $passwordRequirements = null;
-        if ($this->features->isFeatureEnabled('security.usePasswordPolicyForFrontendUsers')) {
-            $passwordRequirements = $this->getPasswordPolicyValidator()->getRequirements();
         }
 
         $this->view->assignMultiple([
             'hash' => $hash,
-            'passwordRequirements' => $passwordRequirements,
+            'passwordRequirements' => $this->getPasswordPolicyValidator()->getRequirements(),
         ]);
 
         return $this->htmlResponse();
     }
 
     /**
-     * Validate entered password and passwordRepeat values. If they are invalid a forward() to
-     * showChangePasswordAction() takes place. All validation errors are put into the request mapping results.
-     *
-     * Used validators are configured via TypoScript settings.
+     * Validates the hash argument, the entered password and passwordRepeat values. If one of the values is considered
+     * as invalid, a response object with validation errors in the mapping results is returned.
      *
      * @throws NoSuchArgumentException
      */
     public function validateHashAndPasswords()
     {
-        // Validate the lifetime of the hash
-        if (($response = $this->validateIfHashHasExpired()) instanceof ResponseInterface) {
+        // Validate hash (lifetime, format and fe_user with hash persistence)
+        if (($response = $this->validateHashArgument()) instanceof ResponseInterface) {
             return $response;
         }
 
@@ -177,8 +173,6 @@ class PasswordRecoveryController extends ActionController
                 $this->getTranslation('empty_password_and_password_repeat'),
                 1554971665
             ));
-            $extbaseRequestParameters->setOriginalRequestMappingResults($originalResult);
-            $this->request = $this->request->withAttribute('extbase', $extbaseRequestParameters);
 
             return (new ForwardResponse('showChangePassword'))
                 ->withControllerName('PasswordRecovery')
@@ -215,17 +209,11 @@ class PasswordRecoveryController extends ActionController
             ->getDefaultHashInstance('FE')
             ->getHashedPassword($newPass);
 
-        if (($hashedPassword = $this->notifyPasswordChange(
-            $newPass,
-            $hashedPassword,
-            $hash,
-            $this->request
-        )) instanceof ForwardResponse) {
-            return $hashedPassword;
-        }
+        $user = $this->userRepository->findOneByForgotPasswordHash($this->hashService->hmac($hash, self::class));
+        $event = new PasswordChangeEvent($user, $hashedPassword, $newPass, $this->request);
+        $this->eventDispatcher->dispatch($event);
 
-        $user = $this->userRepository->findOneByForgotPasswordHash(GeneralUtility::hmac($hash));
-        $this->userRepository->updatePasswordAndInvalidateHash(GeneralUtility::hmac($hash), $hashedPassword);
+        $this->userRepository->updatePasswordAndInvalidateHash($this->hashService->hmac($hash, self::class), $hashedPassword);
         $this->invalidateUserSessions($user['uid']);
 
         $this->addFlashMessage($this->getTranslation('change_password_done_message'));
@@ -246,57 +234,33 @@ class PasswordRecoveryController extends ActionController
         }
 
         $hash = $this->request->getArgument('hash');
-        $userData = $this->userRepository->findOneByForgotPasswordHash(GeneralUtility::hmac($hash));
+        $userData = $this->userRepository->findOneByForgotPasswordHash($this->hashService->hmac($hash, self::class));
 
-        if ($this->features->isFeatureEnabled('security.usePasswordPolicyForFrontendUsers')) {
-            // Validate against password policy
-            $passwordPolicyValidator = $this->getPasswordPolicyValidator();
-            $contextData = new ContextData(
-                loginMode: 'FE',
-                currentPasswordHash: $userData['password']
-            );
-            $contextData->setData('currentUsername', $userData['username']);
-            $contextData->setData('currentFirstname', $userData['first_name']);
-            $contextData->setData('currentLastname', $userData['last_name']);
-            $event = $this->eventDispatcher->dispatch(
-                new EnrichPasswordValidationContextDataEvent(
-                    $contextData,
-                    $userData,
-                    self::class
-                )
-            );
-            $contextData = $event->getContextData();
+        // Validate against password policy
+        $passwordPolicyValidator = $this->getPasswordPolicyValidator();
+        $contextData = new ContextData(
+            loginMode: 'FE',
+            currentPasswordHash: $userData['password']
+        );
+        $contextData->setData('currentUsername', $userData['username']);
+        $contextData->setData('currentFirstname', $userData['first_name']);
+        $contextData->setData('currentLastname', $userData['last_name']);
+        $event = $this->eventDispatcher->dispatch(
+            new EnrichPasswordValidationContextDataEvent(
+                $contextData,
+                $userData,
+                self::class
+            )
+        );
+        $contextData = $event->getContextData();
 
-            if (!$passwordPolicyValidator->isValidPassword($newPass, $contextData)) {
-                foreach ($passwordPolicyValidator->getValidationErrors() as $validationError) {
-                    $validationResult = new Result();
-                    $validationResult->addError(new Error($validationError, 1667647475));
-                    $originalResult->merge($validationResult);
-                }
-            }
-        } else {
-            // @deprecated since v12, will be removed in v13.
-            // Resolve validators from TypoScript configuration
-            $validators = GeneralUtility::makeInstance(ValidatorResolverService::class)
-                ->resolve($this->settings['passwordValidators'] ?? []);
-
-            // Call each validator on new password
-            foreach ($validators ?? [] as $validator) {
-                $result = $validator->validate($newPass);
-                $originalResult->merge($result);
-
-                trigger_error(
-                    'settings.passwordValidators will be removed in TYPO3 v13.0. Please use password policies instead.',
-                    E_USER_DEPRECATED
-                );
+        if (!$passwordPolicyValidator->isValidPassword($newPass, $contextData)) {
+            foreach ($passwordPolicyValidator->getValidationErrors() as $validationError) {
+                $validationResult = new Result();
+                $validationResult->addError(new Error($validationError, 1667647475));
+                $originalResult->merge($validationResult);
             }
         }
-
-        // Set the result from all validators
-        /** @var ExtbaseRequestParameters $extbaseRequestParameters */
-        $extbaseRequestParameters = clone $this->request->getAttribute('extbase');
-        $extbaseRequestParameters->setOriginalRequestMappingResults($originalResult);
-        $this->request = $this->request->withAttribute('extbase', $extbaseRequestParameters);
     }
 
     /**
@@ -310,53 +274,9 @@ class PasswordRecoveryController extends ActionController
     /**
      * Validates that $hash is in the expected format (timestamp|forgot_hash)
      */
-    protected function hasValidHash(string $hash): bool
+    protected function validateHashFormat(string $hash): bool
     {
         return !empty($hash) && strpos($hash, '|') === 10;
-    }
-
-    /**
-     * @param string $newPassword Unencrypted new password
-     * @param string $hashedPassword New password hash passed as reference
-     * @param string $hash Forgot password hash
-     * @return ForwardResponse|string
-     */
-    protected function notifyPasswordChange(string $newPassword, string $hashedPassword, string $hash, RequestInterface $request)
-    {
-        $user = $this->userRepository->findOneByForgotPasswordHash(GeneralUtility::hmac($hash));
-        if (is_array($user)) {
-            $event = new PasswordChangeEvent($user, $hashedPassword, $newPassword, $request);
-            $this->eventDispatcher->dispatch($event);
-            $hashedPassword = $event->getHashedPassword();
-            if ($event->isPropagationStopped()) {
-                /** @var ExtbaseRequestParameters $extbaseRequestParameters */
-                $extbaseRequestParameters = clone $this->request->getAttribute('extbase');
-                $requestResult = $extbaseRequestParameters->getOriginalRequestMappingResults();
-                $requestResult->addError(new Error($event->getErrorMessage() ?? '', 1562846833));
-                $extbaseRequestParameters->setOriginalRequestMappingResults($requestResult);
-                $this->request = $this->request->withAttribute('extbase', $extbaseRequestParameters);
-
-                return (new ForwardResponse('showChangePassword'))
-                    ->withControllerName('PasswordRecovery')
-                    ->withExtensionName('felogin')
-                    ->withArguments(['hash' => $hash]);
-            }
-        } else {
-            // No user found
-            /** @var ExtbaseRequestParameters $extbaseRequestParameters */
-            $extbaseRequestParameters = clone $this->request->getAttribute('extbase');
-            $requestResult = $extbaseRequestParameters->getOriginalRequestMappingResults();
-            $requestResult->addError(new Error('Invalid hash', 1562846832));
-            $extbaseRequestParameters->setOriginalRequestMappingResults($requestResult);
-            $this->request = $this->request->withAttribute('extbase', $extbaseRequestParameters);
-
-            return (new ForwardResponse('showChangePassword'))
-                ->withControllerName('PasswordRecovery')
-                ->withExtensionName('felogin')
-                ->withArguments(['hash' => $hash]);
-        }
-
-        return $hashedPassword;
     }
 
     /**

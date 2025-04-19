@@ -1,4 +1,5 @@
 <?php
+
 /*
 
 ## Configuration
@@ -45,6 +46,7 @@ after('deploy:symlink', 'cachetool:clear:apcu');
 Read more information about cachetool on the website:
 http://gordalina.github.io/cachetool/
  */
+
 namespace Deployer;
 
 set('cachetool', '');
@@ -64,8 +66,8 @@ set('bin/cachetool', function () {
     return '{{release_or_current_path}}/cachetool.phar';
 });
 set('cachetool_options', function () {
-    $options = (array)get('cachetool');
-    $fullOptions = (string)get('cachetool_args');
+    $options = (array) get('cachetool');
+    $fullOptions = (string) get('cachetool_args');
     $return = [];
 
     if ($fullOptions !== '') {

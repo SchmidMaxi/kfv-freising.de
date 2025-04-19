@@ -21,26 +21,37 @@
 return [
     'DB' => [
         'additionalQueryRestrictions' => [],
+        'globalDriverMiddlewares' => [
+            'typo3/core/custom-platform-driver-middleware' => [
+                'target' => \TYPO3\CMS\Core\Database\Middleware\CustomPlatformDriverMiddleware::class,
+                'before' => [
+                    'typo3/core/custom-pdo-driver-result-middleware',
+                ],
+            ],
+            'typo3/core/custom-pdo-driver-result-middleware' => [
+                'target' => \TYPO3\CMS\Core\Database\Middleware\CustomPdoDriverResultMiddleware::class,
+                'after' => [
+                    'typo3/core/custom-platform-driver-middleware',
+                ],
+            ],
+        ],
     ],
     'GFX' => [ // Configuration of the image processing features in TYPO3. 'IM' and 'GD' are short for ImageMagick and GD library respectively.
         'thumbnails' => true,
-        'thumbnails_png' => true,
-        'gif_compress' => true,
-        'imagefile_ext' => 'gif,jpg,jpeg,tif,tiff,bmp,pcx,tga,png,pdf,ai,svg',
-        'gdlib' => true,
-        'gdlib_png' => false,
+        'imagefile_ext' => 'gif,jpg,jpeg,tif,tiff,bmp,pcx,tga,png,pdf,ai,svg,webp,avif',
         'processor_enabled' => true,
         'processor_path' => '/usr/bin/',
         'processor' => 'ImageMagick',
         'processor_effects' => false,
         'processor_allowUpscaling' => true,
         'processor_allowFrameSelection' => true,
-        'processor_allowTemporaryMasksAsPng' => false,
         'processor_stripColorProfileByDefault' => true,
         'processor_stripColorProfileParameters' => ['+profile', '*'],
-        'processor_colorspace' => 'RGB',
+        'processor_colorspace' => '',
         'processor_interlace' => 'None',
         'jpg_quality' => 85,
+        'webp_quality' => 85,
+        'avif_quality' => 85,
     ],
     'SYS' => [
         // System related concerning both frontend and backend.
@@ -71,14 +82,13 @@ return [
         'fileCreateMask' => '0664',
         'folderCreateMask' => '2775',
         'features' => [
+            'frontend.cache.autoTagging' => false,
             'redirects.hitCount' => false,
             'security.backend.htmlSanitizeRte' => false,
             'security.backend.enforceReferrer' => true,
-            'security.backend.enforceContentSecurityPolicy' => false,
             'security.frontend.enforceContentSecurityPolicy' => false,
             'security.frontend.reportContentSecurityPolicy' => false,
             'security.frontend.allowInsecureSiteResolutionByQueryParameters' => false,
-            'security.usePasswordPolicyForFrontendUsers' => false,
             'security.frontend.allowInsecureFrameOptionInShowImageController' => false,
         ],
         'createGroup' => '',
@@ -91,7 +101,7 @@ return [
         'loginCopyrightWarrantyProvider' => '',
         'loginCopyrightWarrantyURL' => '',
         'textfile_ext' => 'txt,ts,typoscript,html,htm,css,tmpl,js,sql,xml,csv,xlf,yaml,yml',
-        'mediafile_ext' => 'gif,jpg,jpeg,bmp,png,pdf,svg,ai,mp3,wav,mp4,ogg,flac,opus,webm,youtube,vimeo',
+        'mediafile_ext' => 'gif,jpg,jpeg,bmp,png,webp,pdf,svg,ai,mp3,wav,mp4,ogg,flac,opus,webm,youtube,vimeo',
         'binPath' => '',
         'binSetup' => '',
         'setMemoryLimit' => 0,
@@ -196,14 +206,6 @@ return [
                     ],
                     'groups' => ['pages'],
                 ],
-                'imagesizes' => [
-                    'frontend' => \TYPO3\CMS\Core\Cache\Frontend\VariableFrontend::class,
-                    'backend' => \TYPO3\CMS\Core\Cache\Backend\Typo3DatabaseBackend::class,
-                    'options' => [
-                        'defaultLifetime' => 0,
-                    ],
-                    'groups' => ['lowlevel'],
-                ],
                 'assets' => [
                     'frontend' => \TYPO3\CMS\Core\Cache\Frontend\VariableFrontend::class,
                     'backend' => \TYPO3\CMS\Core\Cache\Backend\SimpleFileBackend::class,
@@ -258,9 +260,13 @@ return [
         'productionExceptionHandler' => \TYPO3\CMS\Core\Error\ProductionExceptionHandler::class,
         'debugExceptionHandler' => \TYPO3\CMS\Core\Error\DebugExceptionHandler::class,
         'errorHandler' => \TYPO3\CMS\Core\Error\ErrorHandler::class,
-        'errorHandlerErrors' => E_ALL & ~(E_STRICT | E_NOTICE | E_COMPILE_WARNING | E_COMPILE_ERROR | E_CORE_WARNING | E_CORE_ERROR | E_PARSE | E_ERROR),
-        'exceptionalErrors' => E_ALL & ~(E_STRICT | E_NOTICE | E_COMPILE_WARNING | E_COMPILE_ERROR | E_CORE_WARNING | E_CORE_ERROR | E_PARSE | E_ERROR | E_DEPRECATED | E_USER_DEPRECATED | E_WARNING | E_USER_ERROR | E_USER_NOTICE | E_USER_WARNING),
-        'belogErrorReporting' => E_ALL & ~(E_STRICT | E_NOTICE),
+        // @todo: Remove 2048 (deprecated E_STRICT) in v14, as this value is no longer used by PHP itself
+        //        and only kept here here because possible custom PHP extensions may still use it.
+        //        See https://wiki.php.net/rfc/deprecations_php_8_4#remove_e_strict_error_level_and_deprecate_e_strict_constant
+        'errorHandlerErrors' => E_ALL & ~(2048 /* deprecated E_STRICT */ | E_NOTICE | E_COMPILE_WARNING | E_COMPILE_ERROR | E_CORE_WARNING | E_CORE_ERROR | E_PARSE | E_ERROR),
+        'exceptionalErrors' => E_ALL & ~(2048 /* deprecated E_STRICT */ | E_NOTICE | E_COMPILE_WARNING | E_COMPILE_ERROR | E_CORE_WARNING | E_CORE_ERROR | E_PARSE | E_ERROR | E_DEPRECATED | E_USER_DEPRECATED | E_WARNING | E_USER_ERROR | E_USER_NOTICE | E_USER_WARNING),
+        'belogErrorReporting' => E_ALL & ~(2048 /* deprecated E_STRICT */ | E_NOTICE),
+        'allowedPhpDisableFunctions' => [],
         'locallangXMLOverride' => [], // For extension/overriding of the arrays in 'locallang' files in frontend  and backend.
         'generateApacheHtaccess' => 1,
         'ipAnonymization' => 1,
@@ -285,6 +291,7 @@ return [
                     'className' => \TYPO3\CMS\Core\Resource\Processing\SvgImageProcessor::class,
                     'before' => [
                         'LocalImageProcessor',
+                        'DeferredBackendImageProcessor',
                     ],
                 ],
                 'DeferredBackendImageProcessor' => [
@@ -351,6 +358,7 @@ return [
             // In special cases the mime type is not detected correctly.
             // Use this array only if the automatic detection does not work correct!
             'fileExtensionToMimeType' => [
+                'avif' => 'image/avif',
                 'svg' => 'image/svg+xml',
                 'youtube' => 'video/youtube',
                 'vimeo' => 'video/vimeo',
@@ -362,6 +370,7 @@ return [
                 \TYPO3Fluid\Fluid\Core\Parser\TemplateProcessor\EscapingModifierTemplateProcessor::class,
                 \TYPO3Fluid\Fluid\Core\Parser\TemplateProcessor\PassthroughSourceModifierTemplateProcessor::class,
                 \TYPO3Fluid\Fluid\Core\Parser\TemplateProcessor\NamespaceDetectionTemplateProcessor::class,
+                \TYPO3Fluid\Fluid\Core\Parser\TemplateProcessor\RemoveCommentsTemplateProcessor::class,
             ],
             'expressionNodeTypes' => [
                 \TYPO3Fluid\Fluid\Core\Parser\SyntaxTree\Expression\CastingExpressionNode::class,
@@ -667,9 +676,14 @@ return [
                             \TYPO3\CMS\Backend\Form\FormDataProvider\TcaSelectTreeItems::class,
                         ],
                     ],
-                    \TYPO3\CMS\Backend\Form\FormDataProvider\TcaInlineConfiguration::class => [
+                    \TYPO3\CMS\Backend\Form\FormDataProvider\TcaTablePermission::class => [
                         'depends' => [
                             \TYPO3\CMS\Backend\Form\FormDataProvider\TcaCategory::class,
+                        ],
+                    ],
+                    \TYPO3\CMS\Backend\Form\FormDataProvider\TcaInlineConfiguration::class => [
+                        'depends' => [
+                            \TYPO3\CMS\Backend\Form\FormDataProvider\TcaTablePermission::class,
                         ],
                     ],
                     \TYPO3\CMS\Backend\Form\FormDataProvider\TcaInline::class => [
@@ -829,7 +843,12 @@ return [
                     ],
                 ],
                 'flexFormSegment' => [
-                    \TYPO3\CMS\Backend\Form\FormDataProvider\DatabaseRowDefaultValues::class => [],
+                    \TYPO3\CMS\Backend\Form\FormDataProvider\DatabaseRowDateTimeFields::class => [],
+                    \TYPO3\CMS\Backend\Form\FormDataProvider\DatabaseRowDefaultValues::class => [
+                        'depends' => [
+                            \TYPO3\CMS\Backend\Form\FormDataProvider\DatabaseRowDateTimeFields::class,
+                        ],
+                    ],
                     \TYPO3\CMS\Backend\Form\FormDataProvider\SiteResolving::class => [
                         'depends' => [
                             \TYPO3\CMS\Backend\Form\FormDataProvider\DatabaseRowDefaultValues::class,
@@ -998,9 +1017,14 @@ return [
                             \TYPO3\CMS\Backend\Form\FormDataProvider\TcaSelectTreeItems::class,
                         ],
                     ],
-                    \TYPO3\CMS\Backend\Form\FormDataProvider\TcaInlineExpandCollapseState::class => [
+                    \TYPO3\CMS\Backend\Form\FormDataProvider\TcaTablePermission::class => [
                         'depends' => [
                             \TYPO3\CMS\Backend\Form\FormDataProvider\TcaCategory::class,
+                        ],
+                    ],
+                    \TYPO3\CMS\Backend\Form\FormDataProvider\TcaInlineExpandCollapseState::class => [
+                        'depends' => [
+                            \TYPO3\CMS\Backend\Form\FormDataProvider\TcaTablePermission::class,
                         ],
                     ],
                     \TYPO3\CMS\Backend\Form\FormDataProvider\TcaInlineConfiguration::class => [
@@ -1295,9 +1319,10 @@ return [
     ],
     'BE' => [
         // Backend Configuration.
-        'languageDebug' => false,
+        'entryPoint' => '/typo3',
         'fileadminDir' => 'fileadmin/',
         'lockRootPath' => '',
+        'lockBackendFile' => '',
         'userHomePath' => '',
         'groupHomePath' => '',
         'userUploadDir' => '',
@@ -1324,44 +1349,13 @@ return [
         'disable_exec_function' => false,
         'compressionLevel' => 0,
         'installToolPassword' => '',
-        'checkStoredRecords' => true,
-        'checkStoredRecordsLoose' => true,
         'contentSecurityPolicyReportingUrl' => '',
-        'defaultUserTSconfig' => 'options.enableBookmarks=1
-            options.file_list.enableDisplayThumbnails=selectable
-            options.file_list.enableClipBoard=selectable
-            options.file_list.thumbnail {
-                width = 64
-                height = 64
-            }
-            options.pageTree {
-                doktypesToShowInNewPageDragArea = 1,6,4,7,3,254,255,199
-            }
-
-            options.contextMenu {
-                table {
-                    pages {
-                        disableItems =
-                        tree.disableItems =
-                    }
-                    sys_file {
-                        disableItems =
-                        tree.disableItems =
-                    }
-                    sys_filemounts {
-                        disableItems =
-                        tree.disableItems =
-                    }
-                }
-            }
-        ',
-        // String (exclude). Enter lines of default backend user/group TSconfig.
-        'defaultPageTSconfig' => '',
+        'defaultUserTSconfig' => '', // @deprecated since TYPO3 v13.0, will be removed in TYPO3 v14.0. Add to SilentConfigurationUpgradeService.
+        'defaultPageTSconfig' => '', // @deprecated since TYPO3 v13.0, will be removed in TYPO3 v14.0. Add to SilentConfigurationUpgradeService.
         // String (exclude).Enter lines of default page TSconfig.
         'defaultPermissions' => [],
         'defaultUC' => [],
         'customPermOptions' => [], // Array with sets of custom permission options. Syntax is; 'key' => array('header' => 'header string, language split', 'items' => array('key' => array('label, language split','icon reference', 'Description text, language split'))). Keys cannot contain ":|," characters.
-        'flexformForceCDATA' => 0,
         'versionNumberInFilename' => false,
         'debug' => false,
         'HTTP' => [
@@ -1375,7 +1369,7 @@ return [
             ],
         ],
         'passwordHashing' => [
-            'className' => \TYPO3\CMS\Core\Crypto\PasswordHashing\Argon2iPasswordHash::class,
+            'className' => \TYPO3\CMS\Core\Crypto\PasswordHashing\Argon2idPasswordHash::class,
             'options' => [],
         ],
         'passwordPolicy' => 'default',
@@ -1389,7 +1383,6 @@ return [
         'compressionLevel' => 0,
         'pageNotFoundOnCHashError' => true,
         'pageUnavailable_force' => false,
-        'addRootLineFields' => '',
         'checkFeUserPid' => true,
         'loginRateLimit' => 10,
         'loginRateLimitInterval' => '15 minutes',
@@ -1404,7 +1397,6 @@ return [
         'cookieName' => 'fe_typo_user',
         'cookieSameSite' => 'lax',
         'contentSecurityPolicyReportingUrl' => '',
-        'defaultUserTSconfig' => '', // @deprecated since v12, remove in v13 together with fe_users & fe_groups TSconfig TCA, add to SilentConfigurationUpgradeService
         'defaultTypoScript_constants' => '',
         'defaultTypoScript_constants.' => [], // Lines of TS to include after a static template with the uid = the index in the array (Constants)
         'defaultTypoScript_setup' => '',
@@ -1500,7 +1492,7 @@ return [
             'unknown' => \TYPO3\CMS\Frontend\Typolink\LegacyLinkBuilder::class,
         ],
         'passwordHashing' => [
-            'className' => \TYPO3\CMS\Core\Crypto\PasswordHashing\Argon2iPasswordHash::class,
+            'className' => \TYPO3\CMS\Core\Crypto\PasswordHashing\Argon2idPasswordHash::class,
             'options' => [],
         ],
         'passwordPolicy' => 'default',

@@ -17,10 +17,12 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Backend\Backend\Avatar;
 
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Service\DependencyOrderingService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\PathUtility;
@@ -31,6 +33,7 @@ use TYPO3\CMS\Core\Utility\PathUtility;
  *
  * See render() and getImgTag() as main entry points
  */
+#[Autoconfigure(public: true)]
 class Avatar
 {
     /**
@@ -41,6 +44,7 @@ class Avatar
     protected array $avatarProviders = [];
 
     public function __construct(
+        #[Autowire(service: 'cache.runtime')]
         protected readonly FrontendInterface $cache,
         protected readonly DependencyOrderingService $dependencyOrderingService,
         protected readonly IconFactory $iconFactory
@@ -62,7 +66,7 @@ class Avatar
         $cacheId = 'avatar_' . sha1($backendUser['uid'] . $size . $showIcon);
         $avatar = $this->cache->get($cacheId);
         if (!$avatar) {
-            $icon = $showIcon ? $this->iconFactory->getIconForRecord('be_users', $backendUser, Icon::SIZE_SMALL)->render() : '';
+            $icon = $showIcon ? $this->iconFactory->getIconForRecord('be_users', $backendUser, IconSize::SMALL)->render() : '';
             $avatar =
                 '<span class="avatar" style="--avatar-size: ' . $size . 'px;">'
                     . '<span class="avatar-image">' . $this->getImgTag($backendUser, $size) . '</span>'

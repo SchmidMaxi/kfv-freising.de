@@ -1,4 +1,5 @@
 <?php
+
 /*
 Recipe for adding crontab jobs.
 
@@ -40,7 +41,9 @@ set('crontab:use_sudo', false);
 desc('Sync crontab jobs');
 task('crontab:sync', function () {
     $cronJobsLocal = array_map(
-        fn($job) => parse($job),
+        function ($job) {
+            return parse($job);
+        },
         get('crontab:jobs', [])
     );
 
@@ -109,4 +112,3 @@ function getRemoteCrontab(): array
 
     return explode(PHP_EOL, run("$sudo {{bin/crontab}} -l"));
 }
-

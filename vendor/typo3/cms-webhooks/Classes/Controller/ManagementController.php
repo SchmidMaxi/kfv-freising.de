@@ -25,8 +25,8 @@ use TYPO3\CMS\Backend\Template\Components\ButtonBar;
 use TYPO3\CMS\Backend\Template\Components\MultiRecordSelection\Action;
 use TYPO3\CMS\Backend\Template\ModuleTemplate;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Pagination\SimplePagination;
 use TYPO3\CMS\Webhooks\Pagination\DemandedArrayPaginator;
@@ -60,7 +60,7 @@ class ManagementController
         $this->registerDocHeaderButtons($view, $requestUri, $demand);
 
         $webhookRecords = $this->webhookRepository->getWebhookRecords($demand);
-        $paginator = new DemandedArrayPaginator($webhookRecords, $demand->getPage(), $demand->getLimit(), $this->webhookRepository->countAll());
+        $paginator = new DemandedArrayPaginator($webhookRecords, $demand->getPage(), $demand->getLimit(), $this->webhookRepository->countAll($demand));
         $pagination = new SimplePagination($paginator);
 
         return $view->assignMultiple([
@@ -68,7 +68,6 @@ class ManagementController
             'webhookTypes' => $this->webhookTypesRegistry->getAvailableWebhookTypes(),
             'paginator' => $paginator,
             'pagination' => $pagination,
-            'webhookRecords' => $webhookRecords,
             'actions' => [
                 new Action(
                     'edit',
@@ -114,14 +113,14 @@ class ManagementController
             ))
             ->setShowLabelText(true)
             ->setTitle($languageService->sL('LLL:EXT:webhooks/Resources/Private/Language/locallang_module_webhooks.xlf:webhook_create'))
-            ->setIcon($this->iconFactory->getIcon('actions-add', Icon::SIZE_SMALL));
+            ->setIcon($this->iconFactory->getIcon('actions-add', IconSize::SMALL));
         $buttonBar->addButton($newRecordButton, ButtonBar::BUTTON_POSITION_LEFT, 10);
 
         // Reload
         $reloadButton = $buttonBar->makeLinkButton()
             ->setHref($requestUri)
             ->setTitle($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.reload'))
-            ->setIcon($this->iconFactory->getIcon('actions-refresh', Icon::SIZE_SMALL));
+            ->setIcon($this->iconFactory->getIcon('actions-refresh', IconSize::SMALL));
         $buttonBar->addButton($reloadButton, ButtonBar::BUTTON_POSITION_RIGHT);
 
         // Shortcut

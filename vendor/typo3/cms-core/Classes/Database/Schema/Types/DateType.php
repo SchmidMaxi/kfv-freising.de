@@ -17,16 +17,18 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Core\Database\Schema\Types;
 
-use Doctrine\DBAL\Platforms\AbstractPlatform;
-use Doctrine\DBAL\Types\ConversionException;
+use Doctrine\DBAL\Platforms\AbstractPlatform as DoctrineAbstractPlatform;
+use Doctrine\DBAL\Types\Exception\InvalidType;
 
 /**
  * This custom type extends doctrine native DateType to allow a
  * formatted string (in "Y-m-d") directly, in addition to a DateTimeInterface.
+ *
+ * @internal not part of public core API.
  */
 class DateType extends \Doctrine\DBAL\Types\DateType
 {
-    public function convertToDatabaseValue($value, AbstractPlatform $platform)
+    public function convertToDatabaseValue($value, DoctrineAbstractPlatform $platform): mixed
     {
         if ($value === null || (is_string($value) && $value !== '')) {
             return $value;
@@ -36,6 +38,6 @@ class DateType extends \Doctrine\DBAL\Types\DateType
             return $value->format($platform->getDateFormatString());
         }
 
-        throw ConversionException::conversionFailedInvalidType($value, $this->getName(), ['null', 'string', 'DateTime']);
+        throw InvalidType::new($value, self::getTypeRegistry()->lookupName($this), ['null', 'string', 'DateTime']);
     }
 }

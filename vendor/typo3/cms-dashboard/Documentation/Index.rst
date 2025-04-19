@@ -1,5 +1,7 @@
 .. include:: /Includes.rst.txt
 
+..  _start:
+
 ===============
 TYPO3 Dashboard
 ===============
@@ -44,7 +46,6 @@ This TYPO3 backend module is used to configure and create backend widgets.
    Configuration/Index
    Developer/Index
    Widgets/Index
-   Migration/Index
 
 .. Meta Menu
 

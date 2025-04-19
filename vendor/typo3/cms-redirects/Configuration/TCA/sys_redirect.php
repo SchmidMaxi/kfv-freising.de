@@ -1,5 +1,7 @@
 <?php
 
+use TYPO3\CMS\Redirects\Utility\RedirectConflict;
+
 return [
     'ctrl' => [
         'title' => 'LLL:EXT:redirects/Resources/Private/Language/locallang_db.xlf:sys_redirect',
@@ -31,7 +33,7 @@ return [
     'types' => [
         '1' => [
             'showitem' => '
-                --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:general, --palette--;;source, --palette--;;targetdetails, protected, creation_type,
+                --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:general, --palette--;;source, --palette--;;targetdetails, protected, --palette--;;internals,
                 --div--;LLL:EXT:redirects/Resources/Private/Language/locallang_db.xlf:tabs.redirectCount, disable_hitcount, hitcount, lasthiton, createdon,
                 --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:access, --palette--;;visibility,
                 --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:notes, description',
@@ -47,41 +49,11 @@ return [
         'targetdetails' => [
             'showitem' => 'target, target_statuscode, --linebreak--, force_https, keep_query_parameters',
         ],
+        'internals' => [
+            'showitem' => 'creation_type, integrity_status',
+        ],
     ],
     'columns' => [
-        'disabled' => [
-            'exclude' => true,
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.enabled',
-            'config' => [
-                'type' => 'check',
-                'renderType' => 'checkboxToggle',
-                'items' => [
-                    [
-                        'label' => '',
-                        'invertStateDisplay' => true,
-                    ],
-                ],
-            ],
-        ],
-        'starttime' => [
-            'exclude' => true,
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.starttime',
-            'config' => [
-                'type' => 'datetime',
-                'default' => 0,
-            ],
-        ],
-        'endtime' => [
-            'exclude' => true,
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.endtime',
-            'config' => [
-                'type' => 'datetime',
-                'default' => 0,
-                'range' => [
-                    'upper' => mktime(0, 0, 0, 1, 1, 2038),
-                ],
-            ],
-        ],
         'source_host' => [
             'label' => 'LLL:EXT:redirects/Resources/Private/Language/locallang_db.xlf:sys_redirect.source_host',
             'config' => [
@@ -253,6 +225,7 @@ return [
         ],
         'creation_type' => [
             'label' => 'LLL:EXT:redirects/Resources/Private/Language/locallang_db.xlf:sys_redirect.creation_type',
+            'description' => 'LLL:EXT:redirects/Resources/Private/Language/locallang_db.xlf:sys_redirect.creation_type.description',
             'config' => [
                 'type' => 'select',
                 'renderType' => 'selectSingle',
@@ -267,15 +240,28 @@ return [
                     ],
                 ],
                 'default' => 1,
+                'readOnly' => true,
             ],
         ],
-        'description' => [
-            'exclude' => true,
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.description',
+        'integrity_status' => [
+            'label' => 'LLL:EXT:redirects/Resources/Private/Language/locallang_db.xlf:sys_redirect.integrity_status',
+            'description' => 'LLL:EXT:redirects/Resources/Private/Language/locallang_db.xlf:sys_redirect.integrity_status.description',
             'config' => [
-                'type' => 'text',
-                'rows' => 5,
-                'cols' => 40,
+                'type' => 'select',
+                'renderType' => 'selectSingle',
+                'dbFieldLength' => 180,
+                'default' => RedirectConflict::NO_CONFLICT,
+                'items' => [
+                    [
+                        'label' => 'LLL:EXT:redirects/Resources/Private/Language/locallang_db.xlf:sys_redirect.integrity_status.no_conflict',
+                        'value' => RedirectConflict::NO_CONFLICT,
+                    ],
+                    [
+                        'label' => 'LLL:EXT:redirects/Resources/Private/Language/locallang_db.xlf:sys_redirect.integrity_status.self_reference',
+                        'value' => RedirectConflict::SELF_REFERENCE,
+                    ],
+                ],
+                'readOnly' => true,
             ],
         ],
     ],

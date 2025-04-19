@@ -49,7 +49,7 @@ class Serializer implements SerializerInterface
     public static function create(): self
     {
         if (!class_exists(SymfonySerializer::class)) {
-            throw new LogicException(sprintf('The "%s" class requires Symfony\'s Serializer component. Try running "composer require symfony/serializer" or use "%s" instead.', __CLASS__, PhpSerializer::class));
+            throw new LogicException(\sprintf('The "%s" class requires Symfony\'s Serializer component. Try running "composer require symfony/serializer" or use "%s" instead.', __CLASS__, PhpSerializer::class));
         }
 
         $encoders = [new XmlEncoder(), new JsonEncoder()];
@@ -173,7 +173,7 @@ class Serializer implements SerializerInterface
             'json' => 'application/json',
             'xml' => 'application/xml',
             'yml',
-            'yaml' => 'application/x-yaml',
+            'yaml' => 'application/yaml',
             'csv' => 'text/csv',
             default => null,
         };

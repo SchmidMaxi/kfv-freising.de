@@ -19,21 +19,23 @@ namespace TYPO3\CMS\Linkvalidator\Controller;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Backend\Attribute\AsController;
+use TYPO3\CMS\Backend\Configuration\TranslationConfigurationProvider;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\ModuleTemplate;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Context\Context;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
-use TYPO3\CMS\Core\Messaging\FlashMessage;
-use TYPO3\CMS\Core\Messaging\FlashMessageService;
+use TYPO3\CMS\Core\Schema\TcaSchemaFactory;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Linkvalidator\LinkAnalyzer;
+use TYPO3\CMS\Linkvalidator\Linktype\LabelledLinktypeInterface;
 use TYPO3\CMS\Linkvalidator\Linktype\LinktypeRegistry;
 use TYPO3\CMS\Linkvalidator\Repository\BrokenLinkRepository;
 use TYPO3\CMS\Linkvalidator\Repository\PagesRepository;
@@ -43,6 +45,7 @@ use TYPO3\CMS\Linkvalidator\Repository\PagesRepository;
  *
  * @internal This class is a specific Backend controller implementation and is not part of the TYPO3's Core API.
  */
+#[AsController]
 class LinkValidatorController
 {
     /**
@@ -57,14 +60,14 @@ class LinkValidatorController
 
     /**
      * Depth for the recursive traversal of pages for the link validation
-     * For "Report" and "Check link" tab.
+     * For "Report" and "Check link" form
      */
     protected array $searchLevel = ['report' => 0, 'check' => 0];
 
     /**
      * List of link types currently chosen in the statistics table
      * Used to show broken links of these types only
-     * For "Report" and "Check link" tab
+     * For "Report" and "Check link" form
      */
     protected array $checkOpt = ['report' => [], 'check' => []];
 
@@ -81,8 +84,6 @@ class LinkValidatorController
     protected int $id;
     protected array $searchFields = [];
 
-    protected ServerRequestInterface $request;
-
     public function __construct(
         protected readonly Context $context,
         protected readonly UriBuilder $uriBuilder,
@@ -92,6 +93,8 @@ class LinkValidatorController
         protected readonly ModuleTemplateFactory $moduleTemplateFactory,
         protected readonly LinkAnalyzer $linkAnalyzer,
         protected readonly LinktypeRegistry $linktypeRegistry,
+        protected readonly TranslationConfigurationProvider $translationConfigurationProvider,
+        protected readonly TcaSchemaFactory $tcaSchemaFactory,
     ) {}
 
     public function __invoke(ServerRequestInterface $request): ResponseInterface
@@ -99,12 +102,11 @@ class LinkValidatorController
         $backendUser = $this->getBackendUser();
         $languageService = $this->getLanguageService();
 
-        $this->request = $request;
-        $this->id = (int)($this->request->getQueryParams()['id'] ?? 0);
+        $this->id = (int)($request->getQueryParams()['id'] ?? 0);
         $this->modTS = BackendUtility::getPagesTSconfig($this->id)['mod.']['linkvalidator.'] ?? [];
         $this->pageRecord = BackendUtility::readPageAccess($this->id, $this->getBackendUser()->getPagePermsClause(Permission::PAGE_SHOW)) ?: [];
 
-        $view = $this->moduleTemplateFactory->create($this->request);
+        $view = $this->moduleTemplateFactory->create($request);
         if ($this->pageRecord !== []) {
             $view->getDocHeaderComponent()->setMetaInformation($this->pageRecord);
         }
@@ -112,13 +114,13 @@ class LinkValidatorController
         $this->validateSettings($request);
         $this->initializeLinkAnalyzer();
 
-        if ($this->request->getParsedBody()['updateLinkList'] ?? false) {
+        if ($request->getParsedBody()['updateLinkList'] ?? false) {
             $this->updateBrokenLinks();
         } elseif ($this->lastEditedRecord['uid']) {
             if (($this->modTS['actionAfterEditRecord'] ?? '') === 'recheck') {
                 // recheck broken links for last edited record
                 $this->linkAnalyzer->recheckLinks(
-                    $this->checkOpt['check'],
+                    $this->getLinkTypesFromCheckOptions(),
                     $this->lastEditedRecord['uid'],
                     $this->lastEditedRecord['table'],
                     $this->lastEditedRecord['field'],
@@ -150,34 +152,26 @@ class LinkValidatorController
         $action = $moduleData->get('action');
 
         $this->addDocHeaderShortCutButton($view, $action);
-        if ($this->modTS['showCheckLinkTab'] ?? false) {
-            // Add doc header drop down if user is allowed to see both 'report' and 'check'
-            $this->addDocHeaderDropDown($view, $action);
+
+        $checkFormEnabled = false;
+        if (($this->modTS['showCheckLinkTab'] ?? '') === '1') {
+            $checkFormEnabled = true;
         }
 
-        if ($action === 'report') {
-            $view->assignMultiple([
-                'title' => $this->pageRecord ? BackendUtility::getRecordTitle('pages', $this->pageRecord) : '',
-                'prefix' => 'report',
-                'selectedLevel' => $this->searchLevel['report'],
-                'options' => $this->getCheckOptions('report'),
-                'brokenLinks' => $this->getBrokenLinks(),
-                'tableheadPath' =>        $languageService->sL('LLL:EXT:linkvalidator/Resources/Private/Language/Module/locallang.xlf:list.tableHead.path'),
-                'tableheadElement' =>     $languageService->sL('LLL:EXT:linkvalidator/Resources/Private/Language/Module/locallang.xlf:list.tableHead.element'),
-                'tableheadHeadlink' =>    $languageService->sL('LLL:EXT:linkvalidator/Resources/Private/Language/Module/locallang.xlf:list.tableHead.headlink'),
-                'tableheadLinktarget' =>  $languageService->sL('LLL:EXT:linkvalidator/Resources/Private/Language/Module/locallang.xlf:list.tableHead.linktarget'),
-                'tableheadLinkmessage' => $languageService->sL('LLL:EXT:linkvalidator/Resources/Private/Language/Module/locallang.xlf:list.tableHead.linkmessage'),
-                'tableheadLastcheck' =>   $languageService->sL('LLL:EXT:linkvalidator/Resources/Private/Language/Module/locallang.xlf:list.tableHead.lastCheck'),
-            ]);
-            return $view->renderResponse('Backend/Report');
-        }
+        $brokenLinksInformation = $this->linkAnalyzer->getLinkCounts();
+
         $view->assignMultiple([
-            'title' => $this->pageRecord ? BackendUtility::getRecordTitle('pages', $this->pageRecord) : '',
-            'prefix' => 'check',
-            'selectedLevel' => $this->searchLevel['check'],
-            'options' => $this->getCheckOptions('check'),
+            'pageUid' => $this->id,
+            'pageTitle' => $this->pageRecord ? BackendUtility::getRecordTitle('pages', $this->pageRecord) : '',
+            'checkFormEnabled' => $checkFormEnabled,
+            'selectedLevelCheck' => $this->searchLevel['check'],
+            'selectedLevelReport' => $this->searchLevel['report'],
+            'optionsCheck' => $this->getCheckOptions('check'),
+            'optionsReport' => $this->getCheckOptions('report'),
+            'brokenLinks' => $this->getBrokenLinks(),
+            'brokenLinkTotalCount' => $brokenLinksInformation['total'] ?: '0',
         ]);
-        return $view->renderResponse('Backend/CheckLinks');
+        return $view->renderResponse('Backend/Report');
     }
 
     /**
@@ -189,7 +183,7 @@ class LinkValidatorController
 
         $prefix = 'check';
         $other = 'report';
-        if (empty($this->request->getParsedBody()['updateLinkList'] ?? false)) {
+        if (empty($request->getParsedBody()['updateLinkList'] ?? false)) {
             $prefix = 'report';
             $other = 'check';
         }
@@ -198,13 +192,13 @@ class LinkValidatorController
         $moduleData = $request->getAttribute('moduleData');
 
         // get information for last edited record
-        $this->lastEditedRecord['uid'] = $this->request->getQueryParams()['last_edited_record_uid'] ?? 0;
-        $this->lastEditedRecord['table'] = $this->request->getQueryParams()['last_edited_record_table'] ?? '';
-        $this->lastEditedRecord['field'] = $this->request->getQueryParams()['last_edited_record_field'] ?? '';
-        $this->lastEditedRecord['timestamp'] = $this->request->getQueryParams()['last_edited_record_timestamp'] ?? 0;
+        $this->lastEditedRecord['uid'] = $request->getQueryParams()['last_edited_record_uid'] ?? 0;
+        $this->lastEditedRecord['table'] = $request->getQueryParams()['last_edited_record_table'] ?? '';
+        $this->lastEditedRecord['field'] = $request->getQueryParams()['last_edited_record_field'] ?? '';
+        $this->lastEditedRecord['timestamp'] = $request->getQueryParams()['last_edited_record_timestamp'] ?? 0;
 
         // get searchLevel (number of levels of pages to check / show results)
-        $this->searchLevel[$prefix] = $this->request->getQueryParams()[$prefix . '_search_levels'] ?? $this->request->getParsedBody()[$prefix . '_search_levels'] ?? null;
+        $this->searchLevel[$prefix] = $request->getQueryParams()[$prefix . '_search_levels'] ?? $request->getParsedBody()[$prefix . '_search_levels'] ?? null;
 
         $mainSearchLevelKey = $prefix . '_searchlevel';
         $otherSearchLevelKey = $other . '_searchlevel';
@@ -218,8 +212,8 @@ class LinkValidatorController
         }
 
         // which linkTypes to check (internal, file, external, ...)
-        $set = $this->request->getParsedBody()[$prefix . '_SET'] ?? [];
-        $submittedValues = $this->request->getParsedBody()[$prefix . '_values'] ?? [];
+        $set = $request->getParsedBody()[$prefix . '_SET'] ?? [];
+        $submittedValues = $request->getParsedBody()[$prefix . '_values'] ?? [];
 
         foreach ($this->linktypeRegistry->getIdentifiers() as $linkType) {
             // Compile list of all available types. Used for checking with button "Check Links".
@@ -274,9 +268,9 @@ class LinkValidatorController
     }
 
     /**
-     * Check for broken links
+     * @return string[]
      */
-    protected function updateBrokenLinks(): void
+    protected function getLinkTypesFromCheckOptions(): array
     {
         // convert ['external' => 1, 'db' => 0, ...] into ['external']
         $linkTypes = [];
@@ -285,7 +279,18 @@ class LinkValidatorController
                 $linkTypes[] = $linkType;
             }
         }
-        $this->linkAnalyzer->getLinkStatistics($linkTypes, (bool)($this->modTS['checkhidden'] ?? false));
+        return $linkTypes;
+    }
+
+    /**
+     * Check for broken links
+     */
+    protected function updateBrokenLinks(): void
+    {
+        $this->linkAnalyzer->getLinkStatistics(
+            $this->getLinkTypesFromCheckOptions(),
+            (bool)($this->modTS['checkhidden'] ?? false)
+        );
     }
 
     /**
@@ -306,11 +311,11 @@ class LinkValidatorController
                 $this->searchFields
             );
             foreach ($brokenLinks as $row) {
+                if (!$this->tcaSchemaFactory->has($row['table_name'])) {
+                    continue;
+                }
                 $items[] = $this->generateTableRow($row);
             }
-        }
-        if (empty($items)) {
-            $this->createFlashMessagesForNoBrokenLinks();
         }
         return $items;
     }
@@ -343,94 +348,98 @@ class LinkValidatorController
     }
 
     /**
-     * Used when there are no broken links found.
-     */
-    protected function createFlashMessagesForNoBrokenLinks(): void
-    {
-        $languageService = $this->getLanguageService();
-        $message = GeneralUtility::makeInstance(
-            FlashMessage::class,
-            $languageService->sL('LLL:EXT:linkvalidator/Resources/Private/Language/Module/locallang.xlf:list.no.broken.links'),
-            $languageService->sL('LLL:EXT:linkvalidator/Resources/Private/Language/Module/locallang.xlf:list.no.broken.links.title'),
-            ContextualFeedbackSeverity::OK,
-            false
-        );
-        $flashMessageService = GeneralUtility::makeInstance(FlashMessageService::class);
-        $defaultFlashMessageQueue = $flashMessageService->getMessageQueueByIdentifier('linkvalidator');
-        $defaultFlashMessageQueue->enqueue($message);
-    }
-
-    /**
      * Generates information for a single row of the broken links table
      */
     protected function generateTableRow(array $row): array
     {
-        $fieldLabel = $row['field'];
         $table = $row['table_name'];
+        $elementType = $row['element_type'] ?? null;
+        $schema = $this->tcaSchemaFactory->get($table);
         $languageService = $this->getLanguageService();
-        $hookObj = $this->linktypeRegistry->getLinktype($row['link_type'] ?? '');
+        $linkType = $this->linktypeRegistry->getLinktype($row['link_type'] ?? '');
 
         // Try to resolve the field label from TCA
-        if ($GLOBALS['TCA'][$table]['types'][$row['element_type']]['columnsOverrides'][$row['field']]['label'] ?? false) {
-            $fieldLabel = $languageService->sL($GLOBALS['TCA'][$table]['types'][$row['element_type']]['columnsOverrides'][$row['field']]['label']);
-        } elseif ($GLOBALS['TCA'][$table]['columns'][$row['field']]['label'] ?? false) {
-            $fieldLabel = $languageService->sL($GLOBALS['TCA'][$table]['columns'][$row['field']]['label']);
+        if ($schema->hasSubSchema($elementType)) {
+            $fieldLabel = $schema->getSubSchema($elementType)->getField($row['field'])->getLabel();
+        } else {
+            $fieldLabel = $schema->getField($row['field'])->getLabel();
         }
         // Crop colon from end if present
-        if (str_ends_with($fieldLabel, ':')) {
-            $fieldLabel = substr($fieldLabel, 0, -1);
-        }
+        $fieldLabel = rtrim((string)($fieldLabel ?: $row['field']), ':');
 
-        return [
-            'title' => $table . ':' . $row['record_uid'],
-            'icon' => $this->iconFactory->getIconForRecord($table, $row, Icon::SIZE_SMALL)->render(),
-            'headline' => $row['headline'],
-            'label' => sprintf($languageService->sL('LLL:EXT:linkvalidator/Resources/Private/Language/Module/locallang.xlf:list.field'), $fieldLabel),
-            'path' => BackendUtility::getRecordPath($row['record_pid'], $this->getBackendUser()->getPagePermsClause(Permission::PAGE_SHOW), 0),
-            'linkTitle' => $row['link_title'],
-            'linkTarget' => $hookObj?->getBrokenUrl($row),
-            'linkStatus' => (bool)($row['url_response']['valid'] ?? false),
-            'linkMessage' => $hookObj?->getErrorMessage($row['url_response']['errorParams']),
+        $result = [
+            'uid' => $row['uid'],
+            'recordUid' => $row['record_uid'],
+            'recordTable' => $table,
+            'recordTableTitle' => $languageService->sL($schema->getRawConfiguration()['title'] ?? ''),
+            // @todo: Remove this assignment (and template use) when linkvalidator stops rendering broken
+            //        links registered to records that are meanwhile deleted=1 or in a different workspace.
+            'recordTableIconDefault' => $this->iconFactory->getIconForRecord($table, $row, IconSize::SMALL)->render(),
+            'recordFieldLabel' => $languageService->sL($fieldLabel),
+            'recordTitle' => $row['headline'],
+            'recordLanguageIcon' => $this->iconFactory->getIcon($this->getSystemLanguageValue($row['language'], $row['record_pid'], 'flagIcon'), IconSize::SMALL)->getIdentifier(),
+            'recordLanguageTitle' => $this->getSystemLanguageValue($row['language'], $row['record_pid'], 'title'),
+            'backendUserTitleLength' => (int)$this->getBackendUser()->uc['titleLen'],
+            'recordData' => BackendUtility::getRecord($table, abs((int)$row['record_uid'])),
+            'recordPageData' => BackendUtility::getRecord('pages', abs((int)$row['record_pid'])),
+            'linkType' => $row['link_type'],
+            'linkText' => $row['link_title'],
+            'linkTarget' => $linkType?->getBrokenUrl($row),
+            'linkErrorMessage' => $linkType?->getErrorMessage($row['url_response']['errorParams']),
             'lastCheck' => sprintf(
                 $languageService->sL('LLL:EXT:linkvalidator/Resources/Private/Language/Module/locallang.xlf:list.msg.lastRun'),
                 date($GLOBALS['TYPO3_CONF_VARS']['SYS']['ddmmyy'], $row['last_check']),
                 date($GLOBALS['TYPO3_CONF_VARS']['SYS']['hhmm'], $row['last_check'])
             ),
             'needsRecheck' => (bool)$row['needs_recheck'],
-            // Construct link to edit the record
-            'editUrl' => (string)$this->uriBuilder->buildUriFromRoute('record_edit', [
-                'edit' => [
-                    $table => [
-                        $row['record_uid'] => 'edit',
-                    ],
-                ],
-                'columnsOnly' => [
-                    $table => [$row['field']],
-                ],
-                'returnUrl' => $this->getModuleUri(
-                    'report',
-                    [
-                        'last_edited_record_uid' => $row['record_uid'],
-                        'last_edited_record_table' => $table,
-                        'last_edited_record_field' => $row['field'],
-                        'last_edited_record_timestamp' => $this->context->getPropertyFromAspect('date', 'timestamp'),
-                    ]
-                ),
-            ]),
         ];
+        $editUrlParameters = [
+            'edit' => [
+                $table => [
+                    $row['record_uid'] => 'edit',
+                ],
+            ],
+            'returnUrl' => $this->getModuleUri(
+                'report',
+                [
+                    'last_edited_record_uid' => $row['record_uid'],
+                    'last_edited_record_table' => $table,
+                    'last_edited_record_field' => $row['field'],
+                    'last_edited_record_timestamp' => $this->context->getPropertyFromAspect('date', 'timestamp'),
+                ]
+            ),
+        ];
+        $result['editUrlFull'] = (string)$this->uriBuilder->buildUriFromRoute('record_edit', $editUrlParameters);
+        $result['editUrlField'] = (string)$this->uriBuilder->buildUriFromRoute('record_edit', array_merge($editUrlParameters, ['columnsOnly' => [$table => [$row['field']]]]));
+        return $result;
+    }
+
+    /**
+     * Gets a named value of an available system language
+     *
+     * @param int $id system language uid
+     * @param int $pageId page id of a site
+     * @param string $key Name of the value to be fetched (e.g. title)
+     */
+    protected function getSystemLanguageValue(int $id, int $pageId, string $key): string
+    {
+        $value = '';
+        $systemLanguages = $this->translationConfigurationProvider->getSystemLanguages($pageId);
+        if (!empty($systemLanguages[$id][$key])) {
+            $value = $systemLanguages[$id][$key];
+        }
+        return $value;
     }
 
     /**
      * Builds the checkboxes to show which types of links are available
      *
-     * @param string $prefix "report" or "check" for "Report" and "Check links" tab
+     * @param string $prefix "report" or "check" for "Report" and "Check links" form
      */
     protected function getCheckOptions(string $prefix): array
     {
         $brokenLinksInformation = $this->linkAnalyzer->getLinkCounts();
         $options = [
-            'totalCountLabel' => $this->getLanguageService()->sL('LLL:EXT:linkvalidator/Resources/Private/Language/Module/locallang.xlf:overviews.nbtotal'),
-            'totalCount' => $brokenLinksInformation['total'] ?: '0',
             'optionsByType' => [],
         ];
         $linkTypes = GeneralUtility::trimExplode(',', $this->modTS['linktypes'] ?? '', true);
@@ -438,14 +447,20 @@ class LinkValidatorController
             if (!in_array($type, $linkTypes, true)) {
                 continue;
             }
+            $isChecked = !empty($this->checkOpt[$prefix][$type]);
+            $linkType = $this->linktypeRegistry->getLinktype($type);
+            $linktypeLabel = ($linkType instanceof LabelledLinktypeInterface)
+                ? ($linkType->getReadableName() ?: $linkType->getIdentifier())
+                : $type;
             $options['optionsByType'][$type] = [
                 'id' => $prefix . '_SET_' . $type,
                 'name' => $prefix . '_SET[' . $type . ']',
-                'label' => $this->getLanguageService()->sL('LLL:EXT:linkvalidator/Resources/Private/Language/Module/locallang.xlf:hooks.' . $type) ?: $type,
-                'checked' => !empty($this->checkOpt[$prefix][$type]) ? ' checked="checked"' : '',
+                'label' => $linktypeLabel,
+                'checked' => $isChecked,
                 'count' => (!empty($brokenLinksInformation[$type]) ? $brokenLinksInformation[$type] : '0'),
             ];
         }
+        $options['allOptionsChecked'] = array_filter($options['optionsByType'], static fn(array $option): bool => !$option['checked']) === [];
         return $options;
     }
 
@@ -457,31 +472,6 @@ class LinkValidatorController
             ->setDisplayName($this->getModuleTitle())
             ->setArguments(['id' => $this->id, 'action' => $action]);
         $buttonBar->addButton($shortcutButton);
-    }
-
-    protected function addDocHeaderDropDown(ModuleTemplate $view, string $currentAction): void
-    {
-        $languageService = $this->getLanguageService();
-        $actionMenu = $view->getDocHeaderComponent()->getMenuRegistry()->makeMenu();
-        $actionMenu->setIdentifier('reportLinkvalidatorSelector');
-        $actionMenu->setLabel(
-            $languageService->sL(
-                'LLL:EXT:backend/Resources/Private/Language/locallang.xlf:moduleMenu.dropdown.label'
-            )
-        );
-        $actionMenu->addMenuItem(
-            $actionMenu->makeMenuItem()
-                ->setTitle($languageService->sL('LLL:EXT:linkvalidator/Resources/Private/Language/Module/locallang.xlf:Report'))
-                ->setHref($this->getModuleUri('report'))
-                ->setActive($currentAction === 'report')
-        );
-        $actionMenu->addMenuItem(
-            $actionMenu->makeMenuItem()
-                ->setTitle($languageService->sL('LLL:EXT:linkvalidator/Resources/Private/Language/Module/locallang.xlf:CheckLink'))
-                ->setHref($this->getModuleUri('check'))
-                ->setActive($currentAction === 'check')
-        );
-        $view->getDocHeaderComponent()->getMenuRegistry()->addMenu($actionMenu);
     }
 
     protected function getModuleUri(?string $action = null, array $additionalPramaters = []): string

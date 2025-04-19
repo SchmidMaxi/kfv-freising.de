@@ -19,6 +19,7 @@ namespace TYPO3\CMS\Backend\Controller\Wizard;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Form\Wizard\SuggestWizardDefaultReceiver;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
@@ -26,6 +27,10 @@ use TYPO3\CMS\Core\Configuration\FlexForm\FlexFormTools;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\QueryHelper;
 use TYPO3\CMS\Core\Http\JsonResponse;
+use TYPO3\CMS\Core\Schema\Capability\RootLevelCapability;
+use TYPO3\CMS\Core\Schema\Capability\TcaSchemaCapability;
+use TYPO3\CMS\Core\Schema\TcaSchema;
+use TYPO3\CMS\Core\Schema\TcaSchemaFactory;
 use TYPO3\CMS\Core\Utility\ArrayUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -33,8 +38,14 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  * Receives ajax request from FormEngine suggest wizard and creates suggest answer as json result
  * @internal This class is a specific Backend controller implementation and is not considered part of the Public TYPO3 API.
  */
+#[AsController]
 class SuggestWizardController
 {
+    public function __construct(
+        private readonly FlexFormTools $flexFormTools,
+        private readonly TcaSchemaFactory $tcaSchemaFactory,
+    ) {}
+
     /**
      * Ajax handler for the "suggest" feature in FormEngine.
      *
@@ -59,7 +70,9 @@ class SuggestWizardController
         // Determine TCA config of field
         if (empty($dataStructureIdentifier)) {
             // Normal columns field
-            $fieldConfig = $GLOBALS['TCA'][$tableName]['columns'][$fieldName]['config'];
+            $schema = $this->tcaSchemaFactory->get($tableName);
+            $fieldInformation = $schema->getField($fieldName);
+            $fieldConfig = $fieldInformation->getConfiguration();
             $fieldNameInPageTsConfig = $fieldName;
 
             // With possible columnsOverrides
@@ -70,14 +83,12 @@ class SuggestWizardController
                     BackendUtility::getRecord($tableName, $uid) ?? []
                 );
             }
-            $columnsOverridesConfigOfField = $GLOBALS['TCA'][$tableName]['types'][$recordType]['columnsOverrides'][$fieldName]['config'] ?? null;
-            if ($columnsOverridesConfigOfField) {
-                ArrayUtility::mergeRecursiveWithOverrule($fieldConfig, $columnsOverridesConfigOfField);
+            if ($recordType !== '' && $schema->hasSubSchema($recordType)) {
+                $fieldConfig = $schema->getSubSchema($recordType)->getField($fieldName)->getConfiguration();
             }
         } else {
-            // A flex flex form field
-            $flexFormTools = GeneralUtility::makeInstance(FlexFormTools::class);
-            $dataStructure = $flexFormTools->parseDataStructureByIdentifier($dataStructureIdentifier);
+            // A flex-form field
+            $dataStructure = $this->flexFormTools->parseDataStructureByIdentifier($dataStructureIdentifier);
             if (empty($flexFormContainerFieldName)) {
                 // @todo: See if a path in pageTsConfig like "TCEForm.tableName.theContainerFieldName =" is useful and works with other pageTs, too.
                 $fieldNameInPageTsConfig = $flexFormFieldName;
@@ -123,7 +134,7 @@ class SuggestWizardController
         // be added to the TCEForm selector, originally fetched from the "allowed" config option in the TCA
         foreach ($queryTables as $queryTable) {
             // if the table does not exist, skip it
-            if (!is_array($GLOBALS['TCA'][$queryTable]) || empty($GLOBALS['TCA'][$queryTable])) {
+            if (!$this->tcaSchemaFactory->has($queryTable)) {
                 continue;
             }
 
@@ -184,35 +195,24 @@ class SuggestWizardController
     }
 
     /**
-     * Returns TRUE if a table has been marked as hidden in the configuration
-     *
-     * @return bool
+     * Checks if the current backend user is allowed to access the given table, based on the schema capabilities.
      */
-    protected function isTableHidden(array $tableConfig)
-    {
-        return (bool)($tableConfig['ctrl']['hideTable'] ?? false);
-    }
-
-    /**
-     * Checks if the current backend user is allowed to access the given table, based on the ctrl-section of the
-     * table's configuration array (TCA) entry.
-     *
-     * @return bool
-     */
-    protected function currentBackendUserMayAccessTable(array $tableConfig)
+    protected function currentBackendUserMayAccessTable(TcaSchema $schema): bool
     {
         if ($this->getBackendUser()->isAdmin()) {
             return true;
         }
 
         // If the user is no admin, they may not access admin-only tables
-        if ($tableConfig['ctrl']['adminOnly'] ?? false) {
+        if ($schema->hasCapability(TcaSchemaCapability::AccessAdminOnly)) {
             return false;
         }
 
+        /** @var RootLevelCapability $rootLevelCapability */
+        $rootLevelCapability = $schema->getCapability(TcaSchemaCapability::RestrictionRootLevel);
+
         // allow access to root level pages if security restrictions should be bypassed
-        return !($tableConfig['ctrl']['rootLevel'] ?? false) ||
-            ($tableConfig['ctrl']['security']['ignoreRootLevelRestriction'] ?? false);
+        return $rootLevelCapability->canAccessRecordsOnRootLevel();
     }
 
     /**
@@ -224,9 +224,8 @@ class SuggestWizardController
      * @param array $TSconfig The TSconfig array of the current page
      * @param string $table The table where the wizard is used
      * @param string $field The field where the wizard is used
-     * @return array
      */
-    protected function getConfigurationForTable($queryTable, array $wizardConfig, array $TSconfig, $table, $field)
+    protected function getConfigurationForTable(string $queryTable, array $wizardConfig, array $TSconfig, string $table, string $field): array
     {
         $config = (array)($wizardConfig['default'] ?? []);
 
@@ -262,10 +261,8 @@ class SuggestWizardController
     /**
      * Checks the given field configuration for the tables that should be used for querying and returns them as an
      * array.
-     *
-     * @return array
      */
-    protected function getTablesToQueryFromFieldConfiguration(array $fieldConfig)
+    protected function getTablesToQueryFromFieldConfiguration(array $fieldConfig): array
     {
         $queryTables = [];
 
@@ -275,12 +272,15 @@ class SuggestWizardController
                 $queryTables = GeneralUtility::trimExplode(',', $fieldConfig['allowed']);
             } else {
                 // all tables are allowed, if the user can access them
-                foreach ($GLOBALS['TCA'] as $tableName => $tableConfig) {
-                    if (!$this->isTableHidden($tableConfig) && $this->currentBackendUserMayAccessTable($tableConfig)) {
+                /** @var TcaSchema $schema */
+                foreach ($this->tcaSchemaFactory->all() as $tableName => $schema) {
+                    if ($schema->getRawConfiguration()['hideTable'] ?? false) {
+                        continue;
+                    }
+                    if ($this->currentBackendUserMayAccessTable($schema)) {
                         $queryTables[] = $tableName;
                     }
                 }
-                unset($tableName, $tableConfig);
             }
         } elseif (isset($fieldConfig['foreign_table'])) {
             // use the foreign table
@@ -294,10 +294,8 @@ class SuggestWizardController
      * Returns the SQL WHERE clause to use for querying records. This is currently only relevant if a foreign_table
      * is configured and should be used; it could e.g. be used to limit to a certain subset of records from the
      * foreign table
-     *
-     * @return string
      */
-    protected function getWhereClause(array $fieldConfig)
+    protected function getWhereClause(array $fieldConfig): string
     {
         if (!isset($fieldConfig['foreign_table'], $fieldConfig['foreign_table_where'])) {
             return '';

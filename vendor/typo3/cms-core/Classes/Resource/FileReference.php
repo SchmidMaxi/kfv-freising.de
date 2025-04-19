@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -17,6 +19,7 @@ namespace TYPO3\CMS\Core\Resource;
 
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\ReferenceIndex;
+use TYPO3\CMS\Core\Resource\Enum\DuplicationBehavior;
 use TYPO3\CMS\Core\Utility\ArrayUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -93,10 +96,9 @@ class FileReference implements FileInterface
     /**
      * Returns true if the given key exists for this file.
      *
-     * @param string $key The property to be looked up
-     * @return bool
+     * @param non-empty-string $key The property to be looked up
      */
-    public function hasProperty($key)
+    public function hasProperty(string $key): bool
     {
         return array_key_exists($key, $this->getProperties());
     }
@@ -104,11 +106,10 @@ class FileReference implements FileInterface
     /**
      * Gets a property, falling back to values of the parent.
      *
-     * @param string $key The property to be looked up
-     * @return mixed
+     * @param non-empty-string $key The property to be looked up
      * @throws \InvalidArgumentException
      */
-    public function getProperty($key)
+    public function getProperty(string $key): mixed
     {
         if (!$this->hasProperty($key)) {
             throw new \InvalidArgumentException('Property "' . $key . '" was not found in file reference or original file.', 1314226805);
@@ -148,7 +149,7 @@ class FileReference implements FileInterface
                 true,
                 false
             );
-            array_walk($this->mergedProperties, [$this, 'restoreNonNullValuesCallback']);
+            array_walk($this->mergedProperties, $this->restoreNonNullValuesCallback(...));
         }
 
         return $this->mergedProperties;
@@ -177,12 +178,7 @@ class FileReference implements FileInterface
         return $this->propertiesOfFileReference;
     }
 
-    /**
-     * Returns the name of this file
-     *
-     * @return string
-     */
-    public function getName()
+    public function getName(): string
     {
         return $this->originalFile->getName();
     }
@@ -246,21 +242,19 @@ class FileReference implements FileInterface
     }
 
     /**
-     * Returns the size of this file
-     *
-     * @return int
+     * @return int<0, max>
      */
-    public function getSize()
+    public function getSize(): int
     {
-        return (int)$this->originalFile->getSize();
+        return $this->originalFile->getSize();
     }
 
     /**
      * Returns the Sha1 of this file
      *
-     * @return string
+     * @return non-empty-string
      */
-    public function getSha1()
+    public function getSha1(): string
     {
         return $this->originalFile->getSha1();
     }
@@ -270,17 +264,15 @@ class FileReference implements FileInterface
      *
      * @return string The file extension
      */
-    public function getExtension()
+    public function getExtension(): string
     {
         return $this->originalFile->getExtension();
     }
 
     /**
      * Returns the basename (the name without extension) of this file.
-     *
-     * @return string
      */
-    public function getNameWithoutExtension()
+    public function getNameWithoutExtension(): string
     {
         return $this->originalFile->getNameWithoutExtension();
     }
@@ -288,41 +280,45 @@ class FileReference implements FileInterface
     /**
      * Get the MIME type of this file
      *
-     * @return string mime type
+     * @return non-empty-string mime type
      */
-    public function getMimeType()
+    public function getMimeType(): string
     {
         return $this->originalFile->getMimeType();
     }
 
     /**
      * Returns the modification time of the file as Unix timestamp
-     *
-     * @return int
      */
-    public function getModificationTime()
+    public function getModificationTime(): int
     {
         return (int)$this->originalFile->getModificationTime();
     }
 
     /**
      * Returns the creation time of the file as Unix timestamp
-     *
-     * @return int
      */
-    public function getCreationTime()
+    public function getCreationTime(): int
     {
         return (int)$this->originalFile->getCreationTime();
     }
 
     /**
      * Returns the fileType of this file
-     *
-     * @return int $fileType
      */
-    public function getType()
+    public function getType(): int
     {
         return (int)$this->originalFile->getType();
+    }
+
+    public function isType(FileType $fileType): bool
+    {
+        return $this->getFileType() === $fileType;
+    }
+
+    public function getFileType(): FileType
+    {
+        return FileType::from($this->originalFile->getType());
     }
 
     /**
@@ -340,10 +336,8 @@ class FileReference implements FileInterface
      ******************/
     /**
      * Get the contents of this file
-     *
-     * @return string File contents
      */
-    public function getContents()
+    public function getContents(): string
     {
         return $this->originalFile->getContents();
     }
@@ -352,11 +346,12 @@ class FileReference implements FileInterface
      * Replace the current file contents with the given string
      *
      * @param string $contents The contents to write to the file.
-     * @return File The file object (allows chaining).
+     * @return $this
      */
-    public function setContents($contents)
+    public function setContents(string $contents): self
     {
-        return $this->originalFile->setContents($contents);
+        $this->originalFile->setContents($contents);
+        return $this;
     }
 
     /****************************************
@@ -364,10 +359,8 @@ class FileReference implements FileInterface
      ****************************************/
     /**
      * Get the storage the original file is located in
-     *
-     * @return ResourceStorage
      */
-    public function getStorage()
+    public function getStorage(): ResourceStorage
     {
         return $this->originalFile->getStorage();
     }
@@ -375,9 +368,9 @@ class FileReference implements FileInterface
     /**
      * Returns the identifier of the underlying original file
      *
-     * @return string
+     * @return non-empty-string
      */
-    public function getIdentifier()
+    public function getIdentifier(): string
     {
         return $this->originalFile->getIdentifier();
     }
@@ -396,7 +389,7 @@ class FileReference implements FileInterface
      * Deletes only this particular FileReference from the persistence layer (table: sys_file_reference)
      * and leaves the original file untouched.
      */
-    public function delete()
+    public function delete(): bool
     {
         $connectionPool = GeneralUtility::makeInstance(ConnectionPool::class);
         $tcaDeleteFieldname = $GLOBALS['TCA']['sys_file_reference']['ctrl']['delete'] ?? null;
@@ -435,10 +428,11 @@ class FileReference implements FileInterface
     /**
      * Renames the fileName in this particular usage.
      *
-     * @param string $newName The new name
-     * @param string $conflictMode
+     * @param non-empty-string $newName The new file name
+     * @param string|DuplicationBehavior $conflictMode
+     * @todo change $conflictMode parameter type to DuplicationBehavior in TYPO3 v14.0
      */
-    public function rename($newName, $conflictMode = DuplicationBehavior::RENAME)
+    public function rename(string $newName, $conflictMode = DuplicationBehavior::RENAME): FileInterface
     {
         // @todo Implement this function. This should only rename the
         // FileReference (sys_file_reference) record, not the file itself.
@@ -455,9 +449,9 @@ class FileReference implements FileInterface
      * WARNING: Access to the file may be restricted by further means, e.g.
      * some web-based authentication. You have to take care of this yourself.
      *
-     * @return string|null NULL if file is missing or deleted, the generated url otherwise
+     * @return non-empty-string|null NULL if file is missing or deleted, the generated url otherwise
      */
-    public function getPublicUrl()
+    public function getPublicUrl(): ?string
     {
         return $this->originalFile->getPublicUrl();
     }
@@ -467,10 +461,8 @@ class FileReference implements FileInterface
      * This is always true for FileReference objects, as they rely on a
      * sys_file_reference record to be present, which in turn can only exist if
      * the original file is indexed.
-     *
-     * @return bool
      */
-    public function isIndexed()
+    public function isIndexed(): bool
     {
         return true;
     }
@@ -481,9 +473,9 @@ class FileReference implements FileInterface
      * If the file is already on the local system, this only makes a new copy if $writable is set to TRUE.
      *
      * @param bool $writable Set this to FALSE if you only want to do read operations on the file.
-     * @return string
+     * @return non-empty-string
      */
-    public function getForLocalProcessing($writable = true)
+    public function getForLocalProcessing(bool $writable = true): string
     {
         return $this->originalFile->getForLocalProcessing($writable);
     }
@@ -492,9 +484,9 @@ class FileReference implements FileInterface
      * Returns an array representation of the file.
      * (This is used by the generic listing module vidi when displaying file records.)
      *
-     * @return array Array of main data of the file. Don't rely on all data to be present here, it's just a selection of the most relevant information.
+     * @return array<non-empty-string, mixed> Array of main data of the file. Don't rely on all data to be present here, it's just a selection of the most relevant information.
      */
-    public function toArray()
+    public function toArray(): array
     {
         $array = array_merge($this->originalFile->toArray(), $this->propertiesOfFileReference);
         return $array;
@@ -511,21 +503,14 @@ class FileReference implements FileInterface
     }
 
     /**
-     * Get hashed identifier
-     *
-     * @return string
+     * @return non-empty-string
      */
-    public function getHashedIdentifier()
+    public function getHashedIdentifier(): string
     {
         return $this->getStorage()->hashFileIdentifier($this->getIdentifier());
     }
 
-    /**
-     * Returns the parent folder.
-     *
-     * @return FolderInterface
-     */
-    public function getParentFolder()
+    public function getParentFolder(): FolderInterface
     {
         return $this->originalFile->getParentFolder();
     }

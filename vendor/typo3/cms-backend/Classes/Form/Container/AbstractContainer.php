@@ -16,15 +16,34 @@
 namespace TYPO3\CMS\Backend\Form\Container;
 
 use TYPO3\CMS\Backend\Form\AbstractNode;
+use TYPO3\CMS\Backend\Form\NodeFactory;
+use TYPO3\CMS\Backend\View\BackendViewFactory;
+use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Utility\ArrayUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3Fluid\Fluid\View\TemplateView;
 
 /**
  * Abstract container has various methods used by the container classes
  */
 abstract class AbstractContainer extends AbstractNode
 {
+    protected NodeFactory $nodeFactory;
+    protected BackendViewFactory $backendViewFactory;
+
+    /**
+     * Injection of NodeFactory, which is used in this abstract already.
+     * Using inject* method to not pollute __construct() for inheriting classes.
+     */
+    public function injectNodeFactory(NodeFactory $nodeFactory): void
+    {
+        $this->nodeFactory = $nodeFactory;
+    }
+
+    public function injectBackendViewFactory(BackendViewFactory $backendViewFactory)
+    {
+        $this->backendViewFactory = $backendViewFactory;
+    }
+
     /**
      * Merge field information configuration with default and render them.
      *
@@ -84,9 +103,8 @@ abstract class AbstractContainer extends AbstractNode
      *
      * @param string $field Semicolon separated field configuration
      * @throws \RuntimeException
-     * @return array
      */
-    protected function explodeSingleFieldShowItemConfiguration($field)
+    protected function explodeSingleFieldShowItemConfiguration(string $field): array
     {
         $fieldArray = GeneralUtility::trimExplode(';', $field);
         if (empty($fieldArray[0])) {
@@ -105,25 +123,32 @@ abstract class AbstractContainer extends AbstractNode
      *
      * @param array $menuItems Tab elements, each element is an array with "label" and "content"
      * @param string $domId DOM id attribute, will be appended with an iteration number per tab.
-     * @param int $defaultTabIndex
-     * @return string
      */
-    protected function renderTabMenu(array $menuItems, $domId, $defaultTabIndex = 1)
+    protected function renderTabMenu(array $menuItems, string $domId): string
     {
-        // @todo: It's unfortunate we're using Typo3Fluid TemplateView directly here. We can't
-        //        inject BackendViewFactory here since __construct() is polluted by NodeInterface.
-        //        Remove __construct() from NodeInterface to have DI, then use BackendViewFactory here.
-        $view = GeneralUtility::makeInstance(TemplateView::class);
-        $templatePaths = $view->getRenderingContext()->getTemplatePaths();
-        $templatePaths->setTemplateRootPaths([GeneralUtility::getFileAbsFileName('EXT:backend/Resources/Private/Templates')]);
-        $templatePaths->setPartialRootPaths([GeneralUtility::getFileAbsFileName('EXT:backend/Resources/Private/Partials')]);
+        $view = $this->backendViewFactory->create($this->data['request']);
         $view->assignMultiple([
             'id' => $domId,
             'items' => $menuItems,
-            'defaultTabIndex' => $defaultTabIndex,
+            'defaultTabIndex' => 1,
             'wrapContent' => false,
             'storeLastActiveTab' => true,
         ]);
         return $view->render('Form/Tabs');
+    }
+
+    protected function wrapWithFieldsetAndLegend(string $fieldContent): string
+    {
+        $legend = htmlspecialchars($this->data['parameterArray']['fieldConf']['label']);
+        if ($this->getBackendUserAuthentication()->shallDisplayDebugInformation()) {
+            $fieldName = $this->data['flexFormContainerFieldName'] ?? $this->data['flexFormFieldName'] ?? $this->data['fieldName'];
+            $legend .= ' <code>[' . htmlspecialchars($fieldName) . ']</code>';
+        }
+        return '<fieldset><legend class="form-label t3js-formengine-label">' . $legend . '</legend>' . $fieldContent . '</fieldset>';
+    }
+
+    protected function getBackendUserAuthentication(): BackendUserAuthentication
+    {
+        return $GLOBALS['BE_USER'];
     }
 }

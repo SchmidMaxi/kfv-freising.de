@@ -23,13 +23,13 @@ use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\Promise\Utils;
 use Psr\Http\Message\ResponseInterface;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Crypto\Random;
 use TYPO3\CMS\Core\Http\Uri;
 use TYPO3\CMS\Core\Messaging\FlashMessage;
 use TYPO3\CMS\Core\Messaging\FlashMessageQueue;
 use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Install\Controller\ServerResponseCheckController;
 use TYPO3\CMS\Install\SystemEnvironment\CheckInterface;
 use TYPO3\CMS\Reports\Status;
 
@@ -199,9 +199,10 @@ class ServerResponseCheck implements CheckInterface
             if (!is_dir($filePath)) {
                 GeneralUtility::mkdir_deep($filePath);
             }
-            file_put_contents(
+            GeneralUtility::writeFile(
                 $filePath . $fileDeclaration->getFileName(),
-                $fileDeclaration->buildContent()
+                $fileDeclaration->buildContent(),
+                true
             );
         }
     }
@@ -217,9 +218,10 @@ class ServerResponseCheck implements CheckInterface
         $random = GeneralUtility::makeInstance(Random::class);
         $randomHost = $random->generateRandomHexString(10) . '.random.example.org';
         $time = (string)time();
+        $hashService = GeneralUtility::makeInstance(HashService::class);
         $url = GeneralUtility::makeInstance(UriBuilder::class)->buildUriFromRoute(
             'install.server-response-check.host',
-            ['src-time' => $time, 'src-hash' => ServerResponseCheckController::hmac($time)],
+            ['src-time' => $time, 'src-hash' => $hashService->hmac($time, 'server-response-check')],
             UriBuilder::ABSOLUTE_URL
         );
         try {

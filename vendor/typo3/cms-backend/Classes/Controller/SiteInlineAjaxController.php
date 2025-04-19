@@ -19,11 +19,13 @@ namespace TYPO3\CMS\Backend\Controller;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Configuration\SiteTcaConfiguration;
 use TYPO3\CMS\Backend\Form\FormDataCompiler;
 use TYPO3\CMS\Backend\Form\FormDataGroup\SiteConfigurationDataGroup;
 use TYPO3\CMS\Backend\Form\InlineStackProcessor;
 use TYPO3\CMS\Backend\Form\NodeFactory;
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Http\JsonResponse;
 use TYPO3\CMS\Core\Page\JavaScriptItems;
 use TYPO3\CMS\Core\Site\Entity\SiteLanguage;
@@ -35,16 +37,19 @@ use TYPO3\CMS\Core\Utility\MathUtility;
 
 /**
  * Site configuration FormEngine controller class. Receives inline "edit" and "new"
- * commands to expand / create site configuration inline records
+ * commands to expand / create site configuration inline records.
+ *
  * @internal This class is a specific Backend controller implementation and is not considered part of the Public TYPO3 API.
  */
+#[AsController]
 class SiteInlineAjaxController extends AbstractFormEngineAjaxController
 {
-    /**
-     * Default constructor
-     */
-    public function __construct()
-    {
+    public function __construct(
+        private readonly FormDataCompiler $formDataCompiler,
+        private readonly SiteLanguagePresets $siteLanguagePresets,
+        private readonly HashService $hashService,
+        private readonly NodeFactory $nodeFactory,
+    ) {
         // Bring site TCA into global scope.
         // @todo: We might be able to get rid of that later
         $GLOBALS['TCA'] = array_merge($GLOBALS['TCA'], GeneralUtility::makeInstance(SiteTcaConfiguration::class)->getTca());
@@ -68,7 +73,7 @@ class SiteInlineAjaxController extends AbstractFormEngineAjaxController
         // Parse the DOM identifier, add the levels to the structure stack
         $inlineStackProcessor = GeneralUtility::makeInstance(InlineStackProcessor::class);
         $inlineStackProcessor->initializeByParsingDomObjectIdString($domObjectId);
-        $inlineStackProcessor->injectAjaxConfiguration($parentConfig);
+        $inlineStackProcessor->setAjaxConfiguration($parentConfig);
         $inlineTopMostParent = $inlineStackProcessor->getStructureLevel(0);
         // Parent, this table embeds the child table
         $parent = $inlineStackProcessor->getStructureLevel(-1);
@@ -121,12 +126,11 @@ class SiteInlineAjaxController extends AbstractFormEngineAjaxController
                 $childChildUid = PHP_INT_MAX;
 
                 if (!empty($ajaxArguments[2])) {
-                    $defaultDatabaseRow = GeneralUtility::makeInstance(SiteLanguagePresets::class)->getPresetDetailsForLanguage($ajaxArguments[2]) ?? [];
+                    $defaultDatabaseRow = $this->siteLanguagePresets->getPresetDetailsForLanguage($ajaxArguments[2]) ?? [];
                 }
             }
         }
 
-        $formDataCompiler = GeneralUtility::makeInstance(FormDataCompiler::class);
         $formDataCompilerInput = [
             'request' => $request,
             'command' => 'new',
@@ -147,7 +151,7 @@ class SiteInlineAjaxController extends AbstractFormEngineAjaxController
         if ($childChildUid) {
             $formDataCompilerInput['inlineChildChildUid'] = $childChildUid;
         }
-        $childData = $formDataCompiler->compile($formDataCompilerInput, GeneralUtility::makeInstance(SiteConfigurationDataGroup::class));
+        $childData = $this->formDataCompiler->compile($formDataCompilerInput, GeneralUtility::makeInstance(SiteConfigurationDataGroup::class));
 
         if (($parentConfig['foreign_selector'] ?? false) && ($parentConfig['appearance']['useCombination'] ?? false)) {
             throw new \RuntimeException('useCombination not implemented in sites module', 1522493094);
@@ -155,14 +159,12 @@ class SiteInlineAjaxController extends AbstractFormEngineAjaxController
 
         $childData['inlineParentUid'] = (int)$parent['uid'];
         $childData['renderType'] = 'inlineRecordContainer';
-        $nodeFactory = GeneralUtility::makeInstance(NodeFactory::class);
-        $childResult = $nodeFactory->create($childData)->render();
+        $childResult = $this->nodeFactory->create($childData)->render();
 
         $jsonArray = [
             'data' => '',
             'stylesheetFiles' => [],
-            'scriptItems' => GeneralUtility::makeInstance(JavaScriptItems::class),
-            'scriptCall' => [],
+            'scriptItems' => new JavaScriptItems(),
             'compilerInput' => [
                 'uid' => $childData['databaseRow']['uid'],
                 'childChildUid' => $childChildUid,
@@ -191,7 +193,7 @@ class SiteInlineAjaxController extends AbstractFormEngineAjaxController
         // Parse the DOM identifier, add the levels to the structure stack
         $inlineStackProcessor = GeneralUtility::makeInstance(InlineStackProcessor::class);
         $inlineStackProcessor->initializeByParsingDomObjectIdString($domObjectId);
-        $inlineStackProcessor->injectAjaxConfiguration($parentConfig);
+        $inlineStackProcessor->setAjaxConfiguration($parentConfig);
 
         // Parent, this table embeds the child table
         $parent = $inlineStackProcessor->getStructureLevel(-1);
@@ -226,14 +228,12 @@ class SiteInlineAjaxController extends AbstractFormEngineAjaxController
 
         $childData['inlineParentUid'] = (int)$parent['uid'];
         $childData['renderType'] = 'inlineRecordContainer';
-        $nodeFactory = GeneralUtility::makeInstance(NodeFactory::class);
-        $childResult = $nodeFactory->create($childData)->render();
+        $childResult = $this->nodeFactory->create($childData)->render();
 
         $jsonArray = [
             'data' => '',
             'stylesheetFiles' => [],
-            'scriptItems' => GeneralUtility::makeInstance(JavaScriptItems::class),
-            'scriptCall' => [],
+            'scriptItems' => new JavaScriptItems(),
         ];
 
         $jsonArray = $this->mergeChildResultIntoJsonResult($jsonArray, $childResult);
@@ -266,7 +266,6 @@ class SiteInlineAjaxController extends AbstractFormEngineAjaxController
         $child = $inlineStackProcessor->getUnstableStructure();
         $childTableName = $child['table'];
 
-        $formDataCompiler = GeneralUtility::makeInstance(FormDataCompiler::class);
         $formDataCompilerInput = [
             'request' => $request,
             'command' => 'edit',
@@ -293,7 +292,7 @@ class SiteInlineAjaxController extends AbstractFormEngineAjaxController
         if (($parentConfig['foreign_selector'] ?? false) && ($parentConfig['appearance']['useCombination'] ?? false)) {
             throw new \RuntimeException('useCombination not implemented in sites module', 1522493095);
         }
-        return $formDataCompiler->compile($formDataCompilerInput, GeneralUtility::makeInstance(SiteConfigurationDataGroup::class));
+        return $this->formDataCompiler->compile($formDataCompilerInput, GeneralUtility::makeInstance(SiteConfigurationDataGroup::class));
     }
 
     /**
@@ -317,10 +316,6 @@ class SiteInlineAjaxController extends AbstractFormEngineAjaxController
         if (!empty($childResult['inlineData'])) {
             $jsonResult['inlineData'] = $childResult['inlineData'];
         }
-        // @todo deprecate with TYPO3 v12.0
-        foreach ($childResult['additionalJavaScriptPost'] as $singleAdditionalJavaScriptPost) {
-            $jsonResult['scriptCall'][] = $singleAdditionalJavaScriptPost;
-        }
         if (!empty($childResult['additionalInlineLanguageLabelFiles'])) {
             $labels = [];
             foreach ($childResult['additionalInlineLanguageLabelFiles'] as $additionalInlineLanguageLabelFile) {
@@ -332,8 +327,6 @@ class SiteInlineAjaxController extends AbstractFormEngineAjaxController
             $scriptItems->addGlobalAssignment(['TYPO3' => ['lang' => $labels]]);
         }
         $this->addJavaScriptModulesToJavaScriptItems($childResult['javaScriptModules'] ?? [], $scriptItems);
-        /** @deprecated will be removed in TYPO3 v13.0 */
-        $this->addJavaScriptModulesToJavaScriptItems($childResult['requireJsModules'] ?? [], $scriptItems, true);
 
         return $jsonResult;
     }
@@ -360,7 +353,7 @@ class SiteInlineAjaxController extends AbstractFormEngineAjaxController
         // encode JSON again to ensure same `json_encode()` settings as used when generating original hash
         // (side-note: JSON encoded literals differ for target scenarios, e.g. HTML attr, JS string, ...)
         $encodedConfig = (string)json_encode($config);
-        if (!hash_equals(GeneralUtility::hmac($encodedConfig, 'InlineContext'), (string)$context['hmac'])) {
+        if (!hash_equals($this->hashService->hmac($encodedConfig, 'InlineContext'), (string)$context['hmac'])) {
             throw new \RuntimeException('Hash does not validate', 1522771640);
         }
         return $config;

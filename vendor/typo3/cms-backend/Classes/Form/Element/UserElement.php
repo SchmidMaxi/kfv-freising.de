@@ -31,12 +31,10 @@ class UserElement extends AbstractFormElement
      *
      * @return array As defined in initializeResultArray() of AbstractNode
      */
-    public function render()
+    public function render(): array
     {
         // Render some dummy output to explain this element should usually not be called at all.
         $resultArray = $this->initializeResultArray();
-        // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-        $resultArray['labelHasBeenHandled'] = true;
         $fieldName = $this->data['flexFormFieldName'] ?? $this->data['fieldName'];
         $html = [];
         $html[] = '<div class="alert alert-warning">';

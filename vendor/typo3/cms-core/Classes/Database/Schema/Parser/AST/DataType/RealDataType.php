@@ -19,5 +19,7 @@ namespace TYPO3\CMS\Core\Database\Schema\Parser\AST\DataType;
 
 /**
  * Node representing the REAL SQL column type
+ *
+ * @internal
  */
-class RealDataType extends FloatDataType {}
+final class RealDataType extends FloatDataType {}

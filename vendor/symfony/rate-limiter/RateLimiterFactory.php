@@ -27,14 +27,12 @@ use Symfony\Component\RateLimiter\Storage\StorageInterface;
 final class RateLimiterFactory
 {
     private array $config;
-    private StorageInterface $storage;
-    private ?LockFactory $lockFactory;
 
-    public function __construct(array $config, StorageInterface $storage, ?LockFactory $lockFactory = null)
-    {
-        $this->storage = $storage;
-        $this->lockFactory = $lockFactory;
-
+    public function __construct(
+        array $config,
+        private StorageInterface $storage,
+        private ?LockFactory $lockFactory = null,
+    ) {
         $options = new OptionsResolver();
         self::configureOptions($options);
 
@@ -51,22 +49,28 @@ final class RateLimiterFactory
             'fixed_window' => new FixedWindowLimiter($id, $this->config['limit'], $this->config['interval'], $this->storage, $lock),
             'sliding_window' => new SlidingWindowLimiter($id, $this->config['limit'], $this->config['interval'], $this->storage, $lock),
             'no_limit' => new NoLimiter(),
-            default => throw new \LogicException(sprintf('Limiter policy "%s" does not exists, it must be either "token_bucket", "sliding_window", "fixed_window" or "no_limit".', $this->config['policy'])),
+            default => throw new \LogicException(\sprintf('Limiter policy "%s" does not exists, it must be either "token_bucket", "sliding_window", "fixed_window" or "no_limit".', $this->config['policy'])),
         };
     }
 
     protected static function configureOptions(OptionsResolver $options): void
     {
         $intervalNormalizer = static function (Options $options, string $interval): \DateInterval {
-            try {
-                return (new \DateTimeImmutable())->diff(new \DateTimeImmutable('+'.$interval));
-            } catch (\Exception $e) {
-                if (!preg_match('/Failed to parse time string \(\+([^)]+)\)/', $e->getMessage(), $m)) {
-                    throw $e;
-                }
+            // Create DateTimeImmutable from unix timesatmp, so the default timezone is ignored and we don't need to
+            // deal with quirks happening when modifying dates using a timezone with DST.
+            $now = \DateTimeImmutable::createFromFormat('U', time());
 
-                throw new \LogicException(sprintf('Cannot parse interval "%s", please use a valid unit as described on https://www.php.net/datetime.formats.relative.', $m[1]));
+            try {
+                $nowPlusInterval = @$now->modify('+' . $interval);
+            } catch (\DateMalformedStringException $e) {
+                throw new \LogicException(\sprintf('Cannot parse interval "%s", please use a valid unit as described on https://www.php.net/datetime.formats.relative.', $interval), 0, $e);
             }
+
+            if (!$nowPlusInterval) {
+                throw new \LogicException(\sprintf('Cannot parse interval "%s", please use a valid unit as described on https://www.php.net/datetime.formats.relative.', $interval));
+            }
+
+            return $now->diff($nowPlusInterval);
         };
 
         $options

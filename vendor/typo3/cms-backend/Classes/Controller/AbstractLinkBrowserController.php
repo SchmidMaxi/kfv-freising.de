@@ -36,7 +36,6 @@ use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Page\PageRenderer;
 use TYPO3\CMS\Core\Service\DependencyOrderingService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Core\Utility\HttpUtility;
 use TYPO3\CMS\Core\View\ViewInterface;
 
 /**
@@ -47,11 +46,6 @@ use TYPO3\CMS\Core\View\ViewInterface;
 abstract class AbstractLinkBrowserController
 {
     use PageRendererBackendSetupTrait;
-
-    /**
-     * URL of current request
-     */
-    protected string $thisScript = '';
 
     /**
      * @var array<string, array>
@@ -159,12 +153,11 @@ abstract class AbstractLinkBrowserController
         $this->pageRenderer->addInlineLanguageLabelFile('EXT:core/Resources/Private/Language/locallang_misc.xlf');
         $this->pageRenderer->addInlineLanguageLabelFile('EXT:core/Resources/Private/Language/locallang_core.xlf');
 
-        $this->determineScriptUrl($request);
         $this->initVariables($request);
         $this->loadLinkHandlers();
         $this->initCurrentUrl();
 
-        $menuData = $this->buildMenuArray();
+        $menuData = $this->buildMenuArray($request);
         if ($this->displayedLinkHandler instanceof LinkHandlerViewProviderInterface) {
             $view = $this->displayedLinkHandler->createView($this->backendViewFactory, $request);
         } else {
@@ -196,7 +189,9 @@ abstract class AbstractLinkBrowserController
             $content = $view->render();
         }
         $this->initDocumentTemplate();
-        $this->pageRenderer->setTitle('Link Browser');
+        $this->pageRenderer->setTitle($this->getLanguageService()->sL(
+            'LLL:EXT:backend/Resources/Private/Language/locallang_browse_links.xlf:linkBrowser'
+        ));
         if ($request->getQueryParams()['contentOnly'] ?? false) {
             return new HtmlResponse($content);
         }
@@ -215,27 +210,9 @@ abstract class AbstractLinkBrowserController
         ];
     }
 
-    public function getScriptUrl(): string
-    {
-        return $this->thisScript;
-    }
-
     public function getParameters(): array
     {
         return $this->parameters;
-    }
-
-    /**
-     * Sets the script url depending on being a module or script request.
-     */
-    protected function determineScriptUrl(ServerRequestInterface $request): void
-    {
-        if ($route = $request->getAttribute('route')) {
-            $this->thisScript = (string)$this->uriBuilder->buildUriFromRoute($route->getOption('_identifier'));
-        } else {
-            $normalizedParams = $request->getAttribute('normalizedParams');
-            $this->thisScript = $normalizedParams->getScriptName();
-        }
     }
 
     protected function initVariables(ServerRequestInterface $request): void
@@ -346,7 +323,7 @@ abstract class AbstractLinkBrowserController
      *
      * @return array[]
      */
-    protected function buildMenuArray(): array
+    protected function buildMenuArray(ServerRequestInterface $request): array
     {
         $allowedItems = $this->getAllowedItems();
         if ($this->displayedLinkHandlerId && !in_array($this->displayedLinkHandlerId, $allowedItems, true)) {
@@ -373,7 +350,7 @@ abstract class AbstractLinkBrowserController
             $menuDef[$identifier] = [
                 'isActive' => $isActive,
                 'label' => $configuration['label'],
-                'url' => $this->thisScript . HttpUtility::buildQueryString($this->getUrlParameters(['act' => $identifier]), '&'),
+                'url' => $this->uriBuilder->buildUriFromRequest($request, $this->getUrlParameters(['act' => $identifier])),
                 'addParams' => $configuration['addParams'] ?? '',
                 'before' => $configuration['displayBefore'],
                 'after' => $configuration['displayAfter'],

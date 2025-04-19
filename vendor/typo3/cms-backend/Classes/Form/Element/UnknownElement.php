@@ -25,11 +25,9 @@ class UnknownElement extends AbstractFormElement
      *
      * @return array As defined in initializeResultArray() of AbstractNode
      */
-    public function render()
+    public function render(): array
     {
         $resultArray = $this->initializeResultArray();
-        // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-        $resultArray['labelHasBeenHandled'] = true;
         $type = $this->data['parameterArray']['fieldConf']['config']['type'];
         $renderType = $this->data['renderType'];
         $resultArray['html'] = $this->wrapWithFieldsetAndLegend(

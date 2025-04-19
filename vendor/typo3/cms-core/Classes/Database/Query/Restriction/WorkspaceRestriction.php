@@ -22,9 +22,8 @@ use TYPO3\CMS\Core\Database\Query\Expression\ExpressionBuilder;
 use TYPO3\CMS\Core\Versioning\VersionState;
 
 /**
- * Restriction to make queries workspace-aware. This restriction is new compared to the "older"
- * FrontendWorkspaceRestriction and BackendWorkspaceRestriction in a way that it ALWAYS fetches the live version,
- * plus in current workspace the workspace records).
+ * Restriction to make queries workspace-aware. This restriction ALWAYS fetches the live version
+ * plus in current workspace the workspace records.
  * It does not care about the state, as this should be done by overlays.
  *
  * As workspaces cannot be fully overlaid within ONE query, this query does the following:
@@ -91,7 +90,7 @@ class WorkspaceRestriction implements QueryRestrictionInterface
                         ),
                         $expressionBuilder->eq(
                             $tableAlias . '.t3ver_state',
-                            VersionState::MOVE_POINTER
+                            VersionState::MOVE_POINTER->value
                         )
                     )
                 );
@@ -102,7 +101,7 @@ class WorkspaceRestriction implements QueryRestrictionInterface
                     $workspaceIdExpression,
                     $expressionBuilder->neq(
                         't3ver_state',
-                        VersionState::DELETE_PLACEHOLDER
+                        VersionState::DELETE_PLACEHOLDER->value
                     )
                 );
             }

@@ -20,7 +20,7 @@ return [
             'shortDescription' => 'LLL:EXT:tstemplate/Resources/Private/Language/locallang.xlf:module.typoscript.shortDescription',
             'description' => 'LLL:EXT:tstemplate/Resources/Private/Language/locallang.xlf:module.typoscript.description',
         ],
-        'navigationComponent' => '@typo3/backend/page-tree/page-tree-element',
+        'navigationComponent' => '@typo3/backend/tree/page-tree-element',
     ],
     'web_typoscript_recordsoverview' => [
         'parent' => 'web_ts',
@@ -28,7 +28,7 @@ return [
         'path' => '/module/web/typoscript/records-overview',
         'iconIdentifier' => 'module-template',
         'labels' => [
-            'title' => 'LLL:EXT:tstemplate/Resources/Private/Language/locallang.xlf:submodules.option.templateRecordsOverview',
+            'title' => 'LLL:EXT:tstemplate/Resources/Private/Language/locallang.xlf:submodules.option.typoscriptOverview',
         ],
         'routes' => [
             '_default' => [
@@ -88,6 +88,7 @@ return [
             ],
             'update' => [
                 'target' => ActiveTypoScriptController::class . '::updateAction',
+                'methods' => ['POST'],
             ],
         ],
         'moduleData' => [
@@ -120,8 +121,6 @@ return [
         ],
         'moduleData' => [
             'selectedTemplatePerPage' => [],
-            'constantConditions' => [],
-            'setupConditions' => [],
         ],
     ],
 ];

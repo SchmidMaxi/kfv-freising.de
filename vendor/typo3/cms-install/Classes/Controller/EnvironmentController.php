@@ -21,7 +21,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Symfony\Component\Mime\Address;
 use Symfony\Component\Mime\Exception\RfcComplianceException;
-use TYPO3\CMS\Backend\Toolbar\Enumeration\InformationStatus;
+use TYPO3\CMS\Backend\Toolbar\InformationStatus;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\FormProtection\FormProtectionFactory;
@@ -32,11 +32,12 @@ use TYPO3\CMS\Core\Mail\MailerInterface;
 use TYPO3\CMS\Core\Messaging\FlashMessage;
 use TYPO3\CMS\Core\Messaging\FlashMessageQueue;
 use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
+use TYPO3\CMS\Core\Type\File\ImageInfo;
 use TYPO3\CMS\Core\Utility\CommandUtility;
 use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Core\Utility\MathUtility;
 use TYPO3\CMS\Core\Utility\StringUtility;
+use TYPO3\CMS\Frontend\Imaging\GifBuilder;
 use TYPO3\CMS\Install\FolderStructure\DefaultFactory;
 use TYPO3\CMS\Install\FolderStructure\DefaultPermissionsCheck;
 use TYPO3\CMS\Install\Service\LateBootService;
@@ -52,7 +53,7 @@ use TYPO3\CMS\Install\WebserverType;
  */
 class EnvironmentController extends AbstractController
 {
-    private const IMAGE_FILE_EXT = ['gif', 'jpg', 'png', 'tif', 'ai', 'pdf', 'webp'];
+    private const IMAGE_FILE_EXT = ['gif', 'jpg', 'png', 'tif', 'ai', 'pdf', 'webp', 'avif'];
     private const TEST_REFERENCE_PATH = __DIR__ . '/../../Resources/Public/Images/TestReference';
 
     public function __construct(
@@ -325,8 +326,7 @@ class EnvironmentController extends AbstractController
             'imageProcessingPath' => $GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_path'],
             'imageProcessingVersion' => $this->determineImageMagickVersion(),
             'imageProcessingEffects' => $GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_effects'],
-            'imageProcessingGdlibEnabled' => $GLOBALS['TYPO3_CONF_VARS']['GFX']['gdlib'],
-            'imageProcessingGdlibPng' => $GLOBALS['TYPO3_CONF_VARS']['GFX']['gdlib_png'],
+            'imageProcessingGdlibEnabled' => class_exists(\GdImage::class),
             'imageProcessingFileFormats' => $GLOBALS['TYPO3_CONF_VARS']['GFX']['imagefile_ext'],
         ]);
         return new JsonResponse([
@@ -384,6 +384,22 @@ class EnvironmentController extends AbstractController
     }
 
     /**
+     * Convert to jpg from webp
+     */
+    public function imageProcessingReadWebpAction(): ResponseInterface
+    {
+        return $this->convertImageFormatsToJpg('webp');
+    }
+
+    /**
+     * Convert to jpg from avif
+     */
+    public function imageProcessingReadAvifAction(): ResponseInterface
+    {
+        return $this->convertImageFormatsToJpg('avif');
+    }
+
+    /**
      * Convert to jpg from gif
      */
     public function imageProcessingReadGifAction(): ResponseInterface
@@ -436,41 +452,22 @@ class EnvironmentController extends AbstractController
         }
         $imageBasePath = ExtensionManagementUtility::extPath('install') . 'Resources/Public/Images/';
         $inputFile = $imageBasePath . 'TestInput/Test.gif';
-        $imageProcessor = $this->initializeImageProcessor();
-        $imageProcessor->imageMagickConvert_forceFileNameBody = StringUtility::getUniqueId('write-gif');
-        $imResult = $imageProcessor->imageMagickConvert($inputFile, 'gif', '300', '', '', '', [], true);
+        $imageService = $this->initializeGraphicalFunctions();
+        $imageService->imageMagickConvert_forceFileNameBody = StringUtility::getUniqueId('write-gif');
+        $imResult = $imageService->resize($inputFile, 'gif', '300', '', '', [], true);
         $messages = new FlashMessageQueue('install');
-        if ($imResult !== null && is_file($imResult[3])) {
-            if ($GLOBALS['TYPO3_CONF_VARS']['GFX']['gif_compress']) {
-                clearstatcache();
-                $previousSize = GeneralUtility::formatSize((int)filesize($imResult[3]));
-                $methodUsed = GraphicalFunctions::gifCompress($imResult[3], '');
-                clearstatcache();
-                $compressedSize = GeneralUtility::formatSize((int)filesize($imResult[3]));
-                $messages->enqueue(new FlashMessage(
-                    'Method used by compress: ' . $methodUsed . LF
-                    . ' Previous filesize: ' . $previousSize . '. Current filesize:' . $compressedSize,
-                    'Compressed gif',
-                    ContextualFeedbackSeverity::INFO
-                ));
-            } else {
-                $messages->enqueue(new FlashMessage(
-                    '',
-                    'Gif compression not enabled by [GFX][gif_compress]',
-                    ContextualFeedbackSeverity::INFO
-                ));
-            }
+        if ($imResult !== null && $imResult->isFile()) {
             $result = [
                 'status' => $messages,
                 'fileExists' => true,
-                'outputFile' => $imResult[3],
+                'outputFile' => $imResult->getRealPath(),
                 'referenceFile' => self::TEST_REFERENCE_PATH . '/Write-gif.gif',
-                'command' => $imageProcessor->IM_commands,
+                'command' => $imageService->IM_commands,
             ];
         } else {
             $result = [
                 'status' => [$this->imageGenerationFailedMessage()],
-                'command' => $imageProcessor->IM_commands,
+                'command' => $imageService->IM_commands,
             ];
         }
         return $this->getImageTestResponse($result);
@@ -489,20 +486,20 @@ class EnvironmentController extends AbstractController
         }
         $imageBasePath = ExtensionManagementUtility::extPath('install') . 'Resources/Public/Images/';
         $inputFile = $imageBasePath . 'TestInput/Test.png';
-        $imageProcessor = $this->initializeImageProcessor();
-        $imageProcessor->imageMagickConvert_forceFileNameBody = StringUtility::getUniqueId('write-png');
-        $imResult = $imageProcessor->imageMagickConvert($inputFile, 'png', '300', '', '', '', [], true);
-        if ($imResult !== null && is_file($imResult[3])) {
+        $imageService = $this->initializeGraphicalFunctions();
+        $imageService->imageMagickConvert_forceFileNameBody = StringUtility::getUniqueId('write-png');
+        $imResult = $imageService->resize($inputFile, 'png', '300', '', '', [], true);
+        if ($imResult !== null && $imResult->isFile()) {
             $result = [
                 'fileExists' => true,
-                'outputFile' => $imResult[3],
+                'outputFile' => $imResult->getRealPath(),
                 'referenceFile' => self::TEST_REFERENCE_PATH . '/Write-png.png',
-                'command' => $imageProcessor->IM_commands,
+                'command' => $imageService->IM_commands,
             ];
         } else {
             $result = [
                 'status' => [$this->imageGenerationFailedMessage()],
-                'command' => $imageProcessor->IM_commands,
+                'command' => $imageService->IM_commands,
             ];
         }
         return $this->getImageTestResponse($result);
@@ -520,20 +517,52 @@ class EnvironmentController extends AbstractController
         }
         $imageBasePath = ExtensionManagementUtility::extPath('install') . 'Resources/Public/Images/';
         $inputFile = $imageBasePath . 'TestInput/Test.webp';
-        $imageProcessor = $this->initializeImageProcessor();
-        $imageProcessor->imageMagickConvert_forceFileNameBody = StringUtility::getUniqueId('write-webp');
-        $imResult = $imageProcessor->imageMagickConvert($inputFile, 'webp', '300', '', '', '', [], true);
-        if ($imResult !== null && is_file($imResult[3])) {
+        $imageService = $this->initializeGraphicalFunctions();
+        $imageService->imageMagickConvert_forceFileNameBody = StringUtility::getUniqueId('write-webp');
+        $imResult = $imageService->resize($inputFile, 'webp', '300', '', '', [], true);
+        if ($imResult !== null && $imResult->isFile()) {
             $result = [
                 'fileExists' => true,
-                'outputFile' => $imResult[3],
+                'outputFile' => $imResult->getRealPath(),
                 'referenceFile' => self::TEST_REFERENCE_PATH . '/Write-webp.webp',
-                'command' => $imageProcessor->IM_commands,
+                'command' => $imageService->IM_commands,
             ];
         } else {
             $result = [
                 'status' => [$this->imageGenerationFailedMessage()],
-                'command' => $imageProcessor->IM_commands,
+                'command' => $imageService->IM_commands,
+            ];
+        }
+        return $this->getImageTestResponse($result);
+    }
+
+    /**
+     * Writing avif test
+     */
+    public function imageProcessingWriteAvifAction(): ResponseInterface
+    {
+        if (!$this->isImageMagickEnabledAndConfigured()) {
+            return new JsonResponse([
+                'success' => true,
+                'status' => [$this->imageMagickDisabledMessage()],
+            ]);
+        }
+        $imageBasePath = ExtensionManagementUtility::extPath('install') . 'Resources/Public/Images/';
+        $inputFile = $imageBasePath . 'TestInput/Test.avif';
+        $imageService = $this->initializeGraphicalFunctions();
+        $imageService->imageMagickConvert_forceFileNameBody = StringUtility::getUniqueId('write-avif');
+        $imResult = $imageService->resize($inputFile, 'avif', '300', '', '', [], true);
+        if ($imResult !== null && $imResult->isFile()) {
+            $result = [
+                'fileExists' => true,
+                'outputFile' => $imResult->getRealPath(),
+                'referenceFile' => self::TEST_REFERENCE_PATH . '/Write-avif.avif',
+                'command' => $imageService->IM_commands,
+            ];
+        } else {
+            $result = [
+                'status' => [$this->avifImageGenerationFailedMessage()],
+                'command' => $imageService->IM_commands,
             ];
         }
         return $this->getImageTestResponse($result);
@@ -551,21 +580,21 @@ class EnvironmentController extends AbstractController
             ]);
         }
         $imageBasePath = ExtensionManagementUtility::extPath('install') . 'Resources/Public/Images/';
-        $imageProcessor = $this->initializeImageProcessor();
+        $imageService = $this->initializeGraphicalFunctions();
         $inputFile = $imageBasePath . 'TestInput/Transparent.gif';
-        $imageProcessor->imageMagickConvert_forceFileNameBody = StringUtility::getUniqueId('scale-gif');
-        $imResult = $imageProcessor->imageMagickConvert($inputFile, 'gif', '300', '', '', '', [], true);
-        if ($imResult !== null && file_exists($imResult[3])) {
+        $imageService->imageMagickConvert_forceFileNameBody = StringUtility::getUniqueId('scale-gif');
+        $imResult = $imageService->resize($inputFile, 'gif', '300', '', '', [], true);
+        if ($imResult !== null && $imResult->isFile()) {
             $result = [
                 'fileExists' => true,
-                'outputFile' => $imResult[3],
+                'outputFile' => $imResult->getRealPath(),
                 'referenceFile' => self::TEST_REFERENCE_PATH . '/Scale-gif.gif',
-                'command' => $imageProcessor->IM_commands,
+                'command' => $imageService->IM_commands,
             ];
         } else {
             $result = [
                 'status' => [$this->imageGenerationFailedMessage()],
-                'command' => $imageProcessor->IM_commands,
+                'command' => $imageService->IM_commands,
             ];
         }
         return $this->getImageTestResponse($result);
@@ -583,21 +612,21 @@ class EnvironmentController extends AbstractController
             ]);
         }
         $imageBasePath = ExtensionManagementUtility::extPath('install') . 'Resources/Public/Images/';
-        $imageProcessor = $this->initializeImageProcessor();
+        $imageService = $this->initializeGraphicalFunctions();
         $inputFile = $imageBasePath . 'TestInput/Transparent.png';
-        $imageProcessor->imageMagickConvert_forceFileNameBody = StringUtility::getUniqueId('scale-png');
-        $imResult = $imageProcessor->imageMagickConvert($inputFile, 'png', '300', '', '', '', [], true);
-        if ($imResult !== null && file_exists($imResult[3])) {
+        $imageService->imageMagickConvert_forceFileNameBody = StringUtility::getUniqueId('scale-png');
+        $imResult = $imageService->resize($inputFile, 'png', '300', '', '', [], true);
+        if ($imResult !== null && $imResult->isFile()) {
             $result = [
                 'fileExists' => true,
-                'outputFile' => $imResult[3],
+                'outputFile' => $imResult->getRealPath(),
                 'referenceFile' => self::TEST_REFERENCE_PATH . '/Scale-png.png',
-                'command' => $imageProcessor->IM_commands,
+                'command' => $imageService->IM_commands,
             ];
         } else {
             $result = [
                 'status' => [$this->imageGenerationFailedMessage()],
-                'command' => $imageProcessor->IM_commands,
+                'command' => $imageService->IM_commands,
             ];
         }
         return $this->getImageTestResponse($result);
@@ -615,22 +644,21 @@ class EnvironmentController extends AbstractController
             ]);
         }
         $imageBasePath = ExtensionManagementUtility::extPath('install') . 'Resources/Public/Images/';
-        $imageProcessor = $this->initializeImageProcessor();
+        $imageService = $this->initializeGraphicalFunctions();
         $inputFile = $imageBasePath . 'TestInput/Transparent.gif';
-        $imageProcessor->imageMagickConvert_forceFileNameBody = StringUtility::getUniqueId('scale-jpg');
-        $jpegQuality = MathUtility::forceIntegerInRange($GLOBALS['TYPO3_CONF_VARS']['GFX']['jpg_quality'], 10, 100, 85);
-        $imResult = $imageProcessor->imageMagickConvert($inputFile, 'jpg', '300', '', '-quality ' . $jpegQuality . ' -opaque white -background white -flatten', '', [], true);
-        if ($imResult !== null && file_exists($imResult[3])) {
+        $imageService->imageMagickConvert_forceFileNameBody = StringUtility::getUniqueId('scale-jpg');
+        $imResult = $imageService->resize($inputFile, 'jpg', '300', '', '-opaque white -background white -flatten', [], true);
+        if ($imResult !== null && $imResult->isFile()) {
             $result = [
                 'fileExists' => true,
-                'outputFile' => $imResult[3],
+                'outputFile' => $imResult->getRealPath(),
                 'referenceFile' => self::TEST_REFERENCE_PATH . '/Scale-jpg.jpg',
-                'command' => $imageProcessor->IM_commands,
+                'command' => $imageService->IM_commands,
             ];
         } else {
             $result = [
                 'status' => [$this->imageGenerationFailedMessage()],
-                'command' => $imageProcessor->IM_commands,
+                'command' => $imageService->IM_commands,
             ];
         }
         return $this->getImageTestResponse($result);
@@ -648,21 +676,117 @@ class EnvironmentController extends AbstractController
             ]);
         }
         $imageBasePath = ExtensionManagementUtility::extPath('install') . 'Resources/Public/Images/';
-        $imageProcessor = $this->initializeImageProcessor();
+        $imageService = $this->initializeGraphicalFunctions();
         $inputFile = $imageBasePath . 'TestInput/Test.jpg';
-        $imageProcessor->imageMagickConvert_forceFileNameBody = StringUtility::getUniqueId('read-webp');
-        $imResult = $imageProcessor->imageMagickConvert($inputFile, 'webp', '300', '', '', '', [], true);
+        $imageService->imageMagickConvert_forceFileNameBody = StringUtility::getUniqueId('read-webp');
+        $imResult = $imageService->resize($inputFile, 'webp', '300', '', '', [], true);
         if ($imResult !== null) {
             $result = [
-                'fileExists' => file_exists($imResult[3]),
-                'outputFile' => $imResult[3],
+                'fileExists' => $imResult->isFile(),
+                'outputFile' => $imResult->getRealPath(),
                 'referenceFile' => self::TEST_REFERENCE_PATH . '/Convert-webp.webp',
-                'command' => $imageProcessor->IM_commands,
+                'command' => $imageService->IM_commands,
             ];
         } else {
             $result = [
                 'status' => [$this->imageGenerationFailedMessage()],
-                'command' => $imageProcessor->IM_commands,
+                'command' => $imageService->IM_commands,
+            ];
+        }
+        return $this->getImageTestResponse($result);
+    }
+
+    /**
+     * Converting jpg to avif
+     */
+    public function imageProcessingJpgToAvifAction(): ResponseInterface
+    {
+        if (!$this->isImageMagickEnabledAndConfigured()) {
+            return new JsonResponse([
+                'success' => true,
+                'status' => [$this->imageMagickDisabledMessage()],
+            ]);
+        }
+        $imageBasePath = ExtensionManagementUtility::extPath('install') . 'Resources/Public/Images/';
+        $imageService = $this->initializeGraphicalFunctions();
+        $inputFile = $imageBasePath . 'TestInput/Test.jpg';
+        $imageService->imageMagickConvert_forceFileNameBody = StringUtility::getUniqueId('read-avif');
+        $imResult = $imageService->resize($inputFile, 'avif', '300', '', '', [], true);
+        if ($imResult !== null) {
+            $result = [
+                'fileExists' => $imResult->isFile(),
+                'outputFile' => $imResult->getRealPath(),
+                'referenceFile' => self::TEST_REFERENCE_PATH . '/Convert-avif.avif',
+                'command' => $imageService->IM_commands,
+            ];
+        } else {
+            $result = [
+                'status' => [$this->avifImageGenerationFailedMessage()],
+                'command' => $imageService->IM_commands,
+            ];
+        }
+        return $this->getImageTestResponse($result);
+    }
+
+    /**
+     * Converting png to webp
+     */
+    public function imageProcessingPngToWebpAction(): ResponseInterface
+    {
+        if (!$this->isImageMagickEnabledAndConfigured()) {
+            return new JsonResponse([
+                'success' => true,
+                'status' => [$this->imageMagickDisabledMessage()],
+            ]);
+        }
+        $imageBasePath = ExtensionManagementUtility::extPath('install') . 'Resources/Public/Images/';
+        $imageService = $this->initializeGraphicalFunctions();
+        $inputFile = $imageBasePath . 'TestInput/Transparent.png';
+        $imageService->imageMagickConvert_forceFileNameBody = StringUtility::getUniqueId('read-webp');
+        $imResult = $imageService->resize($inputFile, 'webp', '300', '', '', [], true);
+        if ($imResult !== null) {
+            $result = [
+                'fileExists' => $imResult->isFile(),
+                'outputFile' => $imResult->getRealPath(),
+                'referenceFile' => self::TEST_REFERENCE_PATH . '/Convert-webp-transparent.webp',
+                'command' => $imageService->IM_commands,
+            ];
+        } else {
+            $result = [
+                'status' => [$this->imageGenerationFailedMessage()],
+                'command' => $imageService->IM_commands,
+            ];
+        }
+        return $this->getImageTestResponse($result);
+    }
+
+    /**
+     * Converting png to avif
+     */
+    public function imageProcessingPngToAvifAction(): ResponseInterface
+    {
+        if (!$this->isImageMagickEnabledAndConfigured()) {
+            return new JsonResponse([
+                'success' => true,
+                'status' => [$this->imageMagickDisabledMessage()],
+            ]);
+        }
+        $imageBasePath = ExtensionManagementUtility::extPath('install') . 'Resources/Public/Images/';
+        $imageService = $this->initializeGraphicalFunctions();
+        $inputFile = $imageBasePath . 'TestInput/Transparent.png';
+        $imageService->imageMagickConvert_forceFileNameBody = StringUtility::getUniqueId('read-avif');
+        $imResult = $imageService->resize($inputFile, 'avif', '300', '', '', [], true);
+        if ($imResult !== null) {
+            $result = [
+                'fileExists' => $imResult->isFile(),
+                'outputFile' => $imResult->getRealPath(),
+                'referenceFile' => self::TEST_REFERENCE_PATH . '/Convert-avif-transparent.avif',
+                'command' => $imageService->IM_commands,
+            ];
+        } else {
+            $result = [
+                'status' => [$this->avifImageGenerationFailedMessage()],
+                'command' => $imageService->IM_commands,
             ];
         }
         return $this->getImageTestResponse($result);
@@ -680,25 +804,24 @@ class EnvironmentController extends AbstractController
             ]);
         }
         $imageBasePath = ExtensionManagementUtility::extPath('install') . 'Resources/Public/Images/';
-        $imageProcessor = $this->initializeImageProcessor();
+        $imageService = $this->initializeGraphicalFunctions();
         $inputFile = $imageBasePath . 'TestInput/BackgroundOrange.gif';
         $overlayFile = $imageBasePath . 'TestInput/Test.jpg';
         $maskFile = $imageBasePath . 'TestInput/MaskBlackWhite.gif';
-        $resultFile = $this->getImagesPath() . $imageProcessor->filenamePrefix
-            . StringUtility::getUniqueId($imageProcessor->alternativeOutputKey . 'combine1') . '.jpg';
-        $imageProcessor->combineExec($inputFile, $overlayFile, $maskFile, $resultFile);
-        $imResult = $imageProcessor->getImageDimensions($resultFile);
-        if ($imResult) {
+        $resultFile = $this->getImagesPath() . 'installTool-' . StringUtility::getUniqueId($imageService->alternativeOutputKey . 'combine1') . '.jpg';
+        $imageService->combineExec($inputFile, $overlayFile, $maskFile, $resultFile);
+        $imageInfo = GeneralUtility::makeInstance(ImageInfo::class, $resultFile);
+        if ($imageInfo->getWidth() > 0) {
             $result = [
                 'fileExists' => true,
-                'outputFile' => $imResult[3],
+                'outputFile' => $resultFile,
                 'referenceFile' => self::TEST_REFERENCE_PATH . '/Combine-1.jpg',
-                'command' => $imageProcessor->IM_commands,
+                'command' => $imageService->IM_commands,
             ];
         } else {
             $result = [
                 'status' => [$this->imageGenerationFailedMessage()],
-                'command' => $imageProcessor->IM_commands,
+                'command' => $imageService->IM_commands,
             ];
         }
         return $this->getImageTestResponse($result);
@@ -716,25 +839,24 @@ class EnvironmentController extends AbstractController
             ]);
         }
         $imageBasePath = ExtensionManagementUtility::extPath('install') . 'Resources/Public/Images/';
-        $imageProcessor = $this->initializeImageProcessor();
+        $imageService = $this->initializeGraphicalFunctions();
         $inputFile = $imageBasePath . 'TestInput/BackgroundCombine.jpg';
         $overlayFile = $imageBasePath . 'TestInput/Test.jpg';
         $maskFile = $imageBasePath . 'TestInput/MaskCombine.jpg';
-        $resultFile = $this->getImagesPath() . $imageProcessor->filenamePrefix
-            . StringUtility::getUniqueId($imageProcessor->alternativeOutputKey . 'combine2') . '.jpg';
-        $imageProcessor->combineExec($inputFile, $overlayFile, $maskFile, $resultFile);
-        $imResult = $imageProcessor->getImageDimensions($resultFile);
-        if ($imResult) {
+        $resultFile = $this->getImagesPath() . 'installTool-' . StringUtility::getUniqueId($imageService->alternativeOutputKey . 'combine2') . '.jpg';
+        $imageService->combineExec($inputFile, $overlayFile, $maskFile, $resultFile);
+        $imageInfo = GeneralUtility::makeInstance(ImageInfo::class, $resultFile);
+        if ($imageInfo->getWidth() > 0) {
             $result = [
                 'fileExists' => true,
-                'outputFile' => $imResult[3],
+                'outputFile' => $resultFile,
                 'referenceFile' => self::TEST_REFERENCE_PATH . '/Combine-2.jpg',
-                'command' => $imageProcessor->IM_commands,
+                'command' => $imageService->IM_commands,
             ];
         } else {
             $result = [
                 'status' => [$this->imageGenerationFailedMessage()],
-                'command' => $imageProcessor->IM_commands,
+                'command' => $imageService->IM_commands,
             ];
         }
         return $this->getImageTestResponse($result);
@@ -745,8 +867,7 @@ class EnvironmentController extends AbstractController
      */
     public function imageProcessingGdlibSimpleAction(): ResponseInterface
     {
-        $imageProcessor = $this->initializeImageProcessor();
-        $gifOrPng = $imageProcessor->gifExtension;
+        $gifBuilder = $this->initializeGifBuilder();
         $image = imagecreatetruecolor(300, 225);
         $backgroundColor = imagecolorallocate($image, 0, 0, 0);
         imagefilledrectangle($image, 0, 0, 300, 225, $backgroundColor);
@@ -755,15 +876,14 @@ class EnvironmentController extends AbstractController
             'dimensions' => '10,50,280,50',
             'color' => 'olive',
         ];
-        $imageProcessor->makeBox($image, $conf, $workArea);
-        $outputFile = $this->getImagesPath() . $imageProcessor->filenamePrefix . StringUtility::getUniqueId('gdSimple') . '.' . $gifOrPng;
-        $imageProcessor->ImageWrite($image, $outputFile);
-        $imResult = $imageProcessor->getImageDimensions($outputFile);
+        $gifBuilder->makeBox($image, $conf, $workArea);
+        $outputFile = $this->getImagesPath() . 'installTool-' . StringUtility::getUniqueId('gdSimple') . '.png';
+        $gifBuilder->ImageWrite($image, $outputFile);
         $result = [
             'fileExists' => true,
-            'outputFile' => $imResult[3],
-            'referenceFile' => self::TEST_REFERENCE_PATH . '/Gdlib-simple.' . $gifOrPng,
-            'command' => $imageProcessor->IM_commands,
+            'outputFile' => $outputFile,
+            'referenceFile' => self::TEST_REFERENCE_PATH . '/Gdlib-simple.png',
+            'command' => $gifBuilder->getGraphicalFunctions()->IM_commands,
         ];
         return $this->getImageTestResponse($result);
     }
@@ -773,26 +893,83 @@ class EnvironmentController extends AbstractController
      */
     public function imageProcessingGdlibFromFileAction(): ResponseInterface
     {
-        $imageProcessor = $this->initializeImageProcessor();
-        $gifOrPng = $imageProcessor->gifExtension;
+        $gifBuilder = $this->initializeGifBuilder();
         $imageBasePath = ExtensionManagementUtility::extPath('install') . 'Resources/Public/Images/';
-        $inputFile = $imageBasePath . 'TestInput/Test.' . $gifOrPng;
-        $image = $imageProcessor->imageCreateFromFile($inputFile);
+        $inputFile = $imageBasePath . 'TestInput/Test.png';
+        $image = $gifBuilder->imageCreateFromFile($inputFile);
         $workArea = [0, 0, 400, 300];
         $conf = [
             'dimensions' => '10,50,380,50',
             'color' => 'olive',
         ];
-        $imageProcessor->makeBox($image, $conf, $workArea);
-        $outputFile = $this->getImagesPath() . $imageProcessor->filenamePrefix . StringUtility::getUniqueId('gdBox') . '.' . $gifOrPng;
-        $imageProcessor->ImageWrite($image, $outputFile);
-        $imResult = $imageProcessor->getImageDimensions($outputFile);
+        $gifBuilder->makeBox($image, $conf, $workArea);
+        $outputFile = $this->getImagesPath() . 'installTool-' . StringUtility::getUniqueId('gdBox') . '.png';
+        $gifBuilder->ImageWrite($image, $outputFile);
         $result = [
             'fileExists' => true,
-            'outputFile' => $imResult[3],
-            'referenceFile' => self::TEST_REFERENCE_PATH . '/Gdlib-box.' . $gifOrPng,
-            'command' => $imageProcessor->IM_commands,
+            'outputFile' => $outputFile,
+            'referenceFile' => self::TEST_REFERENCE_PATH . '/Gdlib-box.png',
+            'command' => $gifBuilder->getGraphicalFunctions()->IM_commands,
         ];
+        return $this->getImageTestResponse($result);
+    }
+
+    /**
+     * GD from image with box exported as webp file
+     */
+    public function imageProcessingGdlibFromFileToWebpAction(): ResponseInterface
+    {
+        $gifBuilder = $this->initializeGifBuilder();
+        $imageBasePath = ExtensionManagementUtility::extPath('install') . 'Resources/Public/Images/';
+        $inputFile = $imageBasePath . 'TestInput/Test.webp';
+        $image = $gifBuilder->imageCreateFromFile($inputFile);
+        $workArea = [0, 0, 400, 300];
+        $conf = [
+            'dimensions' => '20,100,740,100',
+            'color' => 'olive',
+        ];
+        $gifBuilder->makeBox($image, $conf, $workArea);
+        $outputFile = $this->getImagesPath() . 'installTool-' . StringUtility::getUniqueId('gdBox') . '.webp';
+        $gifBuilder->ImageWrite($image, $outputFile);
+        $result = [
+            'fileExists' => true,
+            'outputFile' => $outputFile,
+            'referenceFile' => self::TEST_REFERENCE_PATH . '/Gdlib-box.webp',
+            'command' => $gifBuilder->getGraphicalFunctions()->IM_commands,
+        ];
+        return $this->getImageTestResponse($result);
+    }
+
+    /**
+     * GD from image with box exported as AVIF file
+     */
+    public function imageProcessingGdlibFromFileToAvifAction(): ResponseInterface
+    {
+        $gifBuilder = $this->initializeGifBuilder();
+        $imageBasePath = ExtensionManagementUtility::extPath('install') . 'Resources/Public/Images/';
+        $inputFile = $imageBasePath . 'TestInput/Test.avif';
+        $image = $gifBuilder->imageCreateFromFile($inputFile);
+        $workArea = [0, 0, 400, 300];
+        $conf = [
+            'dimensions' => '10,50,380,50',
+            'color' => 'olive',
+        ];
+        $gifBuilder->makeBox($image, $conf, $workArea);
+        $outputFile = $this->getImagesPath() . 'installTool-' . StringUtility::getUniqueId('gdBox') . '.avif';
+        $success = $gifBuilder->ImageWrite($image, $outputFile);
+        if ($success) {
+            $result = [
+                'fileExists' => true,
+                'outputFile' => $outputFile,
+                'referenceFile' => self::TEST_REFERENCE_PATH . '/Gdlib-box.avif',
+                'command' => $gifBuilder->getGraphicalFunctions()->IM_commands,
+            ];
+        } else {
+            $result = [
+                'status' => [$this->avifImageGenerationFailedMessage()],
+                'command' => $gifBuilder->getGraphicalFunctions()->IM_commands,
+            ];
+        }
         return $this->getImageTestResponse($result);
     }
 
@@ -801,8 +978,7 @@ class EnvironmentController extends AbstractController
      */
     public function imageProcessingGdlibRenderTextAction(): ResponseInterface
     {
-        $imageProcessor = $this->initializeImageProcessor();
-        $gifOrPng = $imageProcessor->gifExtension;
+        $gifBuilder = $this->initializeGifBuilder();
         $image = imagecreatetruecolor(300, 225);
         $backgroundColor = imagecolorallocate($image, 128, 128, 150);
         imagefilledrectangle($image, 0, 0, 300, 225, $backgroundColor);
@@ -817,16 +993,15 @@ class EnvironmentController extends AbstractController
             'fontFile' => ExtensionManagementUtility::extPath('install') . 'Resources/Private/Font/vera.ttf',
             'offset' => '30,80',
         ];
-        $conf['BBOX'] = $imageProcessor->calcBBox($conf);
-        $imageProcessor->makeText($image, $conf, $workArea);
-        $outputFile = $this->getImagesPath() . $imageProcessor->filenamePrefix . StringUtility::getUniqueId('gdText') . '.' . $gifOrPng;
-        $imageProcessor->ImageWrite($image, $outputFile);
-        $imResult = $imageProcessor->getImageDimensions($outputFile);
+        $conf['BBOX'] = $gifBuilder->calcBBox($conf);
+        $gifBuilder->makeText($image, $conf, $workArea);
+        $outputFile = $this->getImagesPath() . 'installTool-' . StringUtility::getUniqueId('gdText') . '.png';
+        $gifBuilder->ImageWrite($image, $outputFile);
         $result = [
             'fileExists' => true,
-            'outputFile' => $imResult[3],
-            'referenceFile' => self::TEST_REFERENCE_PATH . '/Gdlib-text.' . $gifOrPng,
-            'command' => $imageProcessor->IM_commands,
+            'outputFile' => $outputFile,
+            'referenceFile' => self::TEST_REFERENCE_PATH . '/Gdlib-text.png',
+            'command' => $gifBuilder->getGraphicalFunctions()->IM_commands,
         ];
         return $this->getImageTestResponse($result);
     }
@@ -842,8 +1017,7 @@ class EnvironmentController extends AbstractController
                 'status' => [$this->imageMagickDisabledMessage()],
             ]);
         }
-        $imageProcessor = $this->initializeImageProcessor();
-        $gifOrPng = $imageProcessor->gifExtension;
+        $gifBuilder = $this->initializeGifBuilder();
         $image = imagecreatetruecolor(300, 225);
         $backgroundColor = imagecolorallocate($image, 128, 128, 150);
         imagefilledrectangle($image, 0, 0, 300, 225, $backgroundColor);
@@ -858,21 +1032,20 @@ class EnvironmentController extends AbstractController
             'fontFile' => ExtensionManagementUtility::extPath('install') . 'Resources/Private/Font/vera.ttf',
             'offset' => '30,80',
         ];
-        $conf['BBOX'] = $imageProcessor->calcBBox($conf);
-        $imageProcessor->makeText($image, $conf, $workArea);
-        $outputFile = $this->getImagesPath() . $imageProcessor->filenamePrefix . StringUtility::getUniqueId('gdText') . '.' . $gifOrPng;
-        $imageProcessor->ImageWrite($image, $outputFile);
+        $conf['BBOX'] = $gifBuilder->calcBBox($conf);
+        $gifBuilder->makeText($image, $conf, $workArea);
+        $outputFile = $this->getImagesPath() . 'installTool-' . StringUtility::getUniqueId('gdText') . '.png';
+        $gifBuilder->ImageWrite($image, $outputFile);
         $conf['offset'] = '30,120';
         $conf['niceText'] = 1;
-        $imageProcessor->makeText($image, $conf, $workArea);
-        $outputFile = $this->getImagesPath() . $imageProcessor->filenamePrefix . StringUtility::getUniqueId('gdNiceText') . '.' . $gifOrPng;
-        $imageProcessor->ImageWrite($image, $outputFile);
-        $imResult = $imageProcessor->getImageDimensions($outputFile);
+        $gifBuilder->makeText($image, $conf, $workArea);
+        $outputFile = $this->getImagesPath() . 'installTool-' . StringUtility::getUniqueId('gdNiceText') . '.png';
+        $gifBuilder->ImageWrite($image, $outputFile);
         $result = [
             'fileExists' => true,
-            'outputFile' => $imResult[3],
-            'referenceFile' => self::TEST_REFERENCE_PATH . '/Gdlib-niceText.' . $gifOrPng,
-            'command' => $imageProcessor->IM_commands,
+            'outputFile' => $outputFile,
+            'referenceFile' => self::TEST_REFERENCE_PATH . '/Gdlib-niceText.png',
+            'command' => $gifBuilder->getGraphicalFunctions()->IM_commands,
         ];
         return $this->getImageTestResponse($result);
     }
@@ -888,8 +1061,7 @@ class EnvironmentController extends AbstractController
                 'status' => [$this->imageMagickDisabledMessage()],
             ]);
         }
-        $imageProcessor = $this->initializeImageProcessor();
-        $gifOrPng = $imageProcessor->gifExtension;
+        $gifBuilder = $this->initializeGifBuilder();
         $image = imagecreatetruecolor(300, 225);
         $backgroundColor = imagecolorallocate($image, 128, 128, 150);
         imagefilledrectangle($image, 0, 0, 300, 225, $backgroundColor);
@@ -904,15 +1076,15 @@ class EnvironmentController extends AbstractController
             'fontFile' => ExtensionManagementUtility::extPath('install') . 'Resources/Private/Font/vera.ttf',
             'offset' => '30,80',
         ];
-        $conf['BBOX'] = $imageProcessor->calcBBox($conf);
-        $imageProcessor->makeText($image, $conf, $workArea);
-        $outputFile = $this->getImagesPath() . $imageProcessor->filenamePrefix . StringUtility::getUniqueId('gdText') . '.' . $gifOrPng;
-        $imageProcessor->ImageWrite($image, $outputFile);
+        $conf['BBOX'] = $gifBuilder->calcBBox($conf);
+        $gifBuilder->makeText($image, $conf, $workArea);
+        $outputFile = $this->getImagesPath() . 'installTool-' . StringUtility::getUniqueId('gdText') . '.png';
+        $gifBuilder->ImageWrite($image, $outputFile);
         $conf['offset'] = '30,120';
         $conf['niceText'] = 1;
-        $imageProcessor->makeText($image, $conf, $workArea);
-        $outputFile = $this->getImagesPath() . $imageProcessor->filenamePrefix . StringUtility::getUniqueId('gdNiceText') . '.' . $gifOrPng;
-        $imageProcessor->ImageWrite($image, $outputFile);
+        $gifBuilder->makeText($image, $conf, $workArea);
+        $outputFile = $this->getImagesPath() . 'installTool-' . StringUtility::getUniqueId('gdNiceText') . '.png';
+        $gifBuilder->ImageWrite($image, $outputFile);
         $conf['offset'] = '30,160';
         $conf['niceText'] = 1;
         $conf['shadow.'] = [
@@ -922,34 +1094,38 @@ class EnvironmentController extends AbstractController
             'color' => 'black',
         ];
         // Warning: Re-uses $image from above!
-        $imageProcessor->makeShadow($image, $conf['shadow.'], $workArea, $conf);
-        $imageProcessor->makeText($image, $conf, $workArea);
-        $outputFile = $this->getImagesPath() . $imageProcessor->filenamePrefix . StringUtility::getUniqueId('GDwithText-niceText-shadow') . '.' . $gifOrPng;
-        $imageProcessor->ImageWrite($image, $outputFile);
-        $imResult = $imageProcessor->getImageDimensions($outputFile);
+        $gifBuilder->makeShadow($image, $conf['shadow.'], $workArea, $conf);
+        $gifBuilder->makeText($image, $conf, $workArea);
+        $outputFile = $this->getImagesPath() . 'installTool-' . StringUtility::getUniqueId('GDwithText-niceText-shadow') . '.png';
+        $gifBuilder->ImageWrite($image, $outputFile);
         $result = [
             'fileExists' => true,
-            'outputFile' => $imResult[3],
-            'referenceFile' => self::TEST_REFERENCE_PATH . '/Gdlib-shadow.' . $gifOrPng,
-            'command' => $imageProcessor->IM_commands,
+            'outputFile' => $outputFile,
+            'referenceFile' => self::TEST_REFERENCE_PATH . '/Gdlib-shadow.png',
+            'command' => $gifBuilder->getGraphicalFunctions()->IM_commands,
         ];
         return $this->getImageTestResponse($result);
     }
 
     /**
-     * Initialize image processor
-     *
-     * @return GraphicalFunctions Initialized image processor
+     * Initialize GifBuilder for image manipulation tests
      */
-    protected function initializeImageProcessor(): GraphicalFunctions
+    protected function initializeGifBuilder(): GifBuilder
     {
-        $imageProcessor = GeneralUtility::makeInstance(GraphicalFunctions::class);
-        $imageProcessor->dontCheckForExistingTempFile = true;
-        $imageProcessor->filenamePrefix = 'installTool-';
-        $imageProcessor->dontCompress = true;
-        $imageProcessor->alternativeOutputKey = 'typo3InstallTest';
-        $imageProcessor->setImageFileExt(self::IMAGE_FILE_EXT);
-        return $imageProcessor;
+        return GeneralUtility::makeInstance(GifBuilder::class);
+    }
+
+    /**
+     * Initialize GraphicalFunctions for image manipulation tests
+     */
+    protected function initializeGraphicalFunctions(): GraphicalFunctions
+    {
+        $imageService = GeneralUtility::makeInstance(GraphicalFunctions::class);
+        $imageService->dontCheckForExistingTempFile = true;
+        $imageService->filenamePrefix = 'installTool-';
+        $imageService->alternativeOutputKey = 'typo3InstallTest';
+        $imageService->setImageFileExt(self::IMAGE_FILE_EXT);
+        return $imageService;
     }
 
     /**
@@ -995,21 +1171,21 @@ class EnvironmentController extends AbstractController
             ]);
         }
         $imageBasePath = ExtensionManagementUtility::extPath('install') . 'Resources/Public/Images/';
-        $imageProcessor = $this->initializeImageProcessor();
+        $imageService = $this->initializeGraphicalFunctions();
         $inputFile = $imageBasePath . 'TestInput/Test.' . $inputFormat;
-        $imageProcessor->imageMagickConvert_forceFileNameBody = StringUtility::getUniqueId('read') . '-' . $inputFormat;
-        $imResult = $imageProcessor->imageMagickConvert($inputFile, 'jpg', '300', '', '', '', [], true);
+        $imageService->imageMagickConvert_forceFileNameBody = StringUtility::getUniqueId('read') . '-' . $inputFormat;
+        $imResult = $imageService->resize($inputFile, 'jpg', '300', '', '', [], true);
         if ($imResult !== null) {
             $result = [
-                'fileExists' => file_exists($imResult[3]),
-                'outputFile' => $imResult[3],
+                'fileExists' => $imResult->isFile(),
+                'outputFile' => $imResult->getRealPath(),
                 'referenceFile' => self::TEST_REFERENCE_PATH . '/Read-' . $inputFormat . '.jpg',
-                'command' => $imageProcessor->IM_commands,
+                'command' => $imageService->IM_commands,
             ];
         } else {
             $result = [
                 'status' => [$this->imageGenerationFailedMessage()],
-                'command' => $imageProcessor->IM_commands,
+                'command' => $imageService->IM_commands,
             ];
         }
         return $this->getImageTestResponse($result);
@@ -1027,7 +1203,7 @@ class EnvironmentController extends AbstractController
             $connectionParameters = $connection->getParams();
             $connectionInfo = [
                 'connectionName' => $connectionName,
-                'version' => $connection->getServerVersion(),
+                'version' => $connection->getPlatformServerVersion(),
                 'databaseName' => $connection->getDatabase(),
                 'username' => $connectionParameters['user'] ?? '',
                 'host' => $connectionParameters['host'] ?? '',
@@ -1056,11 +1232,11 @@ class EnvironmentController extends AbstractController
     protected function getApplicationContextInformation(): array
     {
         $applicationContext = Environment::getContext();
-        $status = $applicationContext->isProduction() ? InformationStatus::STATUS_OK : InformationStatus::STATUS_WARNING;
+        $status = $applicationContext->isProduction() ? InformationStatus::OK : InformationStatus::WARNING;
 
         return [
             'context' => (string)$applicationContext,
-            'status' => $status,
+            'status' => $status->value,
         ];
     }
 
@@ -1138,9 +1314,19 @@ class EnvironmentController extends AbstractController
         return new FlashMessage(
             'ImageMagick / GraphicsMagick handling is enabled, but the execute'
             . ' command returned an error. Please check your settings, especially'
-            . ' [\'GFX\'][\'processor_path\'] and ensure Ghostscript is installed on your server.',
+            . ' [\'GFX\'][\'processor_path\'] and ensure Ghostscript is installed on your server.'
+            . ' Also ensure that possible codecs needed for specific image/video formats are available on your system.',
             'Image generation failed',
             ContextualFeedbackSeverity::ERROR
+        );
+    }
+
+    protected function avifImageGenerationFailedMessage(): FlashMessage
+    {
+        return new FlashMessage(
+            'Writing AVIF format failed. Please check whether ImageMagick / GraphicsMagick and your system provides and utilizes the necessary codec libraries for writing.',
+            'Skipped test',
+            ContextualFeedbackSeverity::INFO
         );
     }
 

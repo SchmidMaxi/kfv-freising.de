@@ -1,0 +1,28 @@
+<footer class="bg-body-secondary py-3 mt-5">
+    <div class="container">
+        <div class="row">
+
+        </div>
+        <hr>
+        <div class="row justify-content-between">
+            <div id="meta" class="col-12 col-lg-auto order-lg-2">
+                <ul class="nav justify-content-center">
+                    <f:for each="{meta}" as="navItem" iteration="i">
+                        <li class="nav-item">
+                            <a
+                                href="{navItem.link}"
+                                class="nav-link{f:if(condition:i.isLast, then:' pe-lg-0')}{f:if(condition:navItem.active, then:' active')}"
+                                {f:if(condition: navItem.current, then: ' aria-current="page"')}
+                            >
+                            {navItem.title}
+                            </a>
+                        </li>
+                    </f:for>
+                </ul>
+            </div>
+            <div class="col-12 col-lg-auto py-2 order-lg-1 text-center">
+                <f:cObject typoscriptObjectPath="lib.copyright" />
+            </div>
+        </div>
+    </div>
+</footer>

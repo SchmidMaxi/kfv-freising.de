@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Install\Service\Session;
 
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Security\BlockSerializationTrait;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Install\Service\Exception;
@@ -41,8 +42,11 @@ class FileSessionHandler implements \SessionHandlerInterface
      */
     private int $expirationTimeInMinutes;
 
-    public function __construct(string $sessionPath, int $expirationTimeInMinutes)
-    {
+    public function __construct(
+        string $sessionPath,
+        int $expirationTimeInMinutes,
+        private readonly HashService $hashService
+    ) {
         $this->sessionPath = rtrim($sessionPath, '/') . '/';
         $this->expirationTimeInMinutes = $expirationTimeInMinutes;
         // Start our PHP session early so that hasSession() works
@@ -63,7 +67,7 @@ class FileSessionHandler implements \SessionHandlerInterface
                 1371243449
             );
         }
-        $sessionSavePath = $this->sessionPath . GeneralUtility::hmac('session:' . $GLOBALS['TYPO3_CONF_VARS']['SYS']['encryptionKey']);
+        $sessionSavePath = $this->sessionPath . $this->hashService->hmac('session:' . $GLOBALS['TYPO3_CONF_VARS']['SYS']['encryptionKey'], self::class);
         $this->ensureSessionSavePathExists($sessionSavePath);
         return $sessionSavePath;
     }
@@ -179,7 +183,7 @@ class FileSessionHandler implements \SessionHandlerInterface
         }
         $deleted = 0;
         foreach ($files as $filename) {
-            if (filemtime($filename) + $this->expirationTimeInMinutes * 60 < time()) {
+            if (@filemtime($filename) + $this->expirationTimeInMinutes * 60 < time()) {
                 @unlink($filename);
                 $deleted++;
             }
@@ -266,11 +270,11 @@ class FileSessionHandler implements \SessionHandlerInterface
 	Require all denied
 </IfModule>
 			';
-            GeneralUtility::writeFile($sessionSavePath . '/.htaccess', $htaccessContent);
+            GeneralUtility::writeFile($sessionSavePath . '/.htaccess', $htaccessContent, true);
             $indexContent = '<!DOCTYPE html>';
             $indexContent .= '<html><head><title></title><meta http-equiv=Refresh Content="0; Url=../../"/>';
             $indexContent .= '</head></html>';
-            GeneralUtility::writeFile($sessionSavePath . '/index.html', $indexContent);
+            GeneralUtility::writeFile($sessionSavePath . '/index.html', $indexContent, true);
         }
     }
 }

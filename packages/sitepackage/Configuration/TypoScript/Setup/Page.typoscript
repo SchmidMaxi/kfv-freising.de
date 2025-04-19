@@ -1,0 +1,133 @@
+##############
+#### PAGE ####
+##############
+page = PAGE
+page {
+    typeNum = 0
+    shortcutIcon = EXT:sitepackage/Resources/Public/Icons/favicon.svg
+
+    10 = PAGEVIEW
+    10 {
+        paths {
+            0 = EXT:sitepackage/Resources/Private/PageView/
+            1 = {$page.pageview.paths}
+        }
+        dataProcessing {
+            10 = files
+            10 {
+                references.fieldName = media
+            }
+            20 = menu
+            20 {
+                special = directory
+                special.value = 2
+                levels = 2
+                includeSpacer = 1
+                as = main
+            }
+            30 = menu
+            30 {
+                special = directory
+                special.value = 3
+                levels = 2
+                includeSpacer = 1
+                as = secondary
+            }
+            40 = menu
+            40 {
+                special = directory
+                special.value = 4
+                levels = 2
+                includeSpacer = 1
+                as = tertiary
+            }
+            50 = menu
+            50 {
+                special = directory
+                special.value = 5
+                levels = 2
+                includeSpacer = 1
+                as = footer
+            }
+            60 = menu
+            60 {
+                special = directory
+                special.value = 6
+                levels = 2
+                includeSpacer = 1
+                as = meta
+            }
+            70 = menu
+            70 {
+                special = directory
+                special.value = 7
+                levels = 2
+                includeSpacer = 1
+                as = social
+                dataProcessing {
+                    10 = files
+                    10 {
+                        references.fieldName = media
+                    }
+                }
+            }
+            80 = menu
+            80 {
+                special = rootline
+                special.range = 0|-1
+                includeNotInMenu = 1
+                as = breadcrumb
+                if {
+                    value {
+                        insertData = 1
+                        prioriCalc = 1
+                        stdWrap.wrap = |-1
+                    }
+                    isGreaterThan {
+                        data = level
+                    }
+                }
+            }
+            100 = page-content
+        }
+    }
+
+    meta {
+        viewport = {$page.meta.viewport}
+        robots = {$page.meta.robots}
+        apple-mobile-web-app-capable = {$page.meta.apple-mobile-web-app-capable}
+
+        X-UA-Compatible = {$page.meta.compatible}
+        X-UA-Compatible {
+            attribute = http-equiv
+        }
+    }
+
+    includeCSSLibs {
+        glightbox = EXT:sitepackage/Resources/Public/Css/glightbox.min.css
+    }
+
+    includeCSS {
+        layout = EXT:sitepackage/Resources/Public/Scss/layout.scss
+        layout.outputfile = EXT:sitepackage/Resources/Public/Css/layout.css
+    }
+
+    includeJSLibs {
+
+    }
+
+    includeJS {
+
+    }
+
+    includeJSFooterlibs {
+        bootstrap = EXT:sitepackage/Resources/Public/JavaScript/bootstrap.bundle.js
+        glightbox = EXT:sitepackage/Resources/Public/JavaScript/glightbox.min.js
+#        splide = EXT:sitepackage/Resources/Public/JavaScript/splide.min.js
+    }
+
+    includeJSFooter {
+        colormode = EXT:sitepackage/Resources/Public/JavaScript/colormode.js
+        main = EXT:sitepackage/Resources/Public/JavaScript/main.js
+    }
+}

@@ -7,10 +7,8 @@
 
 namespace TYPO3Fluid\Fluid\ViewHelpers;
 
-use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
 use TYPO3Fluid\Fluid\Core\Variables\StandardVariableProvider;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
-use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
 
 /**
  * This ViewHelper is only meant to be used during development.
@@ -44,8 +42,6 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
  */
 class DebugViewHelper extends AbstractViewHelper
 {
-    use CompileWithRenderStatic;
-
     /**
      * @var bool
      */
@@ -58,28 +54,23 @@ class DebugViewHelper extends AbstractViewHelper
 
     public function initializeArguments()
     {
-        parent::initializeArguments();
         $this->registerArgument('typeOnly', 'boolean', 'If true, debugs only the type of variables', false, false);
         $this->registerArgument('levels', 'integer', 'Levels to render when rendering nested objects/arrays', false, 5);
         $this->registerArgument('html', 'boolean', 'Render HTML. If false, output is indented plaintext', false, false);
     }
 
     /**
-     * @param array $arguments
-     * @param \Closure $renderChildrenClosure
-     * @param RenderingContextInterface $renderingContext
      * @return string
      */
-    public static function renderStatic(array $arguments, \Closure $renderChildrenClosure, RenderingContextInterface $renderingContext)
+    public function render()
     {
-        $typeOnly = $arguments['typeOnly'];
-        $expressionToExamine = $renderChildrenClosure();
+        $typeOnly = $this->arguments['typeOnly'];
+        $expressionToExamine = $this->renderChildren();
         if ($typeOnly === true) {
             return is_object($expressionToExamine) ? get_class($expressionToExamine) : gettype($expressionToExamine);
         }
-
-        $html = $arguments['html'];
-        $levels = $arguments['levels'];
+        $html = $this->arguments['html'];
+        $levels = $this->arguments['levels'];
         return static::dumpVariable($expressionToExamine, $html, 1, $levels);
     }
 

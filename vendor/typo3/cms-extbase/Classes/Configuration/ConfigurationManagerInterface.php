@@ -19,10 +19,9 @@ namespace TYPO3\CMS\Extbase\Configuration;
 
 use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Core\SingletonInterface;
-use TYPO3\CMS\Frontend\ContentObject\ContentObjectRenderer;
+use TYPO3\CMS\Extbase\Configuration\Exception\NoServerRequestGivenException;
 
 /**
- * Class ConfigurationManagerInterface
  * @internal only to be used within Extbase, not part of TYPO3 Core API.
  */
 interface ConfigurationManagerInterface extends SingletonInterface
@@ -30,16 +29,6 @@ interface ConfigurationManagerInterface extends SingletonInterface
     public const CONFIGURATION_TYPE_FRAMEWORK = 'Framework';
     public const CONFIGURATION_TYPE_SETTINGS = 'Settings';
     public const CONFIGURATION_TYPE_FULL_TYPOSCRIPT = 'FullTypoScript';
-
-    /**
-     * @deprecated since v12. Remove in v13.
-     */
-    public function setContentObject(ContentObjectRenderer $contentObject): void;
-
-    /**
-     * @deprecated since v12. Remove in v13.
-     */
-    public function getContentObject(): ?ContentObjectRenderer;
 
     /**
      * Returns the specified configuration.
@@ -51,6 +40,7 @@ interface ConfigurationManagerInterface extends SingletonInterface
      * @param string|null $extensionName if specified, the configuration for the given extension will be returned.
      * @param string|null $pluginName if specified, the configuration for the given plugin will be returned.
      * @return array The configuration
+     * @throws NoServerRequestGivenException
      */
     public function getConfiguration(string $configurationType, ?string $extensionName = null, ?string $pluginName = null): array;
 
@@ -80,19 +70,6 @@ interface ConfigurationManagerInterface extends SingletonInterface
      *
      * @param ServerRequestInterface $request
      * @internal Set by extbase bootstrap internally.
-     * @todo: Enable this interface method in v13.
      */
-    // public function setRequest(ServerRequestInterface $request): void;
-
-    /**
-     * Returns TRUE if a certain feature, identified by $featureName
-     * should be activated, FALSE for backwards-compatible behavior.
-     *
-     * This is an INTERNAL API used throughout Extbase and Fluid for providing backwards-compatibility.
-     * Do not use it in your custom code!
-     *
-     * @internal
-     * @deprecated since TYPO3 v12, will be removed in TYPO3 v13. Remove together with other extbase feature toggle related code.
-     */
-    public function isFeatureEnabled(string $featureName): bool;
+    public function setRequest(ServerRequestInterface $request): void;
 }

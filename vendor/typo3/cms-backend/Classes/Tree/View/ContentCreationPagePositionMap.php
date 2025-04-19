@@ -17,11 +17,12 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Backend\Tree\View;
 
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Backend\View\BackendLayoutView;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Utility\StringUtility;
 
 /**
@@ -29,6 +30,7 @@ use TYPO3\CMS\Core\Utility\StringUtility;
  *
  * @internal This class is a TYPO3 Backend implementation and is not considered part of the Public TYPO3 API.
  */
+#[Autoconfigure(public: true)]
 class ContentCreationPagePositionMap extends AbstractContentPagePositionMap
 {
     /**
@@ -91,10 +93,13 @@ class ContentCreationPagePositionMap extends AbstractContentPagePositionMap
             ]);
         }
 
+        $buttonLabel = htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_misc.xlf:insertNewRecordHere'));
         return '
-            <button type="button" class="btn btn-link" data-target="' . htmlspecialchars($target) . '" title="' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_misc.xlf:insertNewRecordHere')) . '">
-                ' . $this->iconFactory->getIcon('actions-arrow-left-alt', Icon::SIZE_SMALL)->render() . '
-            </button>';
+            <div class="page-position-action">
+                <button type="button" class="btn btn-default btn-sm" data-target="' . htmlspecialchars($target) . '" title="' . $buttonLabel . '">
+                    ' . $this->iconFactory->getIcon('actions-arrow-left-alt', IconSize::SMALL)->render() . ' ' . $buttonLabel . '
+                </button>
+            </div>';
     }
 
     /**
@@ -103,9 +108,11 @@ class ContentCreationPagePositionMap extends AbstractContentPagePositionMap
     protected function getRecordHeader(array $row): string
     {
         return '
-            <span class="py-2" title="' . BackendUtility::getRecordIconAltText($row, 'tt_content') . '">
-                ' . $this->iconFactory->getIconForRecord('tt_content', $row, Icon::SIZE_SMALL)->render() . '
-                ' . BackendUtility::getRecordTitle('tt_content', $row, true) . '
-            </span>';
+            <div class="page-position-record">
+                <span title="' . BackendUtility::getRecordIconAltText($row, 'tt_content') . '">
+                    ' . $this->iconFactory->getIconForRecord('tt_content', $row, IconSize::SMALL)->render() . '
+                    ' . BackendUtility::getRecordTitle('tt_content', $row, true) . '
+                </span>
+            </div>';
     }
 }

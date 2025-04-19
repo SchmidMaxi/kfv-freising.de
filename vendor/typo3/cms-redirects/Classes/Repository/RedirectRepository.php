@@ -48,6 +48,16 @@ class RedirectRepository
             ->fetchOne();
     }
 
+    public function countActiveRedirects(): int
+    {
+        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('sys_redirect');
+        return (int)$queryBuilder
+            ->count('uid')
+            ->from('sys_redirect')
+            ->executeQuery()
+            ->fetchOne();
+    }
+
     /**
      * Prepares the QueryBuilder with Constraints from the Demand
      */
@@ -119,7 +129,21 @@ class RedirectRepository
         if ($demand->hasCreationType()) {
             $constraints[] = $queryBuilder->expr()->eq(
                 'creation_type',
-                $queryBuilder->createNamedParameter($demand->getCreationType(), \PDO::PARAM_INT)
+                $queryBuilder->createNamedParameter($demand->getCreationType(), Connection::PARAM_INT)
+            );
+        }
+
+        if ($demand->hasProtected()) {
+            $constraints[] = $queryBuilder->expr()->eq(
+                'protected',
+                $queryBuilder->createNamedParameter($demand->getProtected(), Connection::PARAM_INT)
+            );
+        }
+
+        if ($demand->hasIntegrityStatus()) {
+            $constraints[] = $queryBuilder->expr()->eq(
+                'integrity_status',
+                $queryBuilder->createNamedParameter($demand->getIntegrityStatus())
             );
         }
 
@@ -161,6 +185,24 @@ class RedirectRepository
         }
 
         return $types;
+    }
+
+    /**
+     * Get all used integrity status codes
+     */
+    public function findIntegrityStatusCodes(): array
+    {
+        $statusCodes = [];
+        $availableStatusCodes = $GLOBALS['TCA']['sys_redirect']['columns']['integrity_status']['config']['items'];
+        foreach ($this->getGroupedRows('integrity_status', 'status_code') as $row) {
+            foreach ($availableStatusCodes as $availableStatusCode) {
+                if ($availableStatusCode['value'] === $row['status_code']) {
+                    $statusCodes[$row['status_code']] = $availableStatusCode['label'];
+                }
+            }
+        }
+
+        return $statusCodes;
     }
 
     protected function getGroupedRows(string $field, string $as): array
@@ -222,7 +264,7 @@ class RedirectRepository
 
         if ($demand->hasCreationType()) {
             $queryBuilder->andWhere(
-                $queryBuilder->expr()->eq('creation_type', $queryBuilder->createNamedParameter($demand->getCreationType(), \PDO::PARAM_INT))
+                $queryBuilder->expr()->eq('creation_type', $queryBuilder->createNamedParameter($demand->getCreationType(), Connection::PARAM_INT))
             );
         }
 

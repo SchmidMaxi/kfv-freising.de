@@ -1,0 +1,25 @@
+name: sitepackage/accordion
+typeName: accordion
+group: default
+prefixFields: true
+prefixType: full
+basics:
+  - TYPO3/Appearance
+fields:
+  -
+    identifier: header
+    useExistingField: true
+  -
+    identifier: items
+    type: Collection
+    labelField: title
+    minitems: 1
+    appearance:
+      collapseAll: true
+      levelLinksPosition: bottom
+    fields:
+      - identifier: title
+        type: Text
+      - identifier: bodytext
+        type: Textarea
+        enableRichtext: true

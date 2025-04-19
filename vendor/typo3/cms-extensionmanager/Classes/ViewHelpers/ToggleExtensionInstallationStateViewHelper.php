@@ -17,16 +17,17 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Extensionmanager\ViewHelpers;
 
+use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Core\Core\Environment;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Package\PackageManager;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Mvc\RequestInterface;
 use TYPO3\CMS\Extbase\Mvc\Web\Routing\UriBuilder;
-use TYPO3\CMS\Fluid\Core\Rendering\RenderingContext;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractTagBasedViewHelper;
+use TYPO3Fluid\Fluid\Core\ViewHelper\TagBuilder;
 
 /**
  * Render deactivate / activate extension link.
@@ -38,12 +39,11 @@ final class ToggleExtensionInstallationStateViewHelper extends AbstractTagBasedV
     /**
      * @var string
      */
-    protected $tagName = 'a';
+    protected $tagName = 'form';
 
     public function initializeArguments(): void
     {
         parent::initializeArguments();
-        $this->registerUniversalTagAttributes();
         $this->registerArgument('extension', 'array', '', true);
     }
 
@@ -65,25 +65,26 @@ final class ToggleExtensionInstallationStateViewHelper extends AbstractTagBasedV
         }
 
         $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
-        /** @var RenderingContext $renderingContext */
-        $renderingContext = $this->renderingContext;
         /** @var RequestInterface $request */
-        $request = $renderingContext->getRequest();
+        $request = $this->renderingContext->getAttribute(ServerRequestInterface::class);
         $uriBuilder->setRequest($request);
         $uri = $uriBuilder->reset()->uriFor(
             'toggleExtensionInstallationState',
             ['extensionKey' => $extension['key']],
             'Action'
         );
-        $this->tag->addAttribute('href', $uri);
-        $label = $extension['installed'] ? 'deactivate' : 'activate';
-        $this->tag->addAttribute('title', htmlspecialchars($this->getLanguageService()->sL(
-            'LLL:EXT:extensionmanager/Resources/Private/Language/locallang.xlf:extensionList.' . $label
-        )));
-        $icon = $extension['installed'] ? 'uninstall' : 'install';
-        $this->tag->addAttribute('class', 'onClickMaskExtensionManager btn btn-default');
+        $this->tag->addAttribute('action', $uri);
+        $this->tag->addAttribute('method', 'post');
+
         $iconFactory = GeneralUtility::makeInstance(IconFactory::class);
-        $this->tag->setContent($iconFactory->getIcon('actions-system-extension-' . $icon, Icon::SIZE_SMALL)->render());
+        $buttonTagBuilder = new TagBuilder('button');
+        $buttonTagBuilder->addAttribute('type', 'submit');
+        $buttonTagBuilder->addAttribute('class', 'onClickMaskExtensionManager btn btn-default');
+        $buttonTagBuilder->setContent($iconFactory->getIcon('actions-system-extension-' . ($extension['installed'] ? 'uninstall' : 'install'), IconSize::SMALL)->render());
+        $buttonTagBuilder->addAttribute('title', htmlspecialchars($this->getLanguageService()->sL(
+            'LLL:EXT:extensionmanager/Resources/Private/Language/locallang.xlf:extensionList.' . ($extension['installed'] ? 'deactivate' : 'activate')
+        )));
+        $this->tag->setContent($buttonTagBuilder->render());
         return $this->tag->render();
     }
 

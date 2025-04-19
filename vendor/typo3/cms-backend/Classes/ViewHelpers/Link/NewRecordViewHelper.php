@@ -17,10 +17,10 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Backend\ViewHelpers\Link;
 
+use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Backend\Routing\Exception\RouteNotFoundException;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Fluid\Core\Rendering\RenderingContext;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractTagBasedViewHelper;
 
 /**
@@ -105,9 +105,8 @@ final class NewRecordViewHelper extends AbstractTagBasedViewHelper
     public function initializeArguments(): void
     {
         parent::initializeArguments();
-        $this->registerUniversalTagAttributes();
-        $this->registerArgument('uid', 'int', 'uid < 0 will insert the record after the given uid', false);
-        $this->registerArgument('pid', 'int', 'the page id where the record will be created', false);
+        $this->registerArgument('uid', 'int', 'uid < 0 will insert the record after the given uid');
+        $this->registerArgument('pid', 'int', 'the page id where the record will be created');
         $this->registerArgument('table', 'string', 'target database table', true);
         $this->registerArgument('returnUrl', 'string', 'return to this URL after closing the new record dialog', false, '');
         $this->registerArgument('defaultValues', 'array', 'default values for fields of the new record', false, []);
@@ -127,9 +126,7 @@ final class NewRecordViewHelper extends AbstractTagBasedViewHelper
         }
 
         if (empty($this->arguments['returnUrl'])) {
-            /** @var RenderingContext $renderingContext */
-            $renderingContext = $this->renderingContext;
-            $request = $renderingContext->getRequest();
+            $request = $this->renderingContext->getAttribute(ServerRequestInterface::class);
             $this->arguments['returnUrl'] = $request->getAttribute('normalizedParams')->getRequestUri();
         }
 
@@ -145,7 +142,7 @@ final class NewRecordViewHelper extends AbstractTagBasedViewHelper
         $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
         $uri = (string)$uriBuilder->buildUriFromRoute('record_edit', $params);
         $this->tag->addAttribute('href', $uri);
-        $this->tag->setContent($this->renderChildren());
+        $this->tag->setContent((string)$this->renderChildren());
         $this->tag->forceClosingTag(true);
         return $this->tag->render();
     }

@@ -25,8 +25,6 @@ use TYPO3\CMS\Core\Utility\PathUtility;
 use TYPO3\CMS\Dashboard\Widgets\AdditionalCssInterface;
 use TYPO3\CMS\Dashboard\Widgets\AdditionalJavaScriptInterface;
 use TYPO3\CMS\Dashboard\Widgets\JavaScriptInterface;
-use TYPO3\CMS\Dashboard\Widgets\RequireJsModuleInterface;
-use TYPO3\CMS\Dashboard\Widgets\WidgetConfigurationInterface;
 
 /**
  * @internal
@@ -35,58 +33,43 @@ class DashboardInitializationService
 {
     protected const MODULE_DATA_CURRENT_DASHBOARD_IDENTIFIER = 'dashboard/current_dashboard/';
 
-    private Dashboard $currentDashboard;
-    private BackendUserAuthentication $user;
-
     /**
      * @var list<JavaScriptModuleInstruction>
      */
-    protected $javaScriptModuleInstructions = [];
-
-    /**
-     * @var list<string|array{0:string, 1:string}>
-     * @deprecated will be removed in TYPO3 v13.0
-     */
-    private array $requireJsModules = [];
+    protected array $javaScriptModuleInstructions = [];
     private array $jsFiles = [];
     private array $cssFiles = [];
 
     public function __construct(
         private readonly DashboardRepository $dashboardRepository,
-        private readonly DashboardPresetRegistry $dashboardPresetRegistry
+        private readonly DashboardPresetRegistry $dashboardPresetRegistry,
+        private readonly WidgetRegistry $widgetRegistry,
     ) {}
 
     public function initializeDashboards(ServerRequestInterface $request, BackendUserAuthentication $user): void
     {
-        $this->user = $user;
-        $this->currentDashboard = $this->defineCurrentDashboard();
-        $this->currentDashboard->initializeWidgets($request);
-        $this->defineResourcesOfWidgets($this->currentDashboard->getWidgets());
+        $this->defineCurrentDashboard($user);
+        $this->defineResourcesOfWidgets();
     }
 
-    public function getCurrentDashboard(): Dashboard
+    protected function defineCurrentDashboard(BackendUserAuthentication $user): Dashboard
     {
-        return $this->currentDashboard;
-    }
-
-    protected function defineCurrentDashboard(): Dashboard
-    {
-        $currentDashboard = $this->dashboardRepository->getDashboardByIdentifier($this->loadCurrentDashboard($this->user));
+        $currentDashboard = $this->dashboardRepository->getDashboardByIdentifier($this->loadCurrentDashboard($user));
         if ($currentDashboard === null) {
-            $dashboards = $this->getDashboardsForUser();
+            $dashboards = $this->getDashboardsForUser($user);
             /** @var Dashboard $currentDashboard */
             $currentDashboard = reset($dashboards);
-            $this->saveCurrentDashboard($this->user, $currentDashboard->getIdentifier());
+            $this->saveCurrentDashboard($user, $currentDashboard->getIdentifier());
         }
 
         return $currentDashboard;
     }
 
-    protected function createDefaultDashboards(): array
+    protected function createDefaultDashboards(BackendUserAuthentication $user): array
     {
         $dashboardsForUser = [];
 
-        $userConfig = $this->user->getTSConfig();
+        $userConfig = $user->getTSConfig();
         $dashboardsToCreate = GeneralUtility::trimExplode(
             ',',
             $userConfig['options.']['dashboard.']['dashboardPresetsForNewUsers'] ?? 'default'
@@ -96,7 +79,7 @@ class DashboardInitializationService
             if (in_array($dashboardPreset->getIdentifier(), $dashboardsToCreate, true)) {
                 $dashboard = $this->dashboardRepository->create(
                     $dashboardPreset,
-                    (int)$this->user->user['uid']
+                    (int)$user->user['uid']
                 );
 
                 if ($dashboard === null) {
@@ -112,33 +95,26 @@ class DashboardInitializationService
     /**
      * @return Dashboard[]
      */
-    public function getDashboardsForUser(): array
+    public function getDashboardsForUser(BackendUserAuthentication $user): array
     {
         $dashboards = [];
-        foreach ($this->dashboardRepository->getDashboardsForUser((int)$this->user->user['uid']) as $dashboard) {
+        foreach ($this->dashboardRepository->getDashboardsForUser((int)$user->user['uid']) as $dashboard) {
             $dashboards[$dashboard->getIdentifier()] = $dashboard;
         }
 
         if ($dashboards === []) {
-            $dashboards = $this->createDefaultDashboards();
+            $dashboards = $this->createDefaultDashboards($user);
         }
 
         return $dashboards;
     }
 
-    /**
-     * @param array<string,WidgetConfigurationInterface> $widgets
-     */
-    protected function defineResourcesOfWidgets(array $widgets): void
+    protected function defineResourcesOfWidgets(): void
     {
-        foreach ($widgets as $widget) {
+        foreach ($this->widgetRegistry->getAvailableWidgets() as $widget) {
             $concreteInstance = GeneralUtility::makeInstance($widget->getServiceName());
             if ($concreteInstance instanceof JavaScriptInterface) {
                 $this->defineJavaScriptInstructions($concreteInstance);
-            }
-            if ($concreteInstance instanceof RequireJsModuleInterface) {
-                trigger_error('Using RequireJsModuleInterface is deprecated and will be removed in TYPO3 v13.0.', E_USER_DEPRECATED);
-                $this->defineRequireJsModules($concreteInstance);
             }
             if ($concreteInstance instanceof AdditionalCssInterface) {
                 $this->defineCssFiles($concreteInstance);
@@ -153,22 +129,6 @@ class DashboardInitializationService
     {
         foreach ($widgetInstance->getJavaScriptModuleInstructions() as $instruction) {
             $this->javaScriptModuleInstructions[] = $instruction;
-        }
-    }
-
-    /**
-     * Add the RequireJS modules needed by some widgets
-     *
-     * @deprecated will be removed in TYPO3 v13.0
-     */
-    protected function defineRequireJsModules(RequireJsModuleInterface $widgetInstance): void
-    {
-        foreach ($widgetInstance->getRequireJsModules() as $moduleNameOrIndex => $callbackOrModuleName) {
-            if (is_string($moduleNameOrIndex)) {
-                $this->requireJsModules[] = [$moduleNameOrIndex, $callbackOrModuleName];
-            } else {
-                $this->requireJsModules[] = $callbackOrModuleName;
-            }
         }
     }
 
@@ -216,15 +176,6 @@ class DashboardInitializationService
     public function getJavaScriptModuleInstructions(): array
     {
         return $this->javaScriptModuleInstructions;
-    }
-
-    /**
-     * @return list<string|array{0:string, 1:string}>
-     * @deprecated will be removed in TYPO3 v13.0
-     */
-    public function getRequireJsModules(): array
-    {
-        return $this->requireJsModules;
     }
 
     public function getJsFiles(): array

@@ -17,25 +17,22 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Workspaces\MessageHandler;
 
+use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use TYPO3\CMS\Workspaces\Messages\StageChangeMessage;
 use TYPO3\CMS\Workspaces\Notification\StageChangeNotification;
 
 /**
  * @internal
  */
-final class StageChangeNotificationHandler
+#[AsMessageHandler]
+final readonly class StageChangeNotificationHandler
 {
-    public function __construct(private readonly StageChangeNotification $notificationService) {}
+    public function __construct(
+        private StageChangeNotification $notificationService
+    ) {}
 
     public function __invoke(StageChangeMessage $message): void
     {
-        $this->notificationService->notifyStageChange(
-            $message->workspaceRecord,
-            $message->stageId,
-            $message->affectedElements,
-            $message->comment,
-            $message->recipients,
-            $message->currentUserRecord
-        );
+        $this->notificationService->notifyStageChange($message);
     }
 }

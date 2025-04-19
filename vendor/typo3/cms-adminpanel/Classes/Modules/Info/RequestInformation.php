@@ -18,19 +18,25 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Adminpanel\Modules\Info;
 
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Adminpanel\ModuleApi\AbstractSubModule;
 use TYPO3\CMS\Adminpanel\ModuleApi\DataProviderInterface;
 use TYPO3\CMS\Adminpanel\ModuleApi\ModuleData;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Fluid\View\StandaloneView;
+use TYPO3\CMS\Core\View\ViewFactoryData;
+use TYPO3\CMS\Core\View\ViewFactoryInterface;
 
 /**
  * RequestInformation submodule of the admin panel
  *
  * @internal
  */
+#[Autoconfigure(public: true)]
 class RequestInformation extends AbstractSubModule implements DataProviderInterface
 {
+    public function __construct(
+        private readonly ViewFactoryInterface $viewFactory,
+    ) {}
+
     public function getIdentifier(): string
     {
         return 'info-request';
@@ -50,7 +56,7 @@ class RequestInformation extends AbstractSubModule implements DataProviderInterf
                 'post' => $request->getParsedBody(),
                 'get' => $request->getQueryParams(),
                 'cookie' => $request->getCookieParams(),
-                'session' => isset($_SESSION) ? $_SESSION : null,
+                'session' => $_SESSION ?? null,
                 'server' => $request->getServerParams(),
             ]
         );
@@ -58,14 +64,14 @@ class RequestInformation extends AbstractSubModule implements DataProviderInterf
 
     public function getContent(ModuleData $data): string
     {
-        $view = GeneralUtility::makeInstance(StandaloneView::class);
-        $templateNameAndPath = 'EXT:adminpanel/Resources/Private/Templates/Modules/Info/RequestInformation.html';
-        $view->setTemplatePathAndFilename(GeneralUtility::getFileAbsFileName($templateNameAndPath));
-        $view->setPartialRootPaths(['EXT:adminpanel/Resources/Private/Partials']);
-
+        $viewFactoryData = new ViewFactoryData(
+            templateRootPaths: ['EXT:adminpanel/Resources/Private/Templates'],
+            partialRootPaths: ['EXT:adminpanel/Resources/Private/Partials'],
+            layoutRootPaths: ['EXT:adminpanel/Resources/Private/Layouts'],
+        );
+        $view = $this->viewFactory->create($viewFactoryData);
         $view->assignMultiple($data->getArrayCopy());
         $view->assign('languageKey', $this->getBackendUser()->user['lang'] ?? null);
-
-        return $view->render();
+        return $view->render('Modules/Info/RequestInformation');
     }
 }

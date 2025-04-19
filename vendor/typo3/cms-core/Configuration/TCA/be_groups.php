@@ -107,6 +107,7 @@ return [
         ],
         'workspace_perms' => [
             'displayCond' => 'USER:TYPO3\CMS\Core\Hooks\TcaDisplayConditions->isExtensionInstalled:workspaces',
+            'description' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:workspace_perms.description',
             'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:workspace_perms',
             'config' => [
                 'type' => 'check',
@@ -129,26 +130,23 @@ return [
         ],
         'tables_modify' => [
             'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_groups.tables_modify',
+            'description' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_groups.tables_modify.description',
             'config' => [
                 'type' => 'select',
-                'renderType' => 'selectCheckBox',
+                'renderType' => 'tablePermission',
+                'selectFieldName' => 'tables_select',
                 'itemsProcFunc' => \TYPO3\CMS\Core\Hooks\TcaItemsProcessorFunctions::class . '->populateAvailableTables',
-                'size' => 5,
-                'autoSizeMax' => 50,
             ],
         ],
         'tables_select' => [
             'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_groups.tables_select',
             'config' => [
-                'type' => 'select',
-                'renderType' => 'selectCheckBox',
-                'itemsProcFunc' => \TYPO3\CMS\Core\Hooks\TcaItemsProcessorFunctions::class . '->populateAvailableTables',
-                'size' => 5,
-                'autoSizeMax' => 50,
+                'type' => 'passthrough',
             ],
         ],
         'non_exclude_fields' => [
             'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_groups.non_exclude_fields',
+            'description' => 'LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_groups.non_exclude_fields.description',
             'config' => [
                 'type' => 'select',
                 'renderType' => 'selectCheckBox',
@@ -172,6 +170,7 @@ return [
                 'type' => 'select',
                 'renderType' => 'selectCheckBox',
                 'itemsProcFunc' => \TYPO3\CMS\Core\Localization\TcaSystemLanguageCollector::class . '->populateAvailableSiteLanguages',
+                'dbFieldLength' => 255,
             ],
         ],
         'custom_options' => [
@@ -180,20 +179,6 @@ return [
                 'type' => 'select',
                 'renderType' => 'selectCheckBox',
                 'itemsProcFunc' => \TYPO3\CMS\Core\Hooks\TcaItemsProcessorFunctions::class . '->populateCustomPermissionOptions',
-            ],
-        ],
-        'hidden' => [
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.enabled',
-            'config' => [
-                'type' => 'check',
-                'renderType' => 'checkboxToggle',
-                'default' => 0,
-                'items' => [
-                    [
-                        'label' => '',
-                        'invertStateDisplay' => true,
-                    ],
-                ],
             ],
         ],
         'groupMods' => [
@@ -214,15 +199,6 @@ return [
                 'itemsProcFunc' => \TYPO3\CMS\Core\Authentication\Mfa\MfaProviderRegistry::class . '->allowedProvidersItemsProcFunc',
                 'size' => 5,
                 'autoSizeMax' => 50,
-            ],
-        ],
-        'description' => [
-            'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.description',
-            'config' => [
-                'type' => 'text',
-                'rows' => 5,
-                'cols' => 30,
-                'max' => 2000,
             ],
         ],
         'TSconfig' => [
@@ -263,11 +239,13 @@ return [
     'types' => [
         '0' => ['showitem' => '
             --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:general,
-                title,subgroup,
-            --div--;LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_groups.tabs.base_rights,
-                groupMods, mfa_providers, tables_select, tables_modify, pagetypes_select, non_exclude_fields, explicit_allowdeny, allowed_languages, custom_options,
+                title, subgroup,
+            --div--;LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_groups.tabs.record_permissions,
+                pagetypes_select, tables_modify, non_exclude_fields, explicit_allowdeny, allowed_languages,
+            --div--;LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_groups.tabs.module_permissions,
+                groupMods, custom_options, mfa_providers, workspace_perms,
             --div--;LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_groups.tabs.mounts_and_workspaces,
-                workspace_perms, db_mountpoints, file_mountpoints, file_permissions, category_perms,
+                db_mountpoints, file_mountpoints, file_permissions, category_perms,
             --div--;LLL:EXT:core/Resources/Private/Language/locallang_tca.xlf:be_groups.tabs.options,
                 TSconfig,
             --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:access,

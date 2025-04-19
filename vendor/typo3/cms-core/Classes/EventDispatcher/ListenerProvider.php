@@ -46,7 +46,6 @@ class ListenerProvider implements ListenerProviderInterface
     /**
      * Not part of the public API, used in the generated service factor for this class,
      *
-     * @param string|null $method
      * @internal
      */
     public function addListener(string $event, string $service, ?string $method = null, ?string $identifier = null): void
@@ -88,7 +87,6 @@ class ListenerProvider implements ListenerProviderInterface
     }
 
     /**
-     * @param string|null $method
      * @throws \InvalidArgumentException
      */
     protected function getCallable(string $service, ?string $method = null): callable

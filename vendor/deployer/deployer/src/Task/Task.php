@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 /* (c) Anton Medvedev <anton@medv.io>
  *
@@ -68,7 +70,7 @@ class Task
     /**
      * @param callable():void $callback
      */
-    public function __construct(string $name, callable $callback = null)
+    public function __construct(string $name, ?callable $callback = null)
     {
         $this->name = $name;
         $this->callback = $callback;

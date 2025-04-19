@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Backend\Controller;
 
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -25,10 +26,13 @@ use TYPO3\CMS\Backend\Configuration\TranslationConfigurationProvider;
 use TYPO3\CMS\Backend\Exception\AccessDeniedException;
 use TYPO3\CMS\Backend\RecordList\DatabaseRecordList;
 use TYPO3\CMS\Backend\RecordList\DownloadRecordList;
+use TYPO3\CMS\Backend\RecordList\Event\BeforeRecordDownloadIsExecutedEvent;
+use TYPO3\CMS\Backend\RecordList\Event\BeforeRecordDownloadPresetsAreDisplayedEvent;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Backend\View\BackendViewFactory;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Context\Context;
+use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Core\Utility\CsvUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -83,6 +87,7 @@ class RecordListDownloadController
     public function __construct(
         protected readonly ResponseFactoryInterface $responseFactory,
         protected readonly BackendViewFactory $backendViewFactory,
+        protected readonly EventDispatcherInterface $eventDispatcher,
     ) {}
 
     /**
@@ -109,15 +114,20 @@ class RecordListDownloadController
         // Loading module configuration
         $this->modTSconfig = BackendUtility::getPagesTSconfig($this->id)['mod.']['web_list.'] ?? [];
 
+        // Loading TCEFORM for the table
+        $tsConfig = BackendUtility::getPagesTSconfig($this->id)['TCEFORM.'][$this->table . '.'] ?? null;
+        $tsConfig = is_array($tsConfig) ? $tsConfig : null;
+
         // Loading current page record and checking access
         $backendUser = $this->getBackendUserAuthentication();
         $perms_clause = $backendUser->getPagePermsClause(Permission::PAGE_SHOW);
         $pageinfo = BackendUtility::readPageAccess($this->id, $perms_clause);
         $searchString = (string)($parsedBody['searchString'] ?? '');
-        $searchLevels = (int)($parsedBody['searchLevels'] ?? 0);
+        $searchLevels = (int)($parsedBody['searchLevels'] ?? $this->modTSconfig['searchLevel.']['default'] ?? 0);
         if (!is_array($pageinfo) && !($this->id === 0 && $searchString !== '' && $searchLevels !== 0)) {
             throw new AccessDeniedException('Insufficient permissions for accessing this download', 1623941361);
         }
+        $rawValues = (bool)($parsedBody['rawValues'] ?? false);
 
         // Initialize database record list
         $recordList = GeneralUtility::makeInstance(DatabaseRecordList::class);
@@ -125,11 +135,15 @@ class RecordListDownloadController
         $recordList->modTSconfig = $this->modTSconfig;
         $recordList->setLanguagesAllowedForUser($this->getSiteLanguages($request));
         $recordList->start($this->id, $this->table, 0, $searchString, $searchLevels);
-        if (($parsedBody['allColumns'] ?? false)) {
-            // Overwrite setFields in case all allowed columns should be included.
+        $selectedPreset = (string)($parsedBody['preset'] ?? '');
+        if (($parsedBody['allColumns'] ?? false) || $selectedPreset !== '') {
+            // Overwrite setFields in case all allowed columns should be included,
+            // or a preset is selected (that is only allowed to pick from the maximum
+            // allowed set of columns).
             $recordList->setFields[$this->table] = BackendUtility::getAllowedFieldsForTable($this->table);
         }
-        $columnsToRender = $recordList->getColumnsToRender($this->table, false);
+        $columnsToRender = $recordList->getColumnsToRender($this->table, false, $selectedPreset);
+
         $hideTranslations = ($this->modTSconfig['hideTranslations'] ?? '') === '*'
             || GeneralUtility::inList($this->modTSconfig['hideTranslations'] ?? '', $this->table);
 
@@ -142,16 +156,43 @@ class RecordListDownloadController
 
         // Fetch and process the header row and the records
         $headerRow = $downloader->getHeaderRow($columnsToRender);
+        if (!$rawValues) {
+            foreach ($headerRow as &$headerField) {
+                $label = BackendUtility::getItemLabel($this->table, $headerField);
+                if ($label !== null) {
+                    $headerField = rtrim(trim($this->getLanguageService()->translateLabel($tsConfig[$headerField . '.']['label.'] ?? [], $tsConfig[$headerField . '.']['label'] ?? $label)), ':');
+                } elseif ($specialLabel = $this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.' . $headerField)) {
+                    // Special label exists for this field (Probably a management field, e.g. sorting)
+                    $headerField = $specialLabel;
+                }
+            }
+            unset($headerField);
+        }
         $records = $downloader->getRecords(
             $this->table,
             $columnsToRender,
             $this->getBackendUserAuthentication(),
             $hideTranslations,
-            (bool)($parsedBody['rawValues'] ?? false)
+            $rawValues
+        );
+
+        $event = $this->eventDispatcher->dispatch(
+            new BeforeRecordDownloadIsExecutedEvent(
+                $headerRow,
+                $records,
+                $request,
+                $this->table,
+                $this->format,
+                $this->filename,
+                $this->id,
+                $this->modTSconfig,
+                $columnsToRender,
+                $hideTranslations,
+            )
         );
 
         $downloadAction = $this->format . 'DownloadAction';
-        return $this->{$downloadAction}($request, $headerRow, $records);
+        return $this->{$downloadAction}($request, $event->getHeaderRow(), $event->getRecords());
     }
 
     /**
@@ -169,12 +210,22 @@ class RecordListDownloadController
         $this->id = (int)($downloadArguments['id'] ?? 0);
         $this->modTSconfig = BackendUtility::getPagesTSconfig($this->id)['mod.']['web_list.'] ?? [];
 
+        $presets = $this->eventDispatcher->dispatch(
+            new BeforeRecordDownloadPresetsAreDisplayedEvent(
+                $this->table,
+                $this->modTSconfig['downloadPresets.'][$this->table . '.'] ?? [],
+                $request,
+                $this->id,
+            )
+        )->getPresets();
+
         $view = $this->backendViewFactory->create($request);
         $view->assignMultiple([
             'table' => $this->table,
             'downloadArguments' => $downloadArguments,
             'formats' => array_keys(self::DOWNLOAD_FORMATS),
             'formatOptions' => $this->getFormatOptionsWithResolvedDefaults(),
+            'presets' => $presets,
         ]);
 
         $response = $this->responseFactory->createResponse()
@@ -342,5 +393,10 @@ class RecordListDownloadController
     protected function getBackendUserAuthentication(): BackendUserAuthentication
     {
         return $GLOBALS['BE_USER'];
+    }
+
+    protected function getLanguageService(): LanguageService
+    {
+        return $GLOBALS['LANG'];
     }
 }

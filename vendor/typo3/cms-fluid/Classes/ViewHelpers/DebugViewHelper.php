@@ -18,9 +18,7 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Fluid\ViewHelpers;
 
 use TYPO3\CMS\Extbase\Utility\DebuggerUtility;
-use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
-use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
 
 /**
  * This ViewHelper generates a HTML dump of the tagged variable.
@@ -33,9 +31,9 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
  *
  * ::
  *
- *    <f:debug>{testVariables.array}</f:debug>
+ *    <f:debug>{myVariable}</f:debug>
  *
- * foobarbazfoo
+ * [A HTML dump of myVariable value]
  *
  * All Features
  * ------------
@@ -43,20 +41,18 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\Traits\CompileWithRenderStatic;
  * ::
  *
  *    <f:debug title="My Title" maxDepth="5"
- *        blacklistedClassNames="{0:'Tx_BlogExample_Domain_Model_Administrator'}"
+ *        blacklistedClassNames="{0:'ACME\BlogExample\Domain\Model\Administrator'}"
  *        blacklistedPropertyNames="{0:'posts'}"
  *        plainText="true" ansiColors="false"
  *        inline="true"
- *        >
- *            {blogs}
- *        </f:debug>
+*     >
+ *        {blogs}
+ *    </f:debug>
  *
  * [A HTML view of the var_dump]
  */
 final class DebugViewHelper extends AbstractViewHelper
 {
-    use CompileWithRenderStatic;
-
     /**
      * This prevents double escaping as the output is encoded in DebuggerUtility::var_dump
      *
@@ -85,17 +81,17 @@ final class DebugViewHelper extends AbstractViewHelper
     /**
      * A wrapper for \TYPO3\CMS\Extbase\Utility\DebuggerUtility::var_dump().
      */
-    public static function renderStatic(array $arguments, \Closure $renderChildrenClosure, RenderingContextInterface $renderingContext): string
+    public function render(): string
     {
         return DebuggerUtility::var_dump(
-            $renderChildrenClosure(),
-            $arguments['title'],
-            $arguments['maxDepth'],
-            $arguments['plainText'],
-            $arguments['ansiColors'],
-            $arguments['inline'],
-            $arguments['blacklistedClassNames'],
-            $arguments['blacklistedPropertyNames']
+            $this->renderChildren(),
+            is_scalar($this->arguments['title']) ? (string)$this->arguments['title'] : null,
+            (int)$this->arguments['maxDepth'],
+            (bool)$this->arguments['plainText'],
+            (bool)$this->arguments['ansiColors'],
+            (bool)$this->arguments['inline'],
+            is_array($this->arguments['blacklistedClassNames']) ? $this->arguments['blacklistedClassNames'] : null,
+            is_array($this->arguments['blacklistedPropertyNames']) ? $this->arguments['blacklistedPropertyNames'] : null
         );
     }
 }

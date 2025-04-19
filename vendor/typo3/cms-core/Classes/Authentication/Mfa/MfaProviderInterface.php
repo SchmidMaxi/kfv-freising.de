@@ -62,7 +62,7 @@ interface MfaProviderInterface
     public function handleRequest(
         ServerRequestInterface $request,
         MfaProviderPropertyManager $propertyManager,
-        string $type
+        MfaViewType $type
     ): ResponseInterface;
 
     /**

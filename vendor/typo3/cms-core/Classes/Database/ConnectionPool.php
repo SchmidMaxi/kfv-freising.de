@@ -20,19 +20,13 @@ namespace TYPO3\CMS\Core\Database;
 use Doctrine\DBAL\Configuration;
 use Doctrine\DBAL\Driver\Middleware as DriverMiddleware;
 use Doctrine\DBAL\DriverManager;
-use Doctrine\DBAL\Events;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\DBAL\Types\Types;
-use TYPO3\CMS\Core\Database\Driver\PDOMySql\Driver as PDOMySqlDriver;
-use TYPO3\CMS\Core\Database\Driver\PDOPgSql\Driver as PDOPgSqlDriver;
-use TYPO3\CMS\Core\Database\Driver\PDOSqlite\Driver as PDOSqliteDriver;
+use TYPO3\CMS\Core\Database\Middleware\UsableForConnectionInterface;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
-use TYPO3\CMS\Core\Database\Schema\EventListener\SchemaAlterTableListener;
-use TYPO3\CMS\Core\Database\Schema\EventListener\SchemaColumnDefinitionListener;
-use TYPO3\CMS\Core\Database\Schema\EventListener\SchemaIndexDefinitionListener;
+use TYPO3\CMS\Core\Database\Schema\SchemaManager\CoreSchemaManagerFactory;
 use TYPO3\CMS\Core\Database\Schema\Types\DateTimeType;
 use TYPO3\CMS\Core\Database\Schema\Types\DateType;
-use TYPO3\CMS\Core\Database\Schema\Types\EnumType;
 use TYPO3\CMS\Core\Database\Schema\Types\SetType;
 use TYPO3\CMS\Core\Database\Schema\Types\TimeType;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -63,7 +57,6 @@ class ConnectionPool
      * @var array<non-empty-string,class-string>
      */
     protected array $customDoctrineTypes = [
-        EnumType::TYPE => EnumType::class,
         SetType::TYPE => SetType::class,
     ];
 
@@ -75,20 +68,6 @@ class ConnectionPool
         Types::DATETIME_MUTABLE => DateTimeType::class,
         Types::DATETIME_IMMUTABLE => DateTimeType::class,
         Types::TIME_MUTABLE => TimeType::class,
-    ];
-
-    /**
-     * List of custom drivers and their mappings to the driver classes.
-     *
-     * @var string[]
-     */
-    protected static $driverMap = [
-        'pdo_mysql' => PDOMySqlDriver::class,
-        'pdo_sqlite' => PDOSqliteDriver::class,
-        'pdo_pgsql' => PDOPgSqlDriver::class,
-        // TODO: not supported yet, need to be checked later
-        //        'pdo_oci' => PDOOCIDriver::class,
-        //        'drizzle_pdo_mysql' => DrizzlePDOMySQLDriver::class,
     ];
 
     /**
@@ -138,6 +117,16 @@ class ConnectionPool
             return static::$connections[$connectionName];
         }
 
+        static::$connections[$connectionName] = $this->getDatabaseConnection(
+            $connectionName,
+            $this->getConnectionParams($connectionName),
+        );
+
+        return static::$connections[$connectionName];
+    }
+
+    protected function getConnectionParams(string $connectionName): array
+    {
         $connectionParams = $GLOBALS['TYPO3_CONF_VARS']['DB']['Connections'][$connectionName] ?? [];
         if (empty($connectionParams)) {
             throw new \RuntimeException(
@@ -145,11 +134,9 @@ class ConnectionPool
                 1459422492
             );
         }
-
         if (empty($connectionParams['wrapperClass'])) {
             $connectionParams['wrapperClass'] = Connection::class;
         }
-
         if (!is_a($connectionParams['wrapperClass'], Connection::class, true)) {
             throw new \UnexpectedValueException(
                 'The "wrapperClass" for the connection name "' . $connectionName .
@@ -157,51 +144,146 @@ class ConnectionPool
                 1459422968
             );
         }
-
-        // Transform TYPO3 `tableoptions` to valid `doctrine/dbal` connection param option `defaultTableOptions`
-        // @todo TYPO3 database configuration should be changed to directly write defaultTableOptions instead,
-        //       with proper upgrade migration. Along with that, default table options for MySQL in
-        //       testing-framework and core should be adjusted.
-        if (isset($connectionParams['tableoptions'])) {
-            $connectionParams['defaultTableOptions'] = array_replace(
-                $connectionParams['defaultTableOptions'] ?? [],
-                $connectionParams['tableoptions']
-            );
-            unset($connectionParams['tableoptions']);
+        // Ensure integer value for port.
+        if (array_key_exists('port', $connectionParams)) {
+            $connectionParams['port'] = (int)($connectionParams['port'] ?? 0);
         }
+        return $this->migrateConnectionParams($connectionName, $connectionParams);
+    }
 
-        static::$connections[$connectionName] = $this->getDatabaseConnection($connectionParams);
-
-        return static::$connections[$connectionName];
+    private function migrateConnectionParams(string $connectionName, array $params): array
+    {
+        $params['defaultTableOptions'] ??= [];
+        $params = $this->migrateTableOptionsToDefaultTableOptions($connectionName, $params);
+        $params = $this->migrateDefaultTableOptionCollateToCollation($connectionName, $params);
+        $params = $this->removeInvalidConnectionParams($params);
+        return $this->ensureDefaultConnectionCharset($params);
     }
 
     /**
-     * Map custom driver class for certain driver
+     * Migrate old `tableoptions` to `defaultTableOptions` on MariaDB/MySQL connections.
+     * Note `tableoptions` overrides `defaultTableOptions` for now.
      *
-     * @internal
-     */
-    protected function mapCustomDriver(array $connectionParams): array
+     * @deprecated since 13.4 and will be removed in v15 (or later as it does not hurt to keep them).
+    */
+    private function migrateTableOptionsToDefaultTableOptions(string $connectionName, array $params): array
     {
-        // if no custom driver is provided, map TYPO3 specific drivers
-        if (!isset($connectionParams['driverClass']) && isset(static::$driverMap[$connectionParams['driver']])) {
-            $connectionParams['driverClass'] = static::$driverMap[$connectionParams['driver']];
+        $params['defaultTableOptions'] ??= [];
+        if (array_key_exists('tableoptions', $params)
+            && is_array($params['tableoptions'])
+            && $params['tableoptions'] !== []
+        ) {
+            trigger_error(
+                sprintf(
+                    '$GLOBALS[\'TYPO3_CONF_VARS\'][\'DB\'][\'Connections\'][\'%s\'][\'tableoptions\'] '
+                    . 'is deprecated since v13 and will be ignored in v15 (or later). Use '
+                    . '$GLOBALS[\'TYPO3_CONF_VARS\'][\'DB\'][\'Connections\'][\'%s\'][\'defaultTableOptions\'] '
+                    . 'instead. Note in v13 the deprecated key still takes precedence over the new key if set.',
+                    $connectionName,
+                    $connectionName,
+                ),
+                E_USER_DEPRECATED,
+            );
+            $params['defaultTableOptions'] = array_replace(
+                $params['defaultTableOptions'],
+                $params['tableoptions'],
+            );
+            unset($params['tableoptions']);
         }
+        return $params;
+    }
 
-        return $connectionParams;
+    /**
+     * Transform deprecated `collate` option to `collation` for `defaultTableOptions` on MySQL/MariaDB connections.
+     * Note that `collate` overrides manual set `collation` for now.
+     *
+     * @link https://github.com/doctrine/dbal/pull/5246
+     * @deprecated since 13.4 and will be removed in v15 (or later as it does not hurt to keep them).
+     */
+    private function migrateDefaultTableOptionCollateToCollation(string $connectionName, array $params): array
+    {
+        $params['defaultTableOptions'] ??= [];
+        if (array_key_exists('defaultTableOptions', $params)
+            && is_array($params['defaultTableOptions'])
+            && array_key_exists('collate', $params['defaultTableOptions'])
+            && is_string($params['defaultTableOptions']['collate'])
+            && $params['defaultTableOptions']['collate'] !== ''
+        ) {
+            trigger_error(
+                sprintf(
+                    '$GLOBALS[\'TYPO3_CONF_VARS\'][\'DB\'][\'Connections\'][\'%s\'][\'defaultTableOptions\'][\'collate\'] '
+                    . 'is deprecated since v13 and will be ignored in v15 (or later). Set "collation" instead. Note "collate" overrides '
+                    . '"collation" in v13.',
+                    $connectionName,
+                ),
+                E_USER_DEPRECATED,
+            );
+            $params['defaultTableOptions']['collation'] = $params['defaultTableOptions']['collate'];
+            unset($params['defaultTableOptions']['collate']);
+        }
+        return $params;
+    }
+
+    /**
+     * Clean up invalid connection parameters.
+     */
+    private function removeInvalidConnectionParams(array $params): array
+    {
+        // Remove defaultTableOptions for unsupported databases
+        unset($params['tableoptions']);
+        // Ensure to remove `defaultTableOptions` for drivers not supporting it.
+        if (!in_array((string)($params['driver'] ?? ''), ['mysqli', 'pdo_mysql'], true)) {
+            unset($params['defaultTableOptions']);
+            return $params;
+        }
+        // ENGINE is a TYPO3 custom option not handled by doctrine/dbal by a custom implementation,
+        // see `MySQLCompatibleAlterTablePlatformAwareTrait`
+        $allowedDefaultTableOptions = ['charset', 'collation', 'engine'];
+        $currentDefaultTableOptionsArrayKeys = array_keys($params['defaultTableOptions']);
+        foreach ($currentDefaultTableOptionsArrayKeys as $optionIdentifier) {
+            if (!in_array($optionIdentifier, $allowedDefaultTableOptions, true)) {
+                unset($params['defaultTableOptions'][$optionIdentifier]);
+            }
+        }
+        // Remove if empty.
+        if ($params['defaultTableOptions'] === []) {
+            unset($params['defaultTableOptions']);
+        }
+        return $params;
+    }
+
+    /**
+     * Set a suiting UTF-8 connection charset when nothing is set in connection configuration for `charset`.
+     *
+     * @todo Investigate how to deal with missing defaultTableOptions for MariaDB and MySQL connections,
+     *       which may be already partially set even when charset is missing.
+     */
+    private function ensureDefaultConnectionCharset(array $params): array
+    {
+        if (!array_key_exists('charset', $params) || !is_string($params['charset']) || $params['charset'] === '') {
+            $params['charset'] = 'utf8';
+            // @todo Add `charset = utf8mb4` for MySQL/MariaDB as default connection charset in 14.0 as breaking change.
+        }
+        return $params;
     }
 
     /**
      * Return any doctrine driver middlewares, that may have been set up in:
-     * $GLOBALS['TYPO3_CONF_VARS']['DB']['Connections']['Default']['driverMiddlewares']
+     * - for all configured connections
+     * - $GLOBALS['TYPO3_CONF_VARS']['DB']['Connections']['Default']['driverMiddlewares'] for a specific connection
      */
-    protected function getDriverMiddlewares(array $connectionParams): array
+    protected function getDriverMiddlewares(string $connectionName, array $connectionParams): array
     {
+        $driverMiddlewares = $this->getOrderedConnectionDriverMiddlewareConfiguration($connectionName, $connectionParams);
         $middlewares = [];
-
-        foreach ($connectionParams['driverMiddlewares'] ?? [] as $className) {
-            if (!in_array(DriverMiddleware::class, class_implements($className) ?: [], true)) {
-                throw new \UnexpectedValueException('Doctrine Driver Middleware must implement \Doctrine\DBAL\Driver\Middleware', 1677958727);
+        foreach ($driverMiddlewares as $middlewareConfiguration) {
+            $className = $middlewareConfiguration['target'];
+            $disabled = $middlewareConfiguration['disabled'];
+            if ($disabled === true) {
+                // Middleware disabled, skip to next middleware.
+                continue;
             }
+
             $middlewares[] = GeneralUtility::makeInstance($className);
         }
 
@@ -209,20 +291,89 @@ class ConnectionPool
     }
 
     /**
+     * @internal only for `ext:lowlevel` usage to retrieve configuration overview.     *
+     * @return array
+     */
+    public function getConnectionMiddlewareConfigurationArrayForLowLevelConfiguration(): array
+    {
+        $configurationArray = [
+            'Raw' => [
+                'GlobalDriverMiddlewares' => $GLOBALS['TYPO3_CONF_VARS']['DB']['globalDriverMiddlewares'] ?? [],
+                'Connections' => [],
+            ],
+            'Connections' => [],
+        ];
+        foreach (array_keys($GLOBALS['TYPO3_CONF_VARS']['DB']['Connections']) as $connectionName) {
+            $connectionParams = $this->getConnectionParams($connectionName);
+            $configurationArray['Raw']['Connections'][$connectionName] = $connectionParams;
+            $configurationArray['Connections'][$connectionName] = $this->getOrderedConnectionDriverMiddlewareConfiguration($connectionName, $connectionParams);
+        }
+        return $configurationArray;
+    }
+
+    /**
+     * @param array $connectionParams
+     * @return array<non-empty-string, array{target: class-string, disabled: bool, after: string[], before: string[], type: string}>
+     */
+    protected function getOrderedConnectionDriverMiddlewareConfiguration(string $connectionName, array $connectionParams): array
+    {
+        /** @var DriverMiddlewareService $driverMiddlewareService */
+        $driverMiddlewareService = GeneralUtility::makeInstance(DriverMiddlewareService::class);
+        /** @var array<non-empty-string, array{target: class-string, disabled: bool, after: string[], before: string[], type: string}> $driverMiddlewares */
+        $driverMiddlewares = [];
+        foreach ($GLOBALS['TYPO3_CONF_VARS']['DB']['globalDriverMiddlewares'] ?? [] as $identifier => $middleware) {
+            $identifier = (string)$identifier;
+            $driverMiddlewares[$identifier] = $driverMiddlewareService->ensureCompleteMiddlewareConfiguration(
+                $driverMiddlewareService->normalizeMiddlewareConfiguration($identifier, $middleware)
+            );
+            $driverMiddlewares[$identifier]['type'] = 'global';
+        }
+        foreach ($connectionParams['driverMiddlewares'] ?? [] as $identifier => $middleware) {
+            $identifier = (string)$identifier;
+            $middleware = array_replace(
+                $driverMiddlewares[$identifier] ?? [],
+                $driverMiddlewareService->normalizeMiddlewareConfiguration($identifier, $middleware)
+            );
+            $middleware = $driverMiddlewareService->ensureCompleteMiddlewareConfiguration($middleware);
+            $driverMiddlewares[$identifier] = $middleware;
+            $driverMiddlewares[$identifier]['type'] = $driverMiddlewares[$identifier]['type']
+                ? 'global-with-connection-override'
+                : 'connection';
+        }
+        $driverMiddlewares = array_filter($driverMiddlewares, static function (array $middleware) use ($connectionName, $connectionParams): bool {
+            $className = $middleware['target'];
+            $classImplements = class_exists($className) ? (class_implements($className) ?: []) : [];
+            if (!in_array(DriverMiddleware::class, $classImplements, true)) {
+                throw new \UnexpectedValueException(
+                    sprintf(
+                        'Doctrine Driver Middleware "%s" must implement \Doctrine\DBAL\Driver\Middleware',
+                        $className
+                    ),
+                    1677958727
+                );
+            }
+            if (in_array(UsableForConnectionInterface::class, $classImplements, true)) {
+                return GeneralUtility::makeInstance($middleware['target'])->canBeUsedForConnection($connectionName, $connectionParams);
+            }
+
+            return true;
+        });
+
+        return $driverMiddlewareService->order($driverMiddlewares);
+    }
+
+    /**
      * Creates a connection object based on the specified parameters
      */
-    protected function getDatabaseConnection(array $connectionParams): Connection
+    protected function getDatabaseConnection(string $connectionName, array $connectionParams): Connection
     {
         $this->registerDoctrineTypes();
 
-        // Default to UTF-8 connection charset
-        if (empty($connectionParams['charset'])) {
-            $connectionParams['charset'] = 'utf8';
-        }
-
-        $connectionParams = $this->mapCustomDriver($connectionParams);
-        $middlewares = $this->getDriverMiddlewares($connectionParams);
-        $configuration = $middlewares ? (new Configuration())->setMiddlewares($middlewares) : null;
+        $middlewares = $this->getDriverMiddlewares($connectionName, $connectionParams);
+        $configuration = (new Configuration())
+            ->setMiddlewares($middlewares)
+            // @link https://github.com/doctrine/dbal/blob/3.7.x/UPGRADE.md#deprecated-not-setting-a-schema-manager-factory
+            ->setSchemaManagerFactory(GeneralUtility::makeInstance(CoreSchemaManagerFactory::class));
 
         /** @var Connection $conn */
         $conn = DriverManager::getConnection($connectionParams, $configuration);
@@ -238,32 +389,12 @@ class ConnectionPool
             $conn->getDatabasePlatform()->registerDoctrineTypeMapping($type, $type);
         }
 
-        // Handler for building custom data type column definitions
-        // in the SchemaManager
-        $conn->getDatabasePlatform()->getEventManager()->addEventListener(
-            Events::onSchemaColumnDefinition,
-            GeneralUtility::makeInstance(SchemaColumnDefinitionListener::class)
-        );
-
-        // Handler for enhanced index definitions in the SchemaManager
-        $conn->getDatabasePlatform()->getEventManager()->addEventListener(
-            Events::onSchemaIndexDefinition,
-            GeneralUtility::makeInstance(SchemaIndexDefinitionListener::class)
-        );
-
-        // Handler for adding custom database platform options to ALTER TABLE
-        // requests in the SchemaManager
-        $conn->getDatabasePlatform()->getEventManager()->addEventListener(
-            Events::onSchemaAlterTable,
-            GeneralUtility::makeInstance(SchemaAlterTableListener::class)
-        );
-
         return $conn;
     }
 
     /**
      * Returns the connection specific query builder object that can be used to build
-     * complex SQL queries using and object oriented approach.
+     * complex SQL queries using and object-oriented approach.
      */
     public function getQueryBuilderForTable(string $tableName): QueryBuilder
     {

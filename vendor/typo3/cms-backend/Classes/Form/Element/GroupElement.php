@@ -16,7 +16,8 @@
 namespace TYPO3\CMS\Backend\Form\Element;
 
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
-use TYPO3\CMS\Core\Imaging\Icon;
+use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Page\JavaScriptModuleInstruction;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\MathUtility;
@@ -95,6 +96,10 @@ class GroupElement extends AbstractFormElement
         ],
     ];
 
+    public function __construct(
+        private readonly IconFactory $iconFactory,
+    ) {}
+
     /**
      * This will render a selector box into which elements from the database
      * can be inserted. Relations.
@@ -102,13 +107,11 @@ class GroupElement extends AbstractFormElement
      * @return array As defined in initializeResultArray() of AbstractNode
      * @throws \RuntimeException
      */
-    public function render()
+    public function render(): array
     {
         $languageService = $this->getLanguageService();
         $backendUser = $this->getBackendUserAuthentication();
         $resultArray = $this->initializeResultArray();
-        // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-        $resultArray['labelHasBeenHandled'] = true;
 
         $table = $this->data['tableName'];
         $fieldName = $this->data['fieldName'];
@@ -158,7 +161,7 @@ class GroupElement extends AbstractFormElement
             $html[] = '<div class="formengine-field-item t3js-formengine-field-item">';
             $html[] =   $fieldInformationHtml;
             $html[] =   '<div class="form-wizards-wrap">';
-            $html[] =       '<div class="form-wizards-element">';
+            $html[] =       '<div class="form-wizards-item-element">';
             $html[] =           '<select';
             $html[] =               ' size="' . $size . '"';
             $html[] =               ' disabled="disabled"';
@@ -250,11 +253,11 @@ class GroupElement extends AbstractFormElement
         $html[] =   $fieldInformationHtml;
         $html[] =   '<div class="form-wizards-wrap">';
         if (!isset($config['hideSuggest']) || (bool)$config['hideSuggest'] !== true) {
-            $html[] =   '<div class="form-wizards-items-top">';
+            $html[] =   '<div class="form-wizards-item-top">';
             $html[] =       '<div class="autocomplete t3-form-suggest-container">';
             $html[] =           '<div class="input-group">';
-            $html[] =               '<span class="input-group-addon">';
-            $html[] =                   $this->iconFactory->getIcon('actions-search', Icon::SIZE_SMALL)->render();
+            $html[] =               '<span class="input-group-text">';
+            $html[] =                   $this->iconFactory->getIcon('actions-search', IconSize::SMALL)->render();
             $html[] =               '</span>';
             $html[] =               '<input type="search" class="t3-form-suggest form-control"';
             $html[] =                   ' placeholder="' . $languageService->sL('LLL:EXT:backend/Resources/Private/Language/locallang_alt_doc.xlf:search.find_record') . '"';
@@ -278,14 +281,14 @@ class GroupElement extends AbstractFormElement
             $html[] =       '</div>';
             $html[] =   '</div>';
         }
-        $html[] =       '<div class="form-wizards-element">';
+        $html[] =       '<div class="form-wizards-item-element">';
         $html[] =           '<input type="hidden" data-formengine-input-name="' . htmlspecialchars($elementName) . '" value="' . $itemCanBeSelectedMoreThanOnce . '" />';
         $html[] =           '<select ' . GeneralUtility::implodeAttributes($selectorAttributes, true) . '>';
         $html[] =               implode(LF, $selectorOptionsHtml);
         $html[] =           '</select>';
         $html[] =       '</div>';
         if (($maxItems > 1 && $size > 1 && $showMoveIcons) || $showDeleteControl) {
-            $html[] =       '<div class="form-wizards-items-aside form-wizards-items-aside--move">';
+            $html[] =       '<div class="form-wizards-item-aside form-wizards-item-aside--move">';
             $html[] =           '<div class="btn-group-vertical">';
             if ($maxItems > 1 && $size >= 2 && $showMoveIcons) {
                 $html[] =           '<button type="button"';
@@ -293,7 +296,7 @@ class GroupElement extends AbstractFormElement
                 $html[] =               ' data-fieldname="' . htmlspecialchars($elementName) . '"';
                 $html[] =               ' title="' . htmlspecialchars($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.move_to_top')) . '"';
                 $html[] =           '>';
-                $html[] =               $this->iconFactory->getIcon('actions-move-to-top', Icon::SIZE_SMALL)->render();
+                $html[] =               $this->iconFactory->getIcon('actions-move-to-top', IconSize::SMALL)->render();
                 $html[] =               '<span class="visually-hidden">' . htmlspecialchars($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.move_to_top')) . '</span>';
                 $html[] =           '</button>';
             }
@@ -303,7 +306,7 @@ class GroupElement extends AbstractFormElement
                 $html[] =               ' data-fieldname="' . htmlspecialchars($elementName) . '"';
                 $html[] =               ' title="' . htmlspecialchars($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.move_up')) . '"';
                 $html[] =           '>';
-                $html[] =               $this->iconFactory->getIcon('actions-move-up', Icon::SIZE_SMALL)->render();
+                $html[] =               $this->iconFactory->getIcon('actions-move-up', IconSize::SMALL)->render();
                 $html[] =               '<span class="visually-hidden">' . htmlspecialchars($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.move_up')) . '</span>';
                 $html[] =           '</button>';
                 $html[] =           '<button type="button"';
@@ -311,7 +314,7 @@ class GroupElement extends AbstractFormElement
                 $html[] =               ' data-fieldname="' . htmlspecialchars($elementName) . '"';
                 $html[] =               ' title="' . htmlspecialchars($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.move_down')) . '"';
                 $html[] =           '>';
-                $html[] =               $this->iconFactory->getIcon('actions-move-down', Icon::SIZE_SMALL)->render();
+                $html[] =               $this->iconFactory->getIcon('actions-move-down', IconSize::SMALL)->render();
                 $html[] =               '<span class="visually-hidden">' . htmlspecialchars($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.move_down')) . '</span>';
                 $html[] =           '</button>';
             }
@@ -321,7 +324,7 @@ class GroupElement extends AbstractFormElement
                 $html[] =               ' data-fieldname="' . htmlspecialchars($elementName) . '"';
                 $html[] =               ' title="' . htmlspecialchars($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.move_to_bottom')) . '"';
                 $html[] =           '>';
-                $html[] =               $this->iconFactory->getIcon('actions-move-to-bottom', Icon::SIZE_SMALL)->render();
+                $html[] =               $this->iconFactory->getIcon('actions-move-to-bottom', IconSize::SMALL)->render();
                 $html[] =               '<span class="visually-hidden">' . htmlspecialchars($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.move_to_bottom')) . '</span>';
                 $html[] =           '</button>';
             }
@@ -332,7 +335,7 @@ class GroupElement extends AbstractFormElement
                 $html[] =               ' data-uid="' . htmlspecialchars($row['uid']) . '"';
                 $html[] =               ' title="' . htmlspecialchars($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.remove_selected')) . '"';
                 $html[] =           '>';
-                $html[] =               $this->iconFactory->getIcon('actions-selection-delete', Icon::SIZE_SMALL)->render();
+                $html[] =               $this->iconFactory->getIcon('actions-selection-delete', IconSize::SMALL)->render();
                 $html[] =               '<span class="visually-hidden">' . htmlspecialchars($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.remove_selected')) . '</span>';
                 $html[] =           '</button>';
             }
@@ -340,14 +343,14 @@ class GroupElement extends AbstractFormElement
             $html[] =       '</div>';
         }
         if ($fieldControlHtml !== '') {
-            $html[] =       '<div class="form-wizards-items-aside form-wizards-items-aside--field-control">';
+            $html[] =       '<div class="form-wizards-item-aside form-wizards-item-aside--field-control">';
             $html[] =           '<div class="btn-group-vertical">';
             $html[] =               $fieldControlHtml;
             $html[] =           '</div>';
             $html[] =       '</div>';
         }
         if (!empty($fieldWizardHtml)) {
-            $html[] = '<div class="form-wizards-items-bottom">';
+            $html[] = '<div class="form-wizards-item-bottom">';
             $html[] = $fieldWizardHtml;
             $html[] = '</div>';
         }

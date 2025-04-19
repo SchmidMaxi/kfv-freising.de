@@ -16,19 +16,21 @@
 namespace TYPO3\CMS\Core\Resource;
 
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
+use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 use TYPO3\CMS\Core\Collection\AbstractRecordCollection;
 use TYPO3\CMS\Core\Collection\CollectionInterface;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
+use TYPO3\CMS\Core\Domain\Repository\PageRepository;
 use TYPO3\CMS\Core\Http\ApplicationType;
 use TYPO3\CMS\Core\Resource\Collection\FileCollectionRegistry;
 use TYPO3\CMS\Core\Resource\Exception\FileDoesNotExistException;
 use TYPO3\CMS\Core\Resource\Exception\ResourceDoesNotExistException;
 use TYPO3\CMS\Core\Resource\Index\FileIndexRepository;
-use TYPO3\CMS\Core\Service\FlexFormService;
 use TYPO3\CMS\Core\SingletonInterface;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\MathUtility;
@@ -37,32 +39,13 @@ use TYPO3\CMS\Core\Utility\PathUtility;
 /**
  * Factory class for FAL objects
  */
-class ResourceFactory implements SingletonInterface
+readonly class ResourceFactory implements SingletonInterface
 {
-    /**
-     * @var array<int,CollectionInterface<File>>
-     */
-    protected $collectionInstances = [];
-
-    /**
-     * @var File[]
-     */
-    protected $fileInstances = [];
-
-    /**
-     * @var FileReference[]
-     */
-    protected $fileReferenceInstances = [];
-
-    /**
-     * @var StorageRepository
-     */
-    protected $storageRepository;
-
-    public function __construct(StorageRepository $storageRepository)
-    {
-        $this->storageRepository = $storageRepository;
-    }
+    public function __construct(
+        protected StorageRepository $storageRepository,
+        #[Autowire(service: 'cache.runtime')]
+        protected FrontendInterface $runtimeCache,
+    ) {}
 
     /**
      * Returns the Default Storage
@@ -98,26 +81,6 @@ class ResourceFactory implements SingletonInterface
     }
 
     /**
-     * Converts a flexform data string to a flat array with key value pairs.
-     *
-     * It is recommended to not use this functionality directly, and instead implement this code yourself, as this
-     * code has nothing to do with a Public API for Resources.
-     *
-     * @param string $flexFormData
-     * @return array Array with key => value pairs of the field data in the FlexForm
-     * @internal
-     */
-    public function convertFlexFormDataToConfigurationArray($flexFormData)
-    {
-        $configuration = [];
-        if ($flexFormData) {
-            $flexFormService = GeneralUtility::makeInstance(FlexFormService::class);
-            $configuration = $flexFormService->convertFlexFormContentToArray($flexFormData);
-        }
-        return $configuration;
-    }
-
-    /**
      * Creates an instance of the collection from given UID. The $recordData can be supplied to increase performance.
      *
      * @param int $uid The uid of the collection to instantiate.
@@ -131,7 +94,9 @@ class ResourceFactory implements SingletonInterface
         if (!is_numeric($uid)) {
             throw new \InvalidArgumentException('The UID of collection has to be numeric. UID given: "' . $uid . '"', 1314085999);
         }
-        if (!isset($this->collectionInstances[$uid])) {
+        $uid = (int)$uid;
+        $collectionObject = $this->collectionCacheGet($uid);
+        if ($collectionObject === null) {
             // Get mount data if not already supplied as argument to this function
             if (empty($recordData) || $recordData['uid'] !== $uid) {
                 $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('sys_file_collection');
@@ -151,9 +116,9 @@ class ResourceFactory implements SingletonInterface
                 }
             }
             $collectionObject = $this->createCollectionObject($recordData);
-            $this->collectionInstances[$uid] = $collectionObject;
+            $this->collectionCacheSet($uid, $collectionObject);
         }
-        return $this->collectionInstances[$uid];
+        return $collectionObject;
     }
 
     /**
@@ -195,14 +160,15 @@ class ResourceFactory implements SingletonInterface
      *
      * @throws \InvalidArgumentException
      * @throws Exception\FileDoesNotExistException
-     * @return File
      */
-    public function getFileObject($uid, array $fileData = [])
+    public function getFileObject($uid, array $fileData = []): File
     {
         if (!is_numeric($uid)) {
             throw new \InvalidArgumentException('The UID of file has to be numeric. UID given: "' . $uid . '"', 1300096564);
         }
-        if (empty($this->fileInstances[$uid])) {
+        $uid = (int)$uid;
+        $fileObject = $this->fileCacheGet($uid);
+        if ($fileObject === null) {
             // Fetches data in case $fileData is empty
             if (empty($fileData)) {
                 $fileData = $this->getFileIndexRepository()->findOneByUid($uid);
@@ -210,9 +176,10 @@ class ResourceFactory implements SingletonInterface
                     throw new FileDoesNotExistException('No file found for given UID: ' . $uid, 1317178604);
                 }
             }
-            $this->fileInstances[$uid] = $this->createFileObject($fileData);
+            $fileObject = $this->createFileObject($fileData);
+            $this->fileCacheSet($fileObject);
         }
-        return $this->fileInstances[$uid];
+        return $fileObject;
     }
 
     /**
@@ -277,7 +244,7 @@ class ResourceFactory implements SingletonInterface
      * - "file:23"
      *
      * @param string $input
-     * @return File|Folder|null
+     * @return ProcessedFile|File|Folder|null
      */
     public function retrieveFileOrFolderObject($input)
     {
@@ -307,7 +274,9 @@ class ResourceFactory implements SingletonInterface
                     $relativePath = PathUtility::getRelativePath(Environment::getPublicPath() . '/', PathUtility::dirname($absoluteFilePath)) . PathUtility::basename($absoluteFilePath);
                 } else {
                     try {
-                        $relativePath = PathUtility::getPublicResourceWebPath($input);
+                        // The second parameter needs to be false in order to have getFileObjectFromCombinedIdentifier()
+                        // use a non-absolute web path and detect this properly as FAL fallback storage.
+                        $relativePath = PathUtility::getPublicResourceWebPath($input, false);
                     } catch (\Throwable $e) {
                         throw new ResourceDoesNotExistException(sprintf('Tried to access a private resource file "%s" from fallback compatibility storage. This storage only handles public files.', $input), 1633777536);
                     }
@@ -331,7 +300,7 @@ class ResourceFactory implements SingletonInterface
     /**
      * Gets a folder object from an identifier [storage]:[fileId]
      *
-     * @TODO check naming, inserted by SteffenR while working on filelist
+     * @todo Check naming, inserted by SteffenR while working on filelist.
      * @param string $identifier
      * @return Folder
      */
@@ -355,22 +324,6 @@ class ResourceFactory implements SingletonInterface
             }
         }
         return $this->storageRepository->getStorageObject($storageUid, [], $folderIdentifier)->getFolder($folderIdentifier);
-    }
-
-    /**
-     * Gets a storage object from a combined identifier
-     *
-     * @param string $identifier An identifier of the form [storage uid]:[object identifier]
-     * @return ResourceStorage
-     * @internal It is recommended to use the StorageRepository in the future, and this is only kept as backwards-compat layer
-     */
-    public function getStorageObjectFromCombinedIdentifier($identifier)
-    {
-        [$storageId, $objectIdentifier] = array_pad(GeneralUtility::trimExplode(':', $identifier), 2, null);
-        if (!MathUtility::canBeInterpretedAsInteger($storageId) && $objectIdentifier === null) {
-            return $this->storageRepository->findByUid(0);
-        }
-        return $this->storageRepository->findByUid((int)$storageId);
     }
 
     /**
@@ -427,19 +380,12 @@ class ResourceFactory implements SingletonInterface
      * @param int $uid The uid of the file usage (sys_file_reference) to instantiate.
      * @param array $fileReferenceData The record row from database.
      * @param bool $raw Whether to get raw results without performing overlays
-     * @return FileReference
-     * @throws \InvalidArgumentException
      * @throws Exception\ResourceDoesNotExistException
      */
-    public function getFileReferenceObject($uid, array $fileReferenceData = [], $raw = false)
+    public function getFileReferenceObject(int $uid, array $fileReferenceData = [], bool $raw = false): FileReference
     {
-        if (!is_numeric($uid)) {
-            throw new \InvalidArgumentException(
-                'The reference UID for the file (sys_file_reference) has to be numeric. UID given: "' . $uid . '"',
-                1300086584
-            );
-        }
-        if (!($this->fileReferenceInstances[$uid] ?? false)) {
+        $fileReference = $this->fileReferenceCacheGet($uid);
+        if ($fileReference === null) {
             // Fetches data in case $fileData is empty
             if (empty($fileReferenceData)) {
                 $fileReferenceData = $this->getFileReferenceData($uid, $raw);
@@ -450,22 +396,20 @@ class ResourceFactory implements SingletonInterface
                     );
                 }
             }
-            $this->fileReferenceInstances[$uid] = $this->createFileReferenceObject($fileReferenceData);
+            $fileReference = $this->createFileReferenceObject($fileReferenceData);
+            $this->fileReferenceCacheSet($fileReference);
         }
-        return $this->fileReferenceInstances[$uid];
+        return $fileReference;
     }
 
     /**
      * Creates a file usage object from an array of fileReference data
      * from sys_file_reference table.
      * Requires a database row to be already fetched and present.
-     *
-     * @return FileReference
      */
-    public function createFileReferenceObject(array $fileReferenceData)
+    public function createFileReferenceObject(array $fileReferenceData): FileReference
     {
-        $fileReferenceObject = GeneralUtility::makeInstance(FileReference::class, $fileReferenceData);
-        return $fileReferenceObject;
+        return GeneralUtility::makeInstance(FileReference::class, $fileReferenceData);
     }
 
     /**
@@ -475,15 +419,19 @@ class ResourceFactory implements SingletonInterface
      * @param bool $raw Whether to get raw results without performing overlays
      * @return array|null
      */
-    protected function getFileReferenceData($uid, $raw = false)
+    protected function getFileReferenceData(int $uid, bool $raw = false): ?array
     {
+        $request = $GLOBALS['TYPO3_REQUEST'] ?? null;
         if (!$raw
-            && ($GLOBALS['TYPO3_REQUEST'] ?? null) instanceof ServerRequestInterface
-            && ApplicationType::fromRequest($GLOBALS['TYPO3_REQUEST'])->isBackend()
+            && $request instanceof ServerRequestInterface
+            && ApplicationType::fromRequest($request)->isBackend()
         ) {
             $fileReferenceData = BackendUtility::getRecordWSOL('sys_file_reference', $uid);
-        } elseif (!$raw && is_object($GLOBALS['TSFE'] ?? false)) {
-            $fileReferenceData = $GLOBALS['TSFE']->sys_page->checkRecord('sys_file_reference', $uid);
+        } elseif (!$raw
+            && $request instanceof ServerRequestInterface
+            && ApplicationType::fromRequest($request)->isFrontend()
+        ) {
+            $fileReferenceData = GeneralUtility::makeInstance(PageRepository::class)->checkRecord('sys_file_reference', $uid);
         } else {
             $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('sys_file_reference');
             $queryBuilder->getRestrictions()->removeAll()->add(GeneralUtility::makeInstance(DeletedRestriction::class));
@@ -509,5 +457,65 @@ class ResourceFactory implements SingletonInterface
     protected function getFileIndexRepository()
     {
         return GeneralUtility::makeInstance(FileIndexRepository::class);
+    }
+
+    protected function collectionCacheIdentifier(int $uid): string
+    {
+        return sprintf('resourcefactory-collection-%s', $uid);
+    }
+
+    /**
+     * @return CollectionInterface<File>|null
+     */
+    protected function collectionCacheGet(int $uid): ?CollectionInterface
+    {
+        $entry = $this->runtimeCache->get($this->collectionCacheIdentifier($uid));
+        if ($entry instanceof CollectionInterface) {
+            return $entry;
+        }
+        return null;
+    }
+
+    /**
+     * @param CollectionInterface<File> $collection
+     */
+    protected function collectionCacheSet(int $uid, CollectionInterface $collection): void
+    {
+        $this->runtimeCache->set($this->collectionCacheIdentifier($uid), $collection);
+    }
+
+    protected function fileCacheIdentifier(int $uid): string
+    {
+        return sprintf('resourcestorage-file-%s', $uid);
+    }
+
+    protected function fileCacheGet(int $uid): ?File
+    {
+        $entry = $this->runtimeCache->get($this->fileCacheIdentifier($uid));
+        if ($entry instanceof File) {
+            return $entry;
+        }
+        return null;
+    }
+
+    protected function fileCacheSet(File $file): void
+    {
+        $this->runtimeCache->set($this->fileCacheIdentifier($file->getUid()), $file);
+    }
+
+    protected function fileReferenceCacheIdentifier(int $uid): string
+    {
+        return sprintf('resourcestorage-filereference-%s', $uid);
+    }
+
+    protected function fileReferenceCacheGet(int $uid): ?FileReference
+    {
+        $entry = $this->runtimeCache->get($this->fileReferenceCacheIdentifier($uid));
+        return ($entry instanceof FileReference) ? $entry : null;
+    }
+
+    protected function fileReferenceCacheSet(FileReference $fileReference): void
+    {
+        $this->runtimeCache->set($this->fileReferenceCacheIdentifier($fileReference->getUid()), $fileReference);
     }
 }

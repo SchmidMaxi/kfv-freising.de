@@ -18,17 +18,19 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Redirects\EventListener;
 
 use TYPO3\CMS\Backend\Controller\Event\AfterBackendPageRenderEvent;
+use TYPO3\CMS\Core\Attribute\AsEventListener;
 use TYPO3\CMS\Core\Page\PageRenderer;
 
 /**
  * @internal redirects internal usage, not part of public API.
  */
-final class AfterBackendPageRendererEventListener
+final readonly class AfterBackendPageRendererEventListener
 {
     public function __construct(
-        private readonly PageRenderer $pageRenderer
+        private PageRenderer $pageRenderer
     ) {}
 
+    #[AsEventListener('redirects-after-backend-page-renderer-event')]
     public function __invoke(AfterBackendPageRenderEvent $event): void
     {
         $this->pageRenderer->loadJavaScriptModule('@typo3/redirects/event-handler.js');

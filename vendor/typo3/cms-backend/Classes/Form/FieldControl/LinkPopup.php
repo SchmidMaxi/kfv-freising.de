@@ -20,9 +20,9 @@ namespace TYPO3\CMS\Backend\Form\FieldControl;
 use TYPO3\CMS\Backend\Form\AbstractNode;
 use TYPO3\CMS\Backend\Form\Behavior\OnFieldChangeTrait;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Page\JavaScriptModuleInstruction;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\StringUtility;
 
 /**
@@ -32,6 +32,11 @@ use TYPO3\CMS\Core\Utility\StringUtility;
 class LinkPopup extends AbstractNode
 {
     use OnFieldChangeTrait;
+
+    public function __construct(
+        private readonly UriBuilder $uriBuilder,
+        private readonly HashService $hashService,
+    ) {}
 
     /**
      * Link popup control
@@ -75,12 +80,11 @@ class LinkPopup extends AbstractNode
                 'field' => $this->data['fieldName'],
                 'formName' => 'editform',
                 'itemName' => $itemName,
-                'hmac' => GeneralUtility::hmac('editform' . $itemName, 'wizard_js'),
+                'hmac' => $this->hashService->hmac('editform' . $itemName, 'wizard_js'),
             ],
             $this->forwardOnFieldChangeQueryParams($parameterArray['fieldChangeFunc'] ?? [])
         );
-        $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
-        $url = (string)$uriBuilder->buildUriFromRoute('wizard_link', ['P' => $urlParameters]);
+        $url = (string)$this->uriBuilder->buildUriFromRoute('wizard_link', ['P' => $urlParameters]);
         $id = StringUtility::getUniqueId('t3js-formengine-fieldcontrol-');
         $label = $this->getLanguageService()->sL('LLL:EXT:backend/Resources/Private/Language/locallang_browse_links.xlf:openLinkWizard');
         return [

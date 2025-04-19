@@ -44,12 +44,13 @@ class MethodCallMatcher extends AbstractCoreMatcher
      * Called by PhpParser.
      * Test for "->deprecated()" (weak match)
      */
-    public function enterNode(Node $node)
+    public function enterNode(Node $node): null
     {
         // Match method call (not static)
         if (!$this->isFileIgnored($node)
             && !$this->isLineIgnored($node)
             && $node instanceof MethodCall
+            && isset($node->name->name)
             && array_key_exists($node->name->name, $this->flatMatcherDefinitions)
         ) {
             $match = [
@@ -78,5 +79,6 @@ class MethodCallMatcher extends AbstractCoreMatcher
                 $this->matches[] = $match;
             }
         }
+        return null;
     }
 }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -17,8 +19,6 @@ namespace TYPO3\CMS\Core\Core;
 
 use Composer\Autoload\ClassLoader;
 use TYPO3\ClassAliasLoader\ClassAliasMap;
-use TYPO3\CMS\Core\Package\Event\AfterPackageActivationEvent;
-use TYPO3\CMS\Core\Package\Event\AfterPackageDeactivationEvent;
 use TYPO3\CMS\Core\Package\PackageInterface;
 use TYPO3\CMS\Core\Package\PackageManager;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -90,38 +90,15 @@ class ClassLoadingInformation
     public static function dumpClassLoadingInformation()
     {
         self::ensureAutoloadInfoDirExists();
-        $composerClassLoader = static::getClassLoader();
         $activeExtensionPackages = static::getActiveExtensionPackages();
 
-        $generator = GeneralUtility::makeInstance(ClassLoadingInformationGenerator::class, $composerClassLoader, $activeExtensionPackages, Environment::getPublicPath() . '/', self::isTestingContext());
-        $classInfoFiles = $generator->buildAutoloadInformationFiles();
-        GeneralUtility::writeFile(self::getClassLoadingInformationDirectory() . self::AUTOLOAD_CLASSMAP_FILENAME, $classInfoFiles['classMapFile']);
-        GeneralUtility::writeFile(self::getClassLoadingInformationDirectory() . self::AUTOLOAD_PSR4_FILENAME, $classInfoFiles['psr-4File']);
+        $generator = new ClassLoadingInformationGenerator();
+        $classInfoFiles = $generator->buildAutoloadInformationFiles(self::isTestingContext(), Environment::getPublicPath() . '/', $activeExtensionPackages);
+        GeneralUtility::writeFile(self::getClassLoadingInformationDirectory() . self::AUTOLOAD_CLASSMAP_FILENAME, $classInfoFiles['classMapFile'], true);
+        GeneralUtility::writeFile(self::getClassLoadingInformationDirectory() . self::AUTOLOAD_PSR4_FILENAME, $classInfoFiles['psr-4File'], true);
 
-        $classAliasMapFile = $generator->buildClassAliasMapFile();
-        GeneralUtility::writeFile(self::getClassLoadingInformationDirectory() . self::AUTOLOAD_CLASSALIASMAP_FILENAME, $classAliasMapFile);
-    }
-
-    /**
-     * @internal
-     */
-    public static function updateClassLoadingInformationAfterPackageDeactivation(AfterPackageDeactivationEvent $event): void
-    {
-        if (Environment::isComposerMode()) {
-            return;
-        }
-        static::dumpClassLoadingInformation();
-    }
-
-    /**
-     * @internal
-     */
-    public static function updateClassLoadingInformationAfterPackageActivation(AfterPackageActivationEvent $event): void
-    {
-        if (Environment::isComposerMode()) {
-            return;
-        }
-        static::dumpClassLoadingInformation();
+        $classAliasMapFile = $generator->buildClassAliasMapFile($activeExtensionPackages);
+        GeneralUtility::writeFile(self::getClassLoadingInformationDirectory() . self::AUTOLOAD_CLASSALIASMAP_FILENAME, $classAliasMapFile, true);
     }
 
     /**
@@ -167,17 +144,14 @@ class ClassLoadingInformation
     public static function registerTransientClassLoadingInformationForPackage(PackageInterface $package)
     {
         $composerClassLoader = static::getClassLoader();
-        $activeExtensionPackages = static::getActiveExtensionPackages();
-
-        $generator = GeneralUtility::makeInstance(ClassLoadingInformationGenerator::class, $composerClassLoader, $activeExtensionPackages, Environment::getPublicPath() . '/', self::isTestingContext());
-
-        $classInformation = $generator->buildClassLoadingInformationForPackage($package);
+        $generator = new ClassLoadingInformationGenerator();
+        $classInformation = $generator->buildClassLoadingInformationForPackage($package, false, self::isTestingContext(), Environment::getPublicPath() . '/');
         $composerClassLoader->addClassMap($classInformation['classMap']);
         foreach ($classInformation['psr-4'] as $prefix => $paths) {
             $composerClassLoader->setPsr4($prefix, $paths);
         }
         $classAliasMap = $generator->buildClassAliasMapForPackage($package);
-        if (is_array($classAliasMap) && !empty($classAliasMap['aliasToClassNameMapping']) && !empty($classAliasMap['classNameToAliasMapping'])) {
+        if (!empty($classAliasMap['aliasToClassNameMapping']) && !empty($classAliasMap['classNameToAliasMapping'])) {
             ClassAliasMap::addAliasMap($classAliasMap);
         }
     }

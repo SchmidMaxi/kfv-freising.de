@@ -16,6 +16,8 @@
 namespace TYPO3\CMS\Scheduler\Task;
 
 use Doctrine\DBAL\Exception as DBALException;
+use Doctrine\DBAL\Platforms\MariaDBPlatform as DoctrineMariaDBPlatform;
+use Doctrine\DBAL\Platforms\MySQLPlatform as DoctrineMySQLPlatform;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -47,14 +49,15 @@ class OptimizeDatabaseTableTask extends AbstractTask
         $connectionPool = GeneralUtility::makeInstance(ConnectionPool::class);
         foreach ($this->selectedTables as $tableName) {
             $connection = $connectionPool->getConnectionForTable($tableName);
+            $platform = $connection->getDatabasePlatform();
 
-            if (str_starts_with($connection->getServerVersion(), 'MySQL')) {
+            if ($platform instanceof DoctrineMariaDBPlatform || $platform instanceof DoctrineMySQLPlatform) {
                 try {
-                    $connection->query('OPTIMIZE TABLE ' . $connection->quoteIdentifier($tableName));
+                    $connection->executeStatement('OPTIMIZE TABLE ' . $connection->quoteIdentifier($tableName));
                 } catch (DBALException $e) {
                     throw new \RuntimeException(
                         TableGarbageCollectionTask::class . ' failed for: ' . $tableName . ': ' .
-                        $e->getPrevious()->getMessage(),
+                        $e->getMessage(),
                         1441390263
                     );
                 }

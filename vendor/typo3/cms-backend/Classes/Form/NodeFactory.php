@@ -15,7 +15,6 @@
 
 namespace TYPO3\CMS\Backend\Form;
 
-use TYPO3\CMS\Backend\Form\Container\FilesControlContainer;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
@@ -34,7 +33,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  * - for complex cases - it is possible to register own resolver classes for single
  * renderTypes that can return a node class name to override the default lookup list.
  *
- * @todo: Declare final in v13.
+ * @todo: Declare final in v13. May require adding an interface to allow mocking in tests
  */
 class NodeFactory
 {
@@ -42,12 +41,12 @@ class NodeFactory
      * Node resolver classes
      * Nested array with nodeName as key, (sorted) priority as sub key and class as value
      */
-    protected array $nodeResolver = [];
+    private array $nodeResolver;
 
     /**
      * Default registry of node name to handling class
      */
-    protected array $nodeTypes = [
+    private array $nodeTypes = [
         // Default container classes
         'flex' => Container\FlexFormEntryContainer::class,
         'flexFormContainerContainer' => Container\FlexFormContainerContainer::class,
@@ -58,8 +57,8 @@ class NodeFactory
         'fullRecordContainer' => Container\FullRecordContainer::class,
         'inline' => Container\InlineControlContainer::class,
         'inlineRecordContainer' => Container\InlineRecordContainer::class,
-        FilesControlContainer::NODE_TYPE_IDENTIFIER => Container\FilesControlContainer::class,
-        Container\FileReferenceContainer::NODE_TYPE_IDENTIFIER => Container\FileReferenceContainer::class,
+        'file' => Container\FilesControlContainer::class,
+        'fileReferenceContainer' => Container\FileReferenceContainer::class,
         'siteLanguage' => Container\SiteLanguageContainer::class,
         'listOfFieldsContainer' => Container\ListOfFieldsContainer::class,
         'noTabsContainer' => Container\NoTabsContainer::class,
@@ -90,8 +89,7 @@ class NodeFactory
         'selectSingle' => Element\SelectSingleElement::class,
         'selectSingleBox' => Element\SelectSingleBoxElement::class,
         'color' => Element\ColorElement::class,
-        // t3editor is defined with a fallback so extensions can use it even if ext:t3editor is not loaded
-        't3editor' => Element\TextElement::class,
+        'codeEditor' => Element\CodeEditorElement::class,
         'text' => Element\TextElement::class,
         'textTable' => Element\TextTableElement::class,
         'unknown' => Element\UnknownElement::class,
@@ -107,6 +105,7 @@ class NodeFactory
         'belayoutwizard' => Element\BackendLayoutWizardElement::class,
         'json' => Element\JsonElement::class,
         'uuid' => Element\UuidElement::class,
+        'tablePermission' => Element\TablePermissionElement::class,
 
         // Default classes to enrich single elements
         'fieldControl' => NodeExpansion\FieldControl::class,
@@ -138,13 +137,10 @@ class NodeFactory
         'passwordGenerator' => FieldControl\PasswordGenerator::class,
     ];
 
-    /**
-     * Set up factory. Initialize additionally registered nodes.
-     */
     public function __construct()
     {
-        $this->registerAdditionalNodeTypesFromConfiguration();
-        $this->registerNodeResolvers();
+        $this->nodeTypes = $this->getAdditionalNodeTypesFromConfiguration($this->nodeTypes);
+        $this->nodeResolver = $this->getRegisteredNodeResolvers();
     }
 
     /**
@@ -163,11 +159,18 @@ class NodeFactory
         }
         $type = $data['renderType'];
 
+        if (!is_string($type)) {
+            throw new Exception(
+                '"renderType" in TCA of field "[' . ($data['tableName'] ?? 'unknown') . '][' . ($data['fieldName'] ?? 'unknown') . ']" does not contain a string. It might be an array instead of a string which could be the result of an array_merge_recursive() operation, for example on existing "fieldControl" keys (these need to have unique array key indices).',
+                1739882175
+            );
+        }
         $className = $this->nodeTypes[$type] ?? $this->nodeTypes['unknown'];
 
         if (!empty($this->nodeResolver[$type])) {
             // Resolver with the highest priority is called first. If it returns with a new class name,
             // it will be taken and loop is aborted, otherwise resolver with next lower priority is called.
+            /** @noinspection PhpUnusedLocalVariableInspection leave for debugging purpose */
             foreach ($this->nodeResolver[$type] as $priority => $resolverClassName) {
                 $resolver = $this->initializeNodeResolverClass($resolverClassName, $data);
                 // Resolver classes do NOT receive the name of the already resolved class. Single
@@ -193,7 +196,7 @@ class NodeFactory
      *
      * @throws Exception if configuration is incomplete or two nodes with identical priorities are registered
      */
-    protected function registerAdditionalNodeTypesFromConfiguration(): void
+    private function getAdditionalNodeTypesFromConfiguration(array $nodeTypes): array
     {
         // List of additional or override nodes
         $registeredTypeOverrides = $GLOBALS['TYPO3_CONF_VARS']['SYS']['formEngine']['nodeRegistry'];
@@ -225,9 +228,10 @@ class NodeFactory
         foreach ($registeredTypeOverrides as $override) {
             if (!isset($highestPriority[$override['nodeName']]) || $override['priority'] > $highestPriority[$override['nodeName']]) {
                 $highestPriority[$override['nodeName']] = $override['priority'];
-                $this->nodeTypes[$override['nodeName']] = $override['class'];
+                $nodeTypes[$override['nodeName']] = $override['class'];
             }
         }
+        return $nodeTypes;
     }
 
     /**
@@ -236,7 +240,7 @@ class NodeFactory
      *
      * @throws Exception if configuration is incomplete or two resolver with identical priorities are registered
      */
-    protected function registerNodeResolvers(): void
+    private function getRegisteredNodeResolvers(): array
     {
         // List of node resolver
         $registeredNodeResolvers = $GLOBALS['TYPO3_CONF_VARS']['SYS']['formEngine']['nodeResolver'];
@@ -267,7 +271,7 @@ class NodeFactory
             krsort($prioritiesAndClasses);
             $sortedResolversByType[$nodeName] = $prioritiesAndClasses;
         }
-        $this->nodeResolver = $sortedResolversByType;
+        return $sortedResolversByType;
     }
 
     /**
@@ -275,14 +279,12 @@ class NodeFactory
      *
      * @param array $data Main data array
      */
-    protected function initializeNodeClass(string $className, array $data): NodeInterface
+    private function initializeNodeClass(string $className, array $data): NodeInterface
     {
-        if (method_exists($className, 'setData')) {
-            $node = GeneralUtility::makeInstance($className);
-            $node->setData($data);
-            return $node;
-        }
-        return GeneralUtility::makeInstance($className, $this, $data);
+        /** @var NodeInterface $node */
+        $node = GeneralUtility::makeInstance($className);
+        $node->setData($data);
+        return $node;
     }
 
     /**
@@ -290,13 +292,11 @@ class NodeFactory
      *
      * @param array $data Main data array
      */
-    protected function initializeNodeResolverClass(string $className, array $data): NodeResolverInterface
+    private function initializeNodeResolverClass(string $className, array $data): NodeResolverInterface
     {
-        if (method_exists($className, 'setData')) {
-            $node = GeneralUtility::makeInstance($className);
-            $node->setData($data);
-            return $node;
-        }
-        return GeneralUtility::makeInstance($className, $this, $data);
+        /** @var NodeResolverInterface $node */
+        $node = GeneralUtility::makeInstance($className);
+        $node->setData($data);
+        return $node;
     }
 }

@@ -26,9 +26,9 @@ use TYPO3\CMS\Core\Type\Map;
  *
  * @internal
  */
-final class DispositionMapFactory
+readonly class DispositionMapFactory
 {
-    public function __construct(private readonly Features $features) {}
+    public function __construct(private Features $features) {}
 
     /**
      * @return list<Disposition>
@@ -88,28 +88,28 @@ final class DispositionMapFactory
     }
 
     private function buildDispositionConfiguration(
-        bool|array $assignment,
+        true|array $assignment,
         array $siteConfiguration = []
     ): DispositionConfiguration {
-        if ($assignment === false) {
-            throw new \LogicException('Disposition assignment cannot be false', 1724840231);
-        }
         if ($assignment === true) {
             // take from top-level configuration
             // (`includeResolutions` and `packages` are ignored on purpose)
             $inheritDefault = $siteConfiguration['inheritDefault'] ?? true;
             $includeResolutions = true;
+            $reportingUrl = null;
             $mutations = $siteConfiguration['mutations'] ?? [];
             $packages = [];
         } else {
             $inheritDefault = $assignment['inheritDefault'] ?? true;
             $includeResolutions = $assignment['includeResolutions'] ?? true;
+            $reportingUrl = $assignment['reportingUrl'] ?? null;
             $mutations = $assignment['mutations'] ?? [];
             $packages = $assignment['packages'] ?? [];
         }
         return new DispositionConfiguration(
             (bool)$inheritDefault,
             (bool)$includeResolutions,
+            $reportingUrl,
             is_array($mutations) ? $mutations : [],
             is_array($packages) ? $packages : [],
         );

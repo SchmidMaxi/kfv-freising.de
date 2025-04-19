@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -41,7 +43,7 @@ class BackendUserGroupIntegrityCheck
                         $table,
                         $id,
                         SystemLogDatabaseAction::UPDATE,
-                        0,
+                        null,
                         SystemLogErrorClassification::WARNING,
                         'Editing of at least one plugin was enabled but editing the page content type "Insert Plugin" is still disallowed. Group members won\'t be able to edit plugins unless you activate editing for the content type.',
                     );

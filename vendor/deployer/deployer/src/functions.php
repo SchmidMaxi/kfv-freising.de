@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 /* (c) Anton Medvedev <anton@medv.io>
  *
@@ -29,8 +31,10 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Question\ChoiceQuestion;
 use Symfony\Component\Console\Question\ConfirmationQuestion;
 use Symfony\Component\Console\Question\Question;
+
 use function Deployer\Support\array_merge_alternate;
 use function Deployer\Support\env_stringify;
+use function Deployer\Support\escape_shell_argument;
 use function Deployer\Support\is_closure;
 use function Deployer\Support\str_contains;
 
@@ -310,9 +314,35 @@ function cd(string $path): void
 }
 
 /**
+ * Change the current user.
+ *
+ * Usage:
+ * ```php
+ * $restore = become('deployer');
+ *
+ * // do something
+ *
+ * $restore(); // revert back to the previous user
+ * ```
+ *
+ * @param string $user
+ * @return \Closure
+ * @throws Exception
+ */
+function become(string $user): \Closure
+{
+    $currentBecome = get('become');
+    set('become', $user);
+    return function () use ($currentBecome) {
+        set('become', $currentBecome);
+    };
+}
+
+/**
  * Execute a callback within a specific directory and revert back to the initial working directory.
  *
  * @return mixed|null Return value of the $callback function or null if callback doesn't return anything
+ * @throws Exception
  */
 function within(string $path, callable $callback)
 {
@@ -323,8 +353,6 @@ function within(string $path, callable $callback)
     } finally {
         set('working_path', $lastWorkingPath);
     }
-
-    return null;
 }
 
 /**
@@ -823,7 +851,7 @@ function askHiddenResponse(string $message): string
     }
 
     if (Deployer::isWorker()) {
-        return (string)Deployer::proxyCallToMaster(currentHost(), __FUNCTION__, ...func_get_args());
+        return (string) Deployer::proxyCallToMaster(currentHost(), __FUNCTION__, ...func_get_args());
     }
 
     /** @var QuestionHelper */
@@ -837,7 +865,7 @@ function askHiddenResponse(string $message): string
     $question->setHidden(true);
     $question->setHiddenFallback(false);
 
-    return (string)$helper->ask(input(), output(), $question);
+    return (string) $helper->ask(input(), output(), $question);
 }
 
 function input(): InputInterface
@@ -904,7 +932,7 @@ function remoteEnv(): array
     $vars = [];
     $data = run('env');
     foreach (explode("\n", $data) as $line) {
-        list($name, $value) = explode('=', $line, 2);
+        [$name, $value] = explode('=', $line, 2);
         $vars[$name] = $value;
     }
     return $vars;

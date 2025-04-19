@@ -20,68 +20,47 @@ namespace TYPO3\CMS\FrontendLogin\Domain\Repository;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
-use TYPO3\CMS\FrontendLogin\Service\UserService;
 
 /**
  * @internal this is a concrete TYPO3 implementation and solely used for EXT:felogin and not part of TYPO3's Core API.
  */
 class FrontendUserRepository
 {
-    protected Connection $connection;
+    protected readonly Connection $connection;
 
     public function __construct(
-        protected UserService $userService,
-        protected Context $context,
-        ConnectionPool $connectionPool
+        protected readonly Context $context,
+        ConnectionPool $connectionPool,
     ) {
-        $this->connection = $connectionPool->getConnectionForTable($this->getTable());
-    }
-
-    public function getTable(): string
-    {
-        return $this->userService->getFeUserTable();
+        $this->connection = $connectionPool->getConnectionForTable('fe_users');
     }
 
     /**
      * Change the password for a user based on forgot password hash.
-     *
-     * @throws \TYPO3\CMS\Core\Context\Exception\AspectNotFoundException
      */
     public function updatePasswordAndInvalidateHash(string $forgotPasswordHash, string $hashedPassword): void
     {
         $queryBuilder = $this->connection->createQueryBuilder();
-
         $currentTimestamp = $this->context->getPropertyFromAspect('date', 'timestamp');
         $query = $queryBuilder
-            ->update($this->getTable())
+            ->update('fe_users')
             ->set('password', $hashedPassword)
             ->set('felogin_forgotHash', $this->connection->quote(''), false)
             ->set('tstamp', $currentTimestamp)
-            ->where(
-                $queryBuilder->expr()->eq('felogin_forgotHash', $queryBuilder->createNamedParameter($forgotPasswordHash))
-            )
-        ;
+            ->where($queryBuilder->expr()->eq('felogin_forgotHash', $queryBuilder->createNamedParameter($forgotPasswordHash)));
         $query->executeStatement();
     }
 
     /**
-     * Returns true if an user exists with hash as `felogin_forgothash`, otherwise false.
+     * Returns true if a user exists with hash as `felogin_forgothash`, otherwise false.
      */
     public function existsUserWithHash(string $hash): bool
     {
         $queryBuilder = $this->connection->createQueryBuilder();
-
         $query = $queryBuilder
             ->count('uid')
-            ->from($this->getTable())
-            ->where(
-                $queryBuilder->expr()->eq(
-                    'felogin_forgotHash',
-                    $queryBuilder->createNamedParameter($hash)
-                )
-            )
-        ;
-
+            ->from('fe_users')
+            ->where($queryBuilder->expr()->eq('felogin_forgotHash', $queryBuilder->createNamedParameter($hash)));
         return (bool)$query->executeQuery()->fetchOne();
     }
 
@@ -92,32 +71,25 @@ class FrontendUserRepository
     {
         $queryBuilder = $this->connection->createQueryBuilder();
         $query = $queryBuilder
-            ->update($this->getTable())
-            ->where(
-                $queryBuilder->expr()->eq(
-                    'uid',
-                    $queryBuilder->createNamedParameter($uid, $this->connection::PARAM_INT)
-                )
-            )
-            ->set('felogin_forgotHash', $hash)
-        ;
+            ->update('fe_users')
+            ->where($queryBuilder->expr()->eq('uid', $queryBuilder->createNamedParameter($uid, $this->connection::PARAM_INT)))
+            ->set('felogin_forgotHash', $hash);
         $query->executeStatement();
     }
 
     /**
-     * Fetches array containing uid, username, email, first_name, middle_name & last_name by email or username.
-     * Returns null, if user was not found or if user has no email address set.
+     * Fetches an array with all columns (except the password) from the fe_users table for the given username or
+     * email on the given pages. Returns null, if user was not found or if user has no email address set.
      */
     public function findUserByUsernameOrEmailOnPages(string $usernameOrEmail, array $pages = []): ?array
     {
         if ($usernameOrEmail === '') {
             return null;
         }
-
         $queryBuilder = $this->connection->createQueryBuilder();
         $query = $queryBuilder
-            ->select('uid', 'username', 'email', 'first_name', 'middle_name', 'last_name')
-            ->from($this->getTable())
+            ->select('*')
+            ->from('fe_users')
             ->where(
                 $queryBuilder->expr()->or(
                     $queryBuilder->expr()->eq('username', $queryBuilder->createNamedParameter($usernameOrEmail)),
@@ -125,13 +97,15 @@ class FrontendUserRepository
                 ),
                 $queryBuilder->expr()->neq('email', $this->connection->quote('')),
             );
-
         if (!empty($pages)) {
             // respect storage pid
             $query->andWhere($queryBuilder->expr()->in('pid', $pages));
         }
-
-        return $query->executeQuery()->fetchAssociative() ?: null;
+        $result = $query->executeQuery()->fetchAssociative() ?: null;
+        if ($result) {
+            unset($result['password']);
+        }
+        return $result;
     }
 
     public function findOneByForgotPasswordHash(string $hash): ?array
@@ -139,20 +113,12 @@ class FrontendUserRepository
         if ($hash === '') {
             return null;
         }
-
         $queryBuilder = $this->connection->createQueryBuilder();
         $query = $queryBuilder
             ->select('*')
-            ->from($this->getTable())
-            ->where(
-                $queryBuilder->expr()->eq(
-                    'felogin_forgotHash',
-                    $queryBuilder->createNamedParameter($hash)
-                )
-            )
-            ->setMaxResults(1)
-        ;
-
+            ->from('fe_users')
+            ->where($queryBuilder->expr()->eq('felogin_forgotHash', $queryBuilder->createNamedParameter($hash)))
+            ->setMaxResults(1);
         $row = $query->executeQuery()->fetchAssociative();
         return is_array($row) ? $row : null;
     }
@@ -163,20 +129,12 @@ class FrontendUserRepository
         $queryBuilder->getRestrictions()->removeAll();
         $query = $queryBuilder
             ->select('felogin_redirectPid')
-            ->from($this->getTable())
+            ->from('fe_users')
             ->where(
-                $queryBuilder->expr()->neq(
-                    'felogin_redirectPid',
-                    $this->connection->quote('')
-                ),
-                $queryBuilder->expr()->eq(
-                    $this->userService->getFeUserIdColumn(),
-                    $queryBuilder->createNamedParameter($uid, Connection::PARAM_INT)
-                )
+                $queryBuilder->expr()->neq('felogin_redirectPid', $this->connection->quote('')),
+                $queryBuilder->expr()->eq('uid', $queryBuilder->createNamedParameter($uid, Connection::PARAM_INT))
             )
-            ->setMaxResults(1)
-        ;
-
+            ->setMaxResults(1);
         $column = $query->executeQuery()->fetchOne();
         return $column === false ? null : (int)$column;
     }

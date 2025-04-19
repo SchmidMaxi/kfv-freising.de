@@ -40,6 +40,8 @@ class RecordsContentObject extends AbstractContentObject
      */
     protected $data = [];
 
+    public function __construct(protected readonly TimeTracker $timeTracker) {}
+
     /**
      * Rendering the cObject, RECORDS
      *
@@ -55,13 +57,12 @@ class RecordsContentObject extends AbstractContentObject
 
         $theValue = '';
         $originalRec = $frontendController->currentRecord;
-        // If the currentRecord is set, we register, that this record has invoked this function.
-        // It's should not be allowed to do this again then!!
+        // If the currentRecord is set, we register that this record has invoked this function.
+        // It should not be allowed to do this again then.
         if ($originalRec) {
             if (!($frontendController->recordRegister[$originalRec] ?? false)) {
                 $frontendController->recordRegister[$originalRec] = 0;
             }
-
             ++$frontendController->recordRegister[$originalRec];
         }
 
@@ -71,7 +72,7 @@ class RecordsContentObject extends AbstractContentObject
             // Add tables which have a configuration (note that this may create duplicate entries)
             if (is_array($conf['conf.'] ?? false)) {
                 foreach ($conf['conf.'] as $key => $value) {
-                    if (substr($key, -1) !== '.' && !in_array($key, $tablesArray)) {
+                    if (!str_ends_with($key, '.') && !in_array($key, $tablesArray)) {
                         $tablesArray[] = $key;
                     }
                 }
@@ -147,16 +148,13 @@ class RecordsContentObject extends AbstractContentObject
     protected function isRecordsPageAccessible(string $table, array $row, array $conf): bool
     {
         $pageId = (int)($table === 'pages' ? $row['uid'] : $row['pid']);
-        if ($pageId === $this->getTypoScriptFrontendController()->id) {
-            // Access to current page has already been checked in TypoScriptFrontendController
-            // before rendering this content object.
+        if ($pageId === $this->request->getAttribute('frontend.page.information')->getId()) {
+            // Access to current page has already been checked before rendering this content object.
             return true;
         }
-
         if ($this->cObj->stdWrapValue('dontCheckPid', $conf)) {
             return true;
         }
-
         $validPageId = $this->getPageRepository()->filterAccessiblePageIds([$pageId]);
         return $validPageId !== [];
     }
@@ -173,7 +171,10 @@ class RecordsContentObject extends AbstractContentObject
         $loadDB->start($source, implode(',', $tables));
         foreach ($loadDB->tableArray as $table => $v) {
             if (isset($GLOBALS['TCA'][$table])) {
-                $loadDB->additionalWhere[$table] = $this->getPageRepository()->enableFields($table);
+                $constraints = $this->getPageRepository()->getDefaultConstraints($table);
+                if ($constraints !== []) {
+                    $loadDB->additionalWhere[$table] = implode(' AND ', $constraints);
+                }
             }
         }
         $this->data = $loadDB->getFromDB();
@@ -223,7 +224,7 @@ class RecordsContentObject extends AbstractContentObject
                         $e->getMessage(),
                         $e->getCode()
                     );
-                    $this->getTimeTracker()->setTSlogMessage($message, LogLevel::WARNING);
+                    $this->timeTracker->setTSlogMessage($message, LogLevel::WARNING);
                 }
             }
             // Store the resulting records into the itemArray and data results array
@@ -240,13 +241,5 @@ class RecordsContentObject extends AbstractContentObject
                 }
             }
         }
-    }
-
-    /**
-     * @return TimeTracker
-     */
-    protected function getTimeTracker()
-    {
-        return GeneralUtility::makeInstance(TimeTracker::class);
     }
 }

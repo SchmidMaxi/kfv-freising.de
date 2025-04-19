@@ -18,7 +18,6 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Extbase\Reflection\ClassSchema;
 
 /**
- * Class TYPO3\CMS\Extbase\Reflection\ClassSchema\Property
  * @internal only to be used within Extbase, not part of TYPO3 Core API.
  */
 class MethodParameter
@@ -43,10 +42,8 @@ class MethodParameter
             'optional' => false,
             'hasDefaultValue' => false,
             'defaultValue' => null,
-            'dependency' => null,
             'ignoreValidation' => false,
             'validators' => [],
-            'position' => -1,
         ];
 
         foreach ($defaults as $key => $defaultValue) {
@@ -99,15 +96,5 @@ class MethodParameter
     public function isOptional(): bool
     {
         return $this->definition['optional'];
-    }
-
-    public function getDependency(): ?string
-    {
-        return $this->definition['dependency'];
-    }
-
-    public function getPosition(): int
-    {
-        return $this->definition['position'];
     }
 }

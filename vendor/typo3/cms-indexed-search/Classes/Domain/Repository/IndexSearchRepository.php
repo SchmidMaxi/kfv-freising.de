@@ -17,20 +17,25 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\IndexedSearch\Domain\Repository;
 
+use Doctrine\DBAL\Platforms\MariaDBPlatform as DoctrineMariaDBPlatform;
+use Doctrine\DBAL\Platforms\MySQLPlatform as DoctrineMySQLPlatform;
 use Doctrine\DBAL\Result;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Core\Database\Query\QueryHelper;
 use TYPO3\CMS\Core\Domain\Repository\PageRepository;
 use TYPO3\CMS\Core\TimeTracker\TimeTracker;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\MathUtility;
-use TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController;
+use TYPO3\CMS\IndexedSearch\Event\BeforeFinalSearchQueryIsExecutedEvent;
 use TYPO3\CMS\IndexedSearch\FileContentParser;
-use TYPO3\CMS\IndexedSearch\Indexer;
-use TYPO3\CMS\IndexedSearch\Utility\IndexedSearchUtility;
+use TYPO3\CMS\IndexedSearch\Type\MediaType;
+use TYPO3\CMS\IndexedSearch\Type\SearchType;
+use TYPO3\CMS\IndexedSearch\Type\SectionType;
 use TYPO3\CMS\IndexedSearch\Utility\LikeWildcard;
 
 /**
@@ -59,7 +64,7 @@ class IndexSearchRepository
      * Search type
      * formally known as $this->piVars['type']
      */
-    protected int $searchType = 0;
+    protected SearchType $searchType = SearchType::DISTINCT;
 
     /**
      * Language uid
@@ -69,9 +74,10 @@ class IndexSearchRepository
 
     /**
      * Media type
+     * Can be either an ENUM backed value or a raw string
      * formally known as $this->piVars['media']
      */
-    protected int $mediaType = 0;
+    protected MediaType|string $mediaType = MediaType::INTERNAL_PAGES;
 
     /**
      * Sort order
@@ -128,6 +134,14 @@ class IndexSearchRepository
      */
     protected bool $displayForbiddenRecords = false;
 
+    public function __construct(
+        private readonly Context $context,
+        private readonly ExtensionConfiguration $extensionConfiguration,
+        private readonly TimeTracker $timeTracker,
+        private readonly ConnectionPool $connectionPool,
+        private readonly EventDispatcherInterface $eventDispatcher,
+    ) {}
+
     /**
      * initialize all options that are necessary for the search
      *
@@ -138,7 +152,7 @@ class IndexSearchRepository
     {
         $this->externalParsers = $externalParsers;
         $this->searchRootPageIdList = (string)$searchRootPageIdList;
-        $this->frontendUserGroupList = implode(',', GeneralUtility::makeInstance(Context::class)->getPropertyFromAspect('frontend.user', 'groupIds', [0, -1]));
+        $this->frontendUserGroupList = implode(',', $this->context->getPropertyFromAspect('frontend.user', 'groupIds', [0, -1]));
         if ($settings['exactCount'] ?? false) {
             $this->useExactCount = true;
         }
@@ -146,9 +160,19 @@ class IndexSearchRepository
             $this->displayForbiddenRecords = true;
         }
         $this->sections = (string)($searchData['sections'] ?? '');
-        $this->searchType = (int)($searchData['searchType'] ?? 0);
+        $this->searchType = SearchType::tryFrom((int)($searchData['searchType'] ?? 0)) ?? SearchType::DISTINCT;
         $this->languageUid = (int)($searchData['languageUid'] ?? 0);
-        $this->mediaType = (int)($searchData['mediaType'] ?? 0);
+
+        // 'mediaType' can either be an INT in range (-1|-2|0), but also be a file extension string ('ppt').
+        // Only when it's an integer, it can be mapped to the ENUM. Otherwise, the input 'mediaType' needs to be mapped here.
+        if (isset($searchData['mediaType'])) {
+            if (MathUtility::canBeInterpretedAsInteger($searchData['mediaType'])) {
+                $this->mediaType = MediaType::tryFrom((int)$searchData['mediaType']) ?? MediaType::INTERNAL_PAGES;
+            } elseif (is_string($searchData['mediaType']) && $searchData['mediaType'] !== '') {
+                $this->mediaType = $searchData['mediaType'];
+            }
+        }
+
         $this->sortOrder = (string)($searchData['sortOrder'] ?? '');
         $this->descendingSortOrderFlag = (bool)($searchData['desc'] ?? false);
         $this->resultpagePointer = (int)($searchData['pointer'] ?? 0);
@@ -166,19 +190,24 @@ class IndexSearchRepository
      */
     public function doSearch(array $searchWords, int $freeIndexUid): array|false
     {
-        $useMysqlFulltext = (bool)GeneralUtility::makeInstance(ExtensionConfiguration::class)->get('indexed_search', 'useMysqlFulltext');
-        // Getting SQL result pointer:
-        $this->getTimeTracker()->push('Searching result');
-        // @todo Change hook and method signatures to return the QueryBuilder instead the Result. Consider to move
-        //       from hook to a proper PSR-14 event.
-        if ($hookObj = $this->hookRequest('getResultRows_SQLpointer')) {
-            $result = $hookObj->getResultRows_SQLpointer($searchWords, $freeIndexUid);
-        } elseif ($useMysqlFulltext) {
-            $result = $this->getResultRows_SQLpointerMysqlFulltext($searchWords, $freeIndexUid);
+        $result = null;
+        $useMysqlFulltext = (bool)$this->extensionConfiguration->get('indexed_search', 'useMysqlFulltext');
+        $this->timeTracker->push('Searching result');
+        if ($useMysqlFulltext) {
+            $queryBuilder = $this->getPreparedQueryBuilder_SQLpointerMysqlFulltext($searchWords, $freeIndexUid);
         } else {
-            $result = $this->getResultRows_SQLpointer($searchWords, $freeIndexUid);
+            $queryBuilder = $this->getPreparedQueryBuilder_SQLpointer($searchWords, $freeIndexUid);
         }
-        $this->getTimeTracker()->pull();
+        if ($queryBuilder !== false) {
+            $this->eventDispatcher->dispatch(
+                new BeforeFinalSearchQueryIsExecutedEvent($queryBuilder, $searchWords, $freeIndexUid)
+            );
+            // Getting SQL result pointer:
+            $this->timeTracker->push('execFinalQuery');
+            $result = $queryBuilder->executeQuery();
+            $this->timeTracker->pull();
+        }
+        $this->timeTracker->pull();
         // Organize and process result:
         if ($result) {
             // We need the result row count beforehand for the pointer calculation. Using $result->rowCount() for
@@ -232,7 +261,7 @@ class IndexSearchRepository
                             $row['result_number'] = $c;
                             $resultRows[] = $row;
                             // This may lead to a problem: If the result check is not stopped here, the search will take longer.
-                            // However the result counter will not filter out grouped cHashes/pHashes that were not processed yet.
+                            // However, the result counter will not filter out grouped cHashes/pHashes that were not processed yet.
                             // You can change this behavior using the "settings.exactCount" property (see above).
                             if (!$this->useExactCount && $c + 1 > ($pointer + 1) * $this->numberOfResults) {
                                 break;
@@ -262,39 +291,97 @@ class IndexSearchRepository
     }
 
     /**
-     * Gets a SQL result pointer to traverse for the search records.
+     * Write statistics information to database for the search operation if there was at least one search word.
+     *
+     * @param array $searchWords Search Word array
+     */
+    public function writeSearchStat(int $pageId, array $searchWords): void
+    {
+        if (empty($searchWords)) {
+            return;
+        }
+        $entries = [];
+        foreach ($searchWords as $val) {
+            $entries[] = [
+                mb_substr($val['sword'], 0, 50),
+                $GLOBALS['EXEC_TIME'],
+                $pageId,
+            ];
+        }
+        $this->connectionPool->getConnectionForTable('index_stat_word')
+            ->bulkInsert(
+                'index_stat_word',
+                $entries,
+                ['word', 'tstamp', 'pageid'],
+                [Connection::PARAM_STR, Connection::PARAM_INT, Connection::PARAM_INT]
+            );
+    }
+
+    public function getFullTextRowByPhash(string $phash): ?array
+    {
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable('index_fulltext');
+        return $queryBuilder
+            ->select('*')
+            ->from('index_fulltext')
+            ->where(
+                $queryBuilder->expr()->eq(
+                    'phash',
+                    $queryBuilder->createNamedParameter($phash)
+                )
+            )
+            ->setMaxResults(1)
+            ->executeQuery()
+            ->fetchAssociative() ?: null;
+    }
+
+    public function getIndexConfigurationById(int $id): ?array
+    {
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable('index_config');
+        return $queryBuilder
+            ->select('uid', 'title')
+            ->from('index_config')
+            ->where(
+                $queryBuilder->expr()->eq(
+                    'uid',
+                    $queryBuilder->createNamedParameter($id, Connection::PARAM_INT)
+                )
+            )
+            ->setMaxResults(1)
+            ->executeQuery()
+            ->fetchAssociative() ?: null;
+    }
+
+    /**
+     * Gets the QueryBuilder instance prepared for the phash list.
      *
      * @param array $searchWords Search words
      * @param int $freeIndexUid Pointer to which indexing configuration you want to search in. -1 means no filtering. 0 means only regular indexed content.
      */
-    protected function getResultRows_SQLpointer(array $searchWords, int $freeIndexUid): Result|false
+    protected function getPreparedQueryBuilder_SQLpointer(array $searchWords, int $freeIndexUid): QueryBuilder|false
     {
         // This SEARCHES for the searchwords in $searchWords AND returns a
         // COMPLETE list of phash-integers of the matches.
         $list = $this->getPhashList($searchWords);
-        // Perform SQL Search / collection of result rows array:
         if ($list) {
-            // Do the search:
-            $this->getTimeTracker()->push('execFinalQuery');
-            $res = $this->execFinalQuery($list, $freeIndexUid);
-            $this->getTimeTracker()->pull();
-            return $res;
+            // Create the search:
+            return $this->prepareFinalQuery($list, $freeIndexUid);
         }
         return false;
     }
 
     /**
-     * Gets a SQL result pointer to traverse for the search records.
+     * Gets the QueryBuilder instance prepared for the search words.
      *
      * mysql fulltext specific version triggered by ext_conf_template setting 'useMysqlFulltext'
      *
      * @param array $searchWordsArray Search words
      * @param int $freeIndexUid Pointer to which indexing configuration you want to search in. -1 means no filtering. 0 means only regular indexed content.
      */
-    protected function getResultRows_SQLpointerMysqlFulltext(array $searchWordsArray, int $freeIndexUid): Result|false
+    protected function getPreparedQueryBuilder_SQLpointerMysqlFulltext(array $searchWordsArray, int $freeIndexUid): QueryBuilder|false
     {
-        $connection = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable('index_fulltext');
-        if (!str_starts_with($connection->getServerVersion(), 'MySQL')) {
+        $connection = $this->connectionPool->getConnectionForTable('index_fulltext');
+        $platform = $connection->getDatabasePlatform();
+        if (!($platform instanceof DoctrineMariaDBPlatform || $platform instanceof DoctrineMySQLPlatform)) {
             throw new \RuntimeException(
                 'Extension indexed_search is configured to use mysql fulltext, but table \'index_fulltext\''
                 . ' is running on a different DBMS.',
@@ -303,16 +390,11 @@ class IndexSearchRepository
         }
         // Build the search string, detect which fulltext index to use, and decide whether boolean search is needed or not
         $searchData = $this->getSearchString($searchWordsArray);
-        // Perform SQL Search / collection of result rows array:
-        $resource = false;
         if ($searchData) {
-            $timeTracker = GeneralUtility::makeInstance(TimeTracker::class);
-            // Do the search:
-            $timeTracker->push('execFinalQuery');
-            $resource = $this->execFinalQuery_fulltext($searchData, $freeIndexUid);
-            $timeTracker->pull();
+            // Create the search:
+            return $this->prepareFinalQuery_fulltext($searchData, $freeIndexUid);
         }
-        return $resource;
+        return false;
     }
 
     /**
@@ -327,13 +409,11 @@ class IndexSearchRepository
     {
         // Change this to TRUE to force BOOLEAN SEARCH MODE (useful if fulltext index is still empty)
         $searchBoolean = false;
-        $fulltextIndex = 'index_fulltext.fulltextdata';
         // This holds the result if the search is natural (doesn't contain any boolean operators)
         $naturalSearchString = '';
         // This holds the result if the search is boolean (contains +/-/| operators)
         $booleanSearchString = '';
-
-        $searchType = $this->getSearchType();
+        $searchType = $this->searchType;
 
         // Traverse searchwords and prefix them with corresponding operator
         foreach ($searchWordArray as $searchWordData) {
@@ -341,23 +421,21 @@ class IndexSearchRepository
             $searchWord = $searchWordData['sword'];
             $wildcard = '';
             if (str_contains($searchWord, ' ')) {
-                $searchType = 20;
+                $searchType = SearchType::SENTENCE;
             }
             switch ($searchType) {
-                case 1:
-                case 2:
-                case 3:
+                case SearchType::DISTINCT:
+                    // Intended fall-thru
+                    break;
+                case SearchType::PART_OF_WORD:
+                case SearchType::FIRST_PART_OF_WORD:
+                case SearchType::LAST_PART_OF_WORD:
                     // First part of word
                     $wildcard = '*';
                     // Part-of-word search requires boolean mode!
                     $searchBoolean = true;
                     break;
-                case 10:
-                    $indexerObj = GeneralUtility::makeInstance(Indexer::class);
-                    $searchWord = $indexerObj->metaphone($searchWord, $indexerObj->storeMetaphoneInfoAsWords);
-                    $fulltextIndex = 'index_fulltext.metaphonedata';
-                    break;
-                case 20:
+                case SearchType::SENTENCE:
                     $searchBoolean = true;
                     // Remove existing quotes and fix misplaced quotes.
                     $searchWord = trim(str_replace('"', ' ', $searchWord));
@@ -378,7 +456,7 @@ class IndexSearchRepository
                     $naturalSearchString .= ' ' . $searchWord;
             }
         }
-        if ($searchType === 20) {
+        if ($searchType === SearchType::SENTENCE) {
             $searchString = '"' . trim($naturalSearchString) . '"';
         } elseif ($searchBoolean) {
             $searchString = trim($booleanSearchString);
@@ -388,21 +466,21 @@ class IndexSearchRepository
         return [
             'searchBoolean' => $searchBoolean,
             'searchString' => $searchString,
-            'fulltextIndex' => $fulltextIndex,
+            'fulltextIndex' => 'index_fulltext.fulltextdata',
         ];
     }
 
     /**
-     * Execute final query, based on phash integer list. The main point is sorting the result in the right order.
+     * Execute final query, based on search data. The main point is sorting the result in the right order.
      *
      * mysql fulltext specific helper method
      *
      * @param array $searchData Array with search string, boolean indicator, and fulltext index reference
      * @param int $freeIndexUid Pointer to which indexing configuration you want to search in. -1 means no filtering. 0 means only regular indexed content.
      */
-    protected function execFinalQuery_fulltext(array $searchData, int $freeIndexUid): Result
+    protected function prepareFinalQuery_fulltext(array $searchData, int $freeIndexUid): QueryBuilder
     {
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('index_fulltext');
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable('index_fulltext');
         $queryBuilder->getRestrictions()->removeAll();
         $queryBuilder->select('index_fulltext.*', 'ISEC.*', 'IP.*')
             ->from('index_fulltext')
@@ -419,12 +497,8 @@ class IndexSearchRepository
                 $queryBuilder->expr()->eq('IP.phash', $queryBuilder->quoteIdentifier('ISEC.phash'))
             );
 
-        // Calling hook for alternative creation of page ID list
         $searchRootPageIdList = $this->getSearchRootPageIdList();
-        if ($hookObj = $this->hookRequest('execFinalQuery_idList')) {
-            $pageWhere = $hookObj->execFinalQuery_idList('');
-            $queryBuilder->andWhere(QueryHelper::stripLogicalOperatorPrefix($pageWhere));
-        } elseif ($searchRootPageIdList[0] >= 0) {
+        if ($searchRootPageIdList[0] >= 0) {
             // Collecting all pages IDs in which to search
             // filtering out ALL pages that are not accessible due to restriction containers. Does NOT look for "no_search" field!
             $pageRepository = GeneralUtility::makeInstance(PageRepository::class);
@@ -487,7 +561,7 @@ class IndexSearchRepository
             'IP.freeIndexSetId'
         );
 
-        return $queryBuilder->executeQuery();
+        return $queryBuilder;
     }
 
     /***********************************
@@ -509,38 +583,28 @@ class IndexSearchRepository
         // This array accumulates the phash-values
         $totalHashList = [];
         $this->wSelClauses = [];
-        // Traverse searchwords; for each, select all phash integers and merge/diff/intersect them with previous word (based on operator)
+        // Traverse searchWords; for each, select all phash integers and merge/diff/intersect them with previous word (based on operator)
         foreach ($searchWords as $v) {
             // Making the query for a single search word based on the search-type
             $sWord = (string)($v['sword'] ?? '');
             $theType = $this->searchType;
             // If there are spaces in the search-word, make a full text search instead.
             if (str_contains($sWord, ' ')) {
-                $theType = 20;
+                $theType = SearchType::SENTENCE;
             }
-            $this->getTimeTracker()->push('SearchWord "' . $sWord . '" - $theType=' . $theType);
+            $this->timeTracker->push('SearchWord "' . $sWord . '" - $theType=' . $theType->value);
             // Perform search for word:
             switch ($theType) {
-                case 1:
-                    // Part of word
+                case SearchType::PART_OF_WORD:
                     $res = $this->searchWord($sWord, LikeWildcard::BOTH);
                     break;
-                case 2:
-                    // First part of word
+                case SearchType::FIRST_PART_OF_WORD:
                     $res = $this->searchWord($sWord, LikeWildcard::RIGHT);
                     break;
-                case 3:
-                    // Last part of word
+                case SearchType::LAST_PART_OF_WORD:
                     $res = $this->searchWord($sWord, LikeWildcard::LEFT);
                     break;
-                case 10:
-                    // Sounds like
-                    $indexerObj = GeneralUtility::makeInstance(Indexer::class);
-                    // Perform metaphone search
-                    $storeMetaphoneInfoAsWords = !IndexedSearchUtility::isTableUsed('index_words');
-                    $res = $this->searchMetaphone((string)$indexerObj->metaphone($sWord, $storeMetaphoneInfoAsWords));
-                    break;
-                case 20:
+                case SearchType::SENTENCE:
                     // Sentence
                     $res = $this->searchSentence($sWord);
                     // If there is a fulltext search for a sentence there is
@@ -562,22 +626,16 @@ class IndexSearchRepository
             }
             // Here the phash list are merged with the existing result based on whether we are dealing with OR, NOT or AND operations.
             if ($c) {
-                switch ($v['oper']) {
-                    case 'OR':
-                        $totalHashList = array_unique(array_merge($phashList, $totalHashList));
-                        break;
-                    case 'AND NOT':
-                        $totalHashList = array_diff($totalHashList, $phashList);
-                        break;
-                    default:
-                        // AND...
-                        $totalHashList = array_intersect($totalHashList, $phashList);
-                }
+                $totalHashList = match ($v['oper']) {
+                    'OR' => array_unique(array_merge($phashList, $totalHashList)),
+                    'AND NOT' => array_diff($totalHashList, $phashList),
+                    default => array_intersect($totalHashList, $phashList),
+                };
             } else {
                 // First search
                 $totalHashList = $phashList;
             }
-            $this->getTimeTracker()->pull();
+            $this->timeTracker->pull();
             $c++;
         }
         return implode(',', $totalHashList);
@@ -591,7 +649,7 @@ class IndexSearchRepository
      */
     protected function execPHashListQuery(string $wordSel, string $additionalWhereClause): Result
     {
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('index_words');
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable('index_words');
         $queryBuilder->select('IR.phash')
             ->from('index_words', 'IW')
             ->from('index_rel', 'IR')
@@ -631,10 +689,8 @@ class IndexSearchRepository
      */
     protected function searchDistinct(string $sWord): Result
     {
-        $expressionBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
-            ->getQueryBuilderForTable('index_words')
-            ->expr();
-        $wSel = $expressionBuilder->eq('IW.wid', IndexedSearchUtility::md5inthash($sWord));
+        $expressionBuilder = $this->connectionPool->getQueryBuilderForTable('index_words')->expr();
+        $wSel = $expressionBuilder->eq('IW.wid', $expressionBuilder->literal(md5($sWord)));
         $this->wSelClauses[] = $wSel;
         return $this->execPHashListQuery($wSel, $expressionBuilder->eq('is_stopword', 0));
     }
@@ -654,7 +710,7 @@ class IndexSearchRepository
             $sWord
         );
 
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('index_section');
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable('index_section');
         return $queryBuilder->select('ISEC.phash')
             ->from('index_section', 'ISEC')
             ->from('index_fulltext', 'IFT')
@@ -668,30 +724,13 @@ class IndexSearchRepository
     }
 
     /**
-     * Search for a metaphone word
-     *
-     * @param string $sWord the search word
-     */
-    protected function searchMetaphone(string $sWord): Result
-    {
-        $expressionBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
-            ->getQueryBuilderForTable('index_words')
-            ->expr();
-        $wSel = $expressionBuilder->eq('IW.metaphone', $expressionBuilder->literal($sWord));
-        $this->wSelClauses[] = $wSel;
-        return $this->execPHashListQuery($wSel, $expressionBuilder->eq('is_stopword', 0));
-    }
-
-    /**
      * Returns AND statement for selection of section in database. (rootlevel 0-2 + page_id)
      *
      * @return string AND clause for selection of section in database.
      */
     protected function sectionTableWhere(): string
     {
-        $expressionBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
-            ->getQueryBuilderForTable('index_section')
-            ->expr();
+        $expressionBuilder = $this->connectionPool->getQueryBuilderForTable('index_section')->expr();
 
         $whereClause = $expressionBuilder->and();
         $match = false;
@@ -710,33 +749,21 @@ class IndexSearchRepository
                 $expressionBuilder->in('ISEC.rl2', GeneralUtility::intExplode(',', substr($this->sections, 4)))
             );
             $match = true;
-        } else {
-            // Traversing user configured fields to see if any of those are used to limit search to a section:
-            foreach ($GLOBALS['TYPO3_CONF_VARS']['EXTCONF']['indexed_search']['addRootLineFields'] ?? [] as $fieldName => $rootLineLevel) {
-                if (str_starts_with($this->sections, $fieldName . '_')) {
-                    $whereClause = $whereClause->with(
-                        $expressionBuilder->in(
-                            'ISEC.' . $fieldName,
-                            GeneralUtility::intExplode(',', substr($this->sections, strlen($fieldName) + 1))
-                        )
-                    );
-                    $match = true;
-                    break;
-                }
-            }
         }
         // If no match above, test the static types:
         if (!$match) {
             switch ($this->sections) {
-                case '-1':
+                case (string)SectionType::ONLY_THIS_PAGE->value:
+                    // @todo: This repository either needs to retrieve the request or page uid.
+                    $pageId = $GLOBALS['TYPO3_REQUEST']->getAttribute('frontend.page.information')->getId();
                     $whereClause = $whereClause->with(
-                        $expressionBuilder->eq('ISEC.page_id', $this->getTypoScriptFrontendController()->id)
+                        $expressionBuilder->eq('ISEC.page_id', $pageId)
                     );
                     break;
-                case '-2':
+                case (string)SectionType::TOP_AND_CHILDREN->value:
                     $whereClause = $whereClause->with($expressionBuilder->eq('ISEC.rl2', 0));
                     break;
-                case '-3':
+                case (string)SectionType::LEVEL_TWO_AND_OUT->value:
                     $whereClause = $whereClause->with($expressionBuilder->gt('ISEC.rl2', 0));
                     break;
             }
@@ -752,26 +779,15 @@ class IndexSearchRepository
      */
     protected function mediaTypeWhere(): string
     {
-        $expressionBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
-            ->getQueryBuilderForTable('index_phash')
-            ->expr();
-        switch ($this->mediaType) {
-            case '0':
-                // '0' => 'only TYPO3 pages',
-                $whereClause = $expressionBuilder->eq('IP.item_type', $expressionBuilder->literal('0'));
-                break;
-            case '-2':
-                // All external documents
-                $whereClause = $expressionBuilder->neq('IP.item_type', $expressionBuilder->literal('0'));
-                break;
-            case false:
-                // Intentional fall-through
-            case '-1':
-                // All content
-                $whereClause = '';
-                break;
-            default:
-                $whereClause = $expressionBuilder->eq('IP.item_type', $expressionBuilder->literal($this->mediaType));
+        $expressionBuilder = $this->connectionPool->getQueryBuilderForTable('index_phash')->expr();
+        if ($this->mediaType instanceof MediaType) {
+            $whereClause = match ($this->mediaType) {
+                MediaType::ALL_EXTERNAL => $expressionBuilder->neq('IP.item_type', $expressionBuilder->literal((string)MediaType::INTERNAL_PAGES->value)),
+                MediaType::ALL_MEDIA => '', // include TYPO3 pages and external media
+                default => $expressionBuilder->eq('IP.item_type', $expressionBuilder->literal((string)$this->mediaType->value)),
+            };
+        } else {
+            $whereClause = $expressionBuilder->eq('IP.item_type', $expressionBuilder->literal($this->mediaType));
         }
         return $whereClause ? ' AND ' . $whereClause : '';
     }
@@ -788,9 +804,7 @@ class IndexSearchRepository
             return '';
         }
 
-        $expressionBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
-            ->getQueryBuilderForTable('index_phash')
-            ->expr();
+        $expressionBuilder = $this->connectionPool->getQueryBuilderForTable('index_phash')->expr();
 
         return ' AND ' . $expressionBuilder->eq('IP.sys_language_uid', $this->languageUid);
     }
@@ -807,8 +821,7 @@ class IndexSearchRepository
             return '';
         }
         // First, look if the freeIndexUid is a meta configuration:
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
-            ->getQueryBuilderForTable('index_config');
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable('index_config');
         $indexCfgRec = $queryBuilder->select('indexcfgs')
             ->from('index_config')
             ->where(
@@ -828,10 +841,8 @@ class IndexSearchRepository
             foreach ($refs as $ref) {
                 [$table, $uid] = GeneralUtility::revExplode('_', $ref, 2);
                 $uid = (int)$uid;
-                $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
-                    ->getQueryBuilderForTable('index_config');
-                $queryBuilder->select('uid')
-                    ->from('index_config');
+                $queryBuilder = $this->connectionPool->getQueryBuilderForTable('index_config');
+                $queryBuilder->select('uid')->from('index_config');
                 switch ($table) {
                     case 'index_config':
                         $idxRec = $queryBuilder
@@ -867,30 +878,27 @@ class IndexSearchRepository
             $list = [$freeIndexUid];
         }
 
-        $expressionBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
-            ->getQueryBuilderForTable('index_phash')
-            ->expr();
+        $expressionBuilder = $this->connectionPool->getQueryBuilderForTable('index_phash')->expr();
         return ' AND ' . $expressionBuilder->in('IP.freeIndexUid', array_map('intval', $list));
     }
 
     /**
-     * Execute final query, based on phash integer list. The main point is sorting the result in the right order.
+     * Prepare final query, based on phash integer list. The main point is sorting the result in the right order.
      *
      * @param string $list List of phash integers which match the search.
      * @param int $freeIndexUid Pointer to which indexing configuration you want to search in. -1 means no filtering. 0 means only regular indexed content.
      */
-    protected function execFinalQuery(string $list, int $freeIndexUid): Result
+    protected function prepareFinalQuery(string $list, int $freeIndexUid): QueryBuilder
     {
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('index_words');
+        $phashList = GeneralUtility::trimExplode(',', $list, true);
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable('index_words');
         $queryBuilder->select('ISEC.*', 'IP.*')
             ->from('index_phash', 'IP')
             ->from('index_section', 'ISEC')
             ->where(
                 $queryBuilder->expr()->in(
                     'IP.phash',
-                    $queryBuilder->quoteArrayBasedValueListToIntegerList(
-                        GeneralUtility::intExplode(',', $list, true)
-                    )
+                    $queryBuilder->quoteArrayBasedValueListToStringList($phashList)
                 ),
                 QueryHelper::stripLogicalOperatorPrefix($this->mediaTypeWhere()),
                 QueryHelper::stripLogicalOperatorPrefix($this->languageWhere()),
@@ -932,18 +940,13 @@ class IndexSearchRepository
 
         // Setting up methods of filtering results
         // based on page types, access, etc.
-        if ($hookObj = $this->hookRequest('execFinalQuery_idList')) {
-            // Calling hook for alternative creation of page ID list
-            $hookWhere = QueryHelper::stripLogicalOperatorPrefix($hookObj->execFinalQuery_idList($list));
-            if (!empty($hookWhere)) {
-                $queryBuilder->andWhere($hookWhere);
-            }
-        } elseif ($this->searchRootPageIdList >= 0) {
+        if ($this->searchRootPageIdList >= 0) {
             // Collecting all pages IDs in which to search,
             // filtering out ALL pages that are not accessible due to restriction containers.
             // Does NOT look for "no_search" field!
             $siteIdNumbers = GeneralUtility::intExplode(',', $this->searchRootPageIdList);
-            $pageIdList = $this->getTypoScriptFrontendController()->sys_page->getPageIdsRecursive($siteIdNumbers, 9999);
+            $pageRepository = GeneralUtility::makeInstance(PageRepository::class);
+            $pageIdList = $pageRepository->getPageIdsRecursive($siteIdNumbers, 9999);
             $queryBuilder->andWhere(
                 $queryBuilder->expr()->in(
                     'ISEC.page_id',
@@ -1021,7 +1024,7 @@ class IndexSearchRepository
             }
         }
 
-        return $queryBuilder->executeQuery();
+        return $queryBuilder;
     }
 
     /**
@@ -1036,13 +1039,13 @@ class IndexSearchRepository
     {
         // If the record is indexed by an indexing configuration, just show it.
         // At least this is needed for external URLs and files.
-        // For records we might need to extend this - for instance block display if record is access restricted.
+        // For records, we might need to extend this - for instance block display if record is access restricted.
         if ($row['freeIndexUid']) {
             return true;
         }
         // Evaluate regularly indexed pages based on item_type:
         // External media:
-        $connection = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable('index_grlist');
+        $connection = $this->connectionPool->getConnectionForTable('index_grlist');
         if ($row['item_type']) {
             // For external media we will check the access of the parent page on which the media was linked from.
             // "phash_t3" is the phash of the parent TYPO3 page row which initiated the indexing of the documents
@@ -1050,15 +1053,11 @@ class IndexSearchRepository
             // current users gr_list exists will help us to know. If this is NOT found, there is still a theoretical
             // possibility that another user accessible page would display a link, so maybe the resume of such a
             // document here may be unjustified hidden. But better safe than sorry.
-            if (!IndexedSearchUtility::isTableUsed('index_grlist')) {
-                return false;
-            }
-
             return (bool)$connection->count(
                 'phash',
                 'index_grlist',
                 [
-                    'phash' => (int)$row['phash_t3'],
+                    'phash' => $row['phash_t3'],
                     'gr_list' => $this->frontendUserGroupList,
                 ]
             );
@@ -1068,15 +1067,11 @@ class IndexSearchRepository
             // Selecting for the grlist records belonging to the phash-row where the current users gr_list exists.
             // If it is found it is proof that this user has direct access to the phash-rows content although
             // he did not himself initiate the indexing...
-            if (!IndexedSearchUtility::isTableUsed('index_grlist')) {
-                return false;
-            }
-
             return (bool)$connection->count(
                 'phash',
                 'index_grlist',
                 [
-                    'phash' => (int)$row['phash'],
+                    'phash' => $row['phash'],
                     'gr_list' => $this->frontendUserGroupList,
                 ]
             );
@@ -1114,34 +1109,6 @@ class IndexSearchRepository
     }
 
     /**
-     * Returns an object reference to the hook object if any
-     *
-     * @param string $functionName Name of the function you want to call / hook key
-     * @return object|null Hook object, if any. Otherwise NULL.
-     */
-    protected function hookRequest(string $functionName): ?object
-    {
-        // Hook: menuConfig_preProcessModMenu
-        if ($GLOBALS['TYPO3_CONF_VARS']['EXTCONF']['indexed_search']['pi1_hooks'][$functionName] ?? false) {
-            $hookObj = GeneralUtility::makeInstance($GLOBALS['TYPO3_CONF_VARS']['EXTCONF']['indexed_search']['pi1_hooks'][$functionName]);
-            if (method_exists($hookObj, $functionName)) {
-                $hookObj->pObj = $this;
-                return $hookObj;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Search type
-     * e.g. sentence (20), any part of the word (1)
-     */
-    protected function getSearchType(): int
-    {
-        return $this->searchType;
-    }
-
-    /**
      * A list of integer which should be root-pages to search from
      *
      * @return int[]
@@ -1149,15 +1116,5 @@ class IndexSearchRepository
     protected function getSearchRootPageIdList(): array
     {
         return GeneralUtility::intExplode(',', $this->searchRootPageIdList);
-    }
-
-    protected function getTypoScriptFrontendController(): TypoScriptFrontendController
-    {
-        return $GLOBALS['TSFE'];
-    }
-
-    protected function getTimeTracker(): TimeTracker
-    {
-        return GeneralUtility::makeInstance(TimeTracker::class);
     }
 }

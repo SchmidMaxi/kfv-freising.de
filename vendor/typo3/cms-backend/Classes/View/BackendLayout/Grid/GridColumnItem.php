@@ -24,7 +24,10 @@ use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Backend\View\Event\PageContentPreviewRenderingEvent;
 use TYPO3\CMS\Backend\View\PageLayoutContext;
 use TYPO3\CMS\Core\Database\ReferenceIndex;
-use TYPO3\CMS\Core\Imaging\Icon;
+use TYPO3\CMS\Core\Imaging\IconSize;
+use TYPO3\CMS\Core\Schema\Capability\TcaSchemaCapability;
+use TYPO3\CMS\Core\Schema\TcaSchema;
+use TYPO3\CMS\Core\Schema\TcaSchemaFactory;
 use TYPO3\CMS\Core\Site\Entity\SiteLanguage;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -47,14 +50,16 @@ class GridColumnItem extends AbstractGridObject
      * @var GridColumnItem[]
      */
     protected array $translations = [];
+    protected TcaSchema $schema;
 
     public function __construct(
         PageLayoutContext $context,
-        protected GridColumn $column,
+        protected readonly GridColumn $column,
         protected array $record,
-        protected string $table = 'tt_content'
+        protected readonly string $table = 'tt_content'
     ) {
         parent::__construct($context);
+        $this->schema = GeneralUtility::makeInstance(TcaSchemaFactory::class)->get($this->table);
     }
 
     public function isVersioned(): bool
@@ -75,7 +80,7 @@ class GridColumnItem extends AbstractGridObject
         // Dispatch event to allow listeners adding an alternative content type
         // specific preview or to manipulate the content elements' record data.
         $event = GeneralUtility::makeInstance(EventDispatcherInterface::class)->dispatch(
-            new PageContentPreviewRenderingEvent($this->table, $this->record, $this->context)
+            new PageContentPreviewRenderingEvent($this->table, $this->getRecordType(), $this->record, $this->context)
         );
 
         // Update the modified record data
@@ -125,7 +130,7 @@ class GridColumnItem extends AbstractGridObject
                         ],
                     ],
                 ],
-                'redirect' => $GLOBALS['TYPO3_REQUEST']->getAttribute('normalizedParams')->getRequestUri(),
+                'redirect' => $this->context->getCurrentRequest()->getAttribute('normalizedParams')->getRequestUri(),
             ]
         );
     }
@@ -183,7 +188,7 @@ class GridColumnItem extends AbstractGridObject
         $icons = [];
 
         $icon = $this->iconFactory
-            ->getIconForRecord($this->table, $row, Icon::SIZE_SMALL)
+            ->getIconForRecord($this->table, $row, IconSize::SMALL)
             ->setTitle(BackendUtility::getRecordIconAltText($row, $this->table, false))
             ->render();
         if ($this->getBackendUser()->recordEditAccessInternals($this->table, $row)) {
@@ -193,14 +198,14 @@ class GridColumnItem extends AbstractGridObject
 
         if ($lockInfo = BackendUtility::isRecordLocked($this->table, $row['uid'])) {
             $icons[] = '<a href="#" title="' . htmlspecialchars($lockInfo['msg']) . '">'
-                . $this->iconFactory->getIcon('status-user-backend', Icon::SIZE_SMALL, 'overlay-edit')->render() . '</a>';
+                . $this->iconFactory->getIcon('status-user-backend', IconSize::SMALL, 'overlay-edit')->render() . '</a>';
         }
         return implode(' ', $icons);
     }
 
     public function getSiteLanguage(): SiteLanguage
     {
-        return $this->context->getSiteLanguage((int)($this->record[$GLOBALS['TCA'][$this->table]['ctrl']['languageField'] ?? null] ?? 0));
+        return $this->context->getSiteLanguage((int)($this->record[$this->schema->getCapability(TcaSchemaCapability::Language)->getLanguageField()->getName()] ?? 0));
     }
 
     public function getRecord(): array
@@ -232,12 +237,11 @@ class GridColumnItem extends AbstractGridObject
     public function isDisabled(): bool
     {
         $row = $this->getRecord();
-        $enableCols = $GLOBALS['TCA'][$this->table]['ctrl']['enablecolumns'] ?? null;
-        return is_array($enableCols)
+        return $this->schema->hasFieldRestrictions()
             && (
-                (($enableCols['disabled'] ?? false) && $row[$enableCols['disabled']])
-                || (($enableCols['starttime'] ?? false) && ($row[$enableCols['starttime']] ?? 0) > $GLOBALS['EXEC_TIME'])
-                || (($enableCols['endtime'] ?? false) && ($row[$enableCols['endtime']] ?? false) && $row[$enableCols['endtime']] < $GLOBALS['EXEC_TIME'])
+                ($this->schema->hasCapability(TcaSchemaCapability::RestrictionDisabledField) && $row[(string)$this->schema->getCapability(TcaSchemaCapability::RestrictionDisabledField)])
+                || ($this->schema->hasCapability(TcaSchemaCapability::RestrictionStartTime) && ($row[(string)$this->schema->getCapability(TcaSchemaCapability::RestrictionStartTime)] ?? 0) > $GLOBALS['EXEC_TIME'])
+                || ($this->schema->hasCapability(TcaSchemaCapability::RestrictionEndTime) && ($row[(string)$this->schema->getCapability(TcaSchemaCapability::RestrictionEndTime)] ?? false) && $row[(string)$this->schema->getCapability(TcaSchemaCapability::RestrictionEndTime)] < $GLOBALS['EXEC_TIME'])
             );
     }
 
@@ -257,7 +261,7 @@ class GridColumnItem extends AbstractGridObject
     {
         $pageRecord = $this->context->getPageRecord();
         $typeColumn = $this->getTypeColumn();
-        return (int)($this->record[$GLOBALS['TCA'][$this->table]['ctrl']['transOrigPointerField'] ?? null] ?? 0) === 0
+        return (int)($this->record[$this->schema->getCapability(TcaSchemaCapability::Language)->getTranslationOriginPointerField()->getName()] ?? 0) === 0
             && (
                 $this->getBackendUser()->isAdmin()
                 || (
@@ -271,31 +275,29 @@ class GridColumnItem extends AbstractGridObject
 
     public function isInconsistentLanguage(): bool
     {
-        $allowInconsistentLanguageHandling = (bool)(BackendUtility::getPagesTSconfig($this->getContext()->getPageId())['mod.']['web_layout.']['allowInconsistentLanguageHandling'] ?? false);
+        $allowInconsistentLanguageHandling = $this->context->getDrawingConfiguration()->getAllowInconsistentLanguageHandling();
         return !$allowInconsistentLanguageHandling
             && $this->getSiteLanguage()->getLanguageId() !== 0
-            && $this->getContext()->getLanguageModeIdentifier() === 'mixed'
-            && (int)($this->record[$GLOBALS['TCA'][$this->table]['ctrl']['transOrigPointerField'] ?? null] ?? 0) === 0;
+            && $this->context->getLanguageModeIdentifier() === 'mixed'
+            && (int)($this->record[$this->schema->getCapability(TcaSchemaCapability::Language)->getTranslationOriginPointerField()->getName()] ?? 0) === 0;
     }
 
     public function getNewContentAfterUrl(): string
     {
         $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
-        $pageId = $this->context->getPageId();
-
         return (string)$uriBuilder->buildUriFromRoute('new_content_element_wizard', [
-            'id' => $pageId,
+            'id' => $this->context->getPageId(),
             'sys_language_uid' => $this->context->getSiteLanguage()->getLanguageId(),
             'colPos' => $this->column->getColumnNumber(),
             'uid_pid' => -$this->record['uid'],
-            'returnUrl' => $GLOBALS['TYPO3_REQUEST']->getAttribute('normalizedParams')->getRequestUri(),
+            'returnUrl' => $this->context->getCurrentRequest()->getAttribute('normalizedParams')->getRequestUri(),
         ]);
     }
 
     public function getVisibilityToggleUrl(): string
     {
-        $hiddenField = $GLOBALS['TCA'][$this->table]['ctrl']['enablecolumns']['disabled'] ?? null;
-        if ($this->record[$hiddenField] ?? false) {
+        $disabledFieldName = $this->getDisabledFieldName();
+        if ($this->record[$disabledFieldName] ?? false) {
             $value = 0;
         } else {
             $value = 1;
@@ -306,18 +308,18 @@ class GridColumnItem extends AbstractGridObject
                 'data' => [
                     $this->table => [
                         (($this->record['_ORIG_uid'] ?? false) ?: ($this->record['uid'] ?? 0)) => [
-                            $hiddenField => $value,
+                            $disabledFieldName => $value,
                         ],
                     ],
                 ],
-                'redirect' => $GLOBALS['TYPO3_REQUEST']->getAttribute('normalizedParams')->getRequestUri(),
+                'redirect' => $this->context->getCurrentRequest()->getAttribute('normalizedParams')->getRequestUri(),
             ]
         ) . '#element-' . $this->table . '-' . $this->record['uid'];
     }
 
     public function getVisibilityToggleTitle(): string
     {
-        if ($this->record[$GLOBALS['TCA'][$this->table]['ctrl']['enablecolumns']['disabled'] ?? null] ?? false) {
+        if ($this->record[$this->getDisabledFieldName()] ?? false) {
             return $this->getLanguageService()->sL('LLL:EXT:backend/Resources/Private/Language/locallang_layout.xlf:unHide');
         }
         return $this->getLanguageService()->sL('LLL:EXT:backend/Resources/Private/Language/locallang_layout.xlf:hide');
@@ -325,17 +327,17 @@ class GridColumnItem extends AbstractGridObject
 
     public function getVisibilityToggleIconName(): string
     {
-        return ($this->record[$GLOBALS['TCA'][$this->table]['ctrl']['enablecolumns']['disabled'] ?? null] ?? false) ? 'unhide' : 'hide';
+        return ($this->record[$this->getDisabledFieldName()] ?? false) ? 'unhide' : 'hide';
     }
 
     public function isVisibilityToggling(): bool
     {
-        $hiddenField = $GLOBALS['TCA'][$this->table]['ctrl']['enablecolumns']['disabled'] ?? null;
-        return $hiddenField
-            && ($GLOBALS['TCA'][$this->table]['columns'][$hiddenField] ?? false)
+        $disabledFieldName = $this->getDisabledFieldName();
+        return $disabledFieldName
+            && $this->schema->hasField($disabledFieldName)
             && (
-                !($GLOBALS['TCA'][$this->table]['columns'][$hiddenField]['exclude'] ?? false)
-                || $this->getBackendUser()->check('non_exclude_fields', $this->table . ':' . $hiddenField)
+                !$this->schema->getField($disabledFieldName)->supportsAccessControl()
+                || $this->getBackendUser()->check('non_exclude_fields', $this->table . ':' . $disabledFieldName)
             )
         ;
     }
@@ -348,7 +350,7 @@ class GridColumnItem extends AbstractGridObject
                     $this->record['uid'] => 'edit',
                 ],
             ],
-            'returnUrl' => $GLOBALS['TYPO3_REQUEST']->getAttribute('normalizedParams')->getRequestUri() . '#element-' . $this->table . '-' . $this->record['uid'],
+            'returnUrl' => $this->context->getCurrentRequest()->getAttribute('normalizedParams')->getRequestUri() . '#element-' . $this->table . '-' . $this->record['uid'],
         ];
         $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
         return $uriBuilder->buildUriFromRoute('record_edit', $urlParameters) . '#element-' . $this->table . '-' . $this->record['uid'];
@@ -356,7 +358,7 @@ class GridColumnItem extends AbstractGridObject
 
     public function getTypeColumn(): string
     {
-        return (string)($GLOBALS['TCA'][$this->table]['ctrl']['type'] ?? '');
+        return $this->schema->getSubSchemaDivisorField()?->getName() ?? '';
     }
 
     public function getRecordType(): string
@@ -389,5 +391,10 @@ class GridColumnItem extends AbstractGridObject
         $recordType = $this->getRecordType();
         $label = BackendUtility::getLabelFromItemListMerged($pid, $table, $typeColumn, $recordType, $record);
         return $label;
+    }
+
+    protected function getDisabledFieldName(): ?string
+    {
+        return $this->schema->hasCapability(TcaSchemaCapability::RestrictionDisabledField) ? (string)$this->schema->getCapability(TcaSchemaCapability::RestrictionDisabledField) : null;
     }
 }

@@ -51,6 +51,8 @@ abstract class AbstractExceptionHandler implements ExceptionHandlerInterface, Si
         1517949792, // The IP address of your client does not match the list of allowed IP addresses
         1517949793, // Backend access by browser is locked for maintenance
         1517949794, // Backend and Install Tool are locked for maintenance
+        1436717270, // Client sends a header with an invalid name
+        1436717269, // Client sends a header with an invalid value
     ];
 
     public const IGNORED_HMAC_EXCEPTION_CODES = [
@@ -58,6 +60,8 @@ abstract class AbstractExceptionHandler implements ExceptionHandlerInterface, Si
         1581862823, // Failed HMAC validation due to modified form state in ext:forms
         1320830018, // Failed HMAC validation due to modified HMAC string in Extbase HashService
         1320830276, // Failed HMAC validation due to too short HMAC string in Extbase HashService
+        1704454157, // Failed HMAC validation due to modified HMAC string in Core HashService
+        1704454152, // Failed HMAC validation due to too short HMAC string in Core HashService
     ];
 
     /**
@@ -134,7 +138,7 @@ abstract class AbstractExceptionHandler implements ExceptionHandlerInterface, Si
         try {
             // Write error message to sys_log table
             $this->writeLog($logTitle . ': ' . $logMessage);
-        } catch (\Exception $exception) {
+        } catch (\Throwable $exception) {
         }
     }
 
@@ -174,7 +178,6 @@ abstract class AbstractExceptionHandler implements ExceptionHandlerInterface, Si
                 'action' => SystemLogGenericAction::UNDEFINED,
                 'error' => SystemLogErrorClassification::SYSTEM_ERROR,
                 'level' => SystemLogType::toLevel(SystemLogType::ERROR),
-                'details_nr' => 0,
                 'details' => str_replace('%', '%%', $logMessage),
                 'log_data' => empty($data) ? '' : json_encode($data),
                 'IP' => (string)GeneralUtility::getIndpEnv('REMOTE_ADDR'),

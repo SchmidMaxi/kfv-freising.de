@@ -1,0 +1,65 @@
+Deployment KFV Staging
+DDEV-Script für DB-Sync & Update auf Anfrage
+
+Sync für Einsätze
+
+Deployment für Lehrgangsportal (Irgendwann)
+
+
+Aufbau Extension "Feuerwehren"
+
+Ziel:
+Aufbau einer Datenbank und Ausgabe in entsprechenden Ausgaben. Basis ist ein TYPO3 13LTS System.
+
+Plugins:
+Organigramm
+Anzeigen der Personen mit allen Daten, auch weitere "Untergeordnete Personen".
+
+Karte mit Filter
+Es soll eine große Karte ausgegeben werden, auf der Verschiedene Optionen ein- und ausgeblendet werden können.
+Beispielsweise: Einblenden der Gemeindegrenzen, Einblenden der KBM, oder KBI Bereiche, die sich aus den Gemeindegrenzen ergeben. (Einem KBM sind verschiedene mehrere Gemeindegebiete zugewiesen. Einem KBI sind mehrere KBMs zugewiesen, dem KBR sind alle KBIs zugewiesen. Daraus ergeben sich entsprechend größere Gebiete)
+Feuerwehren, einblenden der Positionsmarker auf Basis der angegebenen Lat- und Longitude Werte. Filterung nach Fahrzeugen, sodass nur Feuerwehren mit z.B. einem HLF angezeigt werden können.
+
+Detailansichten
+Ausgabe von Detailinformationen der Personen, Gemeinden oder Feuerwehren. Es soll verschiedene Detailseiten für diese Informationen geben.
+
+Rolle:
+- Titel
+
+Person
+- Titel
+- Slug
+- FE-User
+- Rolle (SelectSingle Rolle)
+- Gemeinde
+- Untergeordnet (Auswahl anderer Personen (KBIs, KBMs) Multiselect SideBySide)
+
+Gemeinde
+- Name
+- Slug
+- Logo
+- Feuerwehren (Multiselect SideBySide Feuerwehr)
+- Gemeindegebiet (JSON mit den Gemeindegrenzen)
+
+Feuerwehr
+- Name
+- Slug
+- Straße + Hausnummer
+- PLZ
+- Ort
+- Latitude
+- Longitude
+- Fahrzeuge (Multiselect SideBySide Fahrzeugkategorien)
+- Kommandant (FE-User)
+- Stellv. Kommandant (FE-User)
+- Jugendwart (FE-User)
+- Stellv. Jugendwart (FE-User)
+- Kinderwart (FE-User)
+- Stellv. Kinderwart (FE-User)
+- Aktiv (FE-User)
+- Jugendfeuerwehr (FE-User)
+- Kinderfeuerwehr (FE-User)
+- Einsätze (Passthrough der Daten von News)
+
+Fahrzeugkategorien
+- Titel

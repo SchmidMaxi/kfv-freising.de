@@ -78,8 +78,6 @@ final class MediaViewHelper extends AbstractTagBasedViewHelper
     public function initializeArguments(): void
     {
         parent::initializeArguments();
-        $this->registerUniversalTagAttributes();
-        $this->registerTagAttribute('alt', 'string', 'Specifies an alternate text for an image', false);
         $this->registerArgument('file', 'object', 'File', true);
         $this->registerArgument('additionalConfig', 'array', 'This array can hold additional configuration that is passed though to the Renderer object', false, []);
         $this->registerArgument('width', 'string', 'This can be a numeric value representing the fixed width of in pixels. But you can also perform simple calculations by adding "m" or "c" to the value. See imgResource.width for possible options.');
@@ -87,7 +85,7 @@ final class MediaViewHelper extends AbstractTagBasedViewHelper
         $this->registerArgument('cropVariant', 'string', 'select a cropping variant, in case multiple croppings have been specified or stored in FileReference', false, 'default');
         $this->registerArgument('fileExtension', 'string', 'Custom file extension to use for images');
         $this->registerArgument('loading', 'string', 'Native lazy-loading for images property. Can be "lazy", "eager" or "auto". Used on image files only.');
-        $this->registerArgument('decoding', 'string', 'Provides an image decoding hint to the browser. Can be "sync", "async" or "auto"', false);
+        $this->registerArgument('decoding', 'string', 'Provides an image decoding hint to the browser. Can be "sync", "async" or "auto"');
     }
 
     /**
@@ -128,7 +126,7 @@ final class MediaViewHelper extends AbstractTagBasedViewHelper
             return $this->renderImage($file, $width, $height, $this->arguments['fileExtension'] ?? null);
         }
         $arguments = [];
-        foreach ($this->arguments as $argumentName => $argumentValue) {
+        foreach (array_merge($this->arguments, $this->additionalArguments) as $argumentName => $argumentValue) {
             // Prevent "null" when given in fluid
             if (!empty($argumentValue) && $argumentValue !== 'null') {
                 $arguments[$argumentName] = $argumentValue;
@@ -166,7 +164,7 @@ final class MediaViewHelper extends AbstractTagBasedViewHelper
         if (!$this->tag->hasAttribute('data-focus-area')) {
             $focusArea = $cropVariantCollection->getFocusArea($cropVariant);
             if (!$focusArea->isEmpty()) {
-                $this->tag->addAttribute('data-focus-area', $focusArea->makeAbsoluteBasedOnFile($image));
+                $this->tag->addAttribute('data-focus-area', (string)$focusArea->makeAbsoluteBasedOnFile($image));
             }
         }
         $this->tag->addAttribute('src', $imageUri);
@@ -183,10 +181,10 @@ final class MediaViewHelper extends AbstractTagBasedViewHelper
         $title = $image->getProperty('title');
 
         // The alt-attribute is mandatory to have valid html-code, therefore add it even if it is empty
-        if (empty($this->arguments['alt'])) {
+        if (empty($this->additionalArguments['alt'])) {
             $this->tag->addAttribute('alt', $alt);
         }
-        if (empty($this->arguments['title']) && !empty($title)) {
+        if (empty($this->additionalArguments['title']) && !empty($title)) {
             $this->tag->addAttribute('title', $title);
         }
 

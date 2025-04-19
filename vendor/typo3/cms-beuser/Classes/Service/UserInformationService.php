@@ -20,7 +20,11 @@ namespace TYPO3\CMS\Beuser\Service;
 use TYPO3\CMS\Backend\Module\ModuleProvider;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
+use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
+use TYPO3\CMS\Core\Schema\Field\StaticSelectFieldType;
+use TYPO3\CMS\Core\Schema\TcaSchemaFactory;
 use TYPO3\CMS\Core\Site\SiteFinder;
 use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -29,11 +33,12 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  * Transform information of user and groups into better format
  * @internal
  */
-class UserInformationService
+final readonly class UserInformationService
 {
     public function __construct(
-        protected readonly IconFactory $iconFactory,
-        protected readonly ModuleProvider $moduleProvider,
+        protected IconFactory $iconFactory,
+        protected ModuleProvider $moduleProvider,
+        protected TcaSchemaFactory $tcaSchemaFactory,
     ) {}
 
     /**
@@ -111,7 +116,7 @@ class UserInformationService
         ];
         $data['groups']['diff'] = array_diff($data['groups']['inherit'], $data['groups']['direct']);
         foreach ($data['groups'] as $type => $groups) {
-            foreach ($groups as $key => $id) {
+            foreach ($groups as $id) {
                 $record = BackendUtility::getRecord('be_groups', (int)$id);
                 if (isset($record['uid'])) {
                     $recordId = $record['uid'];
@@ -127,7 +132,7 @@ class UserInformationService
         asort($userLanguages);
         foreach ($userLanguages as $languageId) {
             $languageId = (int)$languageId;
-            $record = $siteLanguages[$languageId];
+            $record = $siteLanguages[$languageId] ?? null;
             if ($record) {
                 $data['languages'][$languageId] = $record;
             }
@@ -139,12 +144,12 @@ class UserInformationService
         foreach (['tables_select', 'tables_modify'] as $tableField) {
             $temp = GeneralUtility::trimExplode(',', $user->groupData[$tableField] ?? '', true);
             foreach ($temp as $tableName) {
-                if (isset($GLOBALS['TCA'][$tableName]['ctrl']['title'])) {
-                    $data['tables'][$tableField][$tableName] = $GLOBALS['TCA'][$tableName]['ctrl']['title'];
+                if ($this->tcaSchemaFactory->has($tableName) && isset($this->tcaSchemaFactory->get($tableName)->getRawConfiguration()['title'])) {
+                    $data['tables'][$tableField][$tableName] = $this->tcaSchemaFactory->get($tableName)->getRawConfiguration()['title'];
                 }
             }
         }
-        $data['tables']['all'] = array_replace($data['tables']['tables_select'] ?? [], $data['tables']['tables_modify'] ?? []);
+        $data['tables']['all'] = array_replace($data['tables']['tables_select'], $data['tables']['tables_modify']);
 
         // DB mounts
         $dbMounts = GeneralUtility::trimExplode(',', $user->groupData['webmounts'] ?? '', true);
@@ -195,7 +200,9 @@ class UserInformationService
         $filePermissions = $user->groupData['file_permissions'] ?? '';
         if ($filePermissions) {
             $items = GeneralUtility::trimExplode(',', $filePermissions, true);
-            foreach ($GLOBALS['TCA']['be_groups']['columns']['file_permissions']['config']['items'] as $availableItem) {
+            /** @var StaticSelectFieldType $fieldType */
+            $fieldType = $this->tcaSchemaFactory->get('be_groups')->getField('file_permissions');
+            foreach ($fieldType->getConfiguration()['items'] ?? [] as $availableItem) {
                 if (in_array($availableItem['value'], $items, true)) {
                     $data['fileFolderPermissions'][] = $availableItem;
                 }
@@ -212,20 +219,22 @@ class UserInformationService
             $itemParts = explode(':', $item);
             $itemTable = $itemParts[0];
             $itemField = $itemParts[1] ?? '';
-            if (!empty($itemField) && isset($GLOBALS['TCA'][$itemTable]['ctrl']['title'])) {
-                $fieldList[$itemTable]['label'] = $GLOBALS['TCA'][$itemTable]['ctrl']['title'];
-                $fieldList[$itemTable]['fields'][$itemField] = $GLOBALS['TCA'][$itemTable]['columns'][$itemField]['label'] ?? $itemField;
+            if (!empty($itemField) && $this->tcaSchemaFactory->has($itemTable)) {
+                $schema = $this->tcaSchemaFactory->get($itemTable);
+                if (isset($schema->getRawConfiguration()['title'])) {
+                    $fieldList[$itemTable]['label'] = $schema->getRawConfiguration()['title'];
+                    if ($schema->hasField($itemField)) {
+                        $fieldList[$itemTable]['fields'][$itemField] = $schema->getField($itemField)->getLabel();
+                    }
+                }
             }
-        }
-        ksort($fieldList);
-        foreach ($fieldList as &$fieldListItem) {
-            ksort($fieldListItem['fields']);
         }
         $data['non_exclude_fields'] = $fieldList;
 
         // page types
-        $specialItems = $GLOBALS['TCA']['pages']['columns']['doktype']['config']['items'];
-        foreach ($specialItems as $specialItem) {
+        /** @var StaticSelectFieldType $specialItemsField */
+        $specialItemsField = $this->tcaSchemaFactory->get('pages')->getSubSchemaDivisorField();
+        foreach ($specialItemsField->getConfiguration()['items'] ?? [] as $specialItem) {
             $value = $specialItem['value'];
             if (!GeneralUtility::inList($user->groupData['pagetypes_select'] ?? '', $value)) {
                 continue;
@@ -242,7 +251,22 @@ class UserInformationService
             if (count($split) !== 3) {
                 continue;
             }
-            $data['pageContentTypes'][] = BackendUtility::getLabelFromItemlist(...$split);
+            $label = BackendUtility::getLabelFromItemlist(...$split);
+            $recordType = $split[1];
+            $recordTypeValue = $split[2];
+            $record = [
+                $recordType => $recordTypeValue,
+            ];
+            if ($split[0] === 'tt_content' && $recordType === 'list_type') {
+                $record['CType'] = 'list';
+            }
+            $data['pageContentTypes'][] = [
+                // If label is empty => the record type value does not exist so we use "empty-empty" as icon instead of falling back to the default record type icon
+                'icon' => $label ? $this->iconFactory->getIconForRecord($split[0], $record, IconSize::SMALL)->getIdentifier() : 'install-check-extables',
+                'label' => $label,
+                'shortType' => $recordTypeValue,
+                'longType' => $item,
+            ];
         }
 
         return $data;

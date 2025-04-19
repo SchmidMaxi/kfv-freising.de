@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -25,6 +27,7 @@ use TYPO3\CMS\Extbase\Persistence\QueryInterface;
 use TYPO3\CMS\Extbase\Persistence\QueryResultInterface;
 use TYPO3\CMS\Extbase\Persistence\Repository;
 use TYPO3\CMS\Extensionmanager\Domain\Model\Extension;
+use TYPO3\CMS\Extensionmanager\Enum\ExtensionCategory;
 
 /**
  * A repository for extensions
@@ -257,7 +260,7 @@ class ExtensionRepository extends Repository
         $query = $this->createQuery();
         $query->matching(
             $query->logicalAnd(
-                $query->equals('category', Extension::DISTRIBUTION_CATEGORY),
+                $query->equals('category', ExtensionCategory::Distribution->value),
                 $query->logicalNot($query->equals('ownerusername', 'typo3v4'))
             )
         );
@@ -279,7 +282,7 @@ class ExtensionRepository extends Repository
         $query = $this->createQuery();
         $query->matching(
             $query->logicalAnd(
-                $query->equals('category', Extension::DISTRIBUTION_CATEGORY),
+                $query->equals('category', ExtensionCategory::Distribution->value),
                 $query->equals('ownerusername', 'typo3v4')
             )
         );

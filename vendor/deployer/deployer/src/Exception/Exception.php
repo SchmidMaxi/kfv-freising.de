@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 /* (c) Anton Medvedev <anton@medv.io>
  *
@@ -25,7 +27,7 @@ class Exception extends \Exception
      */
     private $taskLineNumber = 0;
 
-    public function __construct(string $message = "", int $code = 0, Throwable $previous = null)
+    public function __construct(string $message = "", int $code = 0, ?Throwable $previous = null)
     {
         if (function_exists('debug_backtrace')) {
             $trace = debug_backtrace();
@@ -65,4 +67,3 @@ class Exception extends \Exception
         $this->taskLineNumber = $taskLineNumber;
     }
 }
-

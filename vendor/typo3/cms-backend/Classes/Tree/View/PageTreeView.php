@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -57,10 +59,9 @@ class PageTreeView extends AbstractTreeView
      * @param int $nextCount The number of sub-elements to the current element.
      * @param bool $isExpand The element was expanded to render subelements if this flag is set.
      * @return string Image tag with the plus/minus icon.
-     * @internal
      * @see AbstractTreeView::PMicon()
      */
-    public function PMicon($row, $a, $c, $nextCount, $isExpand)
+    protected function PMicon($row, $a, $c, $nextCount, $isExpand)
     {
         return '<span class="treeline-icon treeline-icon-join' . ($a == $c ? 'bottom' : '') . '"></span>';
     }
@@ -73,7 +74,7 @@ class PageTreeView extends AbstractTreeView
      * @param int $titleLen Title length (30)
      * @return string The title.
      */
-    public function getTitleStr($row, $titleLen = 30)
+    protected function getTitleStr($row, $titleLen = 30)
     {
         $lang = $this->getLanguageService();
         $title = htmlspecialchars(GeneralUtility::fixed_lgd_cs($row['title'], (int)$titleLen));

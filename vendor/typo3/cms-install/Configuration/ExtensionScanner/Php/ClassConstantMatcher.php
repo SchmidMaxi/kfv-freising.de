@@ -458,76 +458,163 @@ return [
     'TYPO3\CMS\Core\Messaging\AbstractMessage::NOTICE' => [
         'restFiles' => [
             'Deprecation-97787-SeveritiesOfFlashMessagesAndReportsDeprecated.rst',
+            'Breaking-100963-DeprecatedFunctionalityRemoved.rst',
         ],
     ],
     'TYPO3\CMS\Core\Messaging\AbstractMessage::INFO' => [
         'restFiles' => [
             'Deprecation-97787-SeveritiesOfFlashMessagesAndReportsDeprecated.rst',
+            'Breaking-100963-DeprecatedFunctionalityRemoved.rst',
         ],
     ],
     'TYPO3\CMS\Core\Messaging\AbstractMessage::OK' => [
         'restFiles' => [
             'Deprecation-97787-SeveritiesOfFlashMessagesAndReportsDeprecated.rst',
+            'Breaking-100963-DeprecatedFunctionalityRemoved.rst',
         ],
     ],
     'TYPO3\CMS\Core\Messaging\AbstractMessage::WARNING' => [
         'restFiles' => [
             'Deprecation-97787-SeveritiesOfFlashMessagesAndReportsDeprecated.rst',
+            'Breaking-100963-DeprecatedFunctionalityRemoved.rst',
         ],
     ],
     'TYPO3\CMS\Core\Messaging\AbstractMessage::ERROR' => [
         'restFiles' => [
             'Deprecation-97787-SeveritiesOfFlashMessagesAndReportsDeprecated.rst',
+            'Breaking-100963-DeprecatedFunctionalityRemoved.rst',
         ],
     ],
     'TYPO3\CMS\Core\Messaging\FlashMessage::NOTICE' => [
         'restFiles' => [
             'Deprecation-97787-SeveritiesOfFlashMessagesAndReportsDeprecated.rst',
+            'Breaking-100963-DeprecatedFunctionalityRemoved.rst',
         ],
     ],
     'TYPO3\CMS\Core\Messaging\FlashMessage::INFO' => [
         'restFiles' => [
             'Deprecation-97787-SeveritiesOfFlashMessagesAndReportsDeprecated.rst',
+            'Breaking-100963-DeprecatedFunctionalityRemoved.rst',
         ],
     ],
     'TYPO3\CMS\Core\Messaging\FlashMessage::OK' => [
         'restFiles' => [
             'Deprecation-97787-SeveritiesOfFlashMessagesAndReportsDeprecated.rst',
+            'Breaking-100963-DeprecatedFunctionalityRemoved.rst',
         ],
     ],
     'TYPO3\CMS\Core\Messaging\FlashMessage::WARNING' => [
         'restFiles' => [
             'Deprecation-97787-SeveritiesOfFlashMessagesAndReportsDeprecated.rst',
+            'Breaking-100963-DeprecatedFunctionalityRemoved.rst',
         ],
     ],
     'TYPO3\CMS\Core\Messaging\FlashMessage::ERROR' => [
         'restFiles' => [
             'Deprecation-97787-SeveritiesOfFlashMessagesAndReportsDeprecated.rst',
+            'Breaking-100963-DeprecatedFunctionalityRemoved.rst',
         ],
     ],
     'TYPO3\CMS\Reports\Status::NOTICE' => [
         'restFiles' => [
             'Deprecation-97787-SeveritiesOfFlashMessagesAndReportsDeprecated.rst',
+            'Breaking-100963-DeprecatedFunctionalityRemoved.rst',
         ],
     ],
     'TYPO3\CMS\Reports\Status::INFO' => [
         'restFiles' => [
             'Deprecation-97787-SeveritiesOfFlashMessagesAndReportsDeprecated.rst',
+            'Breaking-100963-DeprecatedFunctionalityRemoved.rst',
         ],
     ],
     'TYPO3\CMS\Reports\Status::OK' => [
         'restFiles' => [
             'Deprecation-97787-SeveritiesOfFlashMessagesAndReportsDeprecated.rst',
+            'Breaking-100963-DeprecatedFunctionalityRemoved.rst',
         ],
     ],
     'TYPO3\CMS\Reports\Status::WARNING' => [
         'restFiles' => [
             'Deprecation-97787-SeveritiesOfFlashMessagesAndReportsDeprecated.rst',
+            'Breaking-100963-DeprecatedFunctionalityRemoved.rst',
         ],
     ],
     'TYPO3\CMS\Reports\Status::ERROR' => [
         'restFiles' => [
             'Deprecation-97787-SeveritiesOfFlashMessagesAndReportsDeprecated.rst',
+            'Breaking-100963-DeprecatedFunctionalityRemoved.rst',
+        ],
+    ],
+    'TYPO3\CMS\Core\Domain\Repository\PageRepository::DOKTYPE_RECYCLER' => [
+        'restFiles' => [
+            'Breaking-101137-PageDoktypeRecyclerRemoved.rst',
+        ],
+    ],
+    'TYPO3\CMS\Core\Page\JavaScriptModuleInstruction::FLAG_LOAD_REQUIRE_JS' => [
+        'restFiles' => [
+            'Breaking-101266-RemoveRequireJS.rst',
+            'Deprecation-97057-DeprecateRequireJSSupport.rst',
+            'Breaking-100963-DeprecatedFunctionalityRemoved.rst',
+        ],
+    ],
+    'TYPO3\CMS\Core\Imaging\Icon::SIZE_DEFAULT' => [
+        'restFiles' => [
+            'Deprecation-101475-IconSizeStringConstants.rst',
+        ],
+    ],
+    'TYPO3\CMS\Core\Imaging\Icon::SIZE_SMALL' => [
+        'restFiles' => [
+            'Deprecation-101475-IconSizeStringConstants.rst',
+        ],
+    ],
+    'TYPO3\CMS\Core\Imaging\Icon::SIZE_MEDIUM' => [
+        'restFiles' => [
+            'Deprecation-101475-IconSizeStringConstants.rst',
+        ],
+    ],
+    'TYPO3\CMS\Core\Imaging\Icon::SIZE_LARGE' => [
+        'restFiles' => [
+            'Deprecation-101475-IconSizeStringConstants.rst',
+        ],
+    ],
+    'TYPO3\CMS\Core\Imaging\Icon::SIZE_MEGA' => [
+        'restFiles' => [
+            'Deprecation-101475-IconSizeStringConstants.rst',
+        ],
+    ],
+    'TYPO3\CMS\Core\Resource\AbstractFile::FILETYPE_UNKNOWN' => [
+        'restFiles' => [
+            'Deprecation-102032-AbstractFileConstants.rst',
+        ],
+    ],
+    'TYPO3\CMS\Core\Resource\AbstractFile::FILETYPE_TEXT' => [
+        'restFiles' => [
+            'Deprecation-102032-AbstractFileConstants.rst',
+        ],
+    ],
+    'TYPO3\CMS\Core\Resource\AbstractFile::FILETYPE_IMAGE' => [
+        'restFiles' => [
+            'Deprecation-102032-AbstractFileConstants.rst',
+        ],
+    ],
+    'TYPO3\CMS\Core\Resource\AbstractFile::FILETYPE_AUDIO' => [
+        'restFiles' => [
+            'Deprecation-102032-AbstractFileConstants.rst',
+        ],
+    ],
+    'TYPO3\CMS\Core\Resource\AbstractFile::FILETYPE_VIDEO' => [
+        'restFiles' => [
+            'Deprecation-102032-AbstractFileConstants.rst',
+        ],
+    ],
+    'TYPO3\CMS\Core\Resource\AbstractFile::FILETYPE_APPLICATION' => [
+        'restFiles' => [
+            'Deprecation-102032-AbstractFileConstants.rst',
+        ],
+    ],
+    'TYPO3\CMS\Extbase\Utility\ExtensionUtility::PLUGIN_TYPE_PLUGIN' => [
+        'restFiles' => [
+            'Deprecation-105076-PluginContentElementAndPluginSubTypes.rst',
         ],
     ],
 ];

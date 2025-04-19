@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -20,15 +22,14 @@ use TYPO3\CMS\Core\Localization\LanguageService;
 /**
  * This class provides Check Base plugin implementation
  */
-abstract class AbstractLinktype implements LinktypeInterface
+abstract class AbstractLinktype implements LinktypeInterface, LabelledLinktypeInterface
 {
     /**
      * Contains parameters needed for the rendering of the error message
      *
      * @var array
      */
-    protected $errorParams = [];
-
+    protected array $errorParams = [];
     protected string $identifier = '';
 
     public function getIdentifier(): string
@@ -53,7 +54,7 @@ abstract class AbstractLinktype implements LinktypeInterface
      * @param string $key Validator hook name
      * @return string Fetched type
      */
-    public function fetchType($value, $type, $key)
+    public function fetchType(array $value, string $type, string $key): string
     {
         if (($value['type'] ?? false) == $key) {
             $type = $value['type'];
@@ -75,9 +76,8 @@ abstract class AbstractLinktype implements LinktypeInterface
      * Get the value of the private property errorParams
      *
      * @return array All parameters needed for the rendering of the error message
-     * @todo change return type to array in TYPO3 v13
      */
-    public function getErrorParams()
+    public function getErrorParams(): array
     {
         return $this->errorParams;
     }
@@ -88,7 +88,7 @@ abstract class AbstractLinktype implements LinktypeInterface
      * @param array $row Broken link record
      * @return string Parsed broken url
      */
-    public function getBrokenUrl($row)
+    public function getBrokenUrl(array $row): string
     {
         return $row['url'];
     }
@@ -96,5 +96,15 @@ abstract class AbstractLinktype implements LinktypeInterface
     protected function getLanguageService(): LanguageService
     {
         return $GLOBALS['LANG'];
+    }
+
+    /**
+     * Get localized label for this linktype to be displayed in Backend user interface.
+     * Custom Linktypes should override this and provide language labels for their type.
+     */
+    public function getReadableName(): string
+    {
+        $type = $this->getIdentifier();
+        return $this->getLanguageService()->sL('LLL:EXT:linkvalidator/Resources/Private/Language/Module/locallang.xlf:hooks.' . $type) ?: $type;
     }
 }

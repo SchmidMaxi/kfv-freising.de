@@ -130,6 +130,12 @@ return [
         'target' => Controller\Page\TreeController::class . '::fetchDataAction',
     ],
 
+    // Get rootline for page tree
+    'page_tree_rootline' => [
+        'path' => '/page/tree/fetchRootline',
+        'target' => Controller\Page\TreeController::class . '::fetchRootlineAction',
+    ],
+
     // Get data for page tree
     'page_tree_filter' => [
         'path' => '/page/tree/filterData',
@@ -159,6 +165,12 @@ return [
         'path' => '/filestorage/tree/fetchData',
         'methods' => ['GET'],
         'target' => Controller\FileStorage\TreeController::class . '::fetchDataAction',
+    ],
+
+    // Get rootline for file storage tree
+    'filestorage_tree_rootline' => [
+        'path' => '/filestorage/tree/fetchRootline',
+        'target' => Controller\FileStorage\TreeController::class . '::fetchRootlineAction',
     ],
 
     // Get filtered data for filestorage tree
@@ -400,5 +412,22 @@ return [
     'sudo_mode_control' => [
         'path' => '/sudo-mode/verify',
         'target' =>  Controller\Security\SudoModeController::class . '::verifyAction',
+    ],
+
+    // Get TSRef
+    'codeeditor_tsref' => [
+        'path' => '/code-editor/tsref',
+        'target' => \TYPO3\CMS\Backend\Controller\CodeEditor\TypoScriptReferenceController::class . '::loadReference',
+    ],
+
+    // Load code completion templates
+    'codeeditor_codecompletion_loadtemplates' => [
+        'path' => '/code-editor/codecompletion/load-templates',
+        'target' => \TYPO3\CMS\Backend\Controller\CodeEditor\CodeCompletionController::class . '::loadCompletions',
+    ],
+
+    'color_scheme_update' => [
+        'path' => '/color-scheme/update',
+        'target' => Controller\ColorSchemeController::class . '::updateAction',
     ],
 ];

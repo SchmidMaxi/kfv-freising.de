@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -15,9 +17,6 @@
 
 namespace TYPO3\CMS\Backend\Tree\View;
 
-use Psr\Http\Message\ServerRequestInterface;
-use TYPO3\CMS\Backend\Routing\Route;
-use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Database\Connection;
@@ -25,9 +24,9 @@ use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\QueryHelper;
 use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\WorkspaceRestriction;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
 use TYPO3\CMS\Core\Imaging\IconProvider\AbstractSvgIconProvider;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -38,75 +37,38 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  */
 abstract class AbstractTreeView
 {
-    // EXTERNAL, static:
-
-    // Holds the current script to reload to.
-    /**
-     * @var string
-     * @deprecated will be removed in TYPO3 v13.0.
-     */
-    public $thisScript = '';
-
-    // Used if the tree is made of records (not folders for ex.)
-    /**
-     * @var string
-     * @internal since TYPO3 v12 will be marked as protected in TYPO3 v13.0.
-     */
-    public $title = 'no title';
-
-    /**
-     * Needs to be initialized with $GLOBALS['BE_USER']
-     * Done by default in init()
-     *
-     * @var \TYPO3\CMS\Core\Authentication\BackendUserAuthentication|string
-     * @deprecated will be removed in TYPO3 v13.0 as it is not in use anymore.
-     */
-    public $BE_USER = '';
-
     /**
      * Database table to get the tree data from.
      * Leave blank if data comes from an array.
-     *
-     * @var string
-     * @internal since TYPO3 v12 will be marked as protected in TYPO3 v13.0.
      */
-    public $table = 'pages';
+    protected string $table = 'pages';
 
     /**
      * Defines the field of $table which is the parent id field (like pid for table pages).
-     *
-     * @var string
-     * @internal since TYPO3 v12 will be marked as protected in TYPO3 v13.0.
      */
-    public $parentField = 'pid';
+    protected string $parentField = 'pid';
 
     /**
      * WHERE clause used for selecting records for the tree. Is set by function init.
      *
      * @see init()
-     * @var string
-     * @internal since TYPO3 v12, will be marked as protected in TYPO3 v13.0.
      */
-    public $clause = '';
+    protected string $clause = '';
 
     /**
      * Field for ORDER BY. Is set by function init.
      *
      * @see init()
-     * @var string
-     * @internal since TYPO3 v12, will be marked as protected in TYPO3 v13.0.
      */
-    public $orderByFields = '';
+    public string $orderByFields = '';
 
     /**
      * Default set of fields selected from the tree table.
      * Make SURE that these fields names listed herein are actually possible to select from $this->table (if that variable is set to a TCA table name)
      *
      * @see addField()
-     * @var array
-     * @internal since TYPO3 v12, will be marked as protected in TYPO3 v13.0.
      */
-    public $fieldArray = [
+    protected array $fieldArray = [
         'uid',
         'pid',
         'title',
@@ -130,10 +92,8 @@ abstract class AbstractTreeView
      * List of other fields which are ALLOWED to set (here, based on the "pages" table!)
      *
      * @see addField()
-     * @var string
-     * @internal since TYPO3 v12, will be marked as protected in TYPO3 v13.0.
      */
-    public $defaultList = 'uid,pid,tstamp,sorting,deleted,perms_userid,perms_groupid,perms_user,perms_group,perms_everybody,crdate';
+    protected string $defaultList = 'uid,pid,tstamp,sorting,deleted,perms_userid,perms_groupid,perms_user,perms_group,perms_everybody,crdate';
 
     /**
      * If 1, HTML code is also accumulated in ->tree array during rendering of the tree
@@ -182,42 +142,7 @@ abstract class AbstractTreeView
      */
     public function __construct()
     {
-        $this->title = $GLOBALS['TYPO3_CONF_VARS']['SYS']['sitename'];
-
-        // @deprecated Copied from determineScriptUrl() to be able to trigger a deprecation entry. Remove in v13.0!
-        if (($GLOBALS['TYPO3_REQUEST'] ?? null) instanceof ServerRequestInterface
-            && ($route = $GLOBALS['TYPO3_REQUEST']->getAttribute('route')) instanceof Route
-        ) {
-            $this->thisScript = (string)GeneralUtility::makeInstance(UriBuilder::class)->buildUriFromRoutePath(
-                $route->getPath()
-            );
-        }
-    }
-
-    /**
-     * Sets the script url depending on being a module or script request
-     * @deprecated will be removed in TYPO3 v13.0.
-     */
-    protected function determineScriptUrl()
-    {
-        trigger_error(__CLASS__ . '->' . __METHOD__ . ' will be removed in TYPO3 v13.0.', E_USER_DEPRECATED);
-        if (($GLOBALS['TYPO3_REQUEST'] ?? null) instanceof ServerRequestInterface
-            && ($route = $GLOBALS['TYPO3_REQUEST']->getAttribute('route')) instanceof Route
-        ) {
-            $this->thisScript = (string)GeneralUtility::makeInstance(UriBuilder::class)->buildUriFromRoutePath(
-                $route->getPath()
-            );
-        }
-    }
-
-    /**
-     * @return string
-     * @deprecated will be removed in TYPO3 v13.0. No deprecation is thrown due to
-     *             a usage in ElementBrowserPageTreeView (which is also deprecated).
-     */
-    protected function getThisScript()
-    {
-        return !str_contains($this->thisScript, '?') ? $this->thisScript . '?' : $this->thisScript . '&';
+        $this->init();
     }
 
     /**
@@ -228,8 +153,6 @@ abstract class AbstractTreeView
      */
     public function init($clause = '', $orderByFields = '')
     {
-        // Setting BE_USER by default
-        $this->BE_USER = $GLOBALS['BE_USER'];
         // Setting clause
         if ($clause) {
             $this->clause = $clause;
@@ -277,10 +200,9 @@ abstract class AbstractTreeView
      * @param int $nextCount The number of sub-elements to the current element.
      * @param bool $isOpen The element was expanded to render subelements if this flag is set.
      * @return string Image tag with the plus/minus icon.
-     * @internal
      * @see \TYPO3\CMS\Backend\Tree\View\PageTreeView::PMicon()
      */
-    public function PMicon($row, $a, $c, $nextCount, $isOpen)
+    protected function PMicon($row, $a, $c, $nextCount, $isOpen)
     {
         if ($nextCount) {
             return $this->PM_ATagWrap($row['uid'], $isOpen);
@@ -294,37 +216,22 @@ abstract class AbstractTreeView
      * @param string $bMark If set, the link will have an anchor point (=$bMark) and a name attribute (=$bMark)
      * @param bool $isOpen
      * @return string Link-wrapped input string
-     * @internal since TYPO3 v12, will be marked as protected in TYPO3 v13.0.
      */
-    public function PM_ATagWrap($bMark = '', $isOpen = false)
+    protected function PM_ATagWrap($bMark = '', $isOpen = false)
     {
         $iconFactory = GeneralUtility::makeInstance(IconFactory::class);
 
         $anchor = $bMark ? '#' . $bMark : '';
         $name = $bMark ? ' name="' . $bMark . '"' : '';
-        $aUrl = $this->getThisScript() . $anchor;
+        $aUrl = $anchor;
         if ($isOpen) {
             $class = 'treelist-control-open';
-            $icon = $iconFactory->getIcon('actions-chevron-down', Icon::SIZE_SMALL);
+            $icon = $iconFactory->getIcon('actions-chevron-down', IconSize::SMALL);
         } else {
             $class = 'treelist-control-collapsed';
-            $icon = $iconFactory->getIcon('actions-chevron-right', Icon::SIZE_SMALL);
+            $icon = $iconFactory->getIcon('actions-chevron-right', IconSize::SMALL);
         }
         return '<a class="treelist-control ' . $class . '" href="' . htmlspecialchars($aUrl) . '"' . $name . '>' . $icon->render(AbstractSvgIconProvider::MARKUP_IDENTIFIER_INLINE) . '</a>';
-    }
-
-    /**
-     * Adds attributes to image tag.
-     *
-     * @param string $icon Icon image tag
-     * @param string $attr Attributes to add, eg. ' border="0"'
-     * @return string Image tag, modified with $attr attributes added.
-     * @deprecated will be removed in TYPO3 v13.0.
-     */
-    public function addTagAttributes($icon, $attr)
-    {
-        trigger_error(__CLASS__ . '->' . __METHOD__ . ' will be removed in TYPO3 v13.0.', E_USER_DEPRECATED);
-        return preg_replace('/ ?\\/?>$/', '', $icon) . ' ' . $attr . ' />';
     }
 
     /*******************************************
@@ -352,32 +259,18 @@ abstract class AbstractTreeView
      * Functions that might be overwritten by extended classes
      *
      ********************************/
-    /**
-     * Returns the root icon for a tree/mountpoint (defaults to the globe)
-     *
-     * @param array $rec Record for root.
-     * @return string Icon image tag.
-     * @deprecated will be removed in TYPO3 v13.0.
-     */
-    public function getRootIcon($rec)
-    {
-        trigger_error(__CLASS__ . '->' . __METHOD__ . ' will be removed in TYPO3 v13.0.', E_USER_DEPRECATED);
-        $iconFactory = GeneralUtility::makeInstance(IconFactory::class);
-        return $iconFactory->getIcon('apps-pagetree-root', Icon::SIZE_SMALL)->render();
-    }
 
     /**
      * Get the icon markup for the row
      *
      * @param array $row The row to get the icon for
      * @return string The icon markup, wrapped into a span tag, with the records title as title attribute
-     * @internal since TYPO3 v12, will be marked as protected in TYPO3 v13.0.
      */
-    public function getIcon(array $row): string
+    protected function getIcon(array $row): string
     {
         $title = $this->getTitleAttrib($row);
         $iconFactory = GeneralUtility::makeInstance(IconFactory::class);
-        $icon = $row['is_siteroot'] ? $iconFactory->getIcon('apps-pagetree-folder-root', Icon::SIZE_SMALL) : $iconFactory->getIconForRecord($this->table, $row, Icon::SIZE_SMALL);
+        $icon = $row['is_siteroot'] ? $iconFactory->getIcon('apps-pagetree-folder-root', IconSize::SMALL) : $iconFactory->getIconForRecord($this->table, $row, IconSize::SMALL);
         return $icon->setTitle($title)->render();
     }
 
@@ -388,9 +281,8 @@ abstract class AbstractTreeView
      * @param array $row The input row array (where the key "title" is used for the title)
      * @param int $titleLen Title length (30)
      * @return string The title.
-     * @internal since TYPO3 v12, will be marked as protected in TYPO3 v13.0.
      */
-    public function getTitleStr($row, $titleLen = 30)
+    protected function getTitleStr($row, $titleLen = 30)
     {
         $title = htmlspecialchars(GeneralUtility::fixed_lgd_cs($row['title'], (int)$titleLen));
         return trim($title) === '' ? '<em>[' . htmlspecialchars($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.no_title')) . ']</em>' : $title;
@@ -401,9 +293,8 @@ abstract class AbstractTreeView
      *
      * @param array $row The input row array (where the key "title" is used for the title)
      * @return string The attribute value (is htmlspecialchared() already)
-     * @internal since TYPO3 v12, will be marked as protected in TYPO3 v13.0.
      */
-    public function getTitleAttrib($row)
+    protected function getTitleAttrib($row)
     {
         return htmlspecialchars($row['title']);
     }
@@ -430,13 +321,12 @@ abstract class AbstractTreeView
         $HTML = '';
         $a = 0;
         $res = $this->getDataInit($uid);
-        $c = $this->getDataCount($res);
+        $c = $res->rowCount();
         $crazyRecursionLimiter = 9999;
         $idH = [];
         // Traverse the records:
         while ($crazyRecursionLimiter > 0 && ($row = $this->getDataNext($res))) {
-            /** @var array $row */
-            if (!$this->getBackendUser()->isInWebMount($this->table === 'pages' ? $row : $row['pid'])) {
+            if (!is_array($row) || !$this->getBackendUser()->isInWebMount($this->table === 'pages' ? $row : $row['pid'])) {
                 // Current record is not within web mount => skip it
                 continue;
             }
@@ -489,7 +379,7 @@ abstract class AbstractTreeView
             ];
         }
 
-        $this->getDataFree($res);
+        $res->free();
         $this->buffer_idH = $idH;
         return $c;
     }
@@ -505,9 +395,8 @@ abstract class AbstractTreeView
      *
      * @param int $uid Id to count subitems for
      * @return int
-     * @internal
      */
-    public function getCount($uid)
+    protected function getCount($uid)
     {
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($this->table);
         $queryBuilder->getRestrictions()
@@ -531,18 +420,6 @@ abstract class AbstractTreeView
     }
 
     /**
-     * Returns root record for uid (<=0)
-     *
-     * @return array Array with title/uid keys with values of $this->title/0 (zero)
-     * @deprecated will be removed in TYPO3 v13.0.
-     */
-    public function getRootRecord()
-    {
-        trigger_error(__CLASS__ . '->' . __METHOD__ . ' will be removed in TYPO3 v13.0.', E_USER_DEPRECATED);
-        return ['title' => $this->title, 'uid' => 0];
-    }
-
-    /**
      * Getting the tree data: Selecting/Initializing data pointer to items for a certain parent id.
      * For tables: This will make a database query to select all children to "parent"
      * For arrays: This will return key to the ->dataLookup array
@@ -550,9 +427,8 @@ abstract class AbstractTreeView
      * @param int $parentId parent item id
      *
      * @return mixed Data handle (Tables: An sql-resource, arrays: A parentId integer. -1 is returned if there were NO subLevel.)
-     * @internal
      */
-    public function getDataInit($parentId)
+    protected function getDataInit($parentId)
     {
         $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable($this->table);
         $queryBuilder->getRestrictions()
@@ -579,28 +455,14 @@ abstract class AbstractTreeView
     }
 
     /**
-     * Getting the tree data: Counting elements in resource
-     *
-     * @param mixed $res Data handle
-     * @return int number of items
-     * @internal
-     * @see getDataInit()
-     */
-    public function getDataCount(&$res)
-    {
-        return $res->rowCount();
-    }
-
-    /**
      * Getting the tree data: next entry
      *
      * @param mixed $res Data handle
      *
      * @return array|bool item data array OR FALSE if end of elements.
-     * @internal
      * @see getDataInit()
      */
-    public function getDataNext(&$res)
+    protected function getDataNext(&$res)
     {
         while ($row = $res->fetchAssociative()) {
             BackendUtility::workspaceOL($this->table, $row, $this->getBackendUser()->workspace, true);
@@ -609,17 +471,6 @@ abstract class AbstractTreeView
             }
         }
         return $row;
-    }
-
-    /**
-     * Getting the tree data: frees data handle
-     *
-     * @param mixed $res Data handle
-     * @internal
-     */
-    public function getDataFree(&$res)
-    {
-        $res->free();
     }
 
     protected function getLanguageService(): LanguageService

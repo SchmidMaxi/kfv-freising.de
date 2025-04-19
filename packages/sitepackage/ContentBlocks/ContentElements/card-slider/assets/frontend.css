@@ -1,0 +1,27 @@
+.heroslider {
+    color: white;
+}
+.heroslider picture {
+    position: relative;
+    display: block;
+}
+.heroslider picture:before {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    background: url(../Images/checker-pattern.png) rgba(0, 0, 0, 0.25);
+}
+.heroslider .splide__arrows {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    z-index: 1;
+    width: 100%;
+}
+.heroslider .splide__arrows:has(:disabled + :disabled) {
+    display: none;
+}

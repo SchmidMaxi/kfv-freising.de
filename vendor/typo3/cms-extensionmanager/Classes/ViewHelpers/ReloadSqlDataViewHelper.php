@@ -17,15 +17,15 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Extensionmanager\ViewHelpers;
 
-use TYPO3\CMS\Core\Imaging\Icon;
+use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Registry;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\PathUtility;
 use TYPO3\CMS\Extbase\Mvc\RequestInterface;
 use TYPO3\CMS\Extbase\Mvc\Web\Routing\UriBuilder;
-use TYPO3\CMS\Fluid\Core\Rendering\RenderingContext;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractTagBasedViewHelper;
 
 /**
@@ -45,7 +45,6 @@ final class ReloadSqlDataViewHelper extends AbstractTagBasedViewHelper
     public function initializeArguments()
     {
         parent::initializeArguments();
-        $this->registerUniversalTagAttributes();
         $this->registerArgument('extension', 'array', 'Extension key', true);
     }
 
@@ -56,21 +55,21 @@ final class ReloadSqlDataViewHelper extends AbstractTagBasedViewHelper
 
         $staticSqlDataFile = $extension['packagePath'] . 'ext_tables_static+adt.sql';
         if (!file_exists($staticSqlDataFile)) {
-            return '<span class="btn btn-default disabled">' . $iconFactory->getIcon('empty-empty', Icon::SIZE_SMALL)->render() . '</span>';
+            return '<span class="btn btn-default disabled">' . $iconFactory->getIcon('empty-empty', IconSize::SMALL)->render() . '</span>';
         }
 
         $registry = GeneralUtility::makeInstance(Registry::class);
-        $oldMd5Hash = $registry->get(self::$registryNamespace, PathUtility::stripPathSitePrefix($staticSqlDataFile));
+        $oldFileHash = $registry->get(self::$registryNamespace, PathUtility::stripPathSitePrefix($staticSqlDataFile));
 
-        $md5HashIsEqual = true;
+        $fileHashIsEqual = true;
         // We used to only store "1" in the database when data was imported
         // No need to compare file content here and just show the reload icon
-        if (!empty($oldMd5Hash) && $oldMd5Hash !== 1) {
-            $currentMd5Hash = md5_file($staticSqlDataFile);
-            $md5HashIsEqual = $oldMd5Hash === $currentMd5Hash;
+        if (!empty($oldFileHash) && $oldFileHash !== 1) {
+            $currentFileHash = hash_file('xxh3', $staticSqlDataFile);
+            $fileHashIsEqual = $oldFileHash === $currentFileHash;
         }
 
-        if ($md5HashIsEqual) {
+        if ($fileHashIsEqual) {
             $iconIdentifier = 'actions-database-reload';
             $languageKey = 'extensionList.databaseReload';
         } else {
@@ -79,22 +78,20 @@ final class ReloadSqlDataViewHelper extends AbstractTagBasedViewHelper
         }
 
         $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
-        /** @var RenderingContext $renderingContext */
-        $renderingContext = $this->renderingContext;
         /** @var RequestInterface $request */
-        $request = $renderingContext->getRequest();
+        $request = $this->renderingContext->getAttribute(ServerRequestInterface::class);
         $uriBuilder->setRequest($request);
         $uriBuilder->reset();
         $uri = $uriBuilder->uriFor(
             'reloadExtensionData',
-            ['extension' => $extension['key']],
+            ['extensionKey' => $extension['key']],
             'Action'
         );
         $this->tag->addAttribute('href', $uri);
         $this->tag->addAttribute('title', htmlspecialchars($this->getLanguageService()->sL(
             'LLL:EXT:extensionmanager/Resources/Private/Language/locallang.xlf:' . $languageKey
         )));
-        $this->tag->setContent($iconFactory->getIcon($iconIdentifier, Icon::SIZE_SMALL)->render());
+        $this->tag->setContent($iconFactory->getIcon($iconIdentifier, IconSize::SMALL)->render());
 
         return $this->tag->render();
     }

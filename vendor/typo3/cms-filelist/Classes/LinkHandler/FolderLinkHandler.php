@@ -16,6 +16,7 @@
 namespace TYPO3\CMS\Filelist\LinkHandler;
 
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Backend\View\FolderUtilityRenderer;
 use TYPO3\CMS\Core\LinkHandling\LinkService;
 use TYPO3\CMS\Core\Resource\ResourceInterface;
@@ -30,6 +31,7 @@ use TYPO3\CMS\Filelist\Type\Mode;
 /**
  * @internal
  */
+#[Autoconfigure(public: true, shared: false)]
 class FolderLinkHandler extends AbstractResourceLinkHandler
 {
     protected LinkType $type = LinkType::FOLDER;
@@ -81,7 +83,7 @@ class FolderLinkHandler extends AbstractResourceLinkHandler
 
             // Build the file upload and folder creation form
             $folderUtilityRenderer = GeneralUtility::makeInstance(FolderUtilityRenderer::class, $this);
-            $markup[] = $folderUtilityRenderer->createFolder($this->selectedFolder);
+            $markup[] = $folderUtilityRenderer->createFolder($request, $this->selectedFolder);
 
             $contentHtml = implode(PHP_EOL, $markup);
         }

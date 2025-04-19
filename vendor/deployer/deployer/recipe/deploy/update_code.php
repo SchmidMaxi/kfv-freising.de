@@ -1,4 +1,5 @@
 <?php
+
 namespace Deployer;
 
 use Deployer\Exception\ConfigurationException;
@@ -57,7 +58,7 @@ set('git_ssh_command', 'ssh -o StrictHostKeyChecking=accept-new');
  * Works only when [`update_code_strategy`](#update_code_strategy) is set to `archive` (default).
  *
  * Example:
- *  - set value to `src` if you want to deploy the folder that lives at `/src/api`.
+ *  - set value to `src` if you want to deploy the folder that lives at `/src`.
  *  - set value to `src/api` if you want to deploy the folder that lives at `/src/api`.
  *
  * Note: do not use a leading `/`!
@@ -73,6 +74,10 @@ task('deploy:update_code', function () {
     $repository = get('repository');
     $target = get('target');
 
+    if (empty($repository)) {
+        throw new ConfigurationException("Missing 'repository' configuration.");
+    }
+
     $targetWithDir = $target;
     if (!empty(get('sub_directory'))) {
         $targetWithDir .= ':{{sub_directory}}';
@@ -81,7 +86,7 @@ task('deploy:update_code', function () {
     $bare = parse('{{deploy_path}}/.dep/repo');
     $env = [
         'GIT_TERMINAL_PROMPT' => '0',
-        'GIT_SSH_COMMAND' => get('git_ssh_command')
+        'GIT_SSH_COMMAND' => get('git_ssh_command'),
     ];
 
     start:
@@ -104,7 +109,7 @@ task('deploy:update_code', function () {
     // Copy to release_path.
     if (get('update_code_strategy') === 'archive') {
         run("$git archive $targetWithDir | tar -x -f - -C {{release_path}} 2>&1");
-    } else if (get('update_code_strategy') === 'clone') {
+    } elseif (get('update_code_strategy') === 'clone') {
         cd('{{release_path}}');
         run("$git clone -l $bare .");
         run("$git remote set-url origin $repository", ['env' => $env]);

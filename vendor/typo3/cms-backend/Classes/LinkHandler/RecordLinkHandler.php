@@ -18,12 +18,13 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Backend\LinkHandler;
 
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Backend\Controller\AbstractLinkBrowserController;
 use TYPO3\CMS\Backend\RecordList\ElementBrowserRecordList;
 use TYPO3\CMS\Backend\Tree\View\LinkParameterProviderInterface;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Backend\View\RecordSearchBoxComponent;
-use TYPO3\CMS\Core\Imaging\Icon;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\LinkHandling\LinkService;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -54,6 +55,7 @@ use TYPO3\CMS\Core\Utility\MathUtility;
  *
  * @internal This class is a specific LinkHandler implementation and is not part of the TYPO3's Core API.
  */
+#[Autoconfigure(public: true, shared: false)]
 final class RecordLinkHandler extends AbstractLinkHandler implements LinkHandlerInterface, LinkParameterProviderInterface
 {
     /**
@@ -207,25 +209,6 @@ final class RecordLinkHandler extends AbstractLinkHandler implements LinkHandler
     }
 
     /**
-     * Checks if the submitted page matches the current page.
-     *
-     * @param array $values Values to be checked
-     * @return bool Returns TRUE if the given values match the currently selected item
-     */
-    public function isCurrentlySelectedItem(array $values): bool
-    {
-        return !empty($this->linkParts) && (int)$this->linkParts['pid'] === (int)$values['pid'];
-    }
-
-    /**
-     * Returns the URL of the current script
-     */
-    public function getScriptUrl(): string
-    {
-        return $this->linkBrowser->getScriptUrl();
-    }
-
-    /**
      * Render elements of configured table
      */
     protected function renderTableRecords(ServerRequestInterface $request): string
@@ -250,10 +233,10 @@ final class RecordLinkHandler extends AbstractLinkHandler implements LinkHandler
         $mainPageRecord = BackendUtility::getRecordWSOL('pages', $selectedPage);
         if (is_array($mainPageRecord)) {
             $pText = htmlspecialchars(GeneralUtility::fixed_lgd_cs($mainPageRecord['title'], $titleLen));
-            $html[] = '<p>' . $this->iconFactory->getIconForRecord('pages', $mainPageRecord, Icon::SIZE_SMALL)->render() . '&nbsp;';
+            $html[] = '<p>' . $this->iconFactory->getIconForRecord('pages', $mainPageRecord, IconSize::SMALL)->render() . '&nbsp;';
             if ($table === 'pages') {
                 $html[] = '<span data-uid="' . htmlspecialchars((string)$mainPageRecord['uid']) . '" data-table="pages" data-title="' . htmlspecialchars($mainPageRecord['title']) . '">';
-                $html[] =    '<a href="#" data-close="0">' . $this->iconFactory->getIcon('actions-plus', Icon::SIZE_SMALL)->render() . '</a>';
+                $html[] =    '<a href="#" data-close="0">' . $this->iconFactory->getIcon('actions-plus', IconSize::SMALL)->render() . '</a>';
                 $html[] =    '<a href="#" data-close="1">' . $pText . '</a>';
                 $html[] = '</span>';
             } else {

@@ -19,6 +19,7 @@ namespace TYPO3\CMS\Core\Context;
 
 use TYPO3\CMS\Core\Context\Exception\AspectNotFoundException;
 use TYPO3\CMS\Core\Context\Exception\AspectPropertyNotFoundException;
+use TYPO3\CMS\Core\Domain\DateTimeFactory;
 use TYPO3\CMS\Core\SingletonInterface;
 
 /**
@@ -49,51 +50,35 @@ use TYPO3\CMS\Core\SingletonInterface;
  * - backend.user
  * - language
  * - frontend.preview [if EXT:frontend is loaded]
- * - typoscript
  */
 class Context implements SingletonInterface
 {
     /**
      * @var AspectInterface[]
      */
-    protected $aspects = [];
-
-    /**
-     * Sets up the context with pre-defined aspects
-     */
-    public function __construct(array $defaultAspects = [])
-    {
-        foreach ($defaultAspects as $name => $defaultAspect) {
-            if ($defaultAspect instanceof AspectInterface) {
-                $this->aspects[$name] = $defaultAspect;
-            }
-        }
-    }
+    protected array $aspects = [];
 
     /**
      * Checks if an aspect exists in the context
      */
     public function hasAspect(string $name): bool
     {
-        switch ($name) {
-            // Ensure the default aspects are available, this is mostly necessary for tests to not set up everything
-            case 'date':
-            case 'visibility':
-            case 'backend.user':
-            case 'frontend.user':
-            case 'workspace':
-            case 'language':
-            case 'typoscript':
-                return true;
-            default:
-                return isset($this->aspects[$name]);
-        }
+        return match ($name) {
+            'date', 'visibility', 'backend.user', 'frontend.user', 'workspace', 'language' => true,
+            default => isset($this->aspects[$name]),
+        };
     }
 
     /**
      * Returns an aspect, if it is set
      *
      * @throws AspectNotFoundException
+     * @return ($name is 'date' ? DateTimeAspect
+     *         : ($name is 'visibility' ? VisibilityAspect
+     *         : ($name is 'backend.user' ? UserAspect
+     *         : ($name is 'frontend.user' ? UserAspect
+     *         : ($name is 'workspace' ? WorkspaceAspect
+     *         : ($name is 'language' ? LanguageAspect : AspectInterface))))))
      */
     public function getAspect(string $name): AspectInterface
     {
@@ -104,7 +89,7 @@ class Context implements SingletonInterface
                     $this->setAspect(
                         'date',
                         new DateTimeAspect(
-                            (new \DateTimeImmutable())->setTimestamp($GLOBALS['EXEC_TIME'])
+                            DateTimeFactory::createFromTimestamp($GLOBALS['EXEC_TIME'])
                         )
                     );
                     break;
@@ -123,9 +108,6 @@ class Context implements SingletonInterface
                 case 'language':
                     $this->setAspect('language', new LanguageAspect());
                     break;
-                case 'typoscript':
-                    $this->setAspect('typoscript', new TypoScriptAspect());
-                    break;
                 default:
                     throw new AspectNotFoundException('No aspect named "' . $name . '" found.', 1527777641);
             }
@@ -136,18 +118,16 @@ class Context implements SingletonInterface
     /**
      * Returns a property from the aspect, but only if the property is found.
      *
-     * @param mixed $default
-     * @return mixed|null
      * @throws AspectNotFoundException
      */
-    public function getPropertyFromAspect(string $name, string $property, $default = null)
+    public function getPropertyFromAspect(string $name, string $property, mixed $default = null): mixed
     {
         if (!$this->hasAspect($name)) {
             throw new AspectNotFoundException('No aspect named "' . $name . '" found.', 1527777868);
         }
         try {
             return $this->getAspect($name)->get($property);
-        } catch (AspectPropertyNotFoundException $e) {
+        } catch (AspectPropertyNotFoundException) {
             return $default;
         }
     }

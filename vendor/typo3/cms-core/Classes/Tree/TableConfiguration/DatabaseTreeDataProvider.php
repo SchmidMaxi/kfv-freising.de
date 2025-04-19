@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Core\Tree\TableConfiguration;
 
 use Psr\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Backend\Tree\SortedTreeNodeCollection;
 use TYPO3\CMS\Backend\Tree\TreeNode;
 use TYPO3\CMS\Backend\Tree\TreeNodeCollection;
@@ -26,8 +27,8 @@ use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\Expression\ExpressionBuilder;
 use TYPO3\CMS\Core\Database\RelationHandler;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Tree\Event\ModifyTreeDataEvent;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -35,6 +36,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 /**
  * TCA tree data provider
  */
+#[Autoconfigure(public: true, shared: false)]
 class DatabaseTreeDataProvider extends AbstractTableConfigurationTreeDataProvider
 {
     public const MODE_CHILDREN = 1;
@@ -57,11 +59,6 @@ class DatabaseTreeDataProvider extends AbstractTableConfigurationTreeDataProvide
     protected int $lookupMode = self::MODE_CHILDREN;
 
     protected string $lookupField = '';
-
-    /**
-     * @var int[]
-     */
-    protected array $startingPoints = [0];
 
     protected array $idCache = [];
 
@@ -163,26 +160,6 @@ class DatabaseTreeDataProvider extends AbstractTableConfigurationTreeDataProvide
     }
 
     /**
-     * Sets the root uids
-     *
-     * @param int[] $startingPoints
-     */
-    public function setStartingPoints(array $startingPoints): void
-    {
-        $this->startingPoints = $startingPoints;
-    }
-
-    /**
-     * Gets the root uids
-     *
-     * @return int[]
-     */
-    public function getStartingPoints(): array
-    {
-        return $this->startingPoints;
-    }
-
-    /**
      * Sets the tableWhere clause
      */
     public function setTableWhere(string $tableWhere): void
@@ -207,7 +184,6 @@ class DatabaseTreeDataProvider extends AbstractTableConfigurationTreeDataProvide
         $row = [];
         if ($basicNode->getId() == 0) {
             $node->setSelected(false);
-            $node->setExpanded(true);
             $node->setLabel($this->getLanguageService()?->sL($GLOBALS['TCA'][$this->tableName]['ctrl']['title']));
         } else {
             if ($basicNode->getAdditionalData() === []) {
@@ -218,13 +194,12 @@ class DatabaseTreeDataProvider extends AbstractTableConfigurationTreeDataProvide
             }
             $node->setLabel(BackendUtility::getRecordTitle($this->tableName, $row) ?: $basicNode->getId());
             $node->setSelected(GeneralUtility::inList($this->getSelectedList(), $basicNode->getId()));
-            $node->setExpanded($this->isExpanded($basicNode));
         }
         $node->setId($basicNode->getId());
         $node->setSelectable(!GeneralUtility::inList($this->getNonSelectableLevelList(), (string)$level) && !in_array($basicNode->getId(), $this->getItemUnselectableList()));
         $node->setSortValue($this->nodeSortValues[$basicNode->getId()] ?? '');
         $iconFactory = GeneralUtility::makeInstance(IconFactory::class);
-        $node->setIcon($iconFactory->getIconForRecord($this->tableName, $row, Icon::SIZE_SMALL));
+        $node->setIcon($iconFactory->getIconForRecord($this->tableName, $row, IconSize::SMALL));
         $node->setParentNode($parent);
         if ($basicNode->hasChildNodes()) {
             $node->setHasChildren(true);
@@ -245,7 +220,6 @@ class DatabaseTreeDataProvider extends AbstractTableConfigurationTreeDataProvide
      */
     public function initializeTreeData(): void
     {
-        parent::initializeTreeData();
         $this->nodeSortValues = array_flip($this->itemWhiteList);
         $this->columnConfiguration = $GLOBALS['TCA'][$this->getTableName()]['columns'][$this->lookupField]['config'] ?? [];
         if (isset($this->columnConfiguration['foreign_table']) && $this->columnConfiguration['foreign_table'] !== $this->getTableName()) {
@@ -471,7 +445,7 @@ class DatabaseTreeDataProvider extends AbstractTableConfigurationTreeDataProvide
 
         $queryBuilder->select('uid')
             ->from($this->getTableName())
-            ->where($queryBuilder->expr()->inSet($fieldName, $queryBuilder->quote($queryId)));
+            ->where($queryBuilder->expr()->inSet($fieldName, $queryBuilder->quote((string)$queryId)));
 
         if ($queryId === 0) {
             $queryBuilder->orWhere(

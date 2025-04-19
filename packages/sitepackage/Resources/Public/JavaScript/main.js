@@ -1,0 +1,12 @@
+const lightbox = GLightbox({
+    autoplayVideos: true,
+    selector: '.lightbox'
+});
+
+
+document.addEventListener( 'DOMContentLoaded', function() {
+    var elms = document.getElementsByClassName( 'splide-slider' );
+    for ( var i = 0; i < elms.length; i++ ) {
+        new Splide( elms[ i ] ).mount();
+    }
+} );

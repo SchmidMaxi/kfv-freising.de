@@ -17,8 +17,8 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Core\Messaging\Renderer;
 
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Messaging\FlashMessage;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -83,13 +83,13 @@ class BootstrapRenderer implements FlashMessageRendererInterface
         foreach ($flashMessages as $flashMessage) {
             $messageTitle = $flashMessage->getTitle();
             $markup[] = '<div class="alert ' . htmlspecialchars($this->getClass($flashMessage)) . '">';
-            $markup[] = '  <div class="media">';
-            $markup[] = '    <div class="media-left">';
+            $markup[] = '  <div class="alert-inner">';
+            $markup[] = '    <div class="alert-icon">';
             $markup[] = '      <span class="icon-emphasized">';
-            $markup[] =            $this->iconFactory->getIcon($this->getIconName($flashMessage), Icon::SIZE_SMALL)->render();
+            $markup[] =            $this->iconFactory->getIcon($this->getIconName($flashMessage), IconSize::SMALL)->render();
             $markup[] = '      </span>';
             $markup[] = '    </div>';
-            $markup[] = '    <div class="media-body">';
+            $markup[] = '    <div class="alert-content">';
             if ($messageTitle !== '') {
                 $markup[] = '      <div class="alert-title">' . htmlspecialchars($messageTitle) . '</div>';
             }

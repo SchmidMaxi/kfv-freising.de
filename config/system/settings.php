@@ -1,7 +1,7 @@
 <?php
 return [
     'BE' => [
-        'debug' => false,
+        'debug' => true,
         'installToolPassword' => '$argon2i$v=19$m=65536,t=16,p=1$ckllcDNNMWVSSnZSb3lMcQ$aJuAVi3V2V/BGLQq9gKcRby8+l4tbS68bYUL2oWm+B4',
         'passwordHashing' => [
             'className' => 'TYPO3\\CMS\\Core\\Crypto\\PasswordHashing\\Argon2iPasswordHash',
@@ -26,13 +26,22 @@ return [
             'loginLogo' => '',
             'loginLogoAlt' => '',
         ],
+        'calendarize' => [
+            'disableDateInSpeakingUrl' => '0',
+            'disableDefaultEvent' => '0',
+            'frequencyLimitPerItem' => '300',
+            'respectTimesInTimeFrameConstraints' => '0',
+            'tillDays' => '',
+            'tillDaysPast' => '',
+            'tillDaysRelative' => '',
+            'timeTableManipulation' => '0',
+        ],
         'extensionmanager' => [
             'automaticInstallation' => '1',
             'offlineMode' => '0',
         ],
         'indexed_search' => [
             'catdoc' => '/usr/bin/',
-            'debugMode' => '0',
             'deleteFromIndexAfterEditing' => '1',
             'disableFrontendIndexing' => '0',
             'enableMetaphoneSearch' => '1',
@@ -51,6 +60,26 @@ return [
             'useMysqlFulltext' => '0',
             'xlhtml' => '/usr/bin/',
         ],
+        'lux' => [
+            'anonymizeIp' => '1',
+            'categoryScoringAddDownload' => '20',
+            'categoryScoringAddNewsVisit' => '10',
+            'categoryScoringAddPageVisit' => '10',
+            'categoryScoringLinkListenerClick' => '20',
+            'checkFunction' => 'User',
+            'disableAnalysisModule' => '0',
+            'disableCkEditorConfiguration' => '0',
+            'disableIpLogging' => '0',
+            'disableLeadModule' => '0',
+            'disablePageOverview' => '0',
+            'disableWorkflowModule' => '0',
+            'enableExceptionLogging' => '0',
+            'leadImageFromExternalSources' => 'all',
+            'pageOverviewView' => 'analysis',
+            'scoringCalculation' => '(10 * numberOfSiteVisits) + (1 * numberOfPageVisits) + (20 * downloads) - (1 * lastVisitDaysAgo)',
+            'showRenderTimes' => '0',
+            'useCacheLayer' => '1',
+        ],
         'news' => [
             'advancedMediaPreview' => '1',
             'archiveDate' => 'date',
@@ -60,6 +89,7 @@ return [
             'dateTimeNotRequired' => '0',
             'hidePageTreeForAdministrationModule' => '0',
             'manualSorting' => '0',
+            'pageTreePluginPreview' => '1',
             'prependAtCopy' => '1',
             'resourceFolderImporter' => '/news_import',
             'rteForTeaser' => '0',
@@ -67,6 +97,17 @@ return [
             'slugBehaviour' => 'unique',
             'storageUidImporter' => '1',
             'tagPid' => '1',
+        ],
+        'redirects' => [
+            'showCheckIntegrityInfoInReports' => '1',
+            'showCheckIntegrityInfoInReportsSeconds' => '86400',
+        ],
+        'rx_shariff' => [
+            'allowedDomains' => 'SERVER_NAME',
+            'facebook_app_id' => '',
+            'facebook_secret' => '',
+            'services' => 'Facebook, LinkedIn, Reddit, StumbleUpon, Flattr, Pinterest, Xing, AddThis, Vk',
+            'ttl' => '3600',
         ],
         'scheduler' => [
             'maxLifetime' => '1440',
@@ -76,7 +117,7 @@ return [
         'cacheHash' => [
             'enforceValidation' => true,
         ],
-        'debug' => false,
+        'debug' => true,
         'disableNoCacheParameter' => true,
         'passwordHashing' => [
             'className' => 'TYPO3\\CMS\\Core\\Crypto\\PasswordHashing\\Argon2iPasswordHash',
@@ -85,8 +126,6 @@ return [
     ],
     'GFX' => [
         'processor' => 'GraphicsMagick',
-        'processor_allowTemporaryMasksAsPng' => false,
-        'processor_colorspace' => 'RGB',
         'processor_effects' => false,
         'processor_enabled' => true,
         'processor_path' => '/usr/bin/',
@@ -98,7 +137,7 @@ return [
                     'writerConfiguration' => [
                         'notice' => [
                             'TYPO3\CMS\Core\Log\Writer\FileWriter' => [
-                                'disabled' => true,
+                                'disabled' => false,
                             ],
                         ],
                     ],
@@ -141,13 +180,12 @@ return [
                 ],
             ],
         ],
-        'devIPmask' => '',
-        'displayErrors' => 0,
+        'devIPmask' => '*',
+        'displayErrors' => 1,
         'encryptionKey' => '684c6fde1f7b46d6282010aa89a857cb88a36620921484dff70a49ccb4c03da2e9a9c7895ddd2b7584bd40fff43acf7f',
-        'exceptionalErrors' => 4096,
+        'exceptionalErrors' => 12290,
         'features' => [
             'security.backend.enforceContentSecurityPolicy' => true,
-            'security.usePasswordPolicyForFrontendUsers' => true,
         ],
         'sitename' => 'KFV Freising e.V.',
         'systemMaintainers' => [

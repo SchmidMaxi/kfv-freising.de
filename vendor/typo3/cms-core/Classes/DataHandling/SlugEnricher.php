@@ -27,6 +27,7 @@ use TYPO3\CMS\Core\Utility\MathUtility;
  *
  * @see DataHandler::fillInFieldArray()
  * @see DataHandler::checkValueForSlug()
+ * @deprecated since TYPO3 v13, will be removed in TYPO3 v14.0.
  */
 class SlugEnricher
 {
@@ -34,6 +35,11 @@ class SlugEnricher
      * @var array
      */
     protected $slugFieldNamesPerTable = [];
+
+    public function __construct()
+    {
+        trigger_error('Class ' . __CLASS__ . ' will be removed with TYPO3 v14.0.', E_USER_DEPRECATED);
+    }
 
     public function enrichDataMap(array $dataMap): array
     {
@@ -88,7 +94,7 @@ class SlugEnricher
         return $this->slugFieldNamesPerTable[$tableName] = array_keys(
             array_filter(
                 $GLOBALS['TCA'][$tableName]['columns'] ?? [],
-                static function (array $settings) {
+                static function (array $settings): bool {
                     return ($settings['config']['type'] ?? null) === 'slug';
                 }
             )

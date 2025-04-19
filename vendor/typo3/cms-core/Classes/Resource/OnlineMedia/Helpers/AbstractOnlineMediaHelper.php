@@ -16,7 +16,7 @@
 namespace TYPO3\CMS\Core\Resource\OnlineMedia\Helpers;
 
 use TYPO3\CMS\Core\Core\Environment;
-use TYPO3\CMS\Core\Resource\DuplicationBehavior;
+use TYPO3\CMS\Core\Resource\Enum\DuplicationBehavior;
 use TYPO3\CMS\Core\Resource\Exception\IllegalFileExtensionException;
 use TYPO3\CMS\Core\Resource\Exception\InsufficientFileAccessPermissionsException;
 use TYPO3\CMS\Core\Resource\File;
@@ -25,9 +25,6 @@ use TYPO3\CMS\Core\Resource\Index\FileIndexRepository;
 use TYPO3\CMS\Core\Resource\ResourceFactory;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
-/**
- * Class AbstractOnlineMediaHelper
- */
 abstract class AbstractOnlineMediaHelper implements OnlineMediaHelperInterface
 {
     /**

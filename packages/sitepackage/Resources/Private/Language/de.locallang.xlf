@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<xliff version="1.0">
+    <file source-language="en" target-language="de" datatype="plaintext" original="messages" date="2025-01-27UTC20:26:130">
+        <header>
+            <authorName>Maximilian Schmid</authorName>
+            <authorEmail>kontakt@maxischmid.de</authorEmail>
+        </header>
+        <body>
+            <trans-unit id="twoColumn_title">
+                <source>2 Spalter</source>
+            </trans-unit>
+            <trans-unit id="twoColumn_description">
+                <source>Backend layout mit zwei Spalten</source>
+            </trans-unit>
+
+            <trans-unit id="threeColumn_title">
+                <source>3 Spalter</source>
+            </trans-unit>
+            <trans-unit id="threeColumn_description">
+                <source>Backend layout mit drei Spalten</source>
+            </trans-unit>
+
+            <trans-unit id="fourColumn_title">
+                <source>4 Spalter</source>
+            </trans-unit>
+            <trans-unit id="fourColumn_description">
+                <source>Backend layout mit vier Spalten</source>
+            </trans-unit>
+
+            <trans-unit id="section_title">
+                <source>Section</source>
+            </trans-unit>
+            <trans-unit id="section_description">
+                <source>Section mit verschiedenen Hintergrundfarben</source>
+            </trans-unit>
+            <trans-unit id="section.content">
+                <source>Content</source>
+            </trans-unit>
+        </body>
+    </file>
+</xliff>

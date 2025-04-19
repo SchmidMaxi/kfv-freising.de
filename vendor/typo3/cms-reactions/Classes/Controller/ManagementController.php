@@ -25,8 +25,8 @@ use TYPO3\CMS\Backend\Template\Components\ButtonBar;
 use TYPO3\CMS\Backend\Template\Components\MultiRecordSelection\Action;
 use TYPO3\CMS\Backend\Template\ModuleTemplate;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Pagination\SimplePagination;
 use TYPO3\CMS\Reactions\Pagination\DemandedArrayPaginator;
@@ -58,7 +58,7 @@ class ManagementController
         $this->registerDocHeaderButtons($view, $request->getAttribute('normalizedParams')->getRequestUri(), $demand);
 
         $reactionRecords = $this->reactionRepository->getReactionRecords($demand);
-        $paginator = new DemandedArrayPaginator($reactionRecords, $demand->getPage(), $demand->getLimit(), $this->reactionRepository->countAll());
+        $paginator = new DemandedArrayPaginator($reactionRecords, $demand->getPage(), $demand->getLimit(), $this->reactionRepository->countAll($demand));
         $pagination = new SimplePagination($paginator);
 
         $requestUri = $request->getAttribute('normalizedParams')->getRequestUri();
@@ -69,7 +69,6 @@ class ManagementController
             'reactionTypes' => iterator_to_array($this->reactionRegistry->getAvailableReactionTypes()),
             'paginator' => $paginator,
             'pagination' => $pagination,
-            'reactionRecords' => $reactionRecords,
             'actions' => [
                 new Action(
                     'edit',
@@ -115,14 +114,14 @@ class ManagementController
             ))
             ->setShowLabelText(true)
             ->setTitle($languageService->sL('LLL:EXT:reactions/Resources/Private/Language/locallang_module_reactions.xlf:reaction_create'))
-            ->setIcon($this->iconFactory->getIcon('actions-plus', Icon::SIZE_SMALL));
+            ->setIcon($this->iconFactory->getIcon('actions-plus', IconSize::SMALL));
         $buttonBar->addButton($newRecordButton, ButtonBar::BUTTON_POSITION_LEFT, 10);
 
         // Reload
         $reloadButton = $buttonBar->makeLinkButton()
             ->setHref($requestUri)
             ->setTitle($languageService->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.reload'))
-            ->setIcon($this->iconFactory->getIcon('actions-refresh', Icon::SIZE_SMALL));
+            ->setIcon($this->iconFactory->getIcon('actions-refresh', IconSize::SMALL));
         $buttonBar->addButton($reloadButton, ButtonBar::BUTTON_POSITION_RIGHT);
 
         // Shortcut

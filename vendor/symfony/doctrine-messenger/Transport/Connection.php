@@ -23,6 +23,9 @@ use Doctrine\DBAL\Query\ForUpdate\ConflictResolutionMode;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Result;
 use Doctrine\DBAL\Schema\AbstractAsset;
+use Doctrine\DBAL\Schema\Name\Identifier;
+use Doctrine\DBAL\Schema\Name\UnqualifiedName;
+use Doctrine\DBAL\Schema\PrimaryKeyConstraint;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Schema\Table;
 use Doctrine\DBAL\Types\Types;
@@ -40,6 +43,7 @@ use Symfony\Contracts\Service\ResetInterface;
  */
 class Connection implements ResetInterface
 {
+    private const ORACLE_SEQUENCES_SUFFIX = '_seq';
     protected const TABLE_OPTION_NAME = '_symfony_messenger_table_name';
 
     protected const DEFAULT_OPTIONS = [
@@ -103,13 +107,13 @@ class Connection implements ResetInterface
         // check for extra keys in options
         $optionsExtraKeys = array_diff(array_keys($options), array_keys(static::DEFAULT_OPTIONS));
         if (0 < \count($optionsExtraKeys)) {
-            throw new InvalidArgumentException(sprintf('Unknown option found: [%s]. Allowed options are [%s].', implode(', ', $optionsExtraKeys), implode(', ', array_keys(static::DEFAULT_OPTIONS))));
+            throw new InvalidArgumentException(\sprintf('Unknown option found: [%s]. Allowed options are [%s].', implode(', ', $optionsExtraKeys), implode(', ', array_keys(static::DEFAULT_OPTIONS))));
         }
 
         // check for extra keys in options
         $queryExtraKeys = array_diff(array_keys($query), array_keys(static::DEFAULT_OPTIONS));
         if (0 < \count($queryExtraKeys)) {
-            throw new InvalidArgumentException(sprintf('Unknown option found in DSN: [%s]. Allowed options are [%s].', implode(', ', $queryExtraKeys), implode(', ', array_keys(static::DEFAULT_OPTIONS))));
+            throw new InvalidArgumentException(\sprintf('Unknown option found in DSN: [%s]. Allowed options are [%s].', implode(', ', $queryExtraKeys), implode(', ', array_keys(static::DEFAULT_OPTIONS))));
         }
 
         return $configuration;
@@ -125,7 +129,7 @@ class Connection implements ResetInterface
     public function send(string $body, array $headers, int $delay = 0): string
     {
         $now = new \DateTimeImmutable('UTC');
-        $availableAt = $now->modify(sprintf('%+d seconds', $delay / 1000));
+        $availableAt = $now->modify(\sprintf('%+d seconds', $delay / 1000));
 
         $queryBuilder = $this->driverConnection->createQueryBuilder()
             ->insert($this->configuration['table_name'])
@@ -193,11 +197,11 @@ class Connection implements ResetInterface
             if (method_exists(QueryBuilder::class, 'forUpdate')) {
                 $sql = $this->addLockMode($query, $sql);
             } else {
-                if (preg_match('/FROM (.+) WHERE/', (string) $sql, $matches)) {
+                if (preg_match('/FROM (.+) WHERE/', $sql, $matches)) {
                     $fromClause = $matches[1];
                     $sql = str_replace(
-                        sprintf('FROM %s WHERE', $fromClause),
-                        sprintf('FROM %s WHERE', $this->driverConnection->getDatabasePlatform()->appendLockHint($fromClause, LockMode::PESSIMISTIC_WRITE)),
+                        \sprintf('FROM %s WHERE', $fromClause),
+                        \sprintf('FROM %s WHERE', $this->driverConnection->getDatabasePlatform()->appendLockHint($fromClause, LockMode::PESSIMISTIC_WRITE)),
                         $sql
                     );
                 }
@@ -295,7 +299,7 @@ class Connection implements ResetInterface
             }
 
             if (!\is_string($tableName)) {
-                throw new \TypeError(sprintf('The table name must be an instance of "%s" or a string ("%s" given).', AbstractAsset::class, get_debug_type($tableName)));
+                throw new \TypeError(\sprintf('The table name must be an instance of "%s" or a string ("%s" given).', AbstractAsset::class, get_debug_type($tableName)));
             }
 
             return $tableName === $this->configuration['table_name'];
@@ -365,7 +369,7 @@ class Connection implements ResetInterface
     private function createAvailableMessagesQueryBuilder(): QueryBuilder
     {
         $now = new \DateTimeImmutable('UTC');
-        $redeliverLimit = $now->modify(sprintf('-%d seconds', $this->configuration['redeliver_timeout']));
+        $redeliverLimit = $now->modify(\sprintf('-%d seconds', $this->configuration['redeliver_timeout']));
 
         return $this->createQueryBuilder()
             ->where('m.queue_name = ?')
@@ -453,6 +457,18 @@ class Connection implements ResetInterface
                 if (!$id) {
                     throw new TransportException('no id was returned by PostgreSQL from RETURNING clause.');
                 }
+            } elseif ($this->driverConnection->getDatabasePlatform() instanceof OraclePlatform) {
+                $sequenceName = $this->configuration['table_name'].self::ORACLE_SEQUENCES_SUFFIX;
+
+                $this->driverConnection->executeStatement($sql, $parameters, $types);
+
+                $result = $this->driverConnection->fetchOne('SELECT '.$sequenceName.'.CURRVAL FROM DUAL');
+
+                $id = (int) $result;
+
+                if (!$id) {
+                    throw new TransportException('no id was returned by Oracle from sequence: '.$sequenceName);
+                }
             } else {
                 $this->driverConnection->executeStatement($sql, $parameters, $types);
 
@@ -490,7 +506,7 @@ class Connection implements ResetInterface
         $table = $schema->createTable($this->configuration['table_name']);
         // add an internal option to mark that we created this & the non-namespaced table name
         $table->addOption(self::TABLE_OPTION_NAME, $this->configuration['table_name']);
-        $table->addColumn('id', Types::BIGINT)
+        $idColumn = $table->addColumn('id', Types::BIGINT)
             ->setAutoincrement(true)
             ->setNotnull(true);
         $table->addColumn('body', Types::TEXT)
@@ -506,10 +522,21 @@ class Connection implements ResetInterface
             ->setNotnull(true);
         $table->addColumn('delivered_at', Types::DATETIME_IMMUTABLE)
             ->setNotnull(false);
-        $table->setPrimaryKey(['id']);
+        if (class_exists(PrimaryKeyConstraint::class)) {
+            $table->addPrimaryKeyConstraint(new PrimaryKeyConstraint(null, [new UnqualifiedName(Identifier::unquoted('id'))], true));
+        } else {
+            $table->setPrimaryKey(['id']);
+        }
         $table->addIndex(['queue_name']);
         $table->addIndex(['available_at']);
         $table->addIndex(['delivered_at']);
+
+        // We need to create a sequence for Oracle and set the id column to get the correct nextval
+        if ($this->driverConnection->getDatabasePlatform() instanceof OraclePlatform) {
+            $idColumn->setDefault($this->configuration['table_name'].self::ORACLE_SEQUENCES_SUFFIX.'.nextval');
+
+            $schema->createSequence($this->configuration['table_name'].self::ORACLE_SEQUENCES_SUFFIX);
+        }
     }
 
     private function decodeEnvelopeHeaders(array $doctrineEnvelope): array

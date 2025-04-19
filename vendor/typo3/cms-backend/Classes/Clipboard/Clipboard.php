@@ -21,19 +21,19 @@ use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
+use TYPO3\CMS\Core\Authentication\JsConfirmation;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\WorkspaceRestriction;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Resource\Exception\ResourceDoesNotExistException;
 use TYPO3\CMS\Core\Resource\File;
 use TYPO3\CMS\Core\Resource\Folder;
 use TYPO3\CMS\Core\Resource\ProcessedFile;
 use TYPO3\CMS\Core\Resource\ResourceFactory;
-use TYPO3\CMS\Core\Type\Bitmask\JsConfirmation;
 use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\MathUtility;
@@ -296,13 +296,12 @@ class Clipboard
                     /** @var File $fileObject */
                     if (!$folder && ($fileObject->isImage() || $fileObject->isMediaFile())) {
                         $processedFile = $fileObject->process(
-                            ProcessedFile::CONTEXT_IMAGEPREVIEW,
+                            ProcessedFile::CONTEXT_IMAGECROPSCALEMASK,
                             [
-                                'width' => 64,
-                                'height' => 64,
+                                'maxWidth' => 64,
+                                'maxHeight' => 64,
                             ]
                         );
-
                         $thumb = '<img src="' . htmlspecialchars($processedFile->getPublicUrl() ?? '') . '" ' .
                             'width="' . htmlspecialchars((string)$processedFile->getProperty('width')) . '" ' .
                             'height="' . htmlspecialchars((string)$processedFile->getProperty('height')) . '" ' .
@@ -314,7 +313,7 @@ class Clipboard
                     $records[] = [
                         'identifier' => '_FILE|' . md5($value),
                         'icon' => $this->iconFactory
-                            ->getIconForResource($fileObject, Icon::SIZE_SMALL)
+                            ->getIconForResource($fileObject, IconSize::SMALL)
                             ->setTitle($fileObject->getName() . ' ' . $size)
                             ->render(),
                         'title' => $this->linkItemText(htmlspecialchars($linkItemText), $combinedIdentifier, $filesRequested),
@@ -336,7 +335,7 @@ class Clipboard
                     $isRequestedTable = $currentTable !== '_FILE';
                     $records[] = [
                         'identifier' => $table . '|' . $uid,
-                        'icon' => $this->iconFactory->getIconForRecord($table, $record, Icon::SIZE_SMALL)->render(),
+                        'icon' => $this->iconFactory->getIconForRecord($table, $record, IconSize::SMALL)->render(),
                         'title' => $this->linkItemText(htmlspecialchars(GeneralUtility::fixed_lgd_cs(BackendUtility::getRecordTitle(
                             $table,
                             $record
@@ -427,7 +426,7 @@ class Clipboard
                 $title = '<span class="text-body-secondary">' . $title . '</span>';
             }
             $records[] = [
-                'icon' => $this->iconFactory->getIconForRecord($table, $record, Icon::SIZE_SMALL)->render(),
+                'icon' => $this->iconFactory->getIconForRecord($table, $record, IconSize::SMALL)->render(),
                 'title' => $title,
                 'infoDataDispatch' => [
                     'action' => 'TYPO3.InfoWindow.showItem',
@@ -788,8 +787,8 @@ class Clipboard
                 1633604720
             );
         }
-        return (string)$this->uriBuilder->buildUriFromRoute(
-            $this->request->getAttribute('route')->getOption('_identifier'),
+        return (string)$this->uriBuilder->buildUriFromRequest(
+            $this->request,
             array_replace($this->request->getQueryParams(), $parameters)
         );
     }

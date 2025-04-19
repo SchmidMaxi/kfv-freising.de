@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -18,6 +20,7 @@ namespace TYPO3\CMS\Backend\Security;
 use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Backend\Tree\TreeNode;
 use TYPO3\CMS\Backend\Tree\TreeNodeCollection;
+use TYPO3\CMS\Core\Attribute\AsEventListener;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Http\ApplicationType;
@@ -42,6 +45,7 @@ final class CategoryPermissionsAspect
     /**
      * The listener for the event in DatabaseTreeDataProvider, which only affects the TYPO3 Backend
      */
+    #[AsEventListener('backend-user-permissions')]
     public function addUserPermissionsToCategoryTreeData(ModifyTreeDataEvent $event): void
     {
         // Only evaluate this in the backend

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 /* (c) Anton Medvedev <anton@medv.io>
  *
@@ -64,6 +66,18 @@ function array_merge_alternate(array $original, array $override)
 }
 
 /**
+ * Polyfill for the array_is_list function introduced in PHP 8.1.
+ *
+ * @param array $array The array to check.
+ * @return bool Returns true if the array is a list, false otherwise.
+ */
+function array_is_list(array $array): bool
+{
+    $keys = array_keys($array);
+    return $keys === array_keys($keys);
+}
+
+/**
  * Determines if the given string contains the given value.
  */
 function str_contains(string $haystack, string $needle): bool
@@ -74,10 +88,10 @@ function str_contains(string $haystack, string $needle): bool
 /**
  * Checks if string stars with given prefix.
  */
-function starts_with(string $string, string $startString): bool
+function starts_with(string $string, string $prefix): bool
 {
-    $len = strlen($startString);
-    return (substr($string, 0, $len) === $startString);
+    $len = strlen($prefix);
+    return (substr($string, 0, $len) === $prefix);
 }
 
 /**
@@ -87,7 +101,7 @@ function env_stringify(array $array): string
 {
     return implode(' ', array_map(
         function ($key, $value) {
-            return sprintf("%s=%s", $key, escapeshellarg((string)$value));
+            return sprintf("%s=%s", $key, escapeshellarg((string) $value));
         },
         array_keys($array),
         $array
@@ -255,5 +269,5 @@ function colorize_host(string $alias): string
 
 function escape_shell_argument(string $argument): string
 {
-    return "'".str_replace("'", "'\\''", $argument)."'";
+    return "'" . str_replace("'", "'\\''", $argument) . "'";
 }

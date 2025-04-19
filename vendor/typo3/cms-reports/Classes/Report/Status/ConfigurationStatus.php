@@ -15,6 +15,8 @@
 
 namespace TYPO3\CMS\Reports\Report\Status;
 
+use Doctrine\DBAL\Platforms\MariaDBPlatform as DoctrineMariaDBPlatform;
+use Doctrine\DBAL\Platforms\MySQLPlatform as DoctrineMySQLPlatform;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Cache\Backend\MemcachedBackend;
@@ -119,7 +121,7 @@ class ConfigurationStatus implements StatusProviderInterface
         $memcachedServers = [];
         foreach ($configurations as $table => $conf) {
             if (is_array($conf)) {
-                foreach ($conf as $key => $value) {
+                foreach ($conf as $value) {
                     if ($value === MemcachedBackend::class) {
                         $memcachedServers = $configurations[$table]['options']['servers'];
                         break;
@@ -221,10 +223,11 @@ class ConfigurationStatus implements StatusProviderInterface
      */
     protected function isMysqlUsed()
     {
-        $connection = GeneralUtility::makeInstance(ConnectionPool::class)
-            ->getConnectionByName(ConnectionPool::DEFAULT_CONNECTION_NAME);
+        $platform = GeneralUtility::makeInstance(ConnectionPool::class)
+            ->getConnectionByName(ConnectionPool::DEFAULT_CONNECTION_NAME)
+            ->getDatabasePlatform();
 
-        return str_starts_with($connection->getServerVersion(), 'MySQL');
+        return $platform instanceof DoctrineMariaDBPlatform || $platform instanceof DoctrineMySQLPlatform;
     }
 
     /**
@@ -238,6 +241,7 @@ class ConfigurationStatus implements StatusProviderInterface
         $charset = '';
         $connection = GeneralUtility::makeInstance(ConnectionPool::class)
             ->getConnectionByName(ConnectionPool::DEFAULT_CONNECTION_NAME);
+        $connectionParams = $connection->getParams();
         $queryBuilder = $connection->createQueryBuilder();
         $defaultDatabaseCharset = (string)$queryBuilder->select('DEFAULT_CHARACTER_SET_NAME')
             ->from('information_schema.SCHEMATA')
@@ -262,7 +266,7 @@ class ConfigurationStatus implements StatusProviderInterface
                 ->from('information_schema.tables')
                 ->where(
                     $queryBuilder->expr()->and(
-                        $queryBuilder->expr()->eq('table_schema', $queryBuilder->quote($connection->getDatabase())),
+                        $queryBuilder->expr()->eq('table_schema', $queryBuilder->quote((string)$connection->getDatabase())),
                         $queryBuilder->expr()->notLike('table_collation', $queryBuilder->quote('utf8%'))
                     )
                 )
@@ -279,13 +283,13 @@ class ConfigurationStatus implements StatusProviderInterface
                 $severity = ContextualFeedbackSeverity::INFO;
                 $statusValue = $this->getLanguageService()->sL('LLL:EXT:reports/Resources/Private/Language/locallang_reports.xlf:status_info');
             }
-        } elseif (isset($GLOBALS['TYPO3_CONF_VARS']['DB']['Connections'][ConnectionPool::DEFAULT_CONNECTION_NAME]['tableoptions'])) {
+        } elseif (isset($connectionParams['defaultTableOptions'])) {
             $message = $this->getLanguageService()->sL('LLL:EXT:reports/Resources/Private/Language/locallang_reports.xlf:status_MysqlDatabaseCharacterSet_Ok');
 
-            $tableOptions = $GLOBALS['TYPO3_CONF_VARS']['DB']['Connections'][ConnectionPool::DEFAULT_CONNECTION_NAME]['tableoptions'];
-            if (isset($tableOptions['collate'])) {
-                $collationConstraint = $queryBuilder->expr()->neq('table_collation', $queryBuilder->quote($tableOptions['collate']));
-                $charset = $tableOptions['collate'];
+            $tableOptions = $connectionParams['defaultTableOptions'];
+            if (isset($tableOptions['collation'])) {
+                $collationConstraint = $queryBuilder->expr()->neq('table_collation', $queryBuilder->quote($tableOptions['collation']));
+                $charset = $tableOptions['collation'];
             } elseif (isset($tableOptions['charset'])) {
                 $collationConstraint = $queryBuilder->expr()->notLike('table_collation', $queryBuilder->quote($tableOptions['charset'] . '%'));
                 $charset = $tableOptions['charset'];
@@ -309,8 +313,8 @@ class ConfigurationStatus implements StatusProviderInterface
                     $severity = ContextualFeedbackSeverity::ERROR;
                     $statusValue = $this->getLanguageService()->sL('LLL:EXT:reports/Resources/Private/Language/locallang_reports.xlf:status_checkFailed');
                 } else {
-                    if (isset($tableOptions['collate'])) {
-                        $collationConstraint = $queryBuilder->expr()->neq('collation_name', $queryBuilder->quote($tableOptions['collate']));
+                    if (isset($tableOptions['collation'])) {
+                        $collationConstraint = $queryBuilder->expr()->neq('collation_name', $queryBuilder->quote($tableOptions['collation']));
                     } elseif (isset($tableOptions['charset'])) {
                         $collationConstraint = $queryBuilder->expr()->notLike('collation_name', $queryBuilder->quote($tableOptions['charset'] . '%'));
                     }

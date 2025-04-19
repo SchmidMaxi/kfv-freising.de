@@ -1,7 +1,0 @@
-styles {
-    templates {
-        layoutRootPath = EXT:kfv_template/Resources/Private/Layouts/ContentElements/
-        partialRootPath = EXT:kfv_template/Resources/Private/Partials/ContentElements/
-        templateRootPath = EXT:kfv_template/Resources/Private/Templates/ContentElements/
-    }
-}

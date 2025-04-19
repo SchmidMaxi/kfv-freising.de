@@ -23,4 +23,11 @@ namespace TYPO3\CMS\Core\PageTitle;
 interface PageTitleProviderInterface
 {
     public function getTitle(): string;
+
+    /**
+     * @deprecated Activate in v14 and remove method_exists() call in PageTitleProviderManager
+     */
+    /**
+    public function setRequest(ServerRequestInterface $request): void;
+     */
 }

@@ -22,24 +22,23 @@ class CoreRelease
     protected const RELEASE_TYPE_REGULAR = 'regular';
     protected const RELEASE_TYPE_SECURITY = 'security';
 
-    protected string $version;
-    protected \DateTimeInterface $date;
-    protected string $type;
-    protected string $checksum;
-    protected bool $isElts;
-
-    public function __construct(string $version, \DateTimeInterface $date, string $type, string $checksum, bool $isElts = false)
-    {
-        $this->version = $version;
-        $this->date = $date;
-        $this->type = $type;
-        $this->checksum = $checksum;
-        $this->isElts = $isElts;
-    }
+    public function __construct(
+        protected readonly string $version,
+        protected readonly \DateTimeInterface $date,
+        protected readonly string $type,
+        protected readonly string $checksum,
+        protected readonly bool $isElts = false
+    ) {}
 
     public static function fromApiResponse(array $response): self
     {
-        return new self($response['version'], new \DateTimeImmutable($response['date']), $response['type'], $response['tar_package']['sha1sum'], $response['elts'] ?? false);
+        return new self(
+            (string)($response['version'] ?? ''),
+            new \DateTimeImmutable((string)($response['date'] ?? '')),
+            (string)($response['type'] ?? ''),
+            (string)($response['tar_package']['sha1sum'] ?? ''),
+            $response['elts'] ?? false
+        );
     }
 
     public function getVersion(): string

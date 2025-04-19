@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -19,9 +21,20 @@ use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Linkvalidator\LinkAnalyzer;
 
 /**
- * This class provides Check Internal Links plugin implementation
+ * This class checks internal links (links to database records), but only links to pages
+ * (including links to content elements in the URL fragment).
+ *
+ * The actual format of the link is irrelevant, checked is the result returned by the configured softref parsers, but
+ * typically, the link target look like this:
+ *
+ * - t3://page?uid=123
+ * - t3://page?uid=123&_language=1
+ * - t3://page?uid=123#c43
+ *
+ * @todo Makes sense to rename this to PageLinktype for more clarity
  */
 class InternalLinktype extends AbstractLinktype
 {
@@ -62,6 +75,23 @@ class InternalLinktype extends AbstractLinktype
     protected string $identifier = 'db';
 
     /**
+     * Type fetching method, based on the type that softRefParserObj returns.
+     *
+     * @param array $value Reference properties
+     * @param string $type Current type
+     * @param string $key Validator hook name
+     * @return string Fetched type
+     */
+    public function fetchType(array $value, string $type, string $key): string
+    {
+        [$table] = explode(':', $value['recordRef'] ?? '');
+        if (($value['type'] ?? false) === $key && in_array($table, ['pages', 'tt_content'], true)) {
+            $type = 'db';
+        }
+        return $type;
+    }
+
+    /**
      * Checks a given URL + /path/filename.ext for validity
      *
      * @param string $url Url to check as page-id or page-id#anchor (if anchor is present)
@@ -69,7 +99,7 @@ class InternalLinktype extends AbstractLinktype
      * @param \TYPO3\CMS\Linkvalidator\LinkAnalyzer $reference Parent instance
      * @return bool TRUE on success or FALSE on error
      */
-    public function checkLink($url, $softRefEntry, $reference)
+    public function checkLink(string $url, array $softRefEntry, LinkAnalyzer $reference): bool
     {
         $page = null;
         $anchor = '';
@@ -231,9 +261,8 @@ class InternalLinktype extends AbstractLinktype
      *
      * @param array $errorParams All parameters needed for the rendering of the error message
      * @return string Validation error message
-     * @todo change input parameter type to array in TYPO3 v13
      */
-    public function getErrorMessage($errorParams)
+    public function getErrorMessage(array $errorParams): string
     {
         $lang = $this->getLanguageService();
         $errorType = $errorParams['errorType'] ?? '';
@@ -347,7 +376,7 @@ class InternalLinktype extends AbstractLinktype
      * @param array $row Broken link record
      * @return string Parsed broken url
      */
-    public function getBrokenUrl($row)
+    public function getBrokenUrl(array $row): string
     {
         $domain = rtrim($GLOBALS['TYPO3_REQUEST']->getAttribute('normalizedParams')->getSiteUrl(), '/');
         return $domain . '/index.php?id=' . $row['url'];

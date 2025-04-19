@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Core\Package\Cache;
 
+use Symfony\Component\DependencyInjection\Attribute\AsAlias;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Information\Typo3Version;
 use TYPO3\CMS\Core\Package\PackageManager;
@@ -26,6 +27,7 @@ use TYPO3\CMS\Core\Package\PackageManager;
  * the list of packages bundled with TYPO3.
  * @internal
  */
+#[AsAlias('package-dependent-cache-identifier', public: true)]
 class PackageDependentCacheIdentifier
 {
     private string $baseIdentifier;
@@ -39,7 +41,7 @@ class PackageDependentCacheIdentifier
 
     public function toString(): string
     {
-        return $this->prefix . sha1($this->baseIdentifier . $this->additionalIdentifier);
+        return $this->prefix . hash('xxh3', $this->baseIdentifier . $this->additionalIdentifier);
     }
 
     public function withPrefix(string $prefix): self

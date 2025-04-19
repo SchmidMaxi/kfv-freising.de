@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace TYPO3\CMS\RteCKEditor\Controller;
 
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Backend\Controller\AbstractLinkBrowserController;
 use TYPO3\CMS\Core\Configuration\Richtext;
 use TYPO3\CMS\Core\LinkHandling\Exception\UnknownLinkHandlerException;
@@ -35,6 +36,7 @@ use TYPO3\CMS\Core\View\ViewInterface;
  * Extended controller for link browser
  * @internal This is a specific Backend Controller implementation and is not considered part of the Public TYPO3 API.
  */
+#[Autoconfigure(public: true, shared: false)]
 class BrowseLinksController extends AbstractLinkBrowserController
 {
     protected string $editorId;
@@ -152,7 +154,7 @@ class BrowseLinksController extends AbstractLinkBrowserController
             ];
 
             if (is_array($this->thisConfig['classesAnchor'] ?? null)) {
-                foreach ($this->thisConfig['classesAnchor'] as $label => $conf) {
+                foreach ($this->thisConfig['classesAnchor'] as $conf) {
                     if (in_array($conf['class'] ?? null, $classesAnchorArray, true)) {
                         $classesAnchor['all'][] = $conf['class'];
                         if ($conf['type'] === $this->displayedLinkHandlerId) {
@@ -206,9 +208,8 @@ class BrowseLinksController extends AbstractLinkBrowserController
                 if (
                     !in_array($class, $classesAnchor['all'], true)
                     || (
-                        isset($classesAnchor[$this->displayedLinkHandlerId])
-                        && in_array($class, $classesAnchor['all'], true)
-                        && is_array($classesAnchor[$this->displayedLinkHandlerId])
+                        in_array($class, $classesAnchor['all'], true)
+                        && is_array($classesAnchor[$this->displayedLinkHandlerId] ?? null)
                         && in_array($class, $classesAnchor[$this->displayedLinkHandlerId])
                     )
                 ) {
@@ -339,8 +340,7 @@ class BrowseLinksController extends AbstractLinkBrowserController
         $currentRel = '';
         if ($this->displayedLinkHandler === $this->currentLinkHandler
             && !empty($this->currentLinkParts)
-            && isset($this->linkAttributeValues['rel'])
-            && is_string($this->linkAttributeValues['rel'])
+            && is_string($this->linkAttributeValues['rel'] ?? null)
         ) {
             $currentRel = $this->linkAttributeValues['rel'];
         }

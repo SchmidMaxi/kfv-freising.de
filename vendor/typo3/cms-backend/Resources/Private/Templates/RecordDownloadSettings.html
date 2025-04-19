@@ -41,6 +41,19 @@
                 </label>
             </div>
         </div>
+        <f:if condition="{presets}">
+            <div class="form-group">
+                <label class="form-label d-block" for="preset">
+                    <f:translate key="LLL:EXT:backend/Resources/Private/Language/locallang_download.xlf:downloadSettings.preset"/>
+                </label>
+                <select id="preset" name="preset" class="form-select d-block">
+                    <option value=""></option>
+                    <f:for each="{presets}" as="preset">
+                        <option value="{preset.identifier}" title="{f:translate(key: preset.label, default: preset.label)}">{f:translate(key: preset.label, default: preset.label)}</option>
+                    </f:for>
+                </select>
+            </div>
+        </f:if>
         <div class="form-group">
             <label class="form-label" for="filename">
                 <strong><f:translate key="LLL:EXT:backend/Resources/Private/Language/locallang_download.xlf:downloadSettings.filename"/></strong>
@@ -85,6 +98,8 @@
     <input type="hidden" name="id" value="{downloadArguments.id}"/>
     <input type="hidden" name="searchString" value="{downloadArguments.searchString}"/>
     <input type="hidden" name="searchLevels" value="{downloadArguments.searchLevels}"/>
+    <input type="hidden" name="sortField" value="{downloadArguments.sortField}"/>
+    <input type="hidden" name="sortRev" value="{downloadArguments.sortRev}"/>
 </form>
 
 </html>

@@ -8,6 +8,12 @@ PSR-14 events
 
 The following PSR-14 events are available to extend the extension:
 
+AfterUserLoggedInEvent
+======================
+
+Trigger any kind of action when a frontend user has been successfully logged in.
+:ref:`More details <t3coreapi:AfterUserLoggedInEvent>`
+
 BeforeRedirectEvent
 ===================
 
@@ -44,8 +50,8 @@ PasswordChangeEvent
 ===================
 
 Event that contains information about the password which was set,
-and is about to be stored in the database. Allows to mark the password
-as invalid. :ref:`More details <t3coreapi:PasswordChangeEvent>`
+and is about to be stored in the database.
+:ref:`More details <t3coreapi:PasswordChangeEvent>`
 
 SendRecoveryEmailEvent
 ======================

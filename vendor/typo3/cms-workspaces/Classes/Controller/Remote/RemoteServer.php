@@ -19,20 +19,21 @@ namespace TYPO3\CMS\Workspaces\Controller\Remote;
 
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use TYPO3\CMS\Backend\Backend\Avatar\Avatar;
-use TYPO3\CMS\Backend\Form\FormDataCompiler;
-use TYPO3\CMS\Backend\Form\FormDataGroup\TcaDatabaseRecord;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Backend\View\ValueFormatter\FlexFormValueFormatter;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Log\LogDataTrait;
 use TYPO3\CMS\Core\Resource\FileReference;
 use TYPO3\CMS\Core\Resource\ProcessedFile;
+use TYPO3\CMS\Core\Schema\SearchableSchemaFieldsCollector;
+use TYPO3\CMS\Core\Schema\VisibleSchemaFieldsCollector;
 use TYPO3\CMS\Core\SysLog\Action\Database as DatabaseAction;
 use TYPO3\CMS\Core\Utility\DiffGranularity;
 use TYPO3\CMS\Core\Utility\DiffUtility;
@@ -49,19 +50,25 @@ use TYPO3\CMS\Workspaces\Service\StagesService;
 use TYPO3\CMS\Workspaces\Service\WorkspaceService;
 
 /**
- * Class RemoteServer
  * @internal This is a specific Backend Controller implementation and is not considered part of the Public TYPO3 API.
  */
-class RemoteServer
+#[Autoconfigure(public: true)]
+readonly class RemoteServer
 {
     use LogDataTrait;
 
     public function __construct(
-        protected readonly GridDataService $gridDataService,
-        protected readonly StagesService $stagesService,
-        protected readonly WorkspaceService $workspaceService,
-        protected readonly EventDispatcherInterface $eventDispatcher,
-        protected readonly FlexFormValueFormatter $flexFormValueFormatter,
+        protected GridDataService $gridDataService,
+        protected StagesService $stagesService,
+        protected WorkspaceService $workspaceService,
+        protected EventDispatcherInterface $eventDispatcher,
+        protected FlexFormValueFormatter $flexFormValueFormatter,
+        private DiffUtility $diffUtility,
+        protected IconFactory $iconFactory,
+        protected Avatar $avatar,
+        protected ConnectionPool $connectionPool,
+        protected SearchableSchemaFieldsCollector $searchableSchemaFieldsCollector,
+        protected VisibleSchemaFieldsCollector $visibleSchemaFieldsCollector,
     ) {}
 
     /**
@@ -98,13 +105,13 @@ class RemoteServer
         }
         $versions = $this->workspaceService->selectVersionsInWorkspace(
             $this->getCurrentWorkspace(),
-            $parameter->stage,
+            (int)$parameter->stage,
             $pageId,
-            $parameter->depth,
+            (int)$parameter->depth,
             'tables_select',
-            $parameter->language
+            $parameter->language !== null ? (int)$parameter->language : null
         );
-        $data = $this->gridDataService->generateGridListFromVersions($versions, $parameter, $this->getCurrentWorkspace(), $request);
+        $data = $this->gridDataService->generateGridListFromVersions($versions, $parameter, $this->getCurrentWorkspace());
         return $data;
     }
 
@@ -114,21 +121,18 @@ class RemoteServer
      * @param \stdClass $parameter
      * @return array $data
      */
-    public function getRowDetails($parameter, ServerRequestInterface $request)
+    public function getRowDetails($parameter)
     {
-        $diffUtility = GeneralUtility::makeInstance(DiffUtility::class);
         $diffReturnArray = [];
         $liveReturnArray = [];
         $liveRecord = (array)BackendUtility::getRecord($parameter->table, $parameter->t3ver_oid);
         $versionRecord = (array)BackendUtility::getRecord($parameter->table, $parameter->uid);
-        $versionState = VersionState::cast((int)($versionRecord['t3ver_state'] ?? 0));
-        $iconFactory = GeneralUtility::makeInstance(IconFactory::class);
-        $iconLive = $iconFactory->getIconForRecord($parameter->table, $liveRecord, Icon::SIZE_SMALL);
-        $iconWorkspace = $iconFactory->getIconForRecord($parameter->table, $versionRecord, Icon::SIZE_SMALL);
+        $versionState = VersionState::tryFrom($versionRecord['t3ver_state'] ?? 0);
+        $iconWorkspace = $this->iconFactory->getIconForRecord($parameter->table, $versionRecord, IconSize::SMALL);
         $stagePosition = $this->stagesService->getPositionOfCurrentStage($parameter->stage);
         $fieldsOfRecords = array_keys($liveRecord);
-        $isNewOrDeletePlaceholder = $versionState->equals(VersionState::NEW_PLACEHOLDER) || $versionState->equals(VersionState::DELETE_PLACEHOLDER);
-        $suitableFields = ($isNewOrDeletePlaceholder && ($parameter->filterFields ?? false)) ? array_flip($this->getSuitableFields($parameter->table, $parameter->t3ver_oid, $request)) : [];
+        $isNewOrDeletePlaceholder = $versionState === VersionState::NEW_PLACEHOLDER || $versionState === VersionState::DELETE_PLACEHOLDER;
+        $suitableFields = ($isNewOrDeletePlaceholder && ($parameter->filterFields ?? false)) ? array_flip($this->getSuitableFields($parameter->table, $liveRecord)) : [];
         foreach ($fieldsOfRecords as $fieldName) {
             if (
                 empty($GLOBALS['TCA'][$parameter->table]['columns'][$fieldName]['config'])
@@ -207,9 +211,9 @@ class RemoteServer
                     $diffReturnArray[] = [
                         'field' => $fieldName,
                         'label' => $fieldTitle,
-                        'content' => $versionState->equals(VersionState::NEW_PLACEHOLDER)
-                            ? $diffUtility->makeDiffDisplay('', $newOrDeleteRecord[$fieldName], $granularity)
-                            : $diffUtility->makeDiffDisplay($newOrDeleteRecord[$fieldName], '', $granularity),
+                        'content' => $versionState === VersionState::NEW_PLACEHOLDER
+                            ? $this->diffUtility->diff('', strip_tags($newOrDeleteRecord[$fieldName]), $granularity)
+                            : $this->diffUtility->diff(strip_tags($newOrDeleteRecord[$fieldName]), '', $granularity),
                     ];
 
                     // Generally not needed by Core, but let's make it available for further processing in hooks
@@ -222,13 +226,9 @@ class RemoteServer
                     // Select the human-readable values before diff
                     $liveRecord[$fieldName] = $this->formatValue($parameter->table, $fieldName, (string)$liveRecord[$fieldName], $liveRecord['uid'], $configuration);
                     $versionRecord[$fieldName] = $this->formatValue($parameter->table, $fieldName, (string)$versionRecord[$fieldName], $versionRecord['uid'], $configuration);
-                    $granularity = ($configuration['type'] ?? '') === 'flex' ? DiffGranularity::CHARACTER : DiffGranularity::WORD;
-                    $fieldDifferences = $diffUtility->makeDiffDisplay(
-                        $liveRecord[$fieldName],
-                        $versionRecord[$fieldName],
-                        $granularity
-                    );
-
+                    $fieldDifferences = ($configuration['type'] ?? '') === 'flex'
+                        ? $this->diffUtility->diff(strip_tags($liveRecord[$fieldName]), strip_tags($versionRecord[$fieldName]), DiffGranularity::CHARACTER)
+                        : $this->diffUtility->diff(strip_tags($liveRecord[$fieldName]), strip_tags($versionRecord[$fieldName]));
                     $diffReturnArray[] = [
                         'field' => $fieldName,
                         'label' => $fieldTitle,
@@ -272,8 +272,6 @@ class RemoteServer
                 [
                     // these parts contain HTML (don't escape)
                     'diff' => $versionDifferencesEvent->getVersionDifferences(),
-                    'icon_Live' => $iconLive->getIdentifier(),
-                    'icon_Live_Overlay' => $iconLive->getOverlayIcon()?->getIdentifier() ?? '',
                     'icon_Workspace' => $iconWorkspace->getIdentifier(),
                     'icon_Workspace_Overlay' => $iconWorkspace->getOverlayIcon()?->getIdentifier() ?? '',
                     // this part is already escaped in getCommentsForRecord()
@@ -303,7 +301,7 @@ class RemoteServer
         if (($tcaConfiguration['type'] ?? '') === 'flex') {
             return $this->flexFormValueFormatter->format($table, $fieldName, $value, $uid, $tcaConfiguration);
         }
-        return (string)BackendUtility::getProcessedValue($table, $fieldName, $value, defaultPassthrough: true, uid: $uid);
+        return (string)BackendUtility::getProcessedValue($table, $fieldName, $value, 0, true, false, $uid);
     }
 
     /**
@@ -324,14 +322,14 @@ class RemoteServer
         $substitutes = [];
 
         // Process live references
-        foreach ($liveFileReferences as $identifier => $liveFileReference) {
+        foreach ($liveFileReferences as $liveFileReference) {
             $identifierWithRandomValue = $randomValue . '__' . $liveFileReference->getUid() . '__' . $randomValue;
             $candidates[$identifierWithRandomValue] = $liveFileReference;
             $liveValues[] = $identifierWithRandomValue;
         }
 
         // Process version references
-        foreach ($versionFileReferences as $identifier => $versionFileReference) {
+        foreach ($versionFileReferences as $versionFileReference) {
             $identifierWithRandomValue = $randomValue . '__' . $versionFileReference->getUid() . '__' . $randomValue;
             $candidates[$identifierWithRandomValue] = $versionFileReference;
             $versionValues[] = $identifierWithRandomValue;
@@ -347,10 +345,6 @@ class RemoteServer
             return null;
         }
 
-        /**
-         * @var string $identifierWithRandomValue
-         * @var FileReference $fileReference
-         */
         foreach ($candidates as $identifierWithRandomValue => $fileReference) {
             if ($useThumbnails) {
                 $thumbnailFile = $fileReference->getOriginalFile()->process(
@@ -364,8 +358,7 @@ class RemoteServer
             }
         }
 
-        $diffUtility = GeneralUtility::makeInstance(DiffUtility::class);
-        $differences = $diffUtility->makeDiffDisplay($liveInformation, $versionInformation);
+        $differences = $this->diffUtility->diff(strip_tags($liveInformation), strip_tags($versionInformation));
         $liveInformation = str_replace(array_keys($substitutes), array_values($substitutes), trim($liveInformation));
         $differences = str_replace(array_keys($substitutes), array_values($substitutes), trim($differences));
 
@@ -383,18 +376,17 @@ class RemoteServer
     protected function getCommentsForRecord(array $historyEntries, array $additionalChangesFromLog): array
     {
         $allStageChanges = [];
-        $avatar = GeneralUtility::makeInstance(Avatar::class);
 
         foreach ($historyEntries as $entry) {
             $preparedEntry = [];
             $beUserRecord = BackendUtility::getRecord('be_users', $entry['userid']);
-            $preparedEntry['stage_title'] = htmlspecialchars($this->stagesService->getStageTitle($entry['history_data']['next']));
-            $preparedEntry['previous_stage_title'] = htmlspecialchars($this->stagesService->getStageTitle($entry['history_data']['current']));
+            $preparedEntry['stage_title'] = htmlspecialchars($this->stagesService->getStageTitle((int)$entry['history_data']['next']));
+            $preparedEntry['previous_stage_title'] = htmlspecialchars($this->stagesService->getStageTitle((int)$entry['history_data']['current']));
             $preparedEntry['user_uid'] = (int)$entry['userid'];
             $preparedEntry['user_username'] = is_array($beUserRecord) ? htmlspecialchars($beUserRecord['username']) : '';
             $preparedEntry['tstamp'] = htmlspecialchars(BackendUtility::datetime($entry['tstamp']));
             $preparedEntry['user_comment'] = nl2br(htmlspecialchars($entry['history_data']['comment']));
-            $preparedEntry['user_avatar'] = $beUserRecord ? $avatar->render($beUserRecord) : '';
+            $preparedEntry['user_avatar'] = $beUserRecord ? $this->avatar->render($beUserRecord) : '';
             $allStageChanges[] = $preparedEntry;
         }
 
@@ -403,13 +395,13 @@ class RemoteServer
             $sysLogEntry = [];
             $data = $this->unserializeLogData($sysLogRow['log_data'] ?? '');
             $beUserRecord = BackendUtility::getRecord('be_users', $sysLogRow['userid']);
-            $sysLogEntry['stage_title'] = htmlspecialchars($this->stagesService->getStageTitle($data['stage']));
+            $sysLogEntry['stage_title'] = htmlspecialchars($this->stagesService->getStageTitle((int)$data['stage']));
             $sysLogEntry['previous_stage_title'] = '';
             $sysLogEntry['user_uid'] = (int)$sysLogRow['userid'];
             $sysLogEntry['user_username'] = is_array($beUserRecord) ? htmlspecialchars($beUserRecord['username']) : '';
             $sysLogEntry['tstamp'] = htmlspecialchars(BackendUtility::datetime($sysLogRow['tstamp']));
             $sysLogEntry['user_comment'] = nl2br(htmlspecialchars($data['comment']));
-            $sysLogEntry['user_avatar'] = $avatar->render($beUserRecord);
+            $sysLogEntry['user_avatar'] = $this->avatar->render($beUserRecord);
             $allStageChanges[] = $sysLogEntry;
         }
 
@@ -423,7 +415,7 @@ class RemoteServer
      */
     protected function getStageChangesFromSysLog(string $table, int $uid): array
     {
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('sys_log');
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_log');
 
         return $queryBuilder
             ->select('log_data', 'tstamp', 'userid')
@@ -466,10 +458,9 @@ class RemoteServer
      * given set of affected elements.
      *
      * @param CombinedRecord[] $affectedElements
-     * @return IntegrityService
      * @see getAffectedElements
      */
-    protected function createIntegrityService(array $affectedElements)
+    protected function createIntegrityService(array $affectedElements): IntegrityService
     {
         $integrityService = GeneralUtility::makeInstance(IntegrityService::class);
         $integrityService->setAffectedElements($affectedElements);
@@ -481,15 +472,13 @@ class RemoteServer
      * Affected elements have a dependency, e.g. translation overlay
      * and the default origin record - thus, the default record would be
      * affected if the translation overlay shall be published.
-     *
-     * @return array
      */
-    protected function getAffectedElements(\stdClass $parameters)
+    protected function getAffectedElements(\stdClass $parameters): array
     {
         $affectedElements = [];
         if ($parameters->type === 'selection') {
             foreach ((array)$parameters->selection as $element) {
-                $affectedElements[] = CombinedRecord::create($element->table, $element->liveId, $element->versionId);
+                $affectedElements[] = CombinedRecord::create($element->table, (int)$element->liveId, (int)$element->versionId);
             }
         } elseif ($parameters->type === 'all') {
             $versions = $this->workspaceService->selectVersionsInWorkspace(
@@ -502,7 +491,7 @@ class RemoteServer
             );
             foreach ($versions as $table => $tableElements) {
                 foreach ($tableElements as $element) {
-                    $affectedElement = CombinedRecord::create($table, $element['t3ver_oid'], $element['uid']);
+                    $affectedElement = CombinedRecord::create($table, (int)$element['t3ver_oid'], (int)$element['uid']);
                     $affectedElement->getVersionRecord()->setRow($element);
                     $affectedElements[] = $affectedElement;
                 }
@@ -514,10 +503,8 @@ class RemoteServer
     /**
      * Validates whether the submitted language parameter can be
      * interpreted as integer value.
-     *
-     * @return int|null
      */
-    protected function validateLanguageParameter(\stdClass $parameters)
+    protected function validateLanguageParameter(\stdClass $parameters): ?int
     {
         $language = null;
         if (isset($parameters->language) && MathUtility::canBeInterpretedAsInteger($parameters->language)) {
@@ -528,10 +515,8 @@ class RemoteServer
 
     /**
      * Gets the current workspace ID.
-     *
-     * @return int The current workspace ID
      */
-    protected function getCurrentWorkspace()
+    protected function getCurrentWorkspace(): int
     {
         return $this->workspaceService->getCurrentWorkspace();
     }
@@ -539,29 +524,13 @@ class RemoteServer
     /**
      * Gets the fields suitable for being displayed in new and delete diff views
      */
-    protected function getSuitableFields(string $table, int $uid, ServerRequestInterface $request): array
+    protected function getSuitableFields(string $table, array $row): array
     {
-        $formDataCompiler = GeneralUtility::makeInstance(FormDataCompiler::class);
-
-        try {
-            $result = $formDataCompiler->compile(
-                [
-                    'request' => $request,
-                    'command' => 'edit',
-                    'tableName' => $table,
-                    'vanillaUid' => $uid,
-                ],
-                GeneralUtility::makeInstance(TcaDatabaseRecord::class)
-            );
-            $fieldList = array_unique(array_values($result['columnsToProcess']));
-        } catch (\Exception $exception) {
-            // @todo: Avoid this general exception and catch something specific to not hide-away errors.
-            $fieldList = [];
-        }
-
-        return array_unique(array_merge(
-            $fieldList,
-            GeneralUtility::trimExplode(',', (string)($GLOBALS['TCA'][$table]['ctrl']['searchFields'] ?? ''))
-        ));
+        // @todo Usage of searchableSchemaFieldsCollector seems like a misuse here, or at least it's unexpected
+        return $this->searchableSchemaFieldsCollector->getUniqueFieldList(
+            $table,
+            $this->visibleSchemaFieldsCollector->getFieldNames($table, $row),
+            false
+        );
     }
 }

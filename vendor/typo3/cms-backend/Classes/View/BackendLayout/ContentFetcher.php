@@ -24,7 +24,7 @@ use TYPO3\CMS\Backend\View\Event\ModifyDatabaseQueryForContentEvent;
 use TYPO3\CMS\Backend\View\PageLayoutContext;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Cache\CacheManager;
-use TYPO3\CMS\Core\Cache\Frontend\VariableFrontend;
+use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
@@ -34,6 +34,8 @@ use TYPO3\CMS\Core\Database\Query\Restriction\WorkspaceRestriction;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Messaging\FlashMessage;
 use TYPO3\CMS\Core\Messaging\FlashMessageService;
+use TYPO3\CMS\Core\Schema\Capability\TcaSchemaCapability;
+use TYPO3\CMS\Core\Schema\TcaSchemaFactory;
 use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Versioning\VersionState;
@@ -51,15 +53,9 @@ use TYPO3\CMS\Core\Versioning\VersionState;
  */
 class ContentFetcher
 {
-    /**
-     * @var PageLayoutContext
-     */
-    protected $context;
+    protected PageLayoutContext $context;
 
-    /**
-     * @var array
-     */
-    protected $fetchedContentRecords = [];
+    protected array $fetchedContentRecords = [];
 
     protected EventDispatcherInterface $eventDispatcher;
 
@@ -81,7 +77,7 @@ class ContentFetcher
         $languageId = $languageId ?? $this->context->getSiteLanguage()->getLanguageId();
 
         if (empty($this->fetchedContentRecords)) {
-            $isLanguageMode = $this->context->getDrawingConfiguration()->getLanguageMode();
+            $isLanguageComparisonMode = $this->context->getDrawingConfiguration()->isLanguageComparisonMode();
             $queryBuilder = $this->getQueryBuilder();
             $result = $queryBuilder->executeQuery();
             $records = $this->getResult($result);
@@ -90,7 +86,7 @@ class ContentFetcher
                 $recordColumnNumber = (int)$record['colPos'];
                 if ($recordLanguage === -1) {
                     // Record is set to "all languages", place it according to view mode.
-                    if ($isLanguageMode) {
+                    if ($isLanguageComparisonMode) {
                         // Force the record to only be shown in default language in "Languages" view mode.
                         $recordLanguage = 0;
                     } else {
@@ -124,11 +120,12 @@ class ContentFetcher
     public function getUnusedRecords(): iterable
     {
         $unrendered = [];
-        $rememberer = GeneralUtility::makeInstance(RecordRememberer::class);
+        $recordIdentityMap = $this->context->getRecordIdentityMap();
         $languageId = $this->context->getDrawingConfiguration()->getSelectedLanguageId();
+        // @todo consider to invoke the identity-map much earlier (to avoid fetching database records again)
         foreach ($this->getContentRecordsPerColumn(null, $languageId) as $contentRecordsInColumn) {
             foreach ($contentRecordsInColumn as $contentRecord) {
-                $used = $rememberer->isRemembered((int)$contentRecord['uid']);
+                $used = $recordIdentityMap->hasIdentifier('tt_content', (int)$contentRecord['uid']);
                 // A hook mentioned that this record is used somewhere, so this is in fact "rendered" already
                 $event = new IsContentUsedOnPageLayoutEvent($contentRecord, $used, $this->context);
                 $event = $this->eventDispatcher->dispatch($event);
@@ -181,7 +178,12 @@ class ContentFetcher
             if (!isset($languageTranslationInfo['hasTranslations'])) {
                 $languageTranslationInfo['hasTranslations'] = false;
             }
-            $languageTranslationInfo['untranslatedRecordUids'] = array_keys($untranslatedRecordUids);
+
+            $untranslatedRecordUidsWithoutWorkspaceDeletedRecords = $this->removeWorkspaceDeletedPlaceholdersUidsFromUntranslatedRecordUids(array_keys($untranslatedRecordUids), $language);
+            $languageTranslationInfo['untranslatedRecordUids'] = $untranslatedRecordUidsWithoutWorkspaceDeletedRecords;
+            if (array_keys($untranslatedRecordUids) !== $untranslatedRecordUidsWithoutWorkspaceDeletedRecords) {
+                $languageTranslationInfo['hasElementsWithWorkspaceDeletePlaceholders'] = true;
+            }
 
             // Check for inconsistent translations, force "mixed" mode and dispatch a FlashMessage to user if such a case is encountered.
             if (isset($languageTranslationInfo['hasStandAloneContent'])
@@ -190,7 +192,6 @@ class ContentFetcher
                 $languageTranslationInfo['mode'] = 'mixed';
 
                 // We do not want to show the staleTranslationWarning if allowInconsistentLanguageHandling is enabled
-                $allowInconsistentLanguageHandling = (bool)(BackendUtility::getPagesTSconfig($this->context->getPageId())['mod.']['web_layout.']['allowInconsistentLanguageHandling'] ?? false);
                 if (!$this->context->getDrawingConfiguration()->getAllowInconsistentLanguageHandling()) {
                     $siteLanguage = $this->context->getSiteLanguage($language);
                     $message = GeneralUtility::makeInstance(
@@ -208,6 +209,36 @@ class ContentFetcher
             $this->getRuntimeCache()->set('ContentFetcher_TranslationInfo_' . $language, $languageTranslationInfo);
         }
         return $languageTranslationInfo;
+    }
+
+    protected function removeWorkspaceDeletedPlaceholdersUidsFromUntranslatedRecordUids(array $untranslatedRecordUids, int $language): array
+    {
+        if ($this->getBackendUser()->workspace <= 0) {
+            // Early return if we're not in a workspace to suppress some queries.
+            return $untranslatedRecordUids;
+        }
+        $queryBuilder = $this->getQueryBuilder();
+        $queryBuilder->andWhere(
+            $queryBuilder->expr()->and(
+                $queryBuilder->expr()->in(
+                    'l18n_parent',
+                    $queryBuilder->createNamedParameter($untranslatedRecordUids, Connection::PARAM_INT_ARRAY)
+                ),
+                $queryBuilder->expr()->eq(
+                    'sys_language_uid',
+                    $queryBuilder->createNamedParameter($language, Connection::PARAM_INT)
+                )
+            )
+        );
+        $result = $queryBuilder->executeQuery();
+        $uidsToRemoveFromUntranslatedRecordUids = [];
+        while ($row = $result->fetchAssociative()) {
+            BackendUtility::workspaceOL('tt_content', $row, -99, true);
+            if ($row && VersionState::tryFrom($row['t3ver_state'] ?? 0) === VersionState::DELETE_PLACEHOLDER) {
+                $uidsToRemoveFromUntranslatedRecordUids[] = $row['l18n_parent'];
+            }
+        }
+        return array_diff($untranslatedRecordUids, $uidsToRemoveFromUntranslatedRecordUids);
     }
 
     protected function getQueryBuilder(): QueryBuilder
@@ -229,7 +260,11 @@ class ContentFetcher
             )
         );
 
-        $sortBy = (string)($GLOBALS['TCA']['tt_content']['ctrl']['sortby'] ?: $GLOBALS['TCA']['tt_content']['ctrl']['default_sortby']);
+        $schema = GeneralUtility::makeInstance(TcaSchemaFactory::class)->get('tt_content');
+        $sortBy = $schema->hasCapability(TcaSchemaCapability::SortByField) ? (string)$schema->getCapability(TcaSchemaCapability::SortByField) : '';
+        if ($sortBy === '' && $schema->hasCapability(TcaSchemaCapability::DefaultSorting)) {
+            $sortBy = (string)$schema->getCapability(TcaSchemaCapability::DefaultSorting)->getValue();
+        }
         foreach (QueryHelper::parseOrderBy($sortBy) as $orderBy) {
             $queryBuilder->addOrderBy($orderBy[0], $orderBy[1]);
         }
@@ -244,7 +279,7 @@ class ContentFetcher
         $output = [];
         while ($row = $result->fetchAssociative()) {
             BackendUtility::workspaceOL('tt_content', $row, -99, true);
-            if ($row && !VersionState::cast($row['t3ver_state'] ?? 0)->equals(VersionState::DELETE_PLACEHOLDER)) {
+            if ($row && VersionState::tryFrom($row['t3ver_state'] ?? 0) !== VersionState::DELETE_PLACEHOLDER) {
                 $output[] = $row;
             }
         }
@@ -256,7 +291,7 @@ class ContentFetcher
         return $GLOBALS['LANG'];
     }
 
-    protected function getRuntimeCache(): VariableFrontend
+    protected function getRuntimeCache(): FrontendInterface
     {
         return GeneralUtility::makeInstance(CacheManager::class)->getCache('runtime');
     }

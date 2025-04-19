@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Webhooks\Repository;
 
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 use TYPO3\CMS\Core\Database\ConnectionPool;
@@ -38,6 +39,7 @@ class WebhookRepository
 
     public function __construct(
         protected readonly ConnectionPool $connectionPool,
+        #[Autowire(service: 'cache.runtime')]
         protected readonly FrontendInterface $runtimeCache,
     ) {}
 
@@ -58,9 +60,10 @@ class WebhookRepository
         return $data;
     }
 
-    public function countAll(): int
+    public function countAll(?WebhookDemand $demand = null): int
     {
-        return (int)$this->getQueryBuilder(false)
+        $qb = $demand !== null ? $this->getQueryBuilderForDemand($demand) : $this->getQueryBuilder();
+        return (int)$qb
             ->count('*')
             ->executeQuery()
             ->fetchOne();

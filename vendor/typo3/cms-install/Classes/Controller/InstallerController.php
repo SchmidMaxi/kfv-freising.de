@@ -24,6 +24,7 @@ use TYPO3\CMS\Backend\Routing\RouteRedirect;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Core\Configuration\ConfigurationManager;
 use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Schema\Exception\StatementException;
 use TYPO3\CMS\Core\FormProtection\FormProtectionFactory;
@@ -39,9 +40,9 @@ use TYPO3\CMS\Core\Page\ImportMap;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\ConsumableNonce;
 use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Core\View\FluidViewAdapter;
 use TYPO3\CMS\Core\View\ViewInterface;
 use TYPO3\CMS\Fluid\Core\Rendering\RenderingContextFactory;
+use TYPO3\CMS\Fluid\View\FluidViewAdapter;
 use TYPO3\CMS\Install\FolderStructure\DefaultFactory;
 use TYPO3\CMS\Install\Service\EnableFileService;
 use TYPO3\CMS\Install\Service\Exception\ConfigurationDirectoryDoesNotExistException;
@@ -71,6 +72,7 @@ final class InstallerController
         private readonly FormProtectionFactory $formProtectionFactory,
         private readonly SetupService $setupService,
         private readonly SetupDatabaseService $setupDatabaseService,
+        private readonly HashService $hashService,
     ) {}
 
     /**
@@ -80,14 +82,14 @@ final class InstallerController
     {
         $bust = $GLOBALS['EXEC_TIME'];
         if (!Environment::getContext()->isDevelopment()) {
-            $bust = GeneralUtility::hmac((string)(new Typo3Version()) . Environment::getProjectPath());
+            $bust = $this->hashService->hmac((new Typo3Version()) . Environment::getProjectPath(), self::class);
         }
         $packages = [
             $this->packageManager->getPackage('core'),
             $this->packageManager->getPackage('backend'),
             $this->packageManager->getPackage('install'),
         ];
-        $importMap = new ImportMap($packages);
+        $importMap = new ImportMap($this->hashService, $packages);
         $sitePath = $request->getAttribute('normalizedParams')->getSitePath();
         $initModule = $sitePath . $importMap->resolveImport('@typo3/install/init-installer.js');
         $view = $this->initializeView();
@@ -451,7 +453,6 @@ final class InstallerController
         $view = $this->initializeView();
         $formProtection = $this->formProtectionFactory->createFromRequest($request);
         $view->assignMultiple([
-            'siteName' => $GLOBALS['TYPO3_CONF_VARS']['SYS']['sitename'],
             'executeDatabaseDataToken' => $formProtection->generateToken('installTool', 'executeDatabaseData'),
         ]);
         return new JsonResponse([
@@ -553,39 +554,39 @@ final class InstallerController
         $uriBuilder = $container->get(UriBuilder::class);
         $nextStepUrl = $uriBuilder->buildUriFromRoute('login');
         // Let the admin user redirect to the distributions page on first login
-        switch ($request->getParsedBody()['install']['values']['sitesetup']) {
+        if ($request->getParsedBody()['install']['values']['sitesetup'] === 'createsite') {
+            // Create a page with UID 1 and PID1 and fluid_styled_content for page TS config, respect ownership
+            $pageUid = $this->setupService->createSite();
+            $normalizedParams = $request->getAttribute('normalizedParams');
+            if (!($normalizedParams instanceof NormalizedParams)) {
+                $normalizedParams = NormalizedParams::createFromRequest($request);
+            }
+            // Check for siteUrl, despite there currently is no UI to provide it,
+            // to allow TYPO3 Console (for TYPO3 v10) to set this value to something reasonable,
+            // because on cli there is no way to find out which hostname the site is supposed to have.
+            // In the future this controller should be refactored to a generic service, where site URL is
+            // just one input argument.
+            $siteUrl = $request->getParsedBody()['install']['values']['siteUrl'] ?? $normalizedParams->getSiteUrl();
+            $this->setupService->createSiteConfiguration('main', (int)$pageUid, $siteUrl);
+        } elseif ($request->getParsedBody()['install']['values']['sitesetup'] === 'loaddistribution'
+            && !Environment::isComposerMode()
+            && $this->packageManager->isPackageActive('extensionmanager')
+        ) {
             // Update the URL to redirect after login to the extension manager distributions list
-            case 'loaddistribution':
-                $nextStepUrl = $uriBuilder->buildUriWithRedirect(
-                    'login',
-                    [],
-                    RouteRedirect::create(
-                        'tools_ExtensionmanagerExtensionmanager',
-                        [
-                            'action' => 'distributions',
-                        ]
-                    )
-                );
-                break;
-
-                // Create a page with UID 1 and PID1 and fluid_styled_content for page TS config, respect ownership
-            case 'createsite':
-                $pageUid = $this->setupService->createSite();
-
-                $normalizedParams = $request->getAttribute('normalizedParams');
-                if (!($normalizedParams instanceof NormalizedParams)) {
-                    $normalizedParams = NormalizedParams::createFromRequest($request);
-                }
-                // Check for siteUrl, despite there currently is no UI to provide it,
-                // to allow TYPO3 Console (for TYPO3 v10) to set this value to something reasonable,
-                // because on cli there is no way to find out which hostname the site is supposed to have.
-                // In the future this controller should be refactored to a generic service, where site URL is
-                // just one input argument.
-                $siteUrl = $request->getParsedBody()['install']['values']['siteUrl'] ?? $normalizedParams->getSiteUrl();
-                $this->setupService->createSiteConfiguration('main', (int)$pageUid, $siteUrl);
-                break;
+            $nextStepUrl = $uriBuilder->buildUriWithRedirect(
+                'login',
+                [],
+                RouteRedirect::create(
+                    'extensionmanager',
+                    [
+                        'action' => 'distributions',
+                    ]
+                )
+            );
         }
-
+        if (($request->getParsedBody()['install']['values']['backendgroups'] ?? '') === 'creategroups') {
+            $this->setupService->createBackendUserGroups();
+        }
         // Mark upgrade wizards as done
         $this->setupDatabaseService->markWizardsDone($container);
 

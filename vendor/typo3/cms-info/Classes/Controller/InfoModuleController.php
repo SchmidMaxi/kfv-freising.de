@@ -20,6 +20,7 @@ namespace TYPO3\CMS\Info\Controller;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use TYPO3\CMS\Backend\Attribute\AsController;
 use TYPO3\CMS\Backend\Module\ModuleInterface;
 use TYPO3\CMS\Backend\Module\ModuleProvider;
 use TYPO3\CMS\Backend\Routing\PreviewUriBuilder;
@@ -30,10 +31,11 @@ use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Domain\Repository\PageRepository;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Page\PageRenderer;
+use TYPO3\CMS\Core\Schema\TcaSchemaFactory;
 use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Info\Controller\Event\ModifyInfoModuleContentEvent;
@@ -43,6 +45,7 @@ use TYPO3\CMS\Info\Controller\Event\ModifyInfoModuleContentEvent;
  * This class creates the framework to which other extensions can add their third-level modules
  * @internal This class is a specific Backend controller implementation and is not part of the TYPO3's Core API.
  */
+#[AsController]
 class InfoModuleController
 {
     protected ModuleInterface $currentModule;
@@ -61,6 +64,7 @@ class InfoModuleController
         protected readonly PageRenderer $pageRenderer,
         protected readonly ModuleTemplateFactory $moduleTemplateFactory,
         protected readonly EventDispatcherInterface $eventDispatcher,
+        protected readonly TcaSchemaFactory $tcaSchemaFactory,
     ) {}
 
     /**
@@ -118,7 +122,6 @@ class InfoModuleController
      */
     protected function getButtons(): void
     {
-        $languageService = $this->getLanguageService();
         $buttonBar = $this->view->getDocHeaderComponent()->getButtonBar();
 
         if ($this->id) {
@@ -131,9 +134,8 @@ class InfoModuleController
                     true
                 );
             } else {
-                // exclude sysfolders and recycler by default
+                // exclude sysfolders and spacers by default
                 $excludeDokTypes = [
-                    PageRepository::DOKTYPE_RECYCLER,
                     PageRepository::DOKTYPE_SYSFOLDER,
                     PageRepository::DOKTYPE_SPACER,
                 ];
@@ -148,9 +150,9 @@ class InfoModuleController
                     ->setDataAttributes($previewDataAttributes ?? [])
                     ->setDisabled(!$previewDataAttributes)
                     ->setTitle($this->getLanguageService()->sL('LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.showPage'))
-                    ->setIcon($this->iconFactory->getIcon('actions-view-page', Icon::SIZE_SMALL))
+                    ->setIcon($this->iconFactory->getIcon('actions-view-page', IconSize::SMALL))
                     ->setShowLabelText(true);
-                $buttonBar->addButton($viewButton, ButtonBar::BUTTON_POSITION_LEFT);
+                $buttonBar->addButton($viewButton);
             }
         }
 

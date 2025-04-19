@@ -1,4 +1,5 @@
 <?php
+
 /*
 This recipes works with Custom Integrations and Publishing Bots.
 
@@ -25,16 +26,16 @@ before('deploy', 'workplace:notify');
 
  - `workplace_text` - notification message
    ```
-   set('workplace_text', '_{{user}}_ deploying `{{branch}}` to *{{target}}*');
+   set('workplace_text', '_{{user}}_ deploying `{{what}}` to *{{where}}*');
    ```
 
  - `workplace_success_text` – success template, default:
   ```
-  set('workplace_success_text', 'Deploy to *{{target}}* successful');
+  set('workplace_success_text', 'Deploy to *{{where}}* successful');
   ```
  - `workplace_failure_text` – failure template, default:
   ```
-  set('workplace_failure_text', 'Deploy to *{{target}}* failed');
+  set('workplace_failure_text', 'Deploy to *{{where}}* failed');
   ```
  - `workplace_edit_post` – whether to create a new post for deploy result, or edit the first one created, default creates a new post:
   ```
@@ -62,14 +63,15 @@ after('deploy:failed', 'workplace:notify:failure');
 ```
 
  */
+
 namespace Deployer;
 
 use Deployer\Utility\Httpie;
 
 // Deploy message
-set('workplace_text', '_{{user}}_ deploying `{{branch}}` to *{{target}}*');
-set('workplace_success_text', 'Deploy to *{{target}}* successful');
-set('workplace_failure_text', 'Deploy to *{{target}}* failed');
+set('workplace_text', '_{{user}}_ deploying `{{what}}` to *{{where}}*');
+set('workplace_success_text', 'Deploy to *{{where}}* successful');
+set('workplace_failure_text', 'Deploy to *{{where}}* failed');
 
 // By default, create a new post for every message
 set('workplace_edit_post', false);

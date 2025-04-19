@@ -53,6 +53,10 @@ class DownloadRecordList
         $columnsToRender = array_combine($columnsToRender, $columnsToRender);
         $hooks = $GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['TYPO3\CMS\Recordlist\RecordList\DatabaseRecordList']['customizeCsvHeader'] ?? [];
         if (!empty($hooks)) {
+            trigger_error(
+                'The hook $GLOBALS[\'TYPO3_CONF_VARS\'][\'SC_OPTIONS\'][\'TYPO3\CMS\Recordlist\RecordList\DatabaseRecordList\'][\'customizeCsvHeader\'] is deprecated and will be removed in TYPO3 v14. Use PSR-14 event TYPO3\CMS\Backend\RecordList\Event\BeforeRecordDownloadIsExecutedEvent instead.',
+                E_USER_DEPRECATED
+            );
             $hookParameters = [
                 'fields' => &$columnsToRender,
             ];
@@ -134,12 +138,17 @@ class DownloadRecordList
                 if ($columnName === $GLOBALS['TCA'][$table]['ctrl']['label']) {
                     $row[$columnName] = BackendUtility::getRecordTitle($table, $row);
                 } elseif ($columnName !== 'pid') {
-                    $row[$columnName] = BackendUtility::getProcessedValueExtra($table, $columnName, $row[$columnName], 0, $row['uid']);
+                    $row[$columnName] = BackendUtility::getProcessedValueExtra($table, $columnName, $row[$columnName], 0, $row['uid'], false, 0, $row);
                 }
             }
         }
         $hooks = $GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['TYPO3\CMS\Recordlist\RecordList\DatabaseRecordList']['customizeCsvRow'] ?? [];
         if (!empty($hooks)) {
+            trigger_error(
+                'The hook $GLOBALS[\'TYPO3_CONF_VARS\'][\'SC_OPTIONS\'][\'TYPO3\CMS\Recordlist\RecordList\DatabaseRecordList\'][\'customizeCsvRow\'] is deprecated and will be removed in TYPO3 v14. Use PSR-14 event TYPO3\CMS\Backend\RecordList\Event\BeforeRecordDownloadIsExecutedEvent instead.',
+                E_USER_DEPRECATED
+            );
+
             $hookParameters = [
                 'databaseRow' => &$row,
                 'tableName' => $table,

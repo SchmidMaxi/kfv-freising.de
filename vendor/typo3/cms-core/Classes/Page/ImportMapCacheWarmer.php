@@ -17,20 +17,19 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Core\Page;
 
+use TYPO3\CMS\Core\Attribute\AsEventListener;
 use TYPO3\CMS\Core\Cache\Event\CacheWarmupEvent;
 
 /**
  * @internal
  */
-final class ImportMapCacheWarmer
+final readonly class ImportMapCacheWarmer
 {
-    private ImportMapFactory $importMapFactory;
+    public function __construct(
+        private ImportMapFactory $importMapFactory
+    ) {}
 
-    public function __construct(ImportMapFactory $importMapFactory)
-    {
-        $this->importMapFactory = $importMapFactory;
-    }
-
+    #[AsEventListener]
     public function warmupCaches(CacheWarmupEvent $event): void
     {
         if ($event->hasGroup('system')) {

@@ -3,7 +3,8 @@
     data-namespace-typo3-fluid="true"
 >
 
-<h2>{f:translate(key: 'LLL:EXT:core/Resources/Private/Language/locallang_misc.xlf:2_selectPosition') -> f:format.htmlspecialchars()}</h2>
-{posMap -> f:format.raw()}
-
+<h5>{f:translate(key: 'LLL:EXT:core/Resources/Private/Language/locallang_misc.xlf:2_selectPosition') -> f:format.htmlspecialchars()}</h5>
+<div class="page-position-map">
+    {posMap -> f:format.raw()}
+</div>
 </html>

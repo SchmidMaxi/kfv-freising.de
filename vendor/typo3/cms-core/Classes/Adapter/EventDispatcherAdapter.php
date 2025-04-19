@@ -18,19 +18,13 @@ declare(strict_types=1);
 namespace TYPO3\CMS\Core\Adapter;
 
 use Psr\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\DependencyInjection\Attribute\AsAlias;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface as SymfonyEventDispatcherInterface;
 
+#[AsAlias(SymfonyEventDispatcherInterface::class, public: true)]
 final class EventDispatcherAdapter implements SymfonyEventDispatcherInterface
 {
-    /**
-     * @var EventDispatcherInterface
-     */
-    private $eventDispatcher;
-
-    public function __construct(EventDispatcherInterface $eventDispatcher)
-    {
-        $this->eventDispatcher = $eventDispatcher;
-    }
+    public function __construct(private readonly EventDispatcherInterface $eventDispatcher) {}
 
     public function dispatch(object $event, ?string $eventName = null): object
     {

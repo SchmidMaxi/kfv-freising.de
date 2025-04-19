@@ -75,11 +75,9 @@ class SelectTreeElement extends AbstractFormElement
      * @return array As defined in initializeResultArray() of AbstractNode
      * @see AbstractNode::initializeResultArray()
      */
-    public function render()
+    public function render(): array
     {
         $resultArray = $this->initializeResultArray();
-        // @deprecated since v12, will be removed with v13 when all elements handle label/legend on their own
-        $resultArray['labelHasBeenHandled'] = true;
         $parameterArray = $this->data['parameterArray'];
         $formElementId = md5($parameterArray['itemFormElName']);
 
@@ -146,7 +144,7 @@ class SelectTreeElement extends AbstractFormElement
         $html[] = $fieldInformationHtml;
         $html[] =   '<div class="form-control-wrap">';
         $html[] =       '<div class="form-wizards-wrap">';
-        $html[] =           '<div class="form-wizards-element">';
+        $html[] =           '<div class="form-wizards-item-element">';
         $html[] =               '<div class="typo3-tceforms-tree">';
         $html[] =                   '<input class="treeRecord" type="hidden" id="' . htmlspecialchars($fieldId) . '"';
         $html[] =                       ' data-formengine-validation-rules="' . htmlspecialchars($this->getValidationDataAsJsonString($config)) . '"';
@@ -174,10 +172,10 @@ class SelectTreeElement extends AbstractFormElement
         $html[] =                       ' data-defaultvalues="' . GeneralUtility::jsonEncodeForHtmlAttribute($this->data['defaultValues']) . '"';
         $html[] =                   '/>';
         $html[] =               '</div>';
-        $html[] =               '<div id="' . $treeWrapperId . '" class="svg-tree-element" style="height: ' . $heightInPx . 'px;"></div>';
+        $html[] =               '<div id="' . $treeWrapperId . '" class="tree-element" style="height: ' . $heightInPx . 'px;"></div>';
         $html[] =           '</div>';
         if (!$readOnly && !empty($fieldWizardHtml)) {
-            $html[] =       '<div class="form-wizards-items-bottom">';
+            $html[] =       '<div class="form-wizards-item-bottom">';
             $html[] =           $fieldWizardHtml;
             $html[] =       '</div>';
         }

@@ -20,18 +20,16 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
-use Symfony\Component\HttpFoundation\Cookie;
 use TYPO3\CMS\Core\Authentication\Event\AfterUserLoggedOutEvent;
 use TYPO3\CMS\Core\Authentication\Event\BeforeRequestTokenProcessedEvent;
 use TYPO3\CMS\Core\Authentication\Event\BeforeUserLogoutEvent;
 use TYPO3\CMS\Core\Authentication\Event\LoginAttemptFailedEvent;
 use TYPO3\CMS\Core\Authentication\Mfa\MfaProviderRegistry;
 use TYPO3\CMS\Core\Authentication\Mfa\MfaRequiredException;
-use TYPO3\CMS\Core\Compatibility\PublicMethodDeprecationTrait;
-use TYPO3\CMS\Core\Compatibility\PublicPropertyDeprecationTrait;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Context\SecurityAspect;
 use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\Restriction\DefaultRestrictionContainer;
@@ -67,32 +65,6 @@ abstract class AbstractUserAuthentication implements LoggerAwareInterface
 {
     use LoggerAwareTrait;
     use CookieHeaderTrait;
-    use PublicPropertyDeprecationTrait;
-    use PublicMethodDeprecationTrait;
-
-    /**
-     * List previously publicly accessible variables
-     */
-    private array $deprecatedPublicProperties = [
-        'lastLogin_column' => 'Using $lastLogin_column is marked as internal and will not be possible to access anymore in TYPO3 v13.0. Use AuthenticationServices to read or modify different form field values.',
-        'formfield_uname' => 'Using $formfield_uname is marked as internal and will not be possible to access anymore in TYPO3 v13.0. Use AuthenticationServices to read or modify different form field values.',
-        'formfield_uident' => 'Using $formfield_uident is marked as internal and will not be possible to access anymore in TYPO3 v13.0. Use AuthenticationServices to read or modify different form field values.',
-        'formfield_status' => 'Using $formfield_status is marked as internal and will not be possible to access anymore in TYPO3 v13.0. Use AuthenticationServices to read or modify different form field values.',
-        'loginSessionStarted' => 'Using $loginSessionStarted is marked as internal and will not be possible to access anymore in TYPO3 v13.0. Use AuthenticationServices or UserSession to detect if a session has just been started.',
-        'dontSetCookie' => 'Using $dontSetCookie is marked as internal and will not be possible to access anymore in TYPO3 v13.0. Use a custom PSR-15 middleware to override custom cookie overrides instead.',
-    ];
-
-    /**
-     * List previously publicly accessible methods
-     */
-    private array $deprecatedPublicMethods = [
-        'isSetSessionCookie' => 'Using AbstractUserAuthentication->isSetSessionCookie() is marked as internal and cannot be called directly anymore in TYPO3 v13.0.',
-        'isRefreshTimeBasedCookie' => 'Using AbstractUserAuthentication->isRefreshTimeBasedCookie() is marked as internal and cannot be called directly anymore in TYPO3 v13.0.',
-        'removeCookie' => 'Using AbstractUserAuthentication->removeCookie() is marked as internal and cannot be called directly anymore in TYPO3 v13.0.',
-        'isCookieSet' => 'Using AbstractUserAuthentication->isCookieSet() is marked as internal and cannot be called directly anymore in TYPO3 v13.0.',
-        'unpack_uc' => 'Using AbstractUserAuthentication->unpack_uc() is marked as internal and cannot be called directly anymore in TYPO3 v13.0.',
-        'appendCookieToResponse' => 'Using AbstractUserAuthentication->appendCookieToResponse() is marked as internal and cannot be called directly anymore in TYPO3 v13.0.',
-    ];
 
     /**
      * Session/Cookie name
@@ -139,7 +111,7 @@ abstract class AbstractUserAuthentication implements LoggerAwareInterface
     /**
      * Column name for last login timestamp
      * @var string
-     * @internal since TYPO3 v12. This is not considered public API anymore, as this property should be defined in another place in the future.
+     * @internal
      */
     protected $lastLogin_column = '';
 
@@ -159,21 +131,21 @@ abstract class AbstractUserAuthentication implements LoggerAwareInterface
     /**
      * Form field with login-name
      * @var string
-     * @internal since TYPO3 v12. This is not considered public API anymore, as this property should be defined in another place in the future.
+     * @internal
      */
     protected $formfield_uname = '';
 
     /**
      * Form field with password
      * @var string
-     * @internal since TYPO3 v12. This is not considered public API anymore, as this property should be defined in another place in the future.
+     * @internal
      */
     protected $formfield_uident = '';
 
     /**
      * Form field with status: *'login', 'logout'. If empty login is not verified.
      * @var string
-     * @internal since TYPO3 v12. This is not considered public API anymore, as this property should be defined in another place in the future.
+     * @internal
      */
     protected $formfield_status = '';
 
@@ -204,7 +176,7 @@ abstract class AbstractUserAuthentication implements LoggerAwareInterface
     /**
      * Will be set to TRUE if the login session is actually written during auth-check.
      * @var bool
-     * @internal since TYPO3 v12. This is not considered public API anymore, as this property should be defined in another place in the future.
+     * @internal
      */
     protected $loginSessionStarted = false;
 
@@ -222,7 +194,7 @@ abstract class AbstractUserAuthentication implements LoggerAwareInterface
     /**
      * Will prevent the setting of the session cookie
      * @var bool
-     * @internal since TYPO3 v12. This is not considered public API anymore, as this property should be defined in another place in the future.
+     * @internal
      */
     protected $dontSetCookie = false;
 
@@ -268,7 +240,19 @@ abstract class AbstractUserAuthentication implements LoggerAwareInterface
     public function initializeUserSessionManager(?UserSessionManager $userSessionManager = null): void
     {
         $this->userSessionManager = $userSessionManager ?? UserSessionManager::create($this->loginType);
-        $this->userSession = $this->userSessionManager->createAnonymousSession();
+        $this->createAnonymousSession();
+    }
+
+    /**
+     * Creates an anonymous user session.
+     * This method should be avoided, as it is only a workaround due to the ugly setup of this class
+     * and the authentication / logout behavior.
+     */
+    public function createAnonymousSession(): void
+    {
+        if (!empty($this->userSessionManager)) {
+            $this->userSession = $this->userSessionManager->createAnonymousSession();
+        }
     }
 
     /**
@@ -306,7 +290,7 @@ abstract class AbstractUserAuthentication implements LoggerAwareInterface
         if ($this->shallSetSessionCookie()) {
             $this->setSessionCookie();
         }
-        // Hook for alternative ways of filling the $this->user array (is used by the "timtaw" extension)
+        // Hook for alternative ways of filling the $this->user array
         foreach ($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_userauth.php']['postUserLookUp'] ?? [] as $funcName) {
             $_params = [
                 'pObj' => $this,
@@ -319,8 +303,7 @@ abstract class AbstractUserAuthentication implements LoggerAwareInterface
      * Used to apply a cookie to a PSR-7 Response.
      *
      * @todo: should go into a middleware?
-     * @internal since TYPO3 v12. This is not considered public API anymore, as this method should be defined in another
-     * place in the future. If really needed implement the logic in an AuthenticationService or custom PHP class.
+     * @internal
      */
     public function appendCookieToResponse(ResponseInterface $response, ?NormalizedParams $normalizedParams = null): ResponseInterface
     {
@@ -368,7 +351,7 @@ abstract class AbstractUserAuthentication implements LoggerAwareInterface
      * Determine whether a session cookie needs to be set (lifetime=0)
      *
      * @return bool
-     * @internal since TYPO3 v12. This is not considered public API anymore, if really needed implement the logic in an AuthenticationService or custom PHP class.
+     * @internal
      */
     protected function isSetSessionCookie()
     {
@@ -379,7 +362,7 @@ abstract class AbstractUserAuthentication implements LoggerAwareInterface
      * Determine whether a non-session cookie needs to be set (lifetime>0)
      *
      * @return bool
-     * @internal since TYPO3 v12. This is not considered public API anymore, if really needed implement the logic in an AuthenticationService or custom PHP class.
+     * @internal
      */
     protected function isRefreshTimeBasedCookie()
     {
@@ -418,11 +401,11 @@ abstract class AbstractUserAuthentication implements LoggerAwareInterface
         // Get Login/Logout data submitted by a form or params
         $loginData = $this->getLoginFormData($request);
         $this->logger->debug('Login data', $this->removeSensitiveLoginDataForLoggingInfo($loginData));
+        $type = LoginType::tryFrom($loginData['status'] ?? '');
         // Active logout (eg. with "logout" button)
-        if ($loginData['status'] === LoginType::LOGOUT) {
+        if ($type === LoginType::LOGOUT) {
             if ($this->writeStdLog) {
-                // $type,$action,$error,$details_nr,$details,$data,$tablename,$recuid,$recpid
-                $this->writelog(SystemLogType::LOGIN, SystemLogLoginAction::LOGOUT, SystemLogErrorClassification::MESSAGE, 2, 'User %s logged out', [$this->user['username']], '', 0, 0);
+                $this->writelog(SystemLogType::LOGIN, SystemLogLoginAction::LOGOUT, SystemLogErrorClassification::MESSAGE, null, 'User %s logged out', [$this->user['username']], '', 0);
             }
             $this->logger->info('User logged out. Id: {session}', ['session' => sha1($this->userSession->getIdentifier())]);
             $this->logoff();
@@ -444,7 +427,7 @@ abstract class AbstractUserAuthentication implements LoggerAwareInterface
         }
 
         // Active login (eg. with login form).
-        if ($loginData['status'] === LoginType::LOGIN) {
+        if ($type === LoginType::LOGIN) {
             if (!$isExistingSession) {
                 $activeLogin = true;
                 $this->logger->debug('Active login (eg. with login form)');
@@ -604,7 +587,7 @@ abstract class AbstractUserAuthentication implements LoggerAwareInterface
             if ($activeLogin) {
                 // User logged in - write that to the log!
                 if ($this->writeStdLog) {
-                    $this->writelog(SystemLogType::LOGIN, SystemLogLoginAction::LOGIN, SystemLogErrorClassification::MESSAGE, 1, 'User %s logged in from ###IP###', [$userRecordCandidate[$this->username_column]], '', '', '');
+                    $this->writelog(SystemLogType::LOGIN, SystemLogLoginAction::LOGIN, SystemLogErrorClassification::MESSAGE, null, 'User %s logged in from ###IP###', [$userRecordCandidate[$this->username_column]], '', '');
                 }
                 $this->logger->info('User {username} logged in from {ip}', [
                     'username' => $userRecordCandidate[$this->username_column],
@@ -636,7 +619,6 @@ abstract class AbstractUserAuthentication implements LoggerAwareInterface
                 GeneralUtility::makeInstance(EventDispatcherInterface::class)->dispatch(
                     new LoginAttemptFailedEvent($this, $request, $this->removeSensitiveLoginDataForLoggingInfo($loginData))
                 );
-                $this->handleLoginFailure();
             }
         }
     }
@@ -721,24 +703,6 @@ abstract class AbstractUserAuthentication implements LoggerAwareInterface
     public function isMfaSetupRequired(): bool
     {
         return false;
-    }
-
-    /**
-     * Implement functionality when there was a failed login
-     */
-    protected function handleLoginFailure(): void
-    {
-        if (($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_userauth.php']['postLoginFailureProcessing'] ?? []) !== []) {
-            trigger_error(
-                'The hook $TYPO3_CONF_VARS[\'SC_OPTIONS\'][\'t3lib/class.t3lib_userauth.php\'][\'postLoginFailureProcessing\']'
-                . ' will be removed in TYPO3 v13.0. Use the PSR-14 event LoginAttemptFailedEvent.',
-                E_USER_DEPRECATED
-            );
-        }
-        $_params = [];
-        foreach ($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_userauth.php']['postLoginFailureProcessing'] ?? [] as $hookIdentifier => $_funcRef) {
-            GeneralUtility::callUserFunction($_funcRef, $_params, $this);
-        }
     }
 
     /**
@@ -847,7 +811,7 @@ abstract class AbstractUserAuthentication implements LoggerAwareInterface
                 // Delete any user set...
                 $this->logoff();
                 $userRecord = false;
-                $this->userSession = $this->userSessionManager->createAnonymousSession();
+                $this->createAnonymousSession();
             }
         }
         return is_array($userRecord) ? $userRecord : null;
@@ -878,36 +842,11 @@ abstract class AbstractUserAuthentication implements LoggerAwareInterface
         $event = new BeforeUserLogoutEvent($this, $this->userSession);
         $event = $dispatcher->dispatch($event);
 
-        if (!empty($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_userauth.php']['logoff_pre_processing'] ?? null)) {
-            trigger_error(
-                '$GLOBALS[\'TYPO3_CONF_VARS\'][\'SC_OPTIONS\'][\'t3lib/class.t3lib_userauth.php\'][\'logoff_pre_processing\'] will be removed in TYPO3 v13.0. Use the PSR-14 "BeforeUserLogoutEvent" instead.',
-                E_USER_DEPRECATED
-            );
-        }
-
         if ($event->shouldLogout()) {
-            $_params = [];
-            foreach ($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_userauth.php']['logoff_pre_processing'] ?? [] as $_funcRef) {
-                if ($_funcRef) {
-                    GeneralUtility::callUserFunction($_funcRef, $_params, $this);
-                }
-            }
             $this->performLogoff();
         }
 
         $dispatcher->dispatch(new AfterUserLoggedOutEvent($this));
-
-        if (!empty($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_userauth.php']['logoff_post_processing'] ?? null)) {
-            trigger_error(
-                '$GLOBALS[\'TYPO3_CONF_VARS\'][\'SC_OPTIONS\'][\'t3lib/class.t3lib_userauth.php\'][\'logoff_post_processing\'] will be removed in TYPO3 v13.0. Use the PSR-14 "BeforeUserLogoutEvent" instead.',
-                E_USER_DEPRECATED
-            );
-        }
-        foreach ($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_userauth.php']['logoff_post_processing'] ?? [] as $_funcRef) {
-            if ($_funcRef) {
-                GeneralUtility::callUserFunction($_funcRef, $_params, $this);
-            }
-        }
     }
 
     /**
@@ -920,7 +859,7 @@ abstract class AbstractUserAuthentication implements LoggerAwareInterface
         if ($this->userSession) {
             $this->userSessionManager->removeSession($this->userSession);
         }
-        $this->userSession = $this->userSessionManager->createAnonymousSession();
+        $this->createAnonymousSession();
         $this->user = null;
         if ($this->isCookieSet()) {
             $this->removeCookie();
@@ -931,7 +870,7 @@ abstract class AbstractUserAuthentication implements LoggerAwareInterface
      * Empty / unset the cookie
      *
      * @param string|null $cookieName usually, this is $this->name
-     * @internal since TYPO3 v12. This is not considered public API anymore, if really needed implement the logic in an AuthenticationService or custom PHP class.
+     * @internal
      */
     public function removeCookie($cookieName = null)
     {
@@ -943,7 +882,7 @@ abstract class AbstractUserAuthentication implements LoggerAwareInterface
      * or a cookie was already found in the system
      *
      * @return bool Returns TRUE if a cookie is set
-     * @internal since TYPO3 v12. This is not considered public API anymore, if really needed implement the logic in an AuthenticationService or custom PHP class.
+     * @internal
      */
     protected function isCookieSet()
     {
@@ -1030,7 +969,7 @@ abstract class AbstractUserAuthentication implements LoggerAwareInterface
 
     /**
      * Unserializes the user configuration from the user record into $this->>uc
-     * @internal since TYPO3 v12. This is not considered public API anymore, if really needed implement the logic in an AuthenticationService or custom PHP class.
+     * @internal
      */
     protected function unpack_uc()
     {
@@ -1053,7 +992,8 @@ abstract class AbstractUserAuthentication implements LoggerAwareInterface
      */
     public function pushModuleData(string $module, mixed $data, bool $dontPersistImmediately = false): void
     {
-        $sessionHash = GeneralUtility::hmac(
+        $hashService = GeneralUtility::makeInstance(HashService::class);
+        $sessionHash = $hashService->hmac(
             $this->userSession->getIdentifier(),
             'core-session-hash'
         );
@@ -1073,7 +1013,8 @@ abstract class AbstractUserAuthentication implements LoggerAwareInterface
      */
     public function getModuleData(string $module, string $type = ''): mixed
     {
-        $sessionHash = GeneralUtility::hmac(
+        $hashService = GeneralUtility::makeInstance(HashService::class);
+        $sessionHash = $hashService->hmac(
             $this->userSession->getIdentifier(),
             'core-session-hash'
         );
@@ -1144,7 +1085,7 @@ abstract class AbstractUserAuthentication implements LoggerAwareInterface
             'uident' => StringUtility::filter($parsedBody[$this->formfield_uident] ?? '', ''),
         ];
         // Only process the login data if a login is requested
-        if ($loginData['status'] === LoginType::LOGIN) {
+        if (LoginType::tryFrom($loginData['status'] ?? '') === LoginType::LOGIN) {
             $loginData = $this->processLoginData($loginData, $request);
         }
         return $loginData;
@@ -1153,7 +1094,7 @@ abstract class AbstractUserAuthentication implements LoggerAwareInterface
     public function isActiveLogin(ServerRequestInterface $request): bool
     {
         $status = $request->getParsedBody()[$this->formfield_status] ?? $request->getQueryParams()[$this->formfield_status] ?? '';
-        return $status === LoginType::LOGIN;
+        return LoginType::tryFrom($status) === LoginType::LOGIN;
     }
 
     /**
@@ -1250,14 +1191,13 @@ abstract class AbstractUserAuthentication implements LoggerAwareInterface
      * @param int $type denotes which module that has submitted the entry. This is the current list:  1=tce_db; 2=tce_file; 3=system (eg. sys_history save); 4=modules; 254=Personal settings changed; 255=login / out action: 1=login, 2=logout, 3=failed login (+ errorcode 3), 4=failure_warning_email sent
      * @param int $action denotes which specific operation that wrote the entry (eg. 'delete', 'upload', 'update' and so on...). Specific for each $type. Also used to trigger update of the interface. (see the log-module for the meaning of each number !!)
      * @param int $error flag. 0 = message, 1 = error (user problem), 2 = System Error (which should not happen), 3 = security notice (admin)
-     * @param int $details_nr The message number. Specific for each $type and $action. in the future this will make it possible to translate error messages to other languages
+     * @param null $_ unused
      * @param string $details Default text that follows the message
      * @param array $data Data that follows the log. Might be used to carry special information. If an array the first 5 entries (0-4) will be sprintf'ed the details-text...
-     * @param string $tablename Special field used by tce_main.php. These ($tablename, $recuid, $recpid) holds the reference to the record which the log-entry is about. (Was used in attic status.php to update the interface.)
-     * @param int|string $recuid Special field used by tce_main.php. These ($tablename, $recuid, $recpid) holds the reference to the record which the log-entry is about. (Was used in attic status.php to update the interface.)
-     * @param int|string $recpid Special field used by tce_main.php. These ($tablename, $recuid, $recpid) holds the reference to the record which the log-entry is about. (Was used in attic status.php to update the interface.)
+     * @param string $tablename Special field used by tce_main.php. These ($tablename, $recuid) hold the reference to the record which the log-entry is about.
+     * @param int|string $recuid Special field used by tce_main.php. These ($tablename, $recuid) hold the reference to the record which the log-entry is about.
      */
-    public function writelog($type, $action, $error, $details_nr, $details, $data, $tablename, $recuid, $recpid) {}
+    public function writelog($type, $action, $error, $_, $details, $data, $tablename, $recuid) {}
 
     /**
      * Raw initialization of the be_user with uid=$uid

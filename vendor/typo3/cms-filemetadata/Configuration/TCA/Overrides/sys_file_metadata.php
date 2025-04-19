@@ -7,7 +7,7 @@ $tca = [
         'type' => 'file:type',
     ],
     'types' => [
-        TYPO3\CMS\Core\Resource\File::FILETYPE_UNKNOWN => [
+        TYPO3\CMS\Core\Resource\FileType::UNKNOWN->value => [
             'showitem' => '
                 --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:general,
                     fileinfo, title, description, ranking, keywords,
@@ -23,7 +23,7 @@ $tca = [
                 --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:extended,
             ',
         ],
-        TYPO3\CMS\Core\Resource\File::FILETYPE_TEXT => [
+        TYPO3\CMS\Core\Resource\FileType::TEXT->value => [
             'showitem' => '
                 --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:general,
                     fileinfo, title, description, ranking, keywords,
@@ -39,7 +39,7 @@ $tca = [
                 --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:extended,
             ',
         ],
-        TYPO3\CMS\Core\Resource\File::FILETYPE_IMAGE => [
+        TYPO3\CMS\Core\Resource\FileType::IMAGE->value => [
             'showitem' => '
                 --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:general,
                     fileinfo, title, description, ranking, keywords,
@@ -60,7 +60,7 @@ $tca = [
                 --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:extended,
             ',
         ],
-        TYPO3\CMS\Core\Resource\File::FILETYPE_AUDIO => [
+        TYPO3\CMS\Core\Resource\FileType::AUDIO->value => [
             'showitem' => '
                 --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:general,
                     fileinfo, title, description, ranking, keywords,
@@ -78,7 +78,7 @@ $tca = [
                 --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:extended,
             ',
         ],
-        TYPO3\CMS\Core\Resource\File::FILETYPE_VIDEO => [
+        TYPO3\CMS\Core\Resource\FileType::VIDEO->value => [
             'showitem' => '
                 --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:general,
                     fileinfo, title, description, ranking, keywords,
@@ -96,7 +96,7 @@ $tca = [
                 --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:extended,
             ',
         ],
-        TYPO3\CMS\Core\Resource\File::FILETYPE_APPLICATION => [
+        TYPO3\CMS\Core\Resource\FileType::APPLICATION->value => [
             'showitem' => '
                 --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:general,
                     fileinfo, title, description, ranking, keywords,
@@ -215,7 +215,6 @@ $tca = [
                 'type' => 'input',
                 'size' => 20,
                 'eval' => 'trim',
-                'max' => 255,
             ],
         ],
         'download_name' => [
@@ -227,7 +226,6 @@ $tca = [
                 'type' => 'input',
                 'size' => 30,
                 'eval' => 'trim',
-                'max' => 255,
             ],
         ],
         'creator' => [
@@ -239,7 +237,6 @@ $tca = [
                 'type' => 'input',
                 'size' => 30,
                 'eval' => 'trim',
-                'max' => 255,
             ],
         ],
         'publisher' => [
@@ -251,7 +248,7 @@ $tca = [
                 'type' => 'input',
                 'size' => 20,
                 'eval' => 'trim',
-                'max' => 45,
+                'max' => 120,
             ],
         ],
         'source' => [
@@ -348,7 +345,6 @@ $tca = [
                 'type' => 'select',
                 'renderType' => 'selectSingle',
                 'minitems' => 1,
-                'maxitems' => 1,
                 'items' => [
                     ['label' => 0, 'value' => 0],
                     ['label' => 1, 'value' => 1],
@@ -414,6 +410,7 @@ $tca = [
                 ],
                 'default' => '',
                 'readOnly' => true,
+                'dbFieldLength' => 3,
             ],
         ],
         'duration' => [
@@ -447,6 +444,7 @@ $tca = [
                 ],
                 'default' => '',
                 'readOnly' => true,
+                'dbFieldLength' => 4,
             ],
         ],
         'width' => [
@@ -496,6 +494,11 @@ $tca = [
             ],
         ],
         'fe_groups' => [
+            // @todo Inconsistent: sys_file_metadata has no ['ctrl']['enablecolumns']['fe_group'],
+            //       but this column is configured like the standard fe_group column?! Does this
+            //       actually work? And why can metadata be restricted for fe_groups in the first place?
+            //       Same question for 'visible' column above, shouldn't this be registered as
+            //       enablecolumns as well, if it actually works in FE?
             'exclude' => true,
             'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.fe_group',
             'config' => [

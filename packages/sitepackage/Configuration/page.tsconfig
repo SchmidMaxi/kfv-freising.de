@@ -1,0 +1,4 @@
+@import './PageTsConfig/BackendLayouts/'
+@import './PageTsConfig/RTE.tsconfig'
+@import './PageTsConfig/TCEFORM.tsconfig'
+@import './PageTsConfig/TCEMAIN.tsconfig'

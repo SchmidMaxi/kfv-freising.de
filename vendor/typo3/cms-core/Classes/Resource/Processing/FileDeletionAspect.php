@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -15,6 +17,7 @@
 
 namespace TYPO3\CMS\Core\Resource\Processing;
 
+use TYPO3\CMS\Core\Attribute\AsEventListener;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Resource\Event\AfterFileAddedEvent;
 use TYPO3\CMS\Core\Resource\Event\AfterFileDeletedEvent;
@@ -37,16 +40,19 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  */
 final class FileDeletionAspect
 {
+    #[AsEventListener('delete-processed-files-after-add')]
     public function cleanupProcessedFilesPostFileAdd(AfterFileAddedEvent $event): void
     {
         $this->cleanupProcessedFiles($event->getFile());
     }
 
+    #[AsEventListener('delete-processed-files-after-replace')]
     public function cleanupProcessedFilesPostFileReplace(AfterFileReplacedEvent $event): void
     {
         $this->cleanupProcessedFiles($event->getFile());
     }
 
+    #[AsEventListener('delete-processed-files-after-delete')]
     public function removeFromRepositoryAfterFileDeleted(AfterFileDeletedEvent $event): void
     {
         $this->removeFromRepository($event->getFile());

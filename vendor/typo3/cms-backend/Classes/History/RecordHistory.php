@@ -198,7 +198,7 @@ class RecordHistory
     /**
      * Fetches the history data of a record + includes subelements if this is from a page
      *
-     * @param int|null $lastHistoryEntry the highest entry to be evaluated
+     * @param int $lastHistoryEntry the highest entry to be evaluated
      */
     protected function getHistoryData(string $table, int $uid, ?bool $includeSubEntries = null, ?int $lastHistoryEntry = null): array
     {
@@ -260,6 +260,37 @@ class RecordHistory
 
         $uid = $this->resolveElement($table, $uid);
         return $this->findEventsForRecord($table, $uid, ($this->maxSteps ?: 0), $lastHistoryEntry);
+    }
+
+    /**
+     * Get the user uid of the user who deleted the record for the given table
+     */
+    public function getUserIdFromDeleteActionForRecord(string $table, int $uid): int
+    {
+        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('sys_history');
+        $queryBuilder->select('userid')
+            ->from('sys_history')
+            ->where(
+                $queryBuilder->expr()->eq(
+                    'tablename',
+                    $queryBuilder->createNamedParameter($table)
+                ),
+                $queryBuilder->expr()->eq(
+                    'usertype',
+                    $queryBuilder->createNamedParameter('BE')
+                ),
+                $queryBuilder->expr()->eq(
+                    'recuid',
+                    $queryBuilder->createNamedParameter($uid, Connection::PARAM_INT)
+                ),
+                $queryBuilder->expr()->eq(
+                    'actiontype',
+                    $queryBuilder->createNamedParameter(RecordHistoryStore::ACTION_DELETE, Connection::PARAM_INT)
+                )
+            )
+            ->setMaxResults(1);
+
+        return (int)$queryBuilder->executeQuery()->fetchOne();
     }
 
     /*******************************

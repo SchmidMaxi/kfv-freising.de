@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -17,21 +19,26 @@ namespace TYPO3\CMS\Extbase\Domain\Model;
 
 use TYPO3\CMS\Core\Resource\ResourceFactory;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Extbase\DomainObject\AbstractEntity;
 
 /**
  * A file object (File Abstraction Layer)
  */
-class File extends AbstractFileFolder
+class File extends AbstractEntity
 {
-    /**
-     * @return \TYPO3\CMS\Core\Resource\File
-     */
-    public function getOriginalResource()
+    private ?\TYPO3\CMS\Core\Resource\File $originalResource = null;
+
+    public function getOriginalResource(): \TYPO3\CMS\Core\Resource\File
     {
         if ($this->originalResource === null) {
             $this->originalResource = GeneralUtility::makeInstance(ResourceFactory::class)->getFileObject($this->getUid());
         }
 
         return $this->originalResource;
+    }
+
+    public function setOriginalResource(\TYPO3\CMS\Core\Resource\File $originalResource): void
+    {
+        $this->originalResource = $originalResource;
     }
 }

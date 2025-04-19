@@ -37,7 +37,7 @@
             <f:be.infobox
                 title="{f:translate(key: 'LLL:EXT:tstemplate/Resources/Private/Language/locallang_active.xlf:editAction.infobox.title.noTypoScriptTemplateOnCurrentPage')}"
                 message="{f:translate(key: 'LLL:EXT:tstemplate/Resources/Private/Language/locallang_active.xlf:editAction.infobox.message.noTypoScriptTemplateOnCurrentPage')}"
-                state="-1"
+                state="{f:constant(name: 'TYPO3\CMS\Fluid\ViewHelpers\Be\InfoboxViewHelper::STATE_INFO')}"
             />
         </f:then>
         <f:else>
@@ -52,7 +52,7 @@
                     <div class="col mb-4">
                         <label class="visually-hidden">{currentObjectPath} =</label>
                         <div class="input-group">
-                            <div class="input-group-addon">{currentObjectPath} =</div>
+                            <div class="input-group-text">{currentObjectPath} =</div>
                             <input class="form-control" type="text" name="value" value="{currentValue}" />
                         </div>
                     </div>
@@ -71,13 +71,13 @@
                     <div class="col mb-4">
                         <label class="visually-hidden">{currentObjectPath}.</label>
                         <div class="input-group">
-                            <div class="input-group-addon">{currentObjectPath}.</div>
+                            <div class="input-group-text">{currentObjectPath}.</div>
                             <input name="childName" type="text" class="form-control" />
                         </div>
                     </div>
                     <div class="col mb-4">
                         <div class="input-group">
-                            <div class="input-group-addon">=</div>
+                            <div class="input-group-text">=</div>
                             <input type="text" name="childValue" class="form-control" />
                         </div>
                     </div>

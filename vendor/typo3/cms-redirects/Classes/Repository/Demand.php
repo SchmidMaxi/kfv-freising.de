@@ -52,6 +52,8 @@ class Demand
     private int $maxHits;
     private ?\DateTimeInterface $olderThan;
     protected ?int $creationType = -1;
+    protected ?int $protected = -1;
+    protected ?string $integrityStatus = null;
 
     public function __construct(
         int $page = 1,
@@ -63,7 +65,9 @@ class Demand
         array $statusCodes = [],
         int $maxHits = 0,
         ?\DateTimeInterface $olderThan = null,
-        ?int $creationType = -1
+        ?int $creationType = -1,
+        ?int $protected = -1,
+        ?string $integrityStatus = null
     ) {
         $this->page = $page;
         if (!in_array($orderField, self::ORDER_FIELDS, true)) {
@@ -82,6 +86,8 @@ class Demand
         $this->maxHits = $maxHits;
         $this->olderThan = $olderThan;
         $this->creationType = $creationType;
+        $this->protected = $protected;
+        $this->integrityStatus = $integrityStatus;
     }
 
     public static function fromRequest(ServerRequestInterface $request): self
@@ -101,7 +107,9 @@ class Demand
         $target = $demand['target'] ?? '';
         $maxHits = (int)($demand['max_hits'] ?? 0);
         $creationType = isset($demand['creation_type']) ? ((int)$demand['creation_type']) : -1;
-        return new self($page, $orderField, $orderDirection, $sourceHosts, $sourcePath, $target, $statusCodes, $maxHits, null, $creationType);
+        $protected = isset($demand['protected']) ? ((int)$demand['protected']) : -1;
+        $integrityStatus = isset($demand['integrity_status']) ? ((string)$demand['integrity_status']) : null;
+        return new self($page, $orderField, $orderDirection, $sourceHosts, $sourcePath, $target, $statusCodes, $maxHits, null, $creationType, $protected, $integrityStatus);
     }
 
     public static function fromCommandInput(InputInterface $input): self
@@ -119,6 +127,8 @@ class Demand
                 ? new \DateTimeImmutable($input->getOption('days') . ' days ago')
                 : new \DateTimeImmutable('90 days ago'),
             $input->hasOption('creationType') ? (int)($input->getOption('creationType')) : null,
+            $input->hasOption('protected') ? (int)($input->getOption('protected')) : null,
+            $input->hasOption('integrityStatus') ? (string)($input->getOption('integrityStatus')) : null
         );
     }
 
@@ -202,6 +212,16 @@ class Demand
         return $this->creationType;
     }
 
+    public function getProtected(): ?int
+    {
+        return $this->protected;
+    }
+
+    public function getIntegrityStatus(): ?string
+    {
+        return $this->integrityStatus;
+    }
+
     public function getFirstStatusCode(): int
     {
         return $this->statusCodes[0] ?? 0;
@@ -237,6 +257,16 @@ class Demand
         return $this->creationType !== null && $this->creationType !== -1;
     }
 
+    public function hasProtected(): bool
+    {
+        return $this->protected !== null && $this->protected !== -1;
+    }
+
+    public function hasIntegrityStatus(): bool
+    {
+        return $this->integrityStatus !== null && $this->integrityStatus !== '';
+    }
+
     public function hasConstraints(): bool
     {
         return $this->hasSourcePath()
@@ -244,7 +274,9 @@ class Demand
             || $this->hasTarget()
             || $this->hasStatusCodes()
             || $this->hasMaxHits()
-            || $this->hasCreationType();
+            || $this->hasCreationType()
+            || $this->hasProtected()
+            || $this->hasIntegrityStatus();
     }
 
     /**
@@ -283,6 +315,12 @@ class Demand
         }
         if ($this->hasCreationType()) {
             $parameters['creation_type'] = $this->getCreationType();
+        }
+        if ($this->hasProtected()) {
+            $parameters['protected'] = $this->getProtected();
+        }
+        if ($this->hasIntegrityStatus()) {
+            $parameters['integrity_status'] = $this->getIntegrityStatus();
         }
         return $parameters;
     }

@@ -1,0 +1,143 @@
+#! /bin/bash
+
+## Description: Run sync process
+## Usage: sync-v12
+## Example: "ddev sync-v12"
+## ProjectTypes: typo3
+
+ddev import-db --file=./dump_v10.sql.gz
+
+printf "\n truncate sys_log table...\n"
+echo 'TRUNCATE `sys_log`;' | ddev typo3 database:import
+
+printf "\n Migrate MM Tables...\n"
+
+printf "\n Migrate table sys_category_record_mm...\n"
+ddev php /var/www/html/migration/migrate-sys-category-record-mm.php
+
+printf "\n Migrate table tx_rflocations_locationclient_person_mm...\n"
+ddev php /var/www/html/migration/migrate-tx-rflocations-locationclient-person-mm.php
+
+printf "\n Migrate table tx_rflocations_locationtype_person_mm...\n"
+ddev php /var/www/html/migration/migrate-tx-rflocations-locationtype-person-mm.php
+
+printf "\n prepare database...\n"
+ddev typo3 database:updateschema "*.add"
+
+printf "\n execute specific database changes before migration wizards...\n"
+
+echo 'ALTER TABLE `be_users` CHANGE `lang` `lang` VARCHAR(10) DEFAULT "default" NOT NULL;' | ddev typo3 database:import
+echo 'ALTER TABLE `sys_log` CHANGE `level` `level` VARCHAR(10) DEFAULT "info" NOT NULL;' | ddev typo3 database:import
+
+printf "\n update referenceindex update...\n"
+ddev typo3 referenceindex:update
+
+printf "\n migrate EXT:gridelements to EXT:container...\n"
+ddev typo3 gridtocontainer:migrateall accordion container_accordion old 1999 201
+
+ddev typo3 gridtocontainer:migrateall tabs container_tabs old 1999 201
+
+ddev typo3 gridtocontainer:migrateall herotext container_herotext old 1999,2000 201,202
+
+ddev typo3 gridtocontainer:migrateall contentslider container_contentslider old 1999 201
+
+ddev typo3 gridtocontainer:migrateall alert container_alert old 1999 201
+
+ddev typo3 gridtocontainer:migrateall heroshot container_heroshot old 1999 201
+
+ddev typo3 gridtocontainer:migrateall section container_section old 1999 201
+
+ddev typo3 gridtocontainer:migrateall productIntro container_productintro old 1999,2999 201,202
+
+ddev typo3 gridtocontainer:migrateall twoColumns container_2_columns old 1999,2999 201,202
+
+ddev typo3 gridtocontainer:migrateall threeColumns container_3_columns old 1999,2999,3999 201,203,202
+
+ddev typo3 gridtocontainer:migrateall fourColumns container_4_columns old 1999,2999,3999,4999 201,203,204,202
+
+
+printf "\n run upgrade wizards...\n"
+# TYPO3 Core
+ddev typo3 upgrade:run svgFilesSanitization
+
+ddev typo3 upgrade:run databaseRowsUpdateWizard
+
+ddev typo3 upgrade:run passwordPolicyForFrontendUsersUpdate
+
+ddev typo3 upgrade:run backendGroupsExplicitAllowDenyMigration
+
+ddev typo3 upgrade:run backendModulePermission
+
+ddev typo3 upgrade:run backendUserLanguage
+
+ddev typo3 upgrade:run femanager_pluginupdater
+
+ddev typo3 upgrade:run sysLogChannel
+
+ddev typo3 upgrade:run sysCategorySlugs
+
+ddev typo3 upgrade:run txNewsRelatedLinkIntegerDefault
+
+ddev typo3 upgrade:run txNewsPluginUpdater
+
+ddev typo3 upgrade:run txNewsPluginPermissionUpdater
+
+ddev typo3 upgrade:run powermailLanguageUpdateWizard
+
+ddev typo3 upgrade:run powermailPluginUpdater
+
+ddev typo3 upgrade:run powermailPermissionUpdater
+
+ddev typo3 upgrade:run powermailPermissionSubmodulesUpdater
+
+ddev typo3 upgrade:run container_migratesorting
+
+ddev typo3 upgrade:run container_deleteChildrenWithWrongPid
+
+
+
+printf "\n execute specific database changes after migration wizards...\n"
+
+echo 'UPDATE `tt_content` SET `list_type` = "rfrelaunch_badberatungsbestaetigung" WHERE `uid` = 7970;' | ddev typo3 database:import
+echo 'UPDATE `tt_content` SET `list_type` = "rfrelaunch_badberatungsbestaetigung" WHERE `uid` = 3758;' | ddev typo3 database:import
+echo 'UPDATE `tt_content` SET `list_type` = "rfprofilogin_register" WHERE `uid` = 5595;' | ddev typo3 database:import
+echo 'UPDATE `tt_content` SET `list_type` = "rfprofilogin_register" WHERE `uid` = 6677;' | ddev typo3 database:import
+echo 'UPDATE `pages` SET `doktype` = "199" WHERE `uid` = 1300;' | ddev typo3 database:import
+echo 'UPDATE `pages` SET `doktype` = "199" WHERE `uid` = 1312;' | ddev typo3 database:import
+echo 'UPDATE `pages` SET `doktype` = "199" WHERE `uid` = 1304;' | ddev typo3 database:import
+
+printf "\n Migrate FOR container flexform settings...\n"
+ddev php /var/www/html/migration/migrate-for-container-flexform-settings.php
+
+printf "\n Migrate flexform image files...\n"
+ddev php /var/www/html/migration/migrate-flexform-files.php
+
+printf "\n update table be_groups...\n"
+echo 'TRUNCATE `be_groups`;' | ddev typo3 database:import
+echo $(cat 'migration/be_groups.sql') | ddev typo3 database:import
+
+printf "\n update table sys_template...\n"
+echo 'TRUNCATE `sys_template`;' | ddev typo3 database:import
+echo $(cat 'migration/sys_template.sql') | ddev typo3 database:import
+
+printf "\n update table tx_crawler_configuration...\n"
+echo 'TRUNCATE `tx_crawler_configuration`;' | ddev typo3 database:import
+echo $(cat 'migration/tx_crawler_configuration.sql') | ddev typo3 database:import
+
+printf "\n update table tx_scheduler_task_group...\n"
+#echo 'TRUNCATE `tx_scheduler_task_group`;' | ddev typo3 database:import
+echo $(cat 'migration/tx_scheduler_task_group.sql') | ddev typo3 database:import
+
+printf "\n update table tx_scheduler_task...\n"
+echo 'TRUNCATE `tx_scheduler_task`;' | ddev typo3 database:import
+echo $(cat 'migration/tx_scheduler_task.sql') | ddev typo3 database:import
+
+printf "\n update database schema...\n"
+ddev typo3 database:updateschema "*.change,*.prefix,*.drop"
+ddev typo3 database:updateschema "*.drop"
+
+printf "\n flush and warmup caches...\n"
+ddev typo3 cache:flush
+ddev typo3 cache:warmup
+
+printf "\n\nDon't forget to run database compares in the Install Tool.\n"

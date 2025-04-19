@@ -1,4 +1,5 @@
 <?php
+
 namespace Deployer;
 
 require_once __DIR__ . '/common.php';
@@ -47,7 +48,7 @@ task('drupal:settings', function () {
         $replacements = [];
         foreach ($iterator as $key => $value) {
             $keys = [];
-            for ($i = $iterator->getDepth(); $i > 0; $i --) {
+            for ($i = $iterator->getDepth(); $i > 0; $i--) {
                 $keys[] = $iterator->getSubIterator($i - 1)->key();
             }
             $keys[] = $key;

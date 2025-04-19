@@ -20,10 +20,12 @@ namespace TYPO3\CMS\Install\Controller;
 use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\ParserFactory;
+use PhpParser\PhpVersion;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
+use TYPO3\CMS\Core\Configuration\Tca\TcaMigration;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Schema\Exception\StatementException;
@@ -32,7 +34,6 @@ use TYPO3\CMS\Core\Http\JsonResponse;
 use TYPO3\CMS\Core\Information\Typo3Version;
 use TYPO3\CMS\Core\Messaging\FlashMessage;
 use TYPO3\CMS\Core\Messaging\FlashMessageQueue;
-use TYPO3\CMS\Core\Migrations\TcaMigration;
 use TYPO3\CMS\Core\Package\PackageInterface;
 use TYPO3\CMS\Core\Package\PackageManager;
 use TYPO3\CMS\Core\Registry;
@@ -45,6 +46,7 @@ use TYPO3\CMS\Install\CoreVersion\CoreRelease;
 use TYPO3\CMS\Install\ExtensionScanner\CodeScannerInterface;
 use TYPO3\CMS\Install\ExtensionScanner\Php\CodeStatistics;
 use TYPO3\CMS\Install\ExtensionScanner\Php\GeneratorClassesResolver;
+use TYPO3\CMS\Install\ExtensionScanner\Php\Matcher\AbstractMethodImplementationMatcher;
 use TYPO3\CMS\Install\ExtensionScanner\Php\Matcher\ArrayDimensionMatcher;
 use TYPO3\CMS\Install\ExtensionScanner\Php\Matcher\ArrayGlobalMatcher;
 use TYPO3\CMS\Install\ExtensionScanner\Php\Matcher\ClassConstantMatcher;
@@ -59,12 +61,14 @@ use TYPO3\CMS\Install\ExtensionScanner\Php\Matcher\MethodArgumentDroppedStaticMa
 use TYPO3\CMS\Install\ExtensionScanner\Php\Matcher\MethodArgumentRequiredMatcher;
 use TYPO3\CMS\Install\ExtensionScanner\Php\Matcher\MethodArgumentRequiredStaticMatcher;
 use TYPO3\CMS\Install\ExtensionScanner\Php\Matcher\MethodArgumentUnusedMatcher;
+use TYPO3\CMS\Install\ExtensionScanner\Php\Matcher\MethodCallArgumentValueMatcher;
 use TYPO3\CMS\Install\ExtensionScanner\Php\Matcher\MethodCallMatcher;
 use TYPO3\CMS\Install\ExtensionScanner\Php\Matcher\MethodCallStaticMatcher;
 use TYPO3\CMS\Install\ExtensionScanner\Php\Matcher\PropertyAnnotationMatcher;
 use TYPO3\CMS\Install\ExtensionScanner\Php\Matcher\PropertyExistsStaticMatcher;
 use TYPO3\CMS\Install\ExtensionScanner\Php\Matcher\PropertyProtectedMatcher;
 use TYPO3\CMS\Install\ExtensionScanner\Php\Matcher\PropertyPublicMatcher;
+use TYPO3\CMS\Install\ExtensionScanner\Php\Matcher\ScalarStringMatcher;
 use TYPO3\CMS\Install\ExtensionScanner\Php\MatcherFactory;
 use TYPO3\CMS\Install\Service\ClearCacheService;
 use TYPO3\CMS\Install\Service\CoreUpdateService;
@@ -143,6 +147,10 @@ class UpgradeController extends AbstractController
             'configurationFile' => 'EXT:install/Configuration/ExtensionScanner/Php/FunctionCallMatcher.php',
         ],
         [
+            'class' => AbstractMethodImplementationMatcher::class,
+            'configurationFile' => 'EXT:install/Configuration/ExtensionScanner/Php/AbstractMethodImplementationMatcher.php',
+        ],
+        [
             'class' => InterfaceMethodChangedMatcher::class,
             'configurationFile' => 'EXT:install/Configuration/ExtensionScanner/Php/InterfaceMethodChangedMatcher.php',
         ],
@@ -171,6 +179,10 @@ class UpgradeController extends AbstractController
             'configurationFile' => 'EXT:install/Configuration/ExtensionScanner/Php/MethodCallMatcher.php',
         ],
         [
+            'class' => MethodCallArgumentValueMatcher::class,
+            'configurationFile' => 'EXT:install/Configuration/ExtensionScanner/Php/MethodCallArgumentValueMatcher.php',
+        ],
+        [
             'class' => MethodCallStaticMatcher::class,
             'configurationFile' => 'EXT:install/Configuration/ExtensionScanner/Php/MethodCallStaticMatcher.php',
         ],
@@ -185,6 +197,10 @@ class UpgradeController extends AbstractController
         [
             'class' => PropertyPublicMatcher::class,
             'configurationFile' => 'EXT:install/Configuration/ExtensionScanner/Php/PropertyPublicMatcher.php',
+        ],
+        [
+            'class' => ScalarStringMatcher::class,
+            'configurationFile' => 'EXT:install/Configuration/ExtensionScanner/Php/ScalarStringMatcher.php',
         ],
     ];
 
@@ -399,12 +415,13 @@ class UpgradeController extends AbstractController
                 if (!empty($supportedMajorReleases['elts'])) {
                     $supportMessages[] = sprintf('Currently supported TYPO3 ELTS versions: %s (more information at https://typo3.com/elts).', implode(', ', $supportedMajorReleases['elts']));
                 }
-
-                $messages[] = [
-                    'title' => 'TYPO3 Version information',
-                    'message' => implode(' ', $supportMessages),
-                    'severity' => ContextualFeedbackSeverity::INFO,
-                ];
+                if ($supportMessages !== []) {
+                    $messages[] = [
+                        'title' => 'TYPO3 Version information',
+                        'message' => implode(' ', $supportMessages),
+                        'severity' => ContextualFeedbackSeverity::INFO,
+                    ];
+                }
             }
 
             foreach ($messages as $message) {
@@ -643,7 +660,7 @@ class UpgradeController extends AbstractController
         }
 
         $finder = new Finder();
-        $files = $finder->files()->in($extensionBasePath)->name('*.php')->sortByName();
+        $files = $finder->files()->ignoreUnreadableDirs()->in($extensionBasePath)->name('*.php')->sortByName();
         // A list of file names relative to extension directory
         $relativeFileNames = [];
         foreach ($files as $file) {
@@ -673,7 +690,7 @@ class UpgradeController extends AbstractController
         $documentationFile = new DocumentationFile();
         $finder = new Finder();
         $restFilesBasePath = ExtensionManagementUtility::extPath('core') . 'Documentation/Changelog';
-        $restFiles = $finder->files()->in($restFilesBasePath);
+        $restFiles = $finder->files()->ignoreUnreadableDirs()->in($restFilesBasePath);
         $fullyScannedRestFilesNotAffected = [];
         foreach ($restFiles as $restFile) {
             // Skip files in "8.x" directory
@@ -739,7 +756,7 @@ class UpgradeController extends AbstractController
             );
         }
 
-        $parser = (new ParserFactory())->create(ParserFactory::ONLY_PHP7);
+        $parser = (new ParserFactory())->createForVersion(PhpVersion::fromComponents(8, 2));
         // Parse PHP file to AST and traverse tree calling visitors
         $statements = $parser->parse(file_get_contents($absoluteFilePath));
 
@@ -790,7 +807,7 @@ class UpgradeController extends AbstractController
             $preparedHit['restFiles'] = [];
             foreach ($match['restFiles'] as $fileName) {
                 $finder = new Finder();
-                $restFileLocation = $finder->files()->in($restFilesBasePath)->name($fileName);
+                $restFileLocation = $finder->files()->ignoreUnreadableDirs()->in($restFilesBasePath)->name($fileName);
                 if ($restFileLocation->count() !== 1) {
                     throw new \RuntimeException(
                         'ResT file ' . $fileName . ' not found or multiple files found.',

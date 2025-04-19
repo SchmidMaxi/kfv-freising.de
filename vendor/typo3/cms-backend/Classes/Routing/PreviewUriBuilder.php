@@ -28,6 +28,7 @@ use TYPO3\CMS\Core\Context\VisibilityAspect;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\HiddenRestriction;
+use TYPO3\CMS\Core\Domain\DateTimeFactory;
 use TYPO3\CMS\Core\Exception\SiteNotFoundException;
 use TYPO3\CMS\Core\Page\PageRenderer;
 use TYPO3\CMS\Core\Routing\InvalidRouteArgumentsException;
@@ -38,8 +39,7 @@ use TYPO3\CMS\Core\Type\Bitmask\Permission;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
- * Substitution for `BackendUtility::getPreviewUrl` for generating links to Frontend URLs
- * with a modified scope.
+ * Generate links to Frontend URLs with a modified scope.
  */
 class PreviewUriBuilder
 {
@@ -195,7 +195,7 @@ class PreviewUriBuilder
                 $event->setAdditionalQueryParameters(
                     array_replace_recursive(
                         $event->getAdditionalQueryParameters(),
-                        $this->getAdditionalQueryParametersForAccessRestrictedPages($pageInfo, $event->getContext(), $event->getRootline())
+                        self::getAdditionalQueryParametersForAccessRestrictedPages($pageInfo, $event->getContext(), $event->getRootline())
                     )
                 );
 
@@ -387,8 +387,9 @@ class PreviewUriBuilder
 
     /**
      * Creates ADMCMD parameters for the "viewpage" extension / frontend
+     * @internal not part of TYPO3 Core API
      */
-    protected function getAdditionalQueryParametersForAccessRestrictedPages(array $pageInfo, Context $context, array $rootLine): array
+    public static function getAdditionalQueryParametersForAccessRestrictedPages(array $pageInfo, Context $context, array $rootLine): array
     {
         if ($pageInfo === []) {
             return [];
@@ -441,7 +442,7 @@ class PreviewUriBuilder
             // a URL for it
             $dateAspect = GeneralUtility::makeInstance(
                 DateTimeAspect::class,
-                (new \DateTimeImmutable())->setTimestamp($access['starttime'])
+                DateTimeFactory::createFromTimestamp($access['starttime'])
             );
             $context->setAspect('date', $dateAspect);
             $additionalQueryParameters['ADMCMD_simTime'] = $access['starttime'];
@@ -451,7 +452,7 @@ class PreviewUriBuilder
             // in turn PageRouter will generate a URL for it
             $dateAspect = GeneralUtility::makeInstance(
                 DateTimeAspect::class,
-                (new \DateTimeImmutable())->setTimestamp($access['endtime'] - 1)
+                DateTimeFactory::createFromTimestamp($access['endtime'] - 1)
             );
             $context->setAspect('date', $dateAspect);
             $additionalQueryParameters['ADMCMD_simTime'] = ($access['endtime'] - 1);

@@ -21,9 +21,10 @@ use TYPO3\CMS\Backend\Search\Event\ModifyResultItemInLiveSearchEvent;
 use TYPO3\CMS\Backend\Search\LiveSearch\DatabaseRecordProvider;
 use TYPO3\CMS\Backend\Search\LiveSearch\ResultItem;
 use TYPO3\CMS\Backend\Search\LiveSearch\ResultItemAction;
+use TYPO3\CMS\Core\Attribute\AsEventListener;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
-use TYPO3\CMS\Core\Imaging\Icon;
 use TYPO3\CMS\Core\Imaging\IconFactory;
+use TYPO3\CMS\Core\Imaging\IconSize;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
 
@@ -43,6 +44,7 @@ final class AddLiveSearchResultActionsListener
         $this->languageService = $this->languageServiceFactory->createFromUserPreferences($this->getBackendUser());
     }
 
+    #[AsEventListener('typo3/cms-backend/add-live-search-result-actions-listener')]
     public function __invoke(ModifyResultItemInLiveSearchEvent $event): void
     {
         $resultItem = $event->getResultItem();
@@ -71,7 +73,7 @@ final class AddLiveSearchResultActionsListener
         ) {
             $switchUserAction = (new ResultItemAction('switch_backend_user'))
                 ->setLabel($this->languageService->sL('LLL:EXT:beuser/Resources/Private/Language/locallang.xlf:switchBackMode'))
-                ->setIcon($this->iconFactory->getIcon('actions-system-backend-user-switch', Icon::SIZE_SMALL))
+                ->setIcon($this->iconFactory->getIcon('actions-system-backend-user-switch', IconSize::SMALL))
                 ->setUrl('#');
             $resultItem->addAction($switchUserAction);
         }

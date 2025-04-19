@@ -20,7 +20,8 @@ namespace TYPO3\CMS\Belog\Controller;
 use TYPO3\CMS\Backend\Backend\Event\SystemInformationToolbarCollectorEvent;
 use TYPO3\CMS\Backend\Routing\Exception\RouteNotFoundException;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
-use TYPO3\CMS\Backend\Toolbar\Enumeration\InformationStatus;
+use TYPO3\CMS\Backend\Toolbar\InformationStatus;
+use TYPO3\CMS\Core\Attribute\AsEventListener;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Localization\LanguageService;
@@ -44,6 +45,7 @@ final class SystemInformationController
      * Modifies the SystemInformation toolbar to inject a new message
      * @throws RouteNotFoundException
      */
+    #[AsEventListener('belog/show-latest-errors')]
     public function appendMessage(SystemInformationToolbarCollectorEvent $event): void
     {
         $systemInformationToolbarItem = $event->getToolbarItem();
@@ -59,6 +61,10 @@ final class SystemInformationController
                 $queryBuilder->expr()->in(
                     'error',
                     $queryBuilder->createNamedParameter([-1, 1, 2], Connection::PARAM_INT_ARRAY)
+                ),
+                $queryBuilder->expr()->eq(
+                    'channel',
+                    $queryBuilder->createNamedParameter('php', Connection::PARAM_STR)
                 )
             )
             ->executeQuery()
@@ -66,7 +72,7 @@ final class SystemInformationController
 
         if ($count > 0) {
             $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
-            $moduleIdentifier = 'system_BelogLog';
+            $moduleIdentifier = 'system_log';
             $moduleParams = ['constraint' => ['channel' => 'php']];
             $systemInformationToolbarItem->addSystemMessage(
                 sprintf(
@@ -74,7 +80,7 @@ final class SystemInformationController
                     $count,
                     (string)$uriBuilder->buildUriFromRoute($moduleIdentifier, $moduleParams)
                 ),
-                InformationStatus::STATUS_ERROR,
+                InformationStatus::ERROR,
                 $count,
                 $moduleIdentifier,
                 http_build_query($moduleParams)
@@ -88,11 +94,7 @@ final class SystemInformationController
             return 0;
         }
         $systemInformationUc = json_decode($this->backendUserConfiguration['systeminformation'], true);
-        if (!isset($systemInformationUc['system_BelogLog']['lastAccess'])) {
-            return 0;
-        }
-
-        return (int)$systemInformationUc['system_BelogLog']['lastAccess'];
+        return (int)($systemInformationUc['system_log']['lastAccess'] ?? 0);
     }
 
     private function getLanguageService(): LanguageService

@@ -21,7 +21,6 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
-use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Http\RedirectResponse;
 use TYPO3\CMS\Core\Routing\BackendEntryPointResolver;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -40,10 +39,9 @@ use TYPO3\CMS\Install\Service\SessionService;
  */
 class BackendModuleController
 {
-    protected ?SessionService $sessionService = null;
-
     public function __construct(
-        protected readonly ModuleTemplateFactory $moduleTemplateFactory
+        protected readonly ModuleTemplateFactory $moduleTemplateFactory,
+        protected readonly SessionService $sessionService
     ) {}
 
     /**
@@ -84,28 +82,45 @@ class BackendModuleController
      */
     protected function setAuthorizedAndRedirect(string $controller, ServerRequestInterface $request): ResponseInterface
     {
+        $redirectParameters = [
+            'install' => [
+                'controller' => $controller,
+                'context' => 'backend',
+            ],
+        ];
+
+        $backendUser = $this->getBackendUser();
+        $userTS = $backendUser->getTSConfig();
+
+        $themeDisabled = $userTS['setup.']['fields.']['theme.']['disabled'] ?? '0';
+        $theme = $GLOBALS['BE_USER']->uc['theme'] ?? $userTS['setup.']['fields.']['theme'] ?? 'auto';
+        if ($themeDisabled === '1') {
+            $theme = $userTS['setup.']['fields.']['theme'] ?? 'modern';
+        }
+        if ($theme !== 'modern') {
+            $redirectParameters['install']['theme'] = $theme;
+        }
+
+        $colorSchemeDisabled = $userTS['setup.']['fields.']['colorScheme.']['disabled'] ?? '0';
+        $colorScheme = $GLOBALS['BE_USER']->uc['colorScheme'] ?? $userTS['setup.']['fields.']['colorScheme'] ?? 'auto';
+        if ($colorSchemeDisabled === '1') {
+            $colorScheme = $userTS['setup.']['fields.']['colorScheme'] ?? 'light';
+        }
+        if ($colorScheme !== 'auto') {
+            $redirectParameters['install']['colorScheme'] = $colorScheme;
+        }
+
         $userSession = $this->getBackendUser()->getSession();
-        $this->getSessionService()->setAuthorizedBackendSession($userSession);
+        $this->sessionService->installSessionHandler();
+        $this->sessionService->startSession();
+        $this->sessionService->setAuthorizedBackendSession($userSession);
         $entryPointResolver = GeneralUtility::makeInstance(BackendEntryPointResolver::class);
-        $redirectLocation = $entryPointResolver->getUriFromRequest($request, 'install.php')->withQuery('?install[controller]=' . $controller . '&install[context]=backend');
+        $redirectLocation = $entryPointResolver->getUriFromRequest($request, 'install.php')->withQuery('?' . http_build_query($redirectParameters, '', '&', PHP_QUERY_RFC3986));
         return new RedirectResponse($redirectLocation, 303);
     }
 
     protected function getBackendUser(): BackendUserAuthentication
     {
         return $GLOBALS['BE_USER'];
-    }
-
-    /**
-     * Install Tool modified sessions meta-data (handler, storage, name) which
-     * conflicts with existing session that for instance.
-     */
-    protected function getSessionService(): SessionService
-    {
-        if ($this->sessionService === null) {
-            $this->sessionService = new SessionService();
-            $this->sessionService->startSession();
-        }
-        return $this->sessionService;
     }
 }

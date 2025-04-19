@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the TYPO3 CMS project.
  *
@@ -22,10 +24,9 @@ use TYPO3\CMS\Backend\View\BackendLayout\DataProviderContext;
 use TYPO3\CMS\Backend\View\BackendLayout\DefaultDataProvider;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
-use TYPO3\CMS\Core\Localization\LanguageService;
+use TYPO3\CMS\Core\Page\PageLayoutResolver;
 use TYPO3\CMS\Core\SingletonInterface;
 use TYPO3\CMS\Core\TypoScript\TypoScriptStringFactory;
-use TYPO3\CMS\Core\Utility\ArrayUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
@@ -43,13 +44,11 @@ class BackendLayoutView implements SingletonInterface
     public function __construct(
         private readonly DataProviderCollection $dataProviderCollection,
         private readonly TypoScriptStringFactory $typoScriptStringFactory,
+        private readonly PageLayoutResolver $pageLayoutResolver,
     ) {
         $this->dataProviderCollection->add('default', DefaultDataProvider::class);
-        if (!empty($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['BackendLayoutDataProvider'])) {
-            $dataProviders = (array)$GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['BackendLayoutDataProvider'];
-            foreach ($dataProviders as $identifier => $className) {
-                $this->dataProviderCollection->add($identifier, $className);
-            }
+        foreach ((array)($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['BackendLayoutDataProvider'] ?? []) as $identifier => $className) {
+            $this->dataProviderCollection->add($identifier, $className);
         }
     }
 
@@ -68,32 +67,28 @@ class BackendLayoutView implements SingletonInterface
     public function addBackendLayoutItems(array &$parameters)
     {
         $pageId = $this->determinePageId($parameters['table'], $parameters['row']) ?: 0;
-        $pageTsConfig = (array)BackendUtility::getPagesTSconfig($pageId);
+        $pageTsConfig = BackendUtility::getPagesTSconfig($pageId);
         $identifiersToBeExcluded = $this->getIdentifiersToBeExcluded($pageTsConfig);
-
-        $dataProviderContext = $this->createDataProviderContext()
-            ->setPageId($pageId)
-            ->setData($parameters['row'])
-            ->setTableName($parameters['table'])
-            ->setFieldName($parameters['field'])
-            ->setPageTsConfig($pageTsConfig);
-
+        $dataProviderContext = new DataProviderContext(
+            pageId: $pageId,
+            tableName: $parameters['table'],
+            fieldName: $parameters['field'],
+            data: $parameters['row'],
+            pageTsConfig: $pageTsConfig,
+        );
         $backendLayoutCollections = $this->dataProviderCollection->getBackendLayoutCollections($dataProviderContext);
         foreach ($backendLayoutCollections as $backendLayoutCollection) {
             $combinedIdentifierPrefix = '';
             if ($backendLayoutCollection->getIdentifier() !== 'default') {
                 $combinedIdentifierPrefix = $backendLayoutCollection->getIdentifier() . '__';
             }
-
             foreach ($backendLayoutCollection->getAll() as $backendLayout) {
                 $combinedIdentifier = $combinedIdentifierPrefix . $backendLayout->getIdentifier();
-
                 if (in_array($combinedIdentifier, $identifiersToBeExcluded, true)) {
                     continue;
                 }
-
                 $parameters['items'][] = [
-                    'label' => $this->getLanguageService()->sL($backendLayout->getTitle()),
+                    'label' => $backendLayout->getTitle(),
                     'value' => $combinedIdentifier,
                     'icon' => $backendLayout->getIconPath(),
                 ];
@@ -104,12 +99,11 @@ class BackendLayoutView implements SingletonInterface
     /**
      * Determines the page id for a given record of a database table.
      *
-     * @param string $tableName
      * @return int|false Returns page id or false on error
      */
-    protected function determinePageId($tableName, array $data)
+    protected function determinePageId(string $tableName, array $data): int|false
     {
-        if (empty($data)) {
+        if ($data === []) {
             return false;
         }
 
@@ -142,44 +136,33 @@ class BackendLayoutView implements SingletonInterface
             $pageId = $data['pid'];
         }
 
-        return $pageId;
+        return (int)$pageId;
     }
 
     /**
      * Returns the backend layout which should be used for this page.
      *
-     * @param int $pageId
-     * @return bool|string Identifier of the backend layout to be used, or FALSE if none
+     * @return false|string Identifier of the backend layout to be used, or FALSE if none
+     * @internal only public for testing purposes
      */
-    public function getSelectedCombinedIdentifier($pageId)
+    public function getSelectedCombinedIdentifier(int $pageId): string|false
     {
         if (!isset($this->selectedCombinedIdentifier[$pageId])) {
-            $page = $this->getPage($pageId);
-            $this->selectedCombinedIdentifier[$pageId] = (string)($page['backend_layout'] ?? null);
-
-            if ($this->selectedCombinedIdentifier[$pageId] === '-1') {
+            // If it not set check the root-line for a layout on next level and use this
+            // (root-line starts with current page and has page "0" at the end)
+            $rootLine = BackendUtility::BEgetRootLine($pageId, '', true);
+            // Use first element as current page,
+            $page = reset($rootLine);
+            // and remove last element (root page / pid=0)
+            array_pop($rootLine);
+            $selectedLayout = $this->pageLayoutResolver->getLayoutIdentifierForPage($page, $rootLine);
+            if ($selectedLayout === 'none') {
                 // If it is set to "none" - don't use any
-                $this->selectedCombinedIdentifier[$pageId] = false;
-            } elseif ($this->selectedCombinedIdentifier[$pageId] === '' || $this->selectedCombinedIdentifier[$pageId] === '0') {
-                // If it not set check the root-line for a layout on next level and use this
-                // (root-line starts with current page and has page "0" at the end)
-                $rootLine = $this->getRootLine($pageId);
-                // Remove first and last element (current and root page)
-                array_shift($rootLine);
-                array_pop($rootLine);
-                foreach ($rootLine as $rootLinePage) {
-                    $this->selectedCombinedIdentifier[$pageId] = (string)$rootLinePage['backend_layout_next_level'];
-                    if ($this->selectedCombinedIdentifier[$pageId] === '-1') {
-                        // If layout for "next level" is set to "none" - don't use any and stop searching
-                        $this->selectedCombinedIdentifier[$pageId] = false;
-                        break;
-                    }
-                    if ($this->selectedCombinedIdentifier[$pageId] !== '' && $this->selectedCombinedIdentifier[$pageId] !== '0') {
-                        // Stop searching if a layout for "next level" is set
-                        break;
-                    }
-                }
+                $selectedLayout = false;
+            } elseif ($selectedLayout === 'default') {
+                $selectedLayout = '0';
             }
+            $this->selectedCombinedIdentifier[$pageId] = $selectedLayout;
         }
         // If it is set to a positive value use this
         return $this->selectedCombinedIdentifier[$pageId];
@@ -187,22 +170,17 @@ class BackendLayoutView implements SingletonInterface
 
     /**
      * Gets backend layout identifiers to be excluded
-     *
-     * @return array
      */
-    protected function getIdentifiersToBeExcluded(array $pageTSconfig)
+    protected function getIdentifiersToBeExcluded(array $pageTSconfig): array
     {
-        $identifiersToBeExcluded = [];
-
-        if (ArrayUtility::isValidPath($pageTSconfig, 'options./backendLayout./exclude')) {
-            $identifiersToBeExcluded = GeneralUtility::trimExplode(
+        if (isset($pageTSconfig['options.']['backendLayout.']['exclude'])) {
+            return GeneralUtility::trimExplode(
                 ',',
-                ArrayUtility::getValueByPath($pageTSconfig, 'options./backendLayout./exclude'),
+                $pageTSconfig['options.']['backendLayout.']['exclude'],
                 true
             );
         }
-
-        return $identifiersToBeExcluded;
+        return [];
     }
 
     /**
@@ -210,7 +188,7 @@ class BackendLayoutView implements SingletonInterface
      * This method is called as "itemsProcFunc" with the accordant context
      * for tt_content.colPos.
      */
-    public function colPosListItemProcFunc(array $parameters)
+    public function colPosListItemProcFunc(array &$parameters): void
     {
         $pageId = $this->determinePageId($parameters['table'], $parameters['row']);
 
@@ -221,12 +199,8 @@ class BackendLayoutView implements SingletonInterface
 
     /**
      * Adds items to a colpos list
-     *
-     * @param int $pageId
-     * @param array $items
-     * @return array
      */
-    protected function addColPosListLayoutItems($pageId, $items)
+    protected function addColPosListLayoutItems(int $pageId, array $items): array
     {
         $layout = $this->getSelectedBackendLayout($pageId);
         if ($layout && !empty($layout['__items'])) {
@@ -236,80 +210,15 @@ class BackendLayoutView implements SingletonInterface
     }
 
     /**
-     * Gets the list of available columns for a given page id
-     *
-     * @param int $id
-     * @return array $tcaItems
-     */
-    public function getColPosListItemsParsed($id)
-    {
-        $tsConfig = BackendUtility::getPagesTSconfig($id)['TCEFORM.']['tt_content.']['colPos.'] ?? [];
-        $tcaConfig = $GLOBALS['TCA']['tt_content']['columns']['colPos']['config'] ?? [];
-        $tcaItems = $tcaConfig['items'];
-        $tcaItems = $this->addItems($tcaItems, $tsConfig['addItems.'] ?? []);
-        if (isset($tcaConfig['itemsProcFunc']) && $tcaConfig['itemsProcFunc']) {
-            $tcaItems = $this->addColPosListLayoutItems($id, $tcaItems);
-        }
-        if (!empty($tsConfig['removeItems'])) {
-            foreach (GeneralUtility::trimExplode(',', $tsConfig['removeItems'], true) as $removeId) {
-                foreach ($tcaItems as $key => $item) {
-                    if ($item['value'] == $removeId) {
-                        unset($tcaItems[$key]);
-                    }
-                }
-            }
-        }
-        return $tcaItems;
-    }
-
-    /**
-     * Merges items into an item-array, optionally with an icon
-     * example:
-     * TCEFORM.pages.doktype.addItems.13 = My Label
-     * TCEFORM.pages.doktype.addItems.13.icon = EXT:t3skin/icons/gfx/i/pages.gif
-     *
-     * @param array $items The existing item array
-     * @param array $iArray An array of items to add. NOTICE: The keys are mapped to values, and the values and mapped to be labels. No possibility of adding an icon.
-     * @return array The updated $item array
-     * @internal
-     */
-    protected function addItems($items, $iArray)
-    {
-        $languageService = $this->getLanguageService();
-        if (is_array($iArray)) {
-            foreach ($iArray as $value => $label) {
-                // if the label is an array (that means it is a subelement
-                // like "34.icon = mylabel.png", skip it (see its usage below)
-                if (is_array($label)) {
-                    continue;
-                }
-                // check if the value "34 = mylabel" also has a "34.icon = myimage.png"
-                if (isset($iArray[$value . '.']) && $iArray[$value . '.']['icon']) {
-                    $icon = $iArray[$value . '.']['icon'];
-                } else {
-                    $icon = '';
-                }
-                $items[] = [$languageService->sL($label), $value, $icon];
-            }
-        }
-        return $items;
-    }
-
-    /**
      * Gets the selected backend layout structure as an array
-     *
-     * @param int $pageId
-     * @return array|null $backendLayout
      */
-    public function getSelectedBackendLayout($pageId)
+    public function getSelectedBackendLayout(int $pageId): ?array
     {
-        $layout = $this->getBackendLayoutForPage((int)$pageId);
-        return $layout?->getStructure();
+        return $this->getBackendLayoutForPage($pageId)?->getStructure();
     }
 
     /**
      * Get the BackendLayout object and parse the structure based on the UserTSconfig
-     * @return BackendLayout
      */
     public function getBackendLayoutForPage(int $pageId): ?BackendLayout
     {
@@ -327,7 +236,7 @@ class BackendLayoutView implements SingletonInterface
             $backendLayout = $this->dataProviderCollection->getBackendLayout('default', $pageId);
         }
 
-        if ($backendLayout instanceof BackendLayout) {
+        if ($backendLayout !== null) {
             $this->selectedBackendLayout[$pageId] = $backendLayout;
         }
         return $backendLayout;
@@ -360,7 +269,7 @@ class BackendLayoutView implements SingletonInterface
                             continue;
                         }
                         $backendLayoutData['__items'][] = [
-                            'label' => $this->getColumnName($column),
+                            'label' => $column['name'],
                             'value' => $column['colPos'],
                             'icon' => null,
                         ];
@@ -371,96 +280,5 @@ class BackendLayoutView implements SingletonInterface
             }
         }
         return $backendLayoutData;
-    }
-
-    /**
-     * Get default columns layout
-     *
-     * @return string Default four column layout
-     * @static
-     */
-    public static function getDefaultColumnLayout()
-    {
-        return '
-		backend_layout {
-			colCount = 1
-			rowCount = 1
-			rows {
-				1 {
-					columns {
-						1 {
-							name = LLL:EXT:frontend/Resources/Private/Language/locallang_ttc.xlf:colPos.I.1
-							colPos = 0
-						}
-					}
-				}
-			}
-		}
-		';
-    }
-
-    /**
-     * Gets a page record.
-     *
-     * @param int $pageId
-     * @return array|false|null
-     */
-    protected function getPage($pageId)
-    {
-        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
-            ->getQueryBuilderForTable('pages');
-        $queryBuilder->getRestrictions()
-            ->removeAll();
-        $page = $queryBuilder
-            ->select('uid', 'pid', 'backend_layout')
-            ->from('pages')
-            ->where(
-                $queryBuilder->expr()->eq(
-                    'uid',
-                    $queryBuilder->createNamedParameter($pageId, Connection::PARAM_INT)
-                )
-            )
-            ->executeQuery()
-            ->fetchAssociative();
-        BackendUtility::workspaceOL('pages', $page);
-
-        return $page;
-    }
-
-    /**
-     * Gets the page root-line.
-     *
-     * @param int $pageId
-     * @return array
-     */
-    protected function getRootLine($pageId)
-    {
-        return BackendUtility::BEgetRootLine($pageId, '', true);
-    }
-
-    /**
-     * @return DataProviderContext
-     */
-    protected function createDataProviderContext()
-    {
-        return GeneralUtility::makeInstance(DataProviderContext::class);
-    }
-
-    protected function getLanguageService(): LanguageService
-    {
-        return $GLOBALS['LANG'];
-    }
-
-    /**
-     * Get column name from colPos item structure
-     *
-     * @param array $column
-     * @return string
-     */
-    protected function getColumnName($column)
-    {
-        $columnName = $column['name'];
-        $columnName = $this->getLanguageService()->sL($columnName);
-        return $columnName;
     }
 }
