@@ -1,3 +1,4 @@
+# For supported YAML types @see TYPO3\CMS\Install\Service\LocalConfigurationValueService->recursiveConfigurationFetching() docblock
 GFX:
     type: container
     description: 'Image Processing'
@@ -34,8 +35,8 @@ GFX:
             type: bool
             description: 'If set, the processor_stripColorProfileParameters is used with all processor image operations by default. See tsRef for setting this parameter explicitly for IMAGE generation.'
         processor_stripColorProfileParameters:
-            type: array
-            description: 'Comma separated list of parameters: Specify the parameters to strip the profile information, which can reduce thumbnail size up to 60KB. Command can differ in IM/GM, IM also know the -strip command. See <a href="http://www.imagemagick.org/Usage/thumbnails/#profiles" target="_blank" rel="noreferrer">imagemagick.org</a> for details'
+            type: element-list
+            description: 'List of parameters: Specify the parameters to strip the profile information, which can reduce thumbnail size up to 60KB. Command can differ in IM/GM, IM also knows the -strip command. See <a href="http://www.imagemagick.org/Usage/thumbnails/#profiles" target="_blank" rel="noreferrer">imagemagick.org</a> for details'
         processor_colorspace:
             type: text
             description: 'String: Specify the colorspace to use. Defaults to "RGB" when using GraphicsMagick as processor and "sRGB" when using ImageMagick. Images would be rendered darker than the original when using ImageMagick in combination with "RGB". <br />Possible Values: CMY, CMYK, Gray, HCL, HSB, HSL, HWB, Lab, LCH, LMS, Log, Luv, OHTA, Rec601Luma, Rec601YCbCr, Rec709Luma, Rec709YCbCr, RGB, sRGB, Transparent, XYZ, YCbCr, YCC, YIQ, YCbCr, YUV'
@@ -100,6 +101,9 @@ SYS:
         mediafile_ext:
             type: text
             description: 'Commalist of file extensions perceived as media files by TYPO3. Lowercase and no spaces between!'
+        miscfile_ext:
+          type: list
+          description: "Commalist of file extensions that don't logically fit into `textfile_ext` or `mediafile_ext` (like `zip` or `xz`). Lowercase and no spaces between!"
         binPath:
             type: text
             description: 'List of absolute paths where external programs should be searched for. Eg. <code>/usr/local/webbin/,/home/xyz/bin/</code>. (ImageMagick path have to be configured separately)'
@@ -166,7 +170,7 @@ SYS:
             type: errors
             description: 'Configures which PHP errors should be logged to the "syslog" database table (extension: belog). If set to "0" no PHP errors are logged to the sys_log table. Default is 30711 = <code>E_ALL & ~(E_STRICT | E_NOTICE)</code> (see <a href="https://php.net/manual/en/errorfunc.constants.php" target="_blank" rel="noreferrer">PHP documentation</a>).'
         allowedPhpDisableFunctions:
-          type: array
+          type: element-list
           description: 'A list of function names, which will not trigger an error but only a warning, if they can be found in your php.ini setting "disable_functions".'
         generateApacheHtaccess:
             type: bool
@@ -211,6 +215,12 @@ SYS:
               security.frontend.allowInsecureSiteResolutionByQueryParameters:
                 type: bool
                 description: 'If on, site resolution can be overwritten by `&id=...&L=...` parameters, URI path & host are just used as default.'
+              security.system.enforceAllowedFileExtensions:
+                type: bool
+                description: 'If on, only file extensions configured in `textfile_ext`, `mediafile_ext` and `miscfile_ext` are allowed to be processed in the File Abstraction Layer.'
+              security.system.enforceFileExtensionMimeTypeConsistency:
+                type: bool
+                description: 'If on, only file extensions that are consistent with their expected mime-type are allowed to be processed in the File Abstraction Layer.'
         availablePasswordHashAlgorithms:
             type: array
             description: 'A list of available password hash mechanisms. Extensions may register additional mechanisms here. This is usually not extended in system/settings.php.'
@@ -239,7 +249,7 @@ BE:
             type: text
             description: 'Path to the primary directory of files for editors. This is relative to the public web dir, DefaultStorage will be created with that configuration, do not access manually but via <code>\TYPO3\CMS\Core\Resource\ResourceFactory::getDefaultStorage().</code>'
         lockRootPath:
-            type: array
+            type: element-list
             description: 'List of absolute root path prefixes to be allowed for file operations (including FAL storages). The project root path is allowed in any case and does not need to be defined here. Ending slashes are enforced!'
         lockBackendFile:
             type: text
@@ -372,10 +382,10 @@ BE:
         versionNumberInFilename:
             type: bool
             description: |
-              If enabled, included CSS and JS files loaded in the TYPO3 Backend will have the timestamp embedded in the filename, ie. <code>filename.1269312081.js</code>.
+              If enabled, included asset files (like CSS, JS, SVG and other resources) loaded in the TYPO3 Backend will have their modification timestamp embedded in the referenced filename, ie. <code>filename.1269312081.js</code>.
               This will make browsers and proxies reload the files if they change (thus avoiding caching issues).
               <strong>IMPORTANT:</strong> This feature requires extra <code>.htaccess</code> rules to work (please refer to the <code>typo3/sysext/install/Resources/Private/FolderStructureTemplateFiles/root-htaccess</code> file shipped with TYPO3).<br />
-              If disabled the last modification date of the file will be appended as a query-string.
+              If disabled, the last modification date of the file will be appended as a query-string.
         debug:
             type: bool
             description: 'If enabled, the loginrefresh is disabled and pageRenderer is set to debug mode. Furthermore the fieldname is appended to the label of fields. Use this to debug the backend only!'
@@ -532,10 +542,10 @@ FE:
         versionNumberInFilename:
           type: bool
           description: |
-            If enabled, included CSS and JS files loaded in the TYPO3 Frontend will have the timestamp embedded in the filename, ie. <code>filename.1269312081.js</code>.
+            If enabled, included asset files (like CSS, JS, SVG and other resources) loaded in the TYPO3 Frontend will have their modification timestamp embedded in the referenced filename, ie. <code>filename.1269312081.js</code>.
             This will make browsers and proxies reload the files if they change (thus avoiding caching issues).
             <strong>IMPORTANT:</strong> This feature requires extra <code>.htaccess</code> rules to work (please refer to the <code>typo3/sysext/install/Resources/Private/FolderStructureTemplateFiles/root-htaccess</code> file shipped with TYPO3).<br />
-            If disabled the last modification date of the file will be appended as a query-string.
+            If disabled, the last modification date of the file will be appended as a query-string.
         passwordHashing:
             type: container
             items:

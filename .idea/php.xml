@@ -147,6 +147,16 @@
       <path value="$PROJECT_DIR$/vendor/typo3/cms-extensionmanager" />
       <path value="$PROJECT_DIR$/vendor/mediadreams/md_fullcalendar" />
       <path value="$PROJECT_DIR$/vendor/b13/make" />
+      <path value="$PROJECT_DIR$/vendor/featdd/dpn-glossary" />
+      <path value="$PROJECT_DIR$/vendor/typo3/cms-install" />
+      <path value="$PROJECT_DIR$/vendor/typo3/cms-info" />
+      <path value="$PROJECT_DIR$/vendor/typo3/cms-install" />
+      <path value="$PROJECT_DIR$/vendor/typo3/cms-info" />
+      <path value="$PROJECT_DIR$/vendor/typo3/cms-install" />
+      <path value="$PROJECT_DIR$/vendor/typo3/cms-info" />
+      <path value="$PROJECT_DIR$/vendor/typo3/cms-install" />
+      <path value="$PROJECT_DIR$/vendor/typo3/cms-info" />
+      <path value="$PROJECT_DIR$/vendor/ichhabrecht/filefill" />
     </include_path>
   </component>
   <component name="PhpProjectSharedConfiguration" php_language_level="8.2">

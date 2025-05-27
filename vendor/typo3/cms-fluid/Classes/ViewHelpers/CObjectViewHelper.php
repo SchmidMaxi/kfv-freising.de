@@ -29,10 +29,14 @@ use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
 use TYPO3Fluid\Fluid\Core\ViewHelper\Exception;
 
 /**
- * This ViewHelper renders CObjects from the global TypoScript configuration.
+ * ViewHelper to render CObjects (objects containing rendering definitions for records/elements),
+ * using the global TypoScript configuration.
  *
- * .. note::
- *    You have to ensure proper escaping (htmlspecialchars/intval/etc.) on your own!
+ * ```
+ *   <f:cObject typoscriptObjectPath="lib.someLibObject" />
+ * ```
+ *
+ * **Note:** You have to ensure proper escaping (`htmlspecialchars`/`intval`/etc.) on your own!
  *
  * @see https://docs.typo3.org/permalink/t3viewhelper:typo3-fluid-cobject
  */
@@ -83,7 +87,7 @@ final class CObjectViewHelper extends AbstractViewHelper
         }
         $currentValue = null;
         if (is_object($data)) {
-            $data = $data instanceof RecordInterface ? ($data->getRawRecord()?->toArray() ?? $data->toArray()) : ObjectAccess::getGettableProperties($data);
+            $data = $data instanceof RecordInterface ? ($data->getRawRecord()?->toArray(true) ?? $data->toArray()) : ObjectAccess::getGettableProperties($data);
         } elseif (is_string($data) || is_numeric($data)) {
             $currentValue = (string)$data;
             $data = [$data];

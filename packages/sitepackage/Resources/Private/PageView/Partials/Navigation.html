@@ -8,7 +8,7 @@
                         class="text-white nav-link{f:if(condition:navItem.active, then:' active')}"
                         {f:if(condition: navItem.current, then: ' aria-current="page"')}
                     >
-                    {navItem.title}
+                    {navItem.title->f:format.raw()}
                     </a>
                 </li>
             </f:for>
@@ -29,7 +29,7 @@
                     <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
                         <li class="nav-item">
                             <a href="/" class="nav-link" >
-                                Startseite
+                                <i class="bi bi-house-fill"></i>
                             </a>
                         </li>
                         <f:for each="{main}" as="navItem">

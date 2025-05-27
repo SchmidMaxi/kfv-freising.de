@@ -100,7 +100,8 @@ class UpgradeController extends AbstractController
         protected readonly PackageManager $packageManager,
         private readonly LateBootService $lateBootService,
         private readonly DatabaseUpgradeWizardsService $databaseUpgradeWizardsService,
-        private readonly FormProtectionFactory $formProtectionFactory
+        private readonly FormProtectionFactory $formProtectionFactory,
+        private readonly LoadTcaService $loadTcaService
     ) {}
 
     /**
@@ -538,6 +539,7 @@ class UpgradeController extends AbstractController
     public function extensionCompatTesterLoadExtTablesAction(ServerRequestInterface $request): ResponseInterface
     {
         $brokenExtensions = [];
+        $this->loadTcaService->loadExtensionTablesWithoutMigration();
         $container = $this->lateBootService->getContainer();
         $backup = $this->lateBootService->makeCurrent($container);
 
@@ -850,8 +852,7 @@ class UpgradeController extends AbstractController
     {
         $view = $this->initializeView($request);
         $messageQueue = new FlashMessageQueue('install');
-        $loadTcaService = GeneralUtility::makeInstance(LoadTcaService::class);
-        $loadTcaService->loadExtensionTablesWithoutMigration();
+        $this->loadTcaService->loadExtensionTablesWithoutMigration();
         $baseTca = $GLOBALS['TCA'];
         $container = $this->lateBootService->getContainer();
         $backup = $this->lateBootService->makeCurrent($container);
@@ -861,7 +862,7 @@ class UpgradeController extends AbstractController
             $extensionKey = $package->getPackageKey();
             $extTablesPath = $package->getPackagePath() . 'ext_tables.php';
             if (@file_exists($extTablesPath)) {
-                $loadTcaService->loadSingleExtTablesFile($extensionKey);
+                $this->loadTcaService->loadSingleExtTablesFile($extensionKey);
                 $newTca = $GLOBALS['TCA'];
                 if ($newTca !== $baseTca) {
                     $messageQueue->enqueue(new FlashMessage(
@@ -894,7 +895,7 @@ class UpgradeController extends AbstractController
     {
         $view = $this->initializeView($request);
         $messageQueue = new FlashMessageQueue('install');
-        GeneralUtility::makeInstance(LoadTcaService::class)->loadExtensionTablesWithoutMigration();
+        $this->loadTcaService->loadExtensionTablesWithoutMigration();
         $tcaMigration = GeneralUtility::makeInstance(TcaMigration::class);
         $GLOBALS['TCA'] = $tcaMigration->migrate($GLOBALS['TCA']);
         $tcaMessages = $tcaMigration->getMessages();

@@ -91,11 +91,13 @@ use TYPO3\CMS\Core\Resource\Search\Result\FileSearchResult;
 use TYPO3\CMS\Core\Resource\Search\Result\FileSearchResultInterface;
 use TYPO3\CMS\Core\Resource\Security\FileNameValidator;
 use TYPO3\CMS\Core\Resource\Service\FileProcessingService;
+use TYPO3\CMS\Core\Resource\Service\ResourceConsistencyService;
 use TYPO3\CMS\Core\Service\FlexFormService;
 use TYPO3\CMS\Core\Utility\Exception\NotImplementedMethodException;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\PathUtility;
 use TYPO3\CMS\Core\Utility\StringUtility;
+use TYPO3\CMS\Core\Validation\ResultException;
 
 /**
  * A "mount point" inside the TYPO3 file handling.
@@ -857,6 +859,23 @@ class ResourceStorage implements ResourceStorageInterface
     }
 
     /**
+     * @throws \InvalidArgumentException
+     */
+    protected function assertUploadedFileType(array|UploadedFileInterface $uploadedFileData): void
+    {
+        if ($uploadedFileData instanceof UploadedFileInterface && !$uploadedFileData instanceof UploadedFile) {
+            // This throws if $uploadedFileData is UploadedFileInterface, but is not the TYPO3
+            // core implementation UploadedFile. It should be fair to throw here for now since
+            // getTemporaryFileName() is not part of PSR-7 UploadedFileInterface, but it
+            // could be eventually refactored away or streamlined?
+            throw new \InvalidArgumentException(
+                'Uploaded file with streams are not supported yet',
+                1736765655
+            );
+        }
+    }
+
+    /**
      * Assures read permission for given folder.
      *
      * @param Folder|null $folder If a folder is given, mountpoints are checked. If not only user folder read permissions are checked.
@@ -1146,6 +1165,14 @@ class ResourceStorage implements ResourceStorageInterface
     }
 
     /**
+     * @throws ResultException
+     */
+    protected function assureResourceConsistency(string|FileInterface $resource, string $fileName = ''): void
+    {
+        GeneralUtility::makeInstance(ResourceConsistencyService::class)->validate($this, $resource, $fileName);
+    }
+
+    /**
      * Check if a file has the permission to be copied on a File/Folder/Storage,
      * if not throw an exception
      *
@@ -1277,6 +1304,7 @@ class ResourceStorage implements ResourceStorageInterface
         )->getFileName();
 
         $this->assureFileAddPermissions($targetFolder, $targetFileName);
+        $this->assureResourceConsistency($localFilePath, $targetFileName);
 
         $replaceExisting = false;
         if ($conflictMode === DuplicationBehavior::CANCEL && $this->driver->fileExistsInFolder($targetFileName, $targetFolder->getIdentifier())) {
@@ -2103,6 +2131,8 @@ class ResourceStorage implements ResourceStorageInterface
         }
 
         $this->assureFileRenamePermissions($file, $sanitizedTargetFileName);
+        $this->assureResourceConsistency($file, $sanitizedTargetFileName);
+
         $this->eventDispatcher->dispatch(
             new BeforeFileRenamedEvent($file, $sanitizedTargetFileName)
         );
@@ -2157,6 +2187,8 @@ class ResourceStorage implements ResourceStorageInterface
     public function replaceFile(FileInterface $file, $localFilePath)
     {
         $this->assureFileReplacePermissions($file);
+        $this->assureResourceConsistency($localFilePath, $file->getName());
+
         if (!file_exists($localFilePath)) {
             throw new \InvalidArgumentException('File "' . $localFilePath . '" does not exist.', 1325842622);
         }
@@ -2194,34 +2226,18 @@ class ResourceStorage implements ResourceStorageInterface
             );
             $conflictMode = DuplicationBehavior::tryFrom($conflictMode) ?? DuplicationBehavior::getDefaultDuplicationBehaviour();
         }
-        if ($uploadedFileData instanceof UploadedFileInterface) {
-            if ($uploadedFileData instanceof UploadedFile) {
-                $localFilePath = $uploadedFileData->getTemporaryFileName();
-                if ($targetFileName === null) {
-                    $targetFileName = $uploadedFileData->getClientFilename();
-                }
-                $size = $uploadedFileData->getSize();
-            } else {
-                // This throws if $uploadedFileData is UploadedFileInterface, but is not the TYPO3
-                // core implementation UploadedFile. It should be fair to throw here for now since
-                // getTemporaryFileName() is not part of PSR-7 UploadedFileInterface, but it
-                // could be eventually refactored away or streamlined?
-                throw new \InvalidArgumentException('Uploaded file with streams are not supported yet', 1736765655);
-            }
-        } else {
-            $localFilePath = $uploadedFileData['tmp_name'];
-            if ($targetFileName === null) {
-                $targetFileName = \Normalizer::normalize($uploadedFileData['name']);
-            }
-            $size = $uploadedFileData['size'];
-        }
-        if ($targetFolder === null) {
-            $targetFolder = $this->getDefaultFolder();
-        }
 
-        $targetFileName = $this->driver->sanitizeFileName($targetFileName);
+        $this->assertUploadedFileType($uploadedFileData);
+        $size = $uploadedFileData instanceof UploadedFile
+            ? $uploadedFileData->getSize()
+            : $uploadedFileData['size'];
+        $localFilePath = $this->getUploadedLocalFilePath($uploadedFileData);
+        $targetFileName = $this->getUploadedTargetFileName($uploadedFileData, $targetFileName);
+        $targetFolder ??= $this->getDefaultFolder();
 
         $this->assureFileUploadPermissions($localFilePath, $targetFolder, $targetFileName, $size);
+        $this->assureResourceConsistency($localFilePath, $targetFileName);
+
         if ($this->hasFileInFolder($targetFileName, $targetFolder) && $conflictMode === DuplicationBehavior::REPLACE) {
             $file = $this->getFileInFolder($targetFileName, $targetFolder);
             $resultObject = $this->replaceFile($file, $localFilePath);
@@ -2229,6 +2245,37 @@ class ResourceStorage implements ResourceStorageInterface
             $resultObject = $this->addFile($localFilePath, $targetFolder, $targetFileName, $conflictMode);
         }
         return $resultObject;
+    }
+
+    /**
+     * Resolves the actual local file path of a new uploaded file.
+     *
+     * @internal
+     */
+    public function getUploadedLocalFilePath(array|UploadedFileInterface $uploadedFileData): string
+    {
+        $this->assertUploadedFileType($uploadedFileData);
+        return $uploadedFileData instanceof UploadedFile
+            ? $uploadedFileData->getTemporaryFileName()
+            : $uploadedFileData['tmp_name'];
+    }
+
+    /**
+     * Resolves the actual sanitized file name to be used for persisting a new uploaded file.
+     *
+     * @internal
+     */
+    public function getUploadedTargetFileName(array|UploadedFileInterface $uploadedFileData, ?string $targetFileName = null): string
+    {
+        $this->assertUploadedFileType($uploadedFileData);
+        if ($targetFileName === null) {
+            if ($uploadedFileData instanceof UploadedFile) {
+                $targetFileName = $uploadedFileData->getClientFilename();
+            } else {
+                $targetFileName = \Normalizer::normalize($uploadedFileData['name']);
+            }
+        }
+        return $this->driver->sanitizeFileName($targetFileName);
     }
 
     /********************

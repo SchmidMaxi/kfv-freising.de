@@ -21,7 +21,9 @@ use TYPO3Fluid\Fluid\Core\Parser\SyntaxTree\TextNode;
 use TYPO3Fluid\Fluid\Core\Parser\SyntaxTree\ViewHelperNode;
 use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
 use TYPO3Fluid\Fluid\Core\ViewHelper\ArgumentDefinition;
+use TYPO3Fluid\Fluid\Core\ViewHelper\InheritedNamespaceException;
 use TYPO3Fluid\Fluid\Core\ViewHelper\ViewHelperInterface;
+use TYPO3Fluid\Fluid\Core\ViewHelper\ViewHelperNodeInitializedEventInterface;
 
 /**
  * Template parser building up an object syntax tree.
@@ -109,7 +111,7 @@ class TemplateParser
             $templateString = $this->preProcessTemplateSource($templateString);
 
             $splitTemplate = $this->splitTemplateAtDynamicTags($templateString);
-            $parsingState = $this->buildObjectTree($splitTemplate, self::CONTEXT_OUTSIDE_VIEWHELPER_ARGUMENTS);
+            $parsingState = $this->buildObjectTree($splitTemplate, self::CONTEXT_OUTSIDE_VIEWHELPER_ARGUMENTS, $templateIdentifier);
         } catch (Exception $error) {
             throw $this->createParsingRelatedExceptionWithContext($error, $templateIdentifier);
         }
@@ -164,13 +166,10 @@ class TemplateParser
 
     protected function parseTemplateSource(string $templateIdentifier, \Closure $templateSourceClosure): ParsingState
     {
-        $parsedTemplate = $this->parse(
+        return $this->parse(
             $templateSourceClosure($this, $this->renderingContext->getTemplatePaths()),
             $templateIdentifier,
         );
-        $parsedTemplate->setIdentifier($templateIdentifier);
-        $this->parsedTemplates[$templateIdentifier] = $parsedTemplate;
-        return $parsedTemplate;
     }
 
     /**
@@ -213,9 +212,9 @@ class TemplateParser
      * @param int $context one of the CONTEXT_* constants, defining whether we are inside or outside of ViewHelper arguments currently.
      * @throws Exception
      */
-    protected function buildObjectTree(array $splitTemplate, int $context): ParsingState
+    protected function buildObjectTree(array $splitTemplate, int $context, ?string $templateIdentifier = null): ParsingState
     {
-        $state = $this->getParsingState();
+        $state = $this->getParsingState($templateIdentifier);
         $previousBlock = '';
 
         foreach ($splitTemplate as $templateElement) {
@@ -289,13 +288,15 @@ class TemplateParser
         if ($viewHelperResolver->isNamespaceIgnored($namespaceIdentifier)) {
             return null;
         }
-        if (!$viewHelperResolver->isNamespaceValid($namespaceIdentifier)) {
-            throw new UnknownNamespaceException('Unknown Namespace: ' . $namespaceIdentifier);
+        try {
+            if (!$viewHelperResolver->isNamespaceValid($namespaceIdentifier)) {
+                throw new UnknownNamespaceException('Unknown Namespace: ' . $namespaceIdentifier);
+            }
+        } catch (InheritedNamespaceException) {
+            // @todo remove with Fluid 5
         }
 
         $viewHelper = $viewHelperResolver->createViewHelperInstance($namespaceIdentifier, $methodIdentifier);
-        // @todo: Is this call needed?
-        $viewHelper->prepareArguments();
         $viewHelperNode = $this->initializeViewHelperAndAddItToStack(
             $state,
             $namespaceIdentifier,
@@ -330,8 +331,18 @@ class TemplateParser
         if ($viewHelperResolver->isNamespaceIgnored($namespaceIdentifier)) {
             return null;
         }
-        if (!$viewHelperResolver->isNamespaceValid($namespaceIdentifier)) {
-            throw new UnknownNamespaceException('Unknown Namespace: ' . $namespaceIdentifier);
+        try {
+            if (!$viewHelperResolver->isNamespaceValid($namespaceIdentifier)) {
+                throw new UnknownNamespaceException('Unknown Namespace: ' . $namespaceIdentifier);
+            }
+        } catch (InheritedNamespaceException) {
+            // @todo remove with Fluid 5
+            trigger_error(sprintf(
+                'ViewHelper call <%1$s:%2$s> in "%3$s" only works because "%1$s" namespace was added in parent template. This will break with Fluid v5.',
+                $namespaceIdentifier,
+                $methodIdentifier,
+                $state->getIdentifier(),
+            ), E_USER_DEPRECATED);
         }
         try {
             $currentViewHelperNode = new ViewHelperNode(
@@ -343,7 +354,15 @@ class TemplateParser
 
             $this->callInterceptor($currentViewHelperNode, InterceptorInterface::INTERCEPT_OPENING_VIEWHELPER, $state);
             $viewHelper = $currentViewHelperNode->getUninitializedViewHelper();
-            $viewHelper::postParseEvent($currentViewHelperNode, $argumentsObjectTree, $state->getVariableContainer());
+            $viewHelperClassName = $currentViewHelperNode->getViewHelperClassName();
+            // @todo Remove fallback implementation with Fluid v5
+            if (method_exists($viewHelperClassName, 'postParseEvent')) {
+                trigger_error('postParseEvent() has been deprecated and will be removed in Fluid v5.', E_USER_DEPRECATED);
+                $viewHelperClassName::postParseEvent($currentViewHelperNode, $argumentsObjectTree, $state->getVariableContainer());
+            }
+            if ($viewHelper instanceof ViewHelperNodeInitializedEventInterface) {
+                $viewHelperClassName::nodeInitializedEvent($currentViewHelperNode, $argumentsObjectTree, $state);
+            }
             $state->pushNodeToStack($currentViewHelperNode);
             return $currentViewHelperNode;
         } catch (\TYPO3Fluid\Fluid\Core\ViewHelper\Exception $error) {
@@ -375,8 +394,12 @@ class TemplateParser
         if ($viewHelperResolver->isNamespaceIgnored($namespaceIdentifier)) {
             return false;
         }
-        if (!$viewHelperResolver->isNamespaceValid($namespaceIdentifier)) {
-            throw new UnknownNamespaceException('Unknown Namespace: ' . $namespaceIdentifier);
+        try {
+            if (!$viewHelperResolver->isNamespaceValid($namespaceIdentifier)) {
+                throw new UnknownNamespaceException('Unknown Namespace: ' . $namespaceIdentifier);
+            }
+        } catch (InheritedNamespaceException) {
+            // @todo remove with Fluid 5
         }
         $lastStackElement = $state->popNodeFromStack();
         if (!($lastStackElement instanceof ViewHelperNode)) {
@@ -426,8 +449,12 @@ class TemplateParser
             // which is invalid will be reported as an error regardless of whether the namespace is marked as ignored.
             $viewHelperResolver = $this->renderingContext->getViewHelperResolver();
             foreach (array_reverse($matches) as $singleMatch) {
-                if (!$viewHelperResolver->isNamespaceValid($singleMatch['NamespaceIdentifier'])) {
-                    throw new UnknownNamespaceException('Unknown Namespace: ' . $singleMatch['NamespaceIdentifier']);
+                try {
+                    if (!$viewHelperResolver->isNamespaceValid($singleMatch['NamespaceIdentifier'])) {
+                        throw new UnknownNamespaceException('Unknown Namespace: ' . $singleMatch['NamespaceIdentifier']);
+                    }
+                } catch (InheritedNamespaceException) {
+                    // @todo remove with Fluid 5
                 }
                 $viewHelper = $viewHelperResolver->createViewHelperInstance($singleMatch['NamespaceIdentifier'], $singleMatch['MethodIdentifier']);
                 if (strlen($singleMatch['ViewHelperArguments']) > 0) {
@@ -465,6 +492,7 @@ class TemplateParser
     /**
      * Call all interceptors registered for a given interception point.
      *
+     * @todo switch from call-by-reference to return value
      * @param NodeInterface $node The syntax tree node which can be modified by the interceptors.
      * @param int $interceptionPoint the interception point. One of the \TYPO3Fluid\Fluid\Core\Parser\InterceptorInterface::INTERCEPT_* constants.
      * @param ParsingState $state the parsing state
@@ -753,11 +781,12 @@ class TemplateParser
         $state->getNodeFromStack()->addChildNode($node);
     }
 
-    protected function getParsingState(): ParsingState
+    protected function getParsingState(?string $templateIdentifier): ParsingState
     {
         $rootNode = new RootNode();
         $variableProvider = $this->renderingContext->getVariableProvider();
         $state = new ParsingState();
+        $state->setIdentifier($templateIdentifier ?? '');
         $state->setRootNode($rootNode);
         $state->pushNodeToStack($rootNode);
         $state->setVariableProvider($variableProvider->getScopeCopy($variableProvider->getAll()));

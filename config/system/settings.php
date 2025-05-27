@@ -36,6 +36,9 @@ return [
             'tillDaysRelative' => '',
             'timeTableManipulation' => '0',
         ],
+        'dpn_glossary' => [
+            'termSlugEvaluation' => 'unique',
+        ],
         'extensionmanager' => [
             'automaticInstallation' => '1',
             'offlineMode' => '0',

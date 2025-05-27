@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This is a boilerplate of %config-dir%/system/settings.php. It is
  * used as base file during installation and can be overloaded with
@@ -25,6 +26,8 @@ return [
         'UTF8filesystem' => true,
         'features' => [
             'frontend.cache.autoTagging' => true,
+            // only file extensions configured in 'textfile_ext', 'mediafile_ext', 'miscfile_ext' are accepted
+            'security.system.enforceAllowedFileExtensions' => true,
         ],
     ],
 ];

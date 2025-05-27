@@ -171,6 +171,7 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         'I' => 
         array (
             'In2code\\Lux\\' => 12,
+            'IchHabRecht\\Filefill\\' => 21,
         ),
         'H' => 
         array (
@@ -188,6 +189,7 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         'F' => 
         array (
             'Firebase\\JWT\\' => 13,
+            'Featdd\\DpnGlossary\\' => 19,
         ),
         'E' => 
         array (
@@ -647,6 +649,10 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         array (
             0 => __DIR__ . '/..' . '/in2code/lux/Classes',
         ),
+        'IchHabRecht\\Filefill\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/ichhabrecht/filefill/Classes',
+        ),
         'Heise\\Shariff\\' => 
         array (
             0 => __DIR__ . '/..' . '/reelworx/rx-shariff/Classes/Shariff',
@@ -678,6 +684,10 @@ class ComposerStaticInit6d4f4e950350e042a4f1790be25ef53a
         'Firebase\\JWT\\' => 
         array (
             0 => __DIR__ . '/..' . '/firebase/php-jwt/src',
+        ),
+        'Featdd\\DpnGlossary\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/featdd/dpn-glossary/Classes',
         ),
         'Egulias\\EmailValidator\\' => 
         array (

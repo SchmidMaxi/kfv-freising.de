@@ -3,6 +3,9 @@ TCEFORM {
 
     }
     tt_content {
+        CType {
+            removeItems = text, textpic, image, html
+        }
         frame_class {
             removeItems = ruler-before, ruler-after, indent-left, indent-right
             types {
@@ -13,6 +16,15 @@ TCEFORM {
                         badge = Badge
                     }
                 }
+            }
+        }
+        header_layout {
+            altLabels {
+                1 = Überschrift 1 (H1)
+                2 = Überschrift 2 (H2)
+                3 = Überschrift 3 (H3)
+                4 = Überschrift 4 (H4)
+                5 = Überschrift 5 (H5)
             }
         }
         layout {

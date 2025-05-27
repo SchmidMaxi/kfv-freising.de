@@ -12,16 +12,24 @@ namespace TYPO3Fluid\Fluid\Core\Parser;
 use TYPO3Fluid\Fluid\Core\Parser\SyntaxTree\NodeInterface;
 use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
 use TYPO3Fluid\Fluid\Core\Variables\VariableProviderInterface;
+use TYPO3Fluid\Fluid\Core\ViewHelper\ArgumentDefinition;
 
 /**
  * This interface is returned by \TYPO3Fluid\Fluid\Core\Parser\TemplateParser->parse()
  * method and is a parsed template
+ *
+ * @internal This interface should be used for type-checks only.
  */
 interface ParsedTemplateInterface
 {
     public function setIdentifier(string $identifier);
 
     public function getIdentifier(): string;
+
+    /**
+     * @return ArgumentDefinition[]
+     */
+    public function getArgumentDefinitions(): array;
 
     /**
      * Render the parsed template with rendering context

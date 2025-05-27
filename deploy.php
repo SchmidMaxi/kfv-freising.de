@@ -20,7 +20,7 @@ host('staging')
     ->set('hostname', 'www416.your-server.de')
     ->set('port', '222')
     ->set('remote_user', 'kfvvfr')
-    ->set('deploy_path', '~/public_html/kfv-freising.de/Staging')
+    ->set('deploy_path', '~/public_html/kfv-freising.de/v13/staging')
     ->set('labels', ['stage' => 'staging']);
 
 // server configuration - PRODUCTION
@@ -28,7 +28,7 @@ host('production')
     ->set('hostname', 'www416.your-server.de')
     ->set('port', '222')
     ->set('remote_user', 'kfvvfr')
-    ->set('deploy_path', '~/public_html/kfv-freising.de/Production')
+    ->set('deploy_path', '~/public_html/kfv-freising.de/v13/production')
     ->set('labels', ['stage' => 'production']);
 
 # Shared directories

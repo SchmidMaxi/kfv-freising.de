@@ -94,8 +94,6 @@
       <excludeFolder url="file://$MODULE_DIR$/vendor/typo3/cms-frontend" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/typo3/cms-impexp" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/typo3/cms-indexed-search" />
-      <excludeFolder url="file://$MODULE_DIR$/vendor/typo3/cms-info" />
-      <excludeFolder url="file://$MODULE_DIR$/vendor/typo3/cms-install" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/typo3/cms-linkvalidator" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/typo3/cms-lowlevel" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/typo3/cms-opendocs" />
@@ -137,6 +135,7 @@
       <excludeFolder url="file://$MODULE_DIR$/vendor/symfony/polyfill-php80" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/wapplersystems/ws-scss" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/b13/make" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/ichhabrecht/filefill" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

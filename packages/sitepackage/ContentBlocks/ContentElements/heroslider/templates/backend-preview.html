@@ -1,8 +1,10 @@
 <f:asset.css identifier="content-block/heroslider-be" href="{cb:assetPath()}/preview.css"/>
 <div class="row">
   <f:for each="{data.slides}" as="slide">
-    <div class="col-12 col-lg-3">
-      <f:image image="{slide.image.0}" class="img-fluid mb-1" width="400c" height="250c" />
+    <div class="col-12 col-lg-3 {f:if(condition:'{slide.hidden} == 1', then:'opacity-25')}">
+        <f:if condition="{slide.image.0}">
+            <f:image image="{slide.image.0}" class="img-fluid mb-1" width="400c" height="250c" />
+        </f:if>
       <strong>{slide.title}</strong><br>
       <f:format.stripTags>{slide.bodytext}</f:format.stripTags>
     </div>

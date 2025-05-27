@@ -15,6 +15,7 @@ use TYPO3Fluid\Fluid\Core\Parser\SyntaxTree\NodeInterface;
 use TYPO3Fluid\Fluid\Core\Parser\SyntaxTree\RootNode;
 use TYPO3Fluid\Fluid\Core\Parser\SyntaxTree\ViewHelperNode;
 use TYPO3Fluid\Fluid\Core\Rendering\RenderingContextInterface;
+use TYPO3Fluid\Fluid\Core\ViewHelper\ArgumentDefinition;
 
 /**
  * @internal Nobody should need to override this class.
@@ -31,6 +32,15 @@ class TemplateCompiler
      *       avoided in the future.
      */
     public const SECTIONS_VARIABLE = '1457379500_sections';
+
+    /**
+     * Variable name to be used to transfer information about a template's layout
+     * from the ViewHelper context to the TemplateView and the TemplateCompiler
+     *
+     * @todo This data-shuffling between parser, compiler and renderer should be
+     *       avoided in the future.
+     */
+    public const LAYOUT_VARIABLE = 'layoutName';
 
     public const MODE_NORMAL = 'normal';
     public const MODE_WARMUP = 'warmup';
@@ -164,7 +174,7 @@ class TemplateCompiler
             'Main Render function',
         );
 
-        $storedLayoutName = $parsingState->getVariableContainer()->get('layoutName');
+        $storedLayoutName = $parsingState->getVariableContainer()->get(static::LAYOUT_VARIABLE);
         $templateCode = sprintf(
             '<?php' . chr(10) .
             '%s {' . chr(10) .
@@ -175,14 +185,16 @@ class TemplateCompiler
             '        return %s;' . chr(10) .
             '    }' . chr(10) .
             '    public function addCompiledNamespaces(\TYPO3Fluid\\Fluid\\Core\\Rendering\\RenderingContextInterface $renderingContext): void {' . chr(10) .
-            '        $renderingContext->getViewHelperResolver()->addNamespaces(%s);' . chr(10) .
+            '        $renderingContext->getViewHelperResolver()->setLocalNamespaces(%s);' . chr(10) .
             '    }' . chr(10) .
+            '    %s' . chr(10) .
             '    %s' . chr(10) .
             '}' . chr(10),
             'class ' . $identifier . ' extends \TYPO3Fluid\Fluid\Core\Compiler\AbstractCompiledTemplate',
             $this->generateCodeForLayoutName($storedLayoutName),
             ($parsingState->hasLayout() ? 'true' : 'false'),
-            var_export($this->renderingContext->getViewHelperResolver()->getNamespaces(), true),
+            var_export($this->renderingContext->getViewHelperResolver()->getLocalNamespaces(), true),
+            $this->generateArgumentDefinitionsCodeFromParsingState($parsingState),
             $generatedRenderFunctions,
         );
         $this->renderingContext->getCache()->set($identifier, $templateCode);
@@ -220,6 +232,31 @@ class TemplateCompiler
             }
         }
         return $generatedRenderFunctions;
+    }
+
+    protected function generateArgumentDefinitionsCodeFromParsingState(ParsingState $parsingState): string
+    {
+        $argumentDefinitions = $parsingState->getArgumentDefinitions();
+        if ($argumentDefinitions === []) {
+            return '';
+        }
+        $argumentDefinitionsCode = array_map(
+            static fn(ArgumentDefinition $argumentDefinition): string => sprintf(
+                'new \\TYPO3Fluid\\Fluid\\Core\\ViewHelper\\ArgumentDefinition(%s, %s, %s, %s, %s, %s)',
+                var_export($argumentDefinition->getName(), true),
+                var_export($argumentDefinition->getType(), true),
+                var_export($argumentDefinition->getDescription(), true),
+                var_export($argumentDefinition->isRequired(), true),
+                var_export($argumentDefinition->getDefaultValue(), true),
+                var_export($argumentDefinition->getEscape(), true),
+            ),
+            $argumentDefinitions,
+        );
+        return 'public function getArgumentDefinitions(): array {' . chr(10) .
+            '        return [' . chr(10) .
+            '            ' . implode(',' . chr(10) . '            ', $argumentDefinitionsCode) . ',' . chr(10) .
+            '        ];' . chr(10) .
+            '    }';
     }
 
     /**

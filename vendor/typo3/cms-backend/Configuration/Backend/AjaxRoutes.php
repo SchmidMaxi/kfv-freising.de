@@ -1,6 +1,7 @@
 <?php
 
 use TYPO3\CMS\Backend\Controller;
+use TYPO3\CMS\Backend\Security\SudoMode\Access\AccessLifetime;
 
 /**
  * Definitions for routes provided by EXT:backend
@@ -282,6 +283,10 @@ return [
     'mfa' => [
         'path' => '/mfa',
         'target' => Controller\MfaAjaxController::class . '::handleRequest',
+        'sudoMode' => [
+            'group' => 'mfa',
+            'lifetime' => AccessLifetime::medium,
+        ],
     ],
 
     // Render flash messages
@@ -342,12 +347,6 @@ return [
     'icons' => [
         'path' => '/icons',
         'target' => \TYPO3\CMS\Core\Controller\IconController::class . '::getIcon',
-    ],
-
-    // Get icon cache identifier
-    'icons_cache' => [
-        'path' => '/icons/cache',
-        'target' => \TYPO3\CMS\Core\Controller\IconController::class . '::getCacheIdentifier',
     ],
 
     // Encode typolink parts on demand

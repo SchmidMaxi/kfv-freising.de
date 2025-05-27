@@ -36,6 +36,7 @@ use TYPO3\CMS\Core\Database\Query\Expression\ExpressionBuilder;
 use TYPO3\CMS\Core\Database\Query\QueryHelper;
 use TYPO3\CMS\Core\Database\Query\Restriction\DocumentTypeExclusionRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\FrontendRestrictionContainer;
+use TYPO3\CMS\Core\Domain\DateTimeFactory;
 use TYPO3\CMS\Core\Domain\Record;
 use TYPO3\CMS\Core\Domain\RecordInterface;
 use TYPO3\CMS\Core\Domain\Repository\PageRepository;
@@ -452,7 +453,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
      * Well, it has to be called manually since it is not a real constructor function.
      * So after making an instance of the class, call this function and pass to it a database record and the tablename from where the record is from. That will then become the "current" record loaded into memory and accessed by the .fields property found in eg. stdWrap.
      *
-     * @param array $data The record data that is rendered.
+     * @param array|int|string $data The record data that is rendered.
      * @param string $table The table that the data record is from.
      */
     public function start($data, $table = '')
@@ -469,7 +470,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
         );
 
         $autoTagging = GeneralUtility::makeInstance(Features::class)->isFeatureEnabled('frontend.cache.autoTagging');
-        if ($this->currentRecord !== '' && $autoTagging) {
+        if (is_array($this->data) && $this->currentRecord !== '' && $autoTagging) {
             $cacheLifetimeCalculator = GeneralUtility::makeInstance(CacheLifetimeCalculator::class);
             $this->request?->getAttribute('frontend.cache.collector')?->addCacheTags(
                 new CacheTag(
@@ -938,8 +939,12 @@ class ContentObjectRenderer implements LoggerAwareInterface
                 ];
                 $url = $this->cObjGetSingle('IMG_RESOURCE', $imgResourceConf);
                 if (!$url) {
-                    // If no imagemagick / gm is available
-                    $url = $imageFile;
+                    // Either imagemagick/gm is not available or image URL could not be resolved due to invalid image file
+                    if ($imageFile instanceof File || $imageFile instanceof FileReference) {
+                        $url = $imageFile->getPublicUrl();
+                    } else {
+                        $url = $imageFile;
+                    }
                 }
             }
             $target = (string)$this->stdWrapValue('target', $conf ?? []);
@@ -3248,7 +3253,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
                 } else {
                     $tagContent = substr($data, 1, -1);
                 }
-                $tag = explode(' ', trim($tagContent), 2);
+                $tag = preg_split('/[\t\n\f ]/', trim($tagContent), 2);
                 $tag[0] = strtolower($tag[0]);
                 // end tag like </li>
                 if (str_starts_with($tag[0], '/')) {
@@ -3884,7 +3889,7 @@ class ContentObjectRenderer implements LoggerAwareInterface
                         if ($absoluteFilePath === '') {
                             throw new \RuntimeException('Asset "' . $key . '" not found', 1670713983);
                         }
-                        $retVal = GeneralUtility::createVersionNumberedFilename(PathUtility::getAbsoluteWebPath($absoluteFilePath));
+                        $retVal = PathUtility::getAbsoluteWebPath(GeneralUtility::createVersionNumberedFilename($absoluteFilePath));
                         break;
                     case 'parameters':
                         $retVal = $this->parameters[$key] ?? null;
@@ -4597,31 +4602,15 @@ class ContentObjectRenderer implements LoggerAwareInterface
      */
     public function calcAge($seconds, $labels = null)
     {
-        if ($labels === null || MathUtility::canBeInterpretedAsInteger($labels)) {
-            $labels = ' min| hrs| days| yrs| min| hour| day| year';
-        } else {
-            $labels = str_replace('"', '', $labels);
-        }
-        $labelArr = explode('|', $labels);
-        if (count($labelArr) === 4) {
-            $labelArr = array_merge($labelArr, $labelArr);
-        }
-        $absSeconds = abs($seconds);
-        $sign = $seconds > 0 ? 1 : -1;
-        if ($absSeconds < 3600) {
-            $val = round($absSeconds / 60);
-            $seconds = $sign * $val . ($val == 1 ? $labelArr[4] : $labelArr[0]);
-        } elseif ($absSeconds < 24 * 3600) {
-            $val = round($absSeconds / 3600);
-            $seconds = $sign * $val . ($val == 1 ? $labelArr[5] : $labelArr[1]);
-        } elseif ($absSeconds < 365 * 24 * 3600) {
-            $val = round($absSeconds / (24 * 3600));
-            $seconds = $sign * $val . ($val == 1 ? $labelArr[6] : $labelArr[2]);
-        } else {
-            $val = round($absSeconds / (365 * 24 * 3600));
-            $seconds = $sign * $val . ($val == 1 ? ($labelArr[7] ?? null) : ($labelArr[3] ?? null));
-        }
-        return $seconds;
+        $now = DateTimeFactory::createFromTimestamp($GLOBALS['EXEC_TIME']);
+        $then = DateTimeFactory::createFromTimestamp($GLOBALS['EXEC_TIME'] - $seconds);
+        // Show past dates without a leading sign, but future dates with.
+        // This does not make sense, but is kept for legacy reasons.
+        $sign = $then > $now ? '-' : '';
+        // Take an absolute diff, since we don't want formatDateInterval to output the (correct) sign
+        $diff = $now->diff($then, true);
+        $labels = ($labels === null || MathUtility::canBeInterpretedAsInteger($labels)) ? 'min|hrs|days|yrs|min|hour|day|year' : str_replace('"', '', $labels);
+        return $sign . (new DateFormatter())->formatDateInterval($diff, $labels);
     }
 
     /**

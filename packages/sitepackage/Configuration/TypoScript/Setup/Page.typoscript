@@ -110,6 +110,8 @@ page {
     includeCSS {
         layout = EXT:sitepackage/Resources/Public/Scss/layout.scss
         layout.outputfile = EXT:sitepackage/Resources/Public/Css/layout.css
+        icons = EXT:sitepackage/Resources/Public/Scss/icons.scss
+        icons.outputfile = EXT:sitepackage/Resources/Public/Css/icons.css
     }
 
     includeJSLibs {

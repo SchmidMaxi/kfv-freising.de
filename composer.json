@@ -47,7 +47,8 @@
         "lochmueller/calendarize": "^14.0",
         "in2code/lux": "^38.4",
         "mediadreams/md_fullcalendar": "^5.0",
-        "schmid/feuerwehren": "@dev"
+        "schmid/feuerwehren": "@dev",
+        "featdd/dpn-glossary": "^6.0"
     },
     "config": {
         "allow-plugins": {
@@ -63,6 +64,7 @@
     ],
     "require-dev": {
         "deployer/deployer": "^7.4",
-        "b13/make": "^0.1.8"
+        "b13/make": "^0.1.8",
+        "ichhabrecht/filefill": "^5.0"
     }
 }
