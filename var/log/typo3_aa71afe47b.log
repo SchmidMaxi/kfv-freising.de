@@ -157,3 +157,8 @@ Tue, 27 May 2025 16:06:53 +0200 [ERROR] request="37a4d61bfa568" component="TYPO3
 Tue, 27 May 2025 16:06:53 +0200 [ERROR] request="2ede2d7dbe881" component="TYPO3.CMS.Core.Localization.Locales": Locale "de_DE" and  "de_DE" not found. 
 Tue, 27 May 2025 16:06:53 +0200 [ERROR] request="a40160def9b95" component="TYPO3.CMS.Core.Localization.Locales": Locale "de_DE" and  "de_DE" not found. 
 Tue, 27 May 2025 16:06:54 +0200 [ERROR] request="dd6d5eab4aee7" component="TYPO3.CMS.Core.Localization.Locales": Locale "de_DE" and  "de_DE" not found. 
+Tue, 27 May 2025 16:12:48 +0200 [ERROR] request="efcfa438d74e2" component="TYPO3.CMS.Core.Localization.Locales": Locale "de_DE" and  "de_DE" not found. 
+Tue, 27 May 2025 16:12:55 +0200 [ERROR] request="470745d408895" component="TYPO3.CMS.Core.Localization.Locales": Locale "de_DE" and  "de_DE" not found. 
+Tue, 27 May 2025 16:12:55 +0200 [ERROR] request="46a6946764489" component="TYPO3.CMS.Core.Localization.Locales": Locale "de_DE" and  "de_DE" not found. 
+Tue, 27 May 2025 16:12:55 +0200 [ERROR] request="9a0bb69e2d8bc" component="TYPO3.CMS.Core.Localization.Locales": Locale "de_DE" and  "de_DE" not found. 
+Tue, 27 May 2025 16:12:55 +0200 [ERROR] request="de6e043962201" component="TYPO3.CMS.Core.Localization.Locales": Locale "de_DE" and  "de_DE" not found. 

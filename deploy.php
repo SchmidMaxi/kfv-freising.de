@@ -42,7 +42,6 @@ add('shared_dirs', [
 # Shared files
 add('shared_files', [
     'env.php',
-    'composer.phar',
     '{{typo3_webroot}}/.htaccess',
     '{{typo3_webroot}}/.htpasswd'
 ]);
