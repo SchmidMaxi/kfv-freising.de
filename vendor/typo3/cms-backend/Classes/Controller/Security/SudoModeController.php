@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 namespace TYPO3\CMS\Backend\Controller\Security;
 
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UriInterface;
@@ -27,6 +28,7 @@ use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Security\SudoMode\Access\AccessClaim;
 use TYPO3\CMS\Backend\Security\SudoMode\Access\AccessFactory;
 use TYPO3\CMS\Backend\Security\SudoMode\Access\AccessStorage;
+use TYPO3\CMS\Backend\Security\SudoMode\Event\SudoModeVerifyEvent;
 use TYPO3\CMS\Backend\Security\SudoMode\Exception\RequestGrantedException;
 use TYPO3\CMS\Backend\Security\SudoMode\PasswordVerification;
 use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
@@ -36,6 +38,7 @@ use TYPO3\CMS\Core\Crypto\HashService;
 use TYPO3\CMS\Core\Http\JsonResponse;
 use TYPO3\CMS\Core\Http\RedirectResponse;
 use TYPO3\CMS\Core\Localization\LanguageService;
+use TYPO3\CMS\Core\Page\PageRenderer;
 use TYPO3\CMS\Core\Routing\BackendEntryPointResolver;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -55,12 +58,14 @@ final class SudoModeController implements LoggerAwareInterface
     private const ROUTE_PATH_VERIFY = '/ajax/sudo-mode/verify';
 
     public function __construct(
+        private readonly PageRenderer $pageRenderer,
         private readonly UriBuilder $uriBuilder,
         private readonly AccessFactory $factory,
         private readonly AccessStorage $storage,
         private readonly PasswordVerification $passwordVerification,
         private readonly ModuleTemplateFactory $moduleTemplateFactory,
         private readonly BackendEntryPointResolver $backendEntryPointResolver,
+        private readonly EventDispatcherInterface $eventDispatcher,
         private readonly HashService $hashService,
     ) {}
 
@@ -85,17 +90,23 @@ final class SudoModeController implements LoggerAwareInterface
      */
     public function moduleAction(ServerRequestInterface $request): ResponseInterface
     {
+        $this->pageRenderer->getJavaScriptRenderer()->addGlobalAssignment([
+            'TYPO3' => [
+                'configuration' => [
+                    'username' => htmlspecialchars($this->getBackendUser()->user['username']),
+                ],
+            ],
+        ]);
+
         $claim = $this->resolveClaimFromRequest($request, 'module');
         if ($claim === null) {
             return $this->redirectToErrorAction();
         }
 
-        $labels = $this->getLanguageService()->getLabelsFromResource('EXT:backend/Resources/Private/Language/SudoMode.xlf');
-
         $view = $this->moduleTemplateFactory->create($request);
         $view->assignMultiple([
             'verifyActionUri' => $this->buildVerifyActionUriForClaim($claim),
-            'allowInstallToolPassword' => $this->getBackendUser()->isSystemMaintainer(true),
+            'allowInstallToolPassword' => $this->getBackendUser()->isSystemMaintainer(),
             'labels' => $this->getLanguageService()->getLabelsFromResource('EXT:backend/Resources/Private/Language/SudoMode.xlf'),
         ]);
         return $view->renderResponse('SudoMode/Module');
@@ -144,7 +155,7 @@ final class SudoModeController implements LoggerAwareInterface
         $password = (string)($request->getParsedBody()['password'] ?? '');
         $useInstallToolPassword = (bool)($request->getParsedBody()['useInstallToolPassword'] ?? false);
         // Only system maintainers are allowed to use the installtool password for sudo mode operations
-        if (!$GLOBALS['BE_USER']->isSystemMaintainer(true)) {
+        if (!$this->getBackendUser()->isSystemMaintainer()) {
             $useInstallToolPassword = false;
         }
         $loggerContext = $this->buildLoggerContext($claim);
@@ -155,6 +166,12 @@ final class SudoModeController implements LoggerAwareInterface
                 $this->buildUriParametersForClaim($claim, 'apply')
             ),
         ];
+        $event = $this->eventDispatcher->dispatch(new SudoModeVerifyEvent($claim, $password, $useInstallToolPassword));
+        if ($event->isVerified()) {
+            $this->logger->info('Passed by PSR-14 SudoModeVerifyEvent', $loggerContext);
+            $this->grantClaim($claim);
+            return new JsonResponse(['message' => 'accessGranted', 'redirect' => $redirect]);
+        }
         if ($useInstallToolPassword && $this->passwordVerification->verifyInstallToolPassword($password)) {
             $this->logger->info('Verified with install tool password', $loggerContext);
             $this->grantClaim($claim);
