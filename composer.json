@@ -1,5 +1,16 @@
 {
     "require": {
+        "b13/container": "3.1.0",
+        "featdd/dpn-glossary": "^6.0",
+        "friendsoftypo3/content-blocks": "^1.1",
+        "georgringer/news": "^12.2",
+        "in2code/lux": "^38.4",
+        "lochmueller/calendarize": "^14.0",
+        "mediadreams/md_fullcalendar": "^5.0",
+        "mediadreams/md_news_author": "^8.0",
+        "reelworx/rx-shariff": "^15.2",
+        "schmid/feuerwehren": "@dev",
+        "schmid/sitepackage": "@dev",
         "typo3/cms-adminpanel": "^13.0",
         "typo3/cms-backend": "^13.0",
         "typo3/cms-belog": "^13.0",
@@ -37,18 +48,7 @@
         "typo3/cms-webhooks": "^13.0",
         "typo3/cms-workspaces": "^13.0",
         "typo3/minimal": "^13",
-        "wapplersystems/ws-scss": "^13.0",
-        "friendsoftypo3/content-blocks": "^1.1",
-        "b13/container": "3.1.0",
-        "georgringer/news": "^12.2",
-        "mediadreams/md_news_author": "^8.0",
-        "reelworx/rx-shariff": "^15.2",
-        "schmid/sitepackage": "@dev",
-        "lochmueller/calendarize": "^14.0",
-        "in2code/lux": "^38.4",
-        "mediadreams/md_fullcalendar": "^5.0",
-        "schmid/feuerwehren": "@dev",
-        "featdd/dpn-glossary": "^6.0"
+        "wapplersystems/ws-scss": "^13.0"
     },
     "config": {
         "allow-plugins": {
