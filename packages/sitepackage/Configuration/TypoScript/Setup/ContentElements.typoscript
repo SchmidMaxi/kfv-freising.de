@@ -1,0 +1,110 @@
+lib.contentElement = FLUIDTEMPLATE
+lib.contentElement {
+    templateRootPaths {
+        20 = {$styles.templates.templateRootPath}
+    }
+    partialRootPaths {
+        20 = {$styles.templates.partialRootPath}
+    }
+    layoutRootPaths {
+        20 = {$styles.templates.layoutRootPath}
+    }
+}
+
+
+tt_content.section < lib.contentElement
+tt_content.section {
+    templateName = Section
+    templateRootPaths {
+        10 = EXT:sitepackage/Resources/Private/ContentElements/Templates
+    }
+    dataProcessing {
+        20 = TYPO3\CMS\Frontend\DataProcessing\FilesProcessor
+        20 {
+            references.fieldName = image
+        }
+        200 = B13\Container\DataProcessing\ContainerProcessor
+        200 {
+            colPos = 200
+            as = children_200
+        }
+    }
+}
+
+tt_content.2cols < lib.contentElement
+tt_content.2cols {
+    templateName = TwoColumns
+    templateRootPaths {
+        10 = EXT:sitepackage/Resources/Private/ContentElements/Templates
+    }
+    dataProcessing {
+        10 = flex-form
+        200 = B13\Container\DataProcessing\ContainerProcessor
+        200 {
+            colPos = 200
+            as = children_200
+        }
+        201 = B13\Container\DataProcessing\ContainerProcessor
+        201 {
+            colPos = 201
+            as = children_201
+        }
+    }
+}
+
+tt_content.3cols < lib.contentElement
+tt_content.3cols {
+    templateName = ThreeColumns
+    templateRootPaths {
+        10 = EXT:sitepackage/Resources/Private/ContentElements/Templates
+    }
+    dataProcessing {
+        10 = flex-form
+        200 = B13\Container\DataProcessing\ContainerProcessor
+        200 {
+            colPos = 200
+            as = children_200
+        }
+        201 = B13\Container\DataProcessing\ContainerProcessor
+        201 {
+            colPos = 201
+            as = children_201
+        }
+        202 = B13\Container\DataProcessing\ContainerProcessor
+        202 {
+            colPos = 202
+            as = children_202
+        }
+    }
+}
+
+tt_content.4cols < lib.contentElement
+tt_content.4cols {
+    templateName = FourColumns
+    templateRootPaths {
+        10 = EXT:sitepackage/Resources/Private/Templates/Container
+    }
+    dataProcessing {
+        10 = flex-form
+        200 = B13\Container\DataProcessing\ContainerProcessor
+        200 {
+            colPos = 200
+            as = children_200
+        }
+        201 = B13\Container\DataProcessing\ContainerProcessor
+        201 {
+            colPos = 201
+            as = children_201
+        }
+        202 = B13\Container\DataProcessing\ContainerProcessor
+        202 {
+            colPos = 202
+            as = children_202
+        }
+        203 = B13\Container\DataProcessing\ContainerProcessor
+        203 {
+            colPos = 203
+            as = children_203
+        }
+    }
+}

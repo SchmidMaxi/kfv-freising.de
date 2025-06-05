@@ -1,0 +1,46 @@
+#! /bin/bash
+
+# coloring https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+git_branch_dev=$(git branch | sed -n '/\* /s///p')
+
+# Remove -dev from dev branch
+git_branch=${git_branch_dev%-dev}
+
+git_staging_branch="staging"
+
+
+# TODO: check if this is the staging branch
+
+# TODO: Check if everything is commted and pushed
+# git status
+# tell user that first have to commit
+
+ddev launch
+
+printf "\n${GREEN}Everything is done? (y/n) ${NC}\n"
+read frontendcheck
+
+if [ "$frontendcheck" = "y" ]
+    then
+        git checkout $git_staging_branch
+
+        git pull origin $git_staging_branch
+
+        git merge $git_branch_dev
+
+        # TODO: Check if merge failed
+
+        git push origin $git_staging_branch
+
+        git checkout $git_branch_dev
+
+        printf "\n${GREEN}Pushed to staging.${NC} ${YELLOW}Please make sure, the staging system is still running as expected.${NC}\n"
+    else
+        printf "\n${GREEN}OK, deployment stopped.${NC} \n"
+        exit
+fi

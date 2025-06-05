@@ -1,0 +1,54 @@
+.hero {
+
+}
+
+.hero_small {
+  --fallback: url(../Images/Hero_Fallback.jpg);
+  min-height: 500px;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-position: center;
+  padding-top: 250px;
+  padding-bottom: 100px;
+  position: relative;
+  color: white;
+  &:before {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    background: url(../Images/checker-pattern.png) rgba(0, 0, 0, 0.25);
+  }
+
+  > .frame {
+    position: relative;
+    z-index: 1;
+  }
+
+  @include media-breakpoint-down(sm) {
+    background-image: var(--extrasmall, var(--fallback));
+  }
+  @include media-breakpoint-up(sm) {
+    background-image: var(--small, var(--fallback));
+  }
+  @include media-breakpoint-up(md) {
+    background-image: var(--medium, var(--fallback));
+  }
+  @include media-breakpoint-up(lg) {
+    background-image: var(--large, var(--fallback));
+  }
+  @include media-breakpoint-up(xl) {
+    background-image: var(--xlarge, var(--fallback));
+  }
+  @include media-breakpoint-up(xxl) {
+    background-image: var(--xxlarge, var(--fallback));
+  }
+}
+
+.hero_high {
+
+}

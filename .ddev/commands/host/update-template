@@ -1,0 +1,28 @@
+#! /bin/bash
+
+
+# first, install process musst be ready, so skip sync command
+if test -f "./Build/Development/INSTALLATION_RUNNING"; then
+    printf "${YELLOW}No template update while install process.${NC}\n"
+    exit
+fi
+
+git_branch=$(git branch | sed -n '/\* /s///p')
+
+git pull origin $git_branch
+
+# copy ddev updates
+cp -vr ./Build/Development/.ddev .
+
+# copy git pre commit hook and symlink hooks list
+cp -v ./Build/Development/git-hooks/pre-commit ./.git/hooks/
+[ -L ./.git/hooks/pre-commit.d ] || ( mkdir -p .git/hooks/ && ln -snvf ../../Build/Development/git-hooks/pre-commit.d ./.git/hooks/pre-commit.d )
+# make sure, pre-commit hooks are executable
+cd .git/hooks/
+chmod 755 pre-commit
+cd ../../Build/Development/git-hooks/
+chmod -R 755 pre-commit.d
+cd ../../..
+
+# check if something new has to be installed
+ddev composer install

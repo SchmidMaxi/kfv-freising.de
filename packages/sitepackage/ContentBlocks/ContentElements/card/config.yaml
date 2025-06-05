@@ -1,0 +1,34 @@
+name: sitepackage/card
+typeName: card
+group: default
+prefixFields: true
+prefixType: full
+basics:
+  - TYPO3/Appearance
+  - TYPO3/Links
+fields:
+  -
+    identifier: header
+    useExistingField: true
+  -
+    identifier: color
+    type: Select
+    useExistingField: true
+    renderType: selectSingle
+    default: 'default'
+    items:
+      - label: 'Standard'
+        value: default
+      - label: 'Hell'
+        value: light
+      - label: 'Dunkel'
+        value: dark
+  -
+    identifier: image
+    useExistingField: true
+    label: Bild
+    maxitems: 1
+  -
+    identifier: bodytext
+    useExistingField: true
+    enableRichtext: true

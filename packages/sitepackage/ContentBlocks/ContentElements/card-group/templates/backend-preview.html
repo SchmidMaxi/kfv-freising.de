@@ -1,0 +1,8 @@
+<f:asset.css identifier="content-block/accordion-be" href="{cb:assetPath()}/preview.css"/>
+
+<f:if condition="{data.header}">
+  <strong>{data.header}</strong>
+</f:if>
+<f:for each="{data.items}" as="item" iteration="i">
+  {item.title}<br>
+</f:for>

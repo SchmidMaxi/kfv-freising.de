@@ -1,0 +1,54 @@
+#! /bin/bash
+
+
+## Description: Run sync process from a remote server
+## Usage: sync
+## Example: "ddev sync"
+## ProjectTypes: typo3
+
+# # project vars
+USERNAME=$(grep PRODUCTION_SSH_USER ./.ddev/config.yaml | cut -d '=' -f 2-)
+REMOTESERVER=$(grep PRODUCTION_SSH_HOST ./.ddev/config.yaml | cut -d '=' -f 2-)
+
+# # standards
+# db_dump_name="db-dump.sql"
+# file_dump_name="file-dump.tar.gz"
+
+# coloring https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+
+# first, install process musst be ready, so skip sync command
+if test -f "./Build/Development/INSTALLATION_RUNNING"; then
+    printf "${YELLOW}Skip syncing while install process: Running system required.${NC}\n"
+    exit
+fi
+
+# check if project vars are set
+if [ -z "$USERNAME" ]
+then
+      printf "${RED}\$PRODUCTION_SSH_USER is empty. Can not synchronize.${NC}\n"
+      exit;
+fi
+
+if [ -z "$REMOTESERVER" ]
+then
+      printf "${RED}\$PRODUCTION_SSH_HOST is empty. Can not synchronize.${NC}\n"
+      exit;
+fi
+
+ddev auth ssh
+
+ddev pull prod
+
+# update database
+ddev typo3 database:updateschema
+
+# delete user from livesystem
+ddev create-dev-admin
+
+# Force flush all caches in a reliable and robust way
+ddev typo3 cache:flush

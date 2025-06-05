@@ -1,0 +1,15 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Schmid\Feuerwehren\Domain\Model;
+
+use AbstractEntity;
+
+class Fahrzeugkategorie extends AbstractEntity
+{
+    protected string $title = '';
+
+    public function getTitle(): string { return $this->title; }
+    public function setTitle(string $title): void { $this->title = $title; }
+}
