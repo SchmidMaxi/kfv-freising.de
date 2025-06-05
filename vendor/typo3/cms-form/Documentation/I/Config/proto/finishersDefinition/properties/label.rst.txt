@@ -1,3 +1,0 @@
-
-
-This label will be shown within the - :ref:`"Inspector [CollectionElementHeaderEditor]"<prototypes.prototypeIdentifier.formelementsdefinition.formelementtypeidentifier.formeditor.editors.*.collectionelementheadereditor>` if the finisher is selected.
