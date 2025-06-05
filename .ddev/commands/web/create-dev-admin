@@ -1,4 +1,0 @@
-#! /bin/bash
-
-echo 'DELETE FROM be_users WHERE username="autodude"' | ./.typo3/bin/typo3 database:import
-./.typo3/bin/typo3 backend:createadmin autodude TYPO3-Admin-Local7

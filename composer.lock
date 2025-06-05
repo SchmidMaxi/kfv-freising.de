@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "1507aa47f50f88d5960c8e911121ab3e",
+    "content-hash": "60444ec613dc3e56a44cd5903134f3a2",
     "packages": [
         {
             "name": "b13/container",
@@ -9250,6 +9250,59 @@
                 "source": "https://github.com/webmozarts/assert/tree/1.11.0"
             },
             "time": "2022-06-03T18:03:27+00:00"
+        },
+        {
+            "name": "zeroseven/pictureino",
+            "version": "v1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/zeroseven/pictureino.git",
+                "reference": "c26680d119845922308dbe43783ad30b90ca3030"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/zeroseven/pictureino/zipball/c26680d119845922308dbe43783ad30b90ca3030",
+                "reference": "c26680d119845922308dbe43783ad30b90ca3030",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.1",
+                "symfony/rate-limiter": "^6.4 || ^7.0",
+                "typo3/cms-backend": "*",
+                "typo3/cms-core": "^12.4 || ^13.0",
+                "typo3/cms-extbase": "*"
+            },
+            "require-dev": {
+                "friendsofphp/php-cs-fixer": "^3.51",
+                "phpstan/phpstan": "^2.1"
+            },
+            "type": "typo3-cms-extension",
+            "extra": {
+                "typo3/cms": {
+                    "extension-key": "pictureino"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Zeroseven\\Pictureino\\": "Classes/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "GPL-2.0-or-later"
+            ],
+            "authors": [
+                {
+                    "name": "Raphael Thanner",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Responsive images – fully automated. No setup required. Boost PageSpeed and SEO with lazy loading and modern WebP delivery",
+            "support": {
+                "issues": "https://github.com/zeroseven/pictureino/issues",
+                "source": "https://github.com/zeroseven/pictureino/tree/v1.0.0"
+            },
+            "time": "2025-06-02T11:04:21+00:00"
         }
     ],
     "packages-dev": [

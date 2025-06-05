@@ -1,6 +1,0 @@
-lib.copyright = TEXT
-lib.copyright {
-    data = date : U
-    strftime = %Y
-    noTrimWrap = |&copy; | KFV Freising e.V. |
-}

@@ -1,8 +1,0 @@
-#!/bin/bash
-
-## Description: Run phpstan analyse inside the web container
-## Usage: phpstan [args]
-## Example: "ddev phpstan analyse"
-## ProjectTypes: typo3
-
-./.typo3/bin/phpstan "$@"

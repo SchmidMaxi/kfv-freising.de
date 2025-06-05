@@ -48,7 +48,8 @@
         "typo3/cms-webhooks": "^13.0",
         "typo3/cms-workspaces": "^13.0",
         "typo3/minimal": "^13",
-        "wapplersystems/ws-scss": "^13.0"
+        "wapplersystems/ws-scss": "^13.0",
+        "zeroseven/pictureino": "^1.0"
     },
     "config": {
         "allow-plugins": {
