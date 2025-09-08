@@ -1,0 +1,7 @@
+<f:layout name="Default" />
+<f:section name="main">
+    <h1>Organigramm</h1>
+    <ul>
+        <f:for each="{personen}" as="p"><li>{p.title} – {p.rolle.title}</li></f:for>
+    </ul>
+</f:section>

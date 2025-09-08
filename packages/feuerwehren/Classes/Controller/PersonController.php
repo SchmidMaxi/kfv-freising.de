@@ -1,21 +1,27 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Schmid\Feuerwehren\Controller;
 
+use Psr\Http\Message\ResponseInterface;
 use TYPO3\CMS\Extbase\Mvc\Controller\ActionController;
+use Schmid\Feuerwehren\Domain\Repository\PersonRepository;
 
-class PersonController extends ActionController {
-    protected $personRepository;
-    public function injectPersonRepository(\Schmid\Feuerwehren\Domain\Repository\PersonRepository $personRepository) {
-        $this->personRepository = $personRepository;
+final class PersonController extends ActionController
+{
+    public function __construct(
+        private readonly PersonRepository $personRepository
+    ) {}
+
+    public function listAction(): ResponseInterface
+    {
+        $this->view->assign('personen', $this->personRepository->findAll());
+        return $this->htmlResponse();
     }
-    public function listAction() {
-        $personen = $this->personRepository->findAll();
-        $this->view->assign('personen', $personen);
-    }
-    public function showAction(\Schmid\Feuerwehren\Domain\Model\Person $person) {
+
+    public function showAction(\Schmid\Feuerwehren\Domain\Model\Person $person): ResponseInterface
+    {
         $this->view->assign('person', $person);
+        return $this->htmlResponse();
     }
 }

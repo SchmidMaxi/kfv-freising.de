@@ -23,7 +23,6 @@ CREATE TABLE tx_feuerwehren_domain_model_person (
     rolle INT DEFAULT 0,
     gemeinde INT DEFAULT 0
 );
-
 CREATE TABLE tx_feuerwehren_person_person_mm (
     uid_local INT DEFAULT 0,
     uid_foreign INT DEFAULT 0,
@@ -40,8 +39,7 @@ CREATE TABLE tx_feuerwehren_domain_model_gemeinde (
     hidden TINYINT DEFAULT 0,
     name VARCHAR(255) DEFAULT '',
     slug VARCHAR(255) DEFAULT '',
-    logo VARCHAR(255) DEFAULT '',
-    gemeindegebiet TEXT
+    gemeindegebiet MEDIUMTEXT
 );
 
 CREATE TABLE tx_feuerwehren_gemeinde_feuerwehr_mm (
@@ -63,21 +61,15 @@ CREATE TABLE tx_feuerwehren_domain_model_feuerwehr (
     strasse VARCHAR(255) DEFAULT '',
     plz VARCHAR(10) DEFAULT '',
     ort VARCHAR(255) DEFAULT '',
-    latitude DOUBLE DEFAULT 0,
-    longitude DOUBLE DEFAULT 0,
-    gruendungsdatum INT DEFAULT 0,
-    kommandant INT DEFAULT 0,
-    stellv_kommandant INT DEFAULT 0,
-    jugendwart INT DEFAULT 0,
-    stellv_jugendwart INT DEFAULT 0,
-    kinderwart INT DEFAULT 0,
-    stellv_kinderwart INT DEFAULT 0
+    longitude varchar(255) DEFAULT '' NOT NULL,
+    latitude varchar(255) DEFAULT '' NOT NULL,
+    gruendungsdatum DATE DEFAULT NULL
 );
 
 CREATE TABLE tx_feuerwehren_feuerwehr_fahrzeugkategorie_mm (
-   uid_local INT DEFAULT 0,
-   uid_foreign INT DEFAULT 0,
-   sorting INT DEFAULT 0
+    uid_local INT DEFAULT 0,
+    uid_foreign INT DEFAULT 0,
+    sorting INT DEFAULT 0
 );
 
 CREATE TABLE tx_feuerwehren_domain_model_fahrzeugkategorie (
@@ -100,7 +92,29 @@ CREATE TABLE tx_feuerwehren_domain_model_jubilaeum (
     deleted TINYINT DEFAULT 0,
     hidden TINYINT DEFAULT 0,
     feuerwehr INT DEFAULT 0,
-    jahr INT DEFAULT 0,
+    date DATE DEFAULT NULL,
     titel VARCHAR(255) DEFAULT '',
     beschreibung TEXT
+);
+
+-- Optional member MM tables
+CREATE TABLE tx_feuerwehren_feuerwehr_aktiv_feusers_mm (
+    uid_local INT DEFAULT 0,
+    uid_foreign INT DEFAULT 0,
+    sorting INT DEFAULT 0
+);
+CREATE TABLE tx_feuerwehren_feuerwehr_jugend_feusers_mm (
+    uid_local INT DEFAULT 0,
+    uid_foreign INT DEFAULT 0,
+    sorting INT DEFAULT 0
+);
+CREATE TABLE tx_feuerwehren_feuerwehr_kinder_feusers_mm (
+    uid_local INT DEFAULT 0,
+    uid_foreign INT DEFAULT 0,
+    sorting INT DEFAULT 0
+);
+CREATE TABLE tx_feuerwehren_person_gemeinde_mm (
+    uid_local INT DEFAULT 0,
+    uid_foreign INT DEFAULT 0,
+    sorting INT DEFAULT 0
 );

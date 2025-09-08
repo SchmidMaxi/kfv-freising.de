@@ -5,7 +5,13 @@ services:
     public: false
   Schmid\Feuerwehren\:
     resource: '../Classes/*'
-    exclude: '../Classes/Domain/Model/*'
-  Schmid\Feuerwehren\Backend\Controller\FeuerwehrController:
+  Schmid\Feuerwehren\Command\OsmTilesUpdateCommand:
     tags:
-      - backend.controller
+      - name: 'console.command'
+        command: 'feuerwehren:update-tiles'
+        description: 'Update or prewarm local OSM tiles/MBTiles cache'
+  Schmid\Feuerwehren\Command\TilesPrefetchCommand:
+    tags:
+      - name: 'console.command'
+        command: 'feuerwehren:tiles:prefetch'
+        description: 'Prefetch map tiles into a local directory for given bbox & zooms'

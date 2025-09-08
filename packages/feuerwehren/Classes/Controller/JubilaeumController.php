@@ -1,21 +1,27 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Schmid\Feuerwehren\Controller;
 
+use Psr\Http\Message\ResponseInterface;
 use TYPO3\CMS\Extbase\Mvc\Controller\ActionController;
+use Schmid\Feuerwehren\Domain\Repository\JubilaeumRepository;
 
-class JubilaeumController extends ActionController {
-    protected $jubilaeumRepository;
-    public function injectJubilaeumRepository(\Schmid\Feuerwehren\Domain\Repository\JubilaeumRepository $jubilaeumRepository) {
-        $this->jubilaeumRepository = $jubilaeumRepository;
+final class JubilaeumController extends ActionController
+{
+    public function __construct(
+        private readonly JubilaeumRepository $jubilaeumRepository
+    ) {}
+
+    public function listAction(): ResponseInterface
+    {
+        $this->view->assign('jubilaeen', $this->jubilaeumRepository->findAll());
+        return $this->htmlResponse();
     }
-    public function listAction() {
-        $jubilaeen = $this->jubilaeumRepository->findAll();
-        $this->view->assign('jubilaeen', $jubilaeen);
-    }
-    public function showAction(\Schmid\Feuerwehren\Domain\Model\Jubilaeum $jubilaeum) {
+
+    public function showAction(\Schmid\Feuerwehren\Domain\Model\Jubilaeum $jubilaeum): ResponseInterface
+    {
         $this->view->assign('jubilaeum', $jubilaeum);
+        return $this->htmlResponse();
     }
 }

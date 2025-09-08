@@ -1,0 +1,67 @@
+<f:layout name="Default" />
+<f:section name="main">
+    <h1>Feuerwehrkarte</h1>
+
+
+    <div id="filter" style="margin-bottom: .5rem;">
+        <label for="fahrzeugFilter">Fahrzeugkategorie:</label>
+        <select id="fahrzeugFilter">
+            <option value="all">Alle</option>
+            <f:for each="{fahrzeugkategorien}" as="fz"><option value="{fz.title}">{fz.title}</option></f:for>
+        </select>
+    </div>
+
+    <div id="map" style="height: 700px;"></div>
+
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const map = L.map('map').setView([48.5, 11.5], 8);
+            const tiles = L.tileLayer('{settings.tilesUrl}/{z}/{x}/{y}.png', {
+                maxZoom: 18,
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(map);
+
+
+            const fahrzeugfarben = { 'HLF':'red','LF':'blue','MTW':'green','DLK':'orange' };
+            const markers = [];
+
+
+            <f:for each="{feuerwehren}" as="fw">
+                const fz = [<f:for each="{fw.fahrzeugkategorien}" as="k" iteration="i">'{k.title}'<f:if condition="{i.isLast}"></f:if><f:else>,</f:else></f:for>];
+                let farbe = 'gray'; if (fz.length && fahrzeugfarben[fz[0]]) { farbe = fahrzeugfarben[fz[0]]; }
+                const icon = L.divIcon({className:'', html:`<svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="${farbe}"/></svg>`});
+                const m = L.marker([{fw.latitude}, {fw.longitude}], {icon}).bindPopup(`
+                <strong>{fw.name}</strong><br/>
+                {fw.strasse}, {fw.plz} {fw.ort}<br/>
+                <em>Fahrzeuge:</em> <f:for each="{fw.fahrzeugkategorien}" as="k">{k.title} </f:for>
+                `).addTo(map);
+                m.fahrzeuge = fz; markers.push(m);
+            </f:for>
+
+
+            const gemeindeLayer = L.layerGroup();
+            <f:for each="{gemeinden}" as="g">
+                try {
+                const gj = JSON.parse(`<f:format.raw>{g.gemeindegebiet}</f:format.raw>`);
+                const layer = L.geoJSON(gj, {style:{weight:1, color:'#555', fillOpacity:0.05}}).bindPopup(`<strong>{g.name}</strong>`);
+                gemeindeLayer.addLayer(layer);
+            } catch(e) { /* ignore invalid geojson */ }
+            </f:for>
+
+
+            L.control.layers(null, { 'Gemeindegrenzen': gemeindeLayer }).addTo(map);
+
+
+            document.getElementById('fahrzeugFilter').addEventListener('change', function() {
+                const sel = this.value;
+                markers.forEach(m => {
+                    const match = sel === 'all' || m.fahrzeuge.includes(sel);
+                    if (match) { m.addTo(map); } else { map.removeLayer(m); }
+                });
+            });
+        });
+    </script>
+</f:section>

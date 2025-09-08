@@ -8,7 +8,9 @@
 @import 'EXT:news/Configuration/TypoScript/SeoSitemap/setup.typoscript'
 @import 'EXT:md_news_author/Configuration/TypoScript/setup.typoscript'
 @import 'EXT:calendarize/Configuration/TypoScript/setup.typoscript'
-@import 'EXT:lux/Configuration/TypoScript/setup.typoscript'
+@import 'EXT:md_fullcalendar/Configuration/TypoScript/setup.typoscript'
+# @import 'EXT:lux/Configuration/TypoScript/setup.typoscript'
+@import 'EXT:feuerwehren/Configuration/TypoScript/setup.typoscript'
 
 
 ################

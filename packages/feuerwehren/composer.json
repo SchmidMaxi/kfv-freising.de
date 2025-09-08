@@ -1,12 +1,10 @@
 {
     "name": "schmid/feuerwehren",
-    "description": "Darstellung des Landkreises und der Feuerwehr-Struktur",
+    "description": "Feuerwehren: OSM/Leaflet map & org charts for TYPO3 13 LTS",
     "type": "typo3-cms-extension",
-    "license": [
-        "GPL-2.0-or-later"
-    ],
     "require": {
-        "typo3/cms-core": "^13.0"
+        "php": ">=8.2",
+        "typo3/cms-core": "^13.4"
     },
     "autoload": {
         "psr-4": {

@@ -4,7 +4,6 @@
         "featdd/dpn-glossary": "^6.0",
         "friendsoftypo3/content-blocks": "^1.1",
         "georgringer/news": "^12.2",
-        "in2code/lux": "^38.4",
         "lochmueller/calendarize": "^14.0",
         "mediadreams/md_fullcalendar": "^5.0",
         "mediadreams/md_news_author": "^8.0",
@@ -49,7 +48,9 @@
         "typo3/cms-workspaces": "^13.0",
         "typo3/minimal": "^13",
         "wapplersystems/ws-scss": "^13.0",
-        "zeroseven/pictureino": "^1.0"
+        "zeroseven/pictureino": "^1.0",
+        "helhum/typo3-console": "^8.2",
+        "schmid/icsimporter": "@dev"
     },
     "config": {
         "allow-plugins": {

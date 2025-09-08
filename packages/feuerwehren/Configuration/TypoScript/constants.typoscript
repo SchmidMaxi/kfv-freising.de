@@ -1,0 +1,8 @@
+plugin.tx_feuerwehren.settings {
+    # Wohin gespeichert wird (auf dem Dateisystem)
+    tilesDir = fileadmin/tiles
+    # Wie Leaflet darauf zugreift (URL-Pfad)
+    tilesUrl = /fileadmin/tiles
+    # Quelle zum Nachladen (NUR DEV/TEST! Policies beachten)
+    remoteUrl = https://a.tile.openstreetmap.org/{z}/{x}/{y}.png
+}

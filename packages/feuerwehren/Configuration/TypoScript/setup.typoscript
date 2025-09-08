@@ -1,0 +1,28 @@
+plugin.tx_feuerwehren {
+    view {
+        templateRootPaths.10 = EXT:feuerwehren/Resources/Private/Templates/
+        partialRootPaths.10  = EXT:feuerwehren/Resources/Private/Partials/
+        layoutRootPaths.10   = EXT:feuerwehren/Resources/Private/Layouts/
+    }
+}
+
+tt_content.list.20.feuerwehren_karte = USER
+tt_content.list.20.feuerwehren_karte {
+    userFunc = TYPO3\CMS\Extbase\Core\Bootstrap->run
+    extensionName = Feuerwehren
+    pluginName = Karte
+}
+
+tt_content.list.20.feuerwehren_organigramm = USER
+tt_content.list.20.feuerwehren_organigramm {
+    userFunc = TYPO3\CMS\Extbase\Core\Bootstrap->run
+    extensionName = Feuerwehren
+    pluginName = Organigramm
+}
+
+tt_content.list.20.feuerwehren_jubilaeen = USER
+tt_content.list.20.feuerwehren_jubilaeen {
+    userFunc = TYPO3\CMS\Extbase\Core\Bootstrap->run
+    extensionName = Feuerwehren
+    pluginName = Jubilaeen
+}

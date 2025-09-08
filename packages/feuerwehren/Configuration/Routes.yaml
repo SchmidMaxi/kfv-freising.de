@@ -1,0 +1,9 @@
+feuerwehren_tiles:
+  path: '/_tiles/{z}/{x}/{y}.{format}'
+  controller: 'Schmid\\Feuerwehren\\Controller\\TileController::tileAction'
+  requirements:
+    z: '\\d+'
+    x: '\\d+'
+    y: '\\d+'
+  format: 'png|jpg|jpeg|webp'
+  methods: [GET]

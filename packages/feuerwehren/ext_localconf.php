@@ -1,35 +1,28 @@
 <?php
+declare(strict_types=1);
 
-use TYPO3\CMS\Backend\Form\FormDataProvider\DatabaseRowInitializeNew;
-use TYPO3\CMS\Core\Cache\Backend\FileBackend;
-use TYPO3\CMS\Core\Cache\Frontend\PhpFrontend;
-use TYPO3\CMS\Core\Cache\Frontend\VariableFrontend;
-use TYPO3\CMS\Core\Information\Typo3Version;
-use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
-use TYPO3\CMS\Extbase\Service\ExtensionService;
+defined('TYPO3') or die();
+
 use TYPO3\CMS\Extbase\Utility\ExtensionUtility;
+use Schmid\Feuerwehren\Controller\{FeuerwehrController,PersonController,JubilaeumController};
 
-use Schmid\Feuerwehren\Controller\PersonController;
-use Schmid\Feuerwehren\Controller\FeuerwehrController;
-use Schmid\Feuerwehren\Controller\JubilaeumController;
+ExtensionUtility::configurePlugin(
+    'Feuerwehren',                                // ExtensionName (UpperCamelCase)
+    'Karte',                                      // PluginName
+    [FeuerwehrController::class => 'list,show'],
+    []
+);
 
-\TYPO3\CMS\Extbase\Utility\ExtensionUtility::configurePlugin(
-    'Schmid.Feuerwehren',
+ExtensionUtility::configurePlugin(
+    'Feuerwehren',
     'Organigramm',
-    [PersonController::class => 'list, show'],
-    [PersonController::class => 'list, show']
+    [PersonController::class => 'list,show'],
+    []
 );
 
-\TYPO3\CMS\Extbase\Utility\ExtensionUtility::configurePlugin(
-    'Schmid.Feuerwehren',
-    'Karte',
-    [FeuerwehrController::class => 'list, show'],
-    [FeuerwehrController::class => 'list, show']
-);
-
-\TYPO3\CMS\Extbase\Utility\ExtensionUtility::configurePlugin(
-    'Schmid.Feuerwehren',
+ExtensionUtility::configurePlugin(
+    'Feuerwehren',
     'Jubilaeen',
-    [JubilaeumController::class => 'list, show'],
-    [JubilaeumController::class => 'list, show']
+    [JubilaeumController::class => 'list,show'],
+    []
 );
