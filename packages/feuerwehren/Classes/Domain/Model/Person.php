@@ -3,7 +3,8 @@ declare(strict_types=1);
 
 namespace Schmid\Feuerwehren\Domain\Model;
 
-use TYPO3\CMS\Extbase\Domain\Model\FrontendUser;
+use Schmid\Feuerwehren\Domain\Model\FrontendUser;
+use Schmid\Feuerwehren\Domain\Model\Gemeinde;
 use TYPO3\CMS\Extbase\DomainObject\AbstractEntity;
 use TYPO3\CMS\Extbase\Persistence\ObjectStorage;
 use TYPO3\CMS\Extbase\Annotation\ORM\Lazy;
@@ -12,18 +13,15 @@ class Person extends AbstractEntity
 {
     /** UNIX timestamp (managed by TYPO3) */
     protected int $crdate = 0;
-
     protected string $title = '';
     protected string $slug = '';
+    protected string $rolle = '';
 
-    #[Lazy]
-    protected ?FrontendUser $feUser = null;
+    /** @var \Schmid\Feuerwehren\Domain\Model\FrontendUser|null */
+    protected $feUser = null;
 
-    #[Lazy]
-    protected ?Rolle $rolle = null;
-
-    #[Lazy]
-    protected ?Gemeinde $gemeinde = null;
+    /** @var ObjectStorage<Gemeinde> */
+    protected ObjectStorage $gemeinde;
 
     /** @var ObjectStorage<Person> */
     #[Lazy]
@@ -32,6 +30,7 @@ class Person extends AbstractEntity
     public function __construct()
     {
         $this->untergeordnet = new ObjectStorage();
+        $this->gemeinde = new ObjectStorage();
     }
 
     public function getCrdate(): int
@@ -57,31 +56,44 @@ class Person extends AbstractEntity
         $this->slug = $slug;
     }
 
-    public function getFeUser(): ?FrontendUser
-    {
+    /** @return \Schmid\Feuerwehren\Domain\Model\FrontendUser|null */
+    public function getFeUser() {
         return $this->feUser;
     }
-    public function setFeUser(?FrontendUser $feUser): void
-    {
+    /** @param \Schmid\Feuerwehren\Domain\Model\FrontendUser|\TYPO3\CMS\Extbase\Persistence\Generic\LazyLoadingProxy|null $feUser */
+    public function setFeUser($feUser): void {
         $this->feUser = $feUser;
     }
 
-    public function getRolle(): ?Rolle
+    public function getRolle(): string
     {
         return $this->rolle;
     }
-    public function setRolle(?Rolle $rolle): void
+    public function setRolle(string $rolle): void
     {
         $this->rolle = $rolle;
     }
 
-    public function getGemeinde(): ?Gemeinde
+    /** @return ObjectStorage<Gemeinde> */
+    public function getGemeinde(): ObjectStorage
     {
         return $this->gemeinde;
     }
-    public function setGemeinde(?Gemeinde $gemeinde): void
+
+    /** @param ObjectStorage<Gemeinde> $gemeinde */
+    public function setGemeinde(ObjectStorage $gemeinde): void
     {
         $this->gemeinde = $gemeinde;
+    }
+
+    public function addGemeinde(Gemeinde $g): void
+    {
+        $this->gemeinde->attach($g);
+    }
+
+    public function removeGemeinde(Gemeinde $g): void
+    {
+        $this->gemeinde->detach($g);
     }
 
     /** @return ObjectStorage<Person> */

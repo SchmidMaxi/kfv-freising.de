@@ -1,14 +1,3 @@
-CREATE TABLE tx_feuerwehren_domain_model_rolle (
-    uid INT AUTO_INCREMENT PRIMARY KEY,
-    pid INT DEFAULT 0,
-    tstamp INT DEFAULT 0,
-    crdate INT DEFAULT 0,
-    cruser_id INT DEFAULT 0,
-    deleted TINYINT DEFAULT 0,
-    hidden TINYINT DEFAULT 0,
-    title VARCHAR(255) DEFAULT ''
-);
-
 CREATE TABLE tx_feuerwehren_domain_model_person (
     uid INT AUTO_INCREMENT PRIMARY KEY,
     pid INT DEFAULT 0,
@@ -20,7 +9,7 @@ CREATE TABLE tx_feuerwehren_domain_model_person (
     title VARCHAR(255) DEFAULT '',
     slug VARCHAR(255) DEFAULT '',
     fe_user INT DEFAULT 0,
-    rolle INT DEFAULT 0,
+    rolle VARCHAR(20) DEFAULT '',
     gemeinde INT DEFAULT 0
 );
 CREATE TABLE tx_feuerwehren_person_person_mm (

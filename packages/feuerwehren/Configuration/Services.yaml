@@ -5,11 +5,6 @@ services:
     public: false
   Schmid\Feuerwehren\:
     resource: '../Classes/*'
-  Schmid\Feuerwehren\Command\OsmTilesUpdateCommand:
-    tags:
-      - name: 'console.command'
-        command: 'feuerwehren:update-tiles'
-        description: 'Update or prewarm local OSM tiles/MBTiles cache'
   Schmid\Feuerwehren\Command\TilesPrefetchCommand:
     tags:
       - name: 'console.command'

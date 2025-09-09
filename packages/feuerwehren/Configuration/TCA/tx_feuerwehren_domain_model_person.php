@@ -32,7 +32,17 @@ return [
         ],
         'rolle' => [
             'label' => 'Rolle',
-            'config' => ['type' => 'select','renderType' => 'selectSingle','foreign_table' => 'tx_feuerwehren_domain_model_rolle','maxitems' => 1]
+            'config' => [
+                'type' => 'select',
+                'renderType' => 'selectSingle',
+                'items' => [
+                    ['KBR', 'kbr'],
+                    ['KBI', 'kbi'],
+                    ['KBM', 'kbm'],
+                    ['Fach-KBM', 'fach_kbm'],
+                ],
+                'default' => '',
+            ],
         ],
         'gemeinde' => [
             'label' => 'Gemeinden',

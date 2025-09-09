@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Schmid\Feuerwehren\Domain\Model;
 
 use DateTimeImmutable;
+use DateTime;
 use DateTimeInterface;
 use TYPO3\CMS\Extbase\DomainObject\AbstractEntity;
 use TYPO3\CMS\Extbase\Persistence\ObjectStorage;
@@ -71,11 +72,15 @@ class Feuerwehr extends AbstractEntity
     {
         return $this->gruendungsdatum;
     }
-    public function setGruendungsdatum(?DateTimeInterface $date): void
+    public function setGruendungsdatum($date): void
     {
-        $this->gruendungsdatum = $date
-            ? ($date instanceof DateTimeImmutable ? $date : DateTimeImmutable::createFromInterface($date))
-            : null;
+        if ($date instanceof DateTimeImmutable) {
+            $this->gruendungsdatum = $date;
+        } elseif ($date instanceof DateTime) {
+            $this->gruendungsdatum = DateTimeImmutable::createFromInterface($date);
+        } elseif ($date === null) {
+            $this->gruendungsdatum = null;
+        }
     }
 
     /** @return ObjectStorage<Fahrzeugkategorie> */

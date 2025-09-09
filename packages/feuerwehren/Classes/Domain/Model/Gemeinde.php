@@ -16,8 +16,8 @@ class Gemeinde extends AbstractEntity
     protected string $name = '';
     protected string $slug = '';
 
-    #[Lazy]
-    protected ?FileReference $logo = null;
+    /** @var \TYPO3\CMS\Extbase\Domain\Model\FileReference|null */
+    protected $logo = null;
 
     /** GeoJSON als String */
     protected string $gemeindegebiet = '';
@@ -54,11 +54,16 @@ class Gemeinde extends AbstractEntity
         $this->slug = $slug;
     }
 
-    public function getLogo(): ?FileReference
+    /** @return \TYPO3\CMS\Extbase\Domain\Model\FileReference|null */
+    public function getLogo()
     {
         return $this->logo;
     }
-    public function setLogo(?FileReference $logo): void
+
+    /**
+     * @param \TYPO3\CMS\Extbase\Domain\Model\FileReference|\TYPO3\CMS\Extbase\Persistence\Generic\LazyLoadingProxy|null $logo
+     */
+    public function setLogo($logo): void
     {
         $this->logo = $logo;
     }
