@@ -9,9 +9,7 @@ use Schmid\Feuerwehren\Domain\Repository\PersonRepository;
 
 final class PersonController extends ActionController
 {
-    public function __construct(
-        private readonly PersonRepository $personRepository
-    ) {}
+    public function __construct(protected PersonRepository $personRepository) {}
 
     public function listAction(): ResponseInterface
     {

@@ -9,9 +9,7 @@ use Schmid\Feuerwehren\Domain\Repository\JubilaeumRepository;
 
 final class JubilaeumController extends ActionController
 {
-    public function __construct(
-        private readonly JubilaeumRepository $jubilaeumRepository
-    ) {}
+    public function __construct(protected JubilaeumRepository $jubilaeumRepository) {}
 
     public function listAction(): ResponseInterface
     {

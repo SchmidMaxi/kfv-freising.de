@@ -1,67 +1,56 @@
 <f:layout name="Default" />
 <f:section name="main">
-    <h1>Feuerwehrkarte</h1>
+    <h1>Feuerwehrkarte (Vektor)</h1>
 
+    <style>
+        .fw-wrap { display:grid; grid-template-columns: 380px 1fr; gap:12px; }
+        .fw-filters { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
+        .fw-filters fieldset { border:0; padding:0; margin:0; display:flex; gap:8px; align-items:center; }
+        .fw-list { height: 70vh; overflow:auto; border:1px solid #ddd; border-radius:8px; padding:8px; }
+        .fw-item { padding:6px 4px; border-bottom:1px solid #eee; cursor:pointer; }
+        .fw-item:last-child { border-bottom:none; }
+        #map { height: 70vh; border:1px solid #ddd; border-radius:8px; }
+        .legend { font-size:12px; color:#666; }
+    </style>
 
-    <div id="filter" style="margin-bottom: .5rem;">
-        <label for="fahrzeugFilter">Fahrzeugkategorie:</label>
-        <select id="fahrzeugFilter">
-            <option value="all">Alle</option>
-            <f:for each="{fahrzeugkategorien}" as="fz"><option value="{fz.title}">{fz.title}</option></f:for>
-        </select>
+    <div class="fw-filters">
+        <fieldset>
+            <legend class="legend">Fahrzeugkategorien:</legend>
+            <f:for each="{fahrzeugkategorien}" as="fz">
+                <label>
+                    <input type="checkbox" name="fz" value="{fz.title}" />
+                    <f:format.htmlspecialchars>{fz.title}</f:format.htmlspecialchars>
+                </label>
+            </f:for>
+        </fieldset>
+
+        <fieldset>
+            <legend class="legend">Logik:</legend>
+            <label><input type="radio" name="mode" value="and" checked> AND</label>
+            <label><input type="radio" name="mode" value="or"> OR</label>
+        </fieldset>
+
+        <fieldset>
+            <legend class="legend">Overlays:</legend>
+            <label><input id="toggleGemeinden" type="checkbox" checked> Gemeinden</label>
+            <label><input id="toggleKBM" type="checkbox"> KBM</label>
+            <label><input id="toggleKBI" type="checkbox"> KBI</label>
+        </fieldset>
     </div>
 
-    <div id="map" style="height: 700px;"></div>
+    <div class="fw-wrap">
+        <div id="fwList" class="fw-list"></div>
+        <div id="map"></div>
+    </div>
 
-
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const map = L.map('map').setView([48.5, 11.5], 8);
-            const tiles = L.tileLayer('{settings.tilesUrl}/{z}/{x}/{y}.png', {
-                maxZoom: 18,
-                attribution: '&copy; OpenStreetMap'
-            }).addTo(map);
-
-
-            const fahrzeugfarben = { 'HLF':'red','LF':'blue','MTW':'green','DLK':'orange' };
-            const markers = [];
-
-
-            <f:for each="{feuerwehren}" as="fw">
-                const fz = [<f:for each="{fw.fahrzeugkategorien}" as="k" iteration="i">'{k.title}'<f:if condition="{i.isLast}"></f:if><f:else>,</f:else></f:for>];
-                let farbe = 'gray'; if (fz.length && fahrzeugfarben[fz[0]]) { farbe = fahrzeugfarben[fz[0]]; }
-                const icon = L.divIcon({className:'', html:`<svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="${farbe}"/></svg>`});
-                const m = L.marker([{fw.latitude}, {fw.longitude}], {icon}).bindPopup(`
-                <strong>{fw.name}</strong><br/>
-                {fw.strasse}, {fw.plz} {fw.ort}<br/>
-                <em>Fahrzeuge:</em> <f:for each="{fw.fahrzeugkategorien}" as="k">{k.title} </f:for>
-                `).addTo(map);
-                m.fahrzeuge = fz; markers.push(m);
-            </f:for>
-
-
-            const gemeindeLayer = L.layerGroup();
-            <f:for each="{gemeinden}" as="g">
-                try {
-                const gj = JSON.parse(`<f:format.raw>{g.gemeindegebiet}</f:format.raw>`);
-                const layer = L.geoJSON(gj, {style:{weight:1, color:'#555', fillOpacity:0.05}}).bindPopup(`<strong>{g.name}</strong>`);
-                gemeindeLayer.addLayer(layer);
-            } catch(e) { /* ignore invalid geojson */ }
-            </f:for>
-
-
-            L.control.layers(null, { 'Gemeindegrenzen': gemeindeLayer }).addTo(map);
-
-
-            document.getElementById('fahrzeugFilter').addEventListener('change', function() {
-                const sel = this.value;
-                markers.forEach(m => {
-                    const match = sel === 'all' || m.fahrzeuge.includes(sel);
-                    if (match) { m.addTo(map); } else { map.removeLayer(m); }
-                });
-            });
-        });
+    <!-- Konfiguration für das externe JS -->
+    <script id="fw-map-config" type="application/json">
+        {mapConfig -> f:format.json()}
     </script>
+
+
+    <f:asset.css identifier="maplibre-gl" href="EXT:feuerwehren/Resources/Public/Css/maplibre-gl.css" />
+    <f:asset.script identifier="maplibre-gl" src="EXT:feuerwehren/Resources/Public/JavaScript/maplibre-gl.js" />
+    <f:asset.script identifier="turf" src="EXT:feuerwehren/Resources/Public/JavaScript/turf.min.js" />
+    <f:asset.script identifier="feuerwehren-map" src="EXT:feuerwehren/Resources/Public/JavaScript/feuerwehren-map.js" />
 </f:section>

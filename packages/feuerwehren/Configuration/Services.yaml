@@ -5,8 +5,14 @@ services:
     public: false
   Schmid\Feuerwehren\:
     resource: '../Classes/*'
+  Schmid\Feuerwehren\Command\MbtilesFetchCommand:
+    tags:
+      - name: 'console.command'
+        command: 'feuerwehren:mbtiles:fetch'
+        description: 'Download/replace a MBTiles file from a URL'
   Schmid\Feuerwehren\Command\TilesPrefetchCommand:
+    arguments: [ ]          # wichtig: nichts injizieren
     tags:
       - name: 'console.command'
         command: 'feuerwehren:tiles:prefetch'
-        description: 'Prefetch map tiles into a local directory for given bbox & zooms'
+        description: 'Prefetch XYZ tiles into var/tiles for a given BBOX and zoom levels'

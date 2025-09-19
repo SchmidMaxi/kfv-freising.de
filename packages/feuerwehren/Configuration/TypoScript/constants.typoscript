@@ -1,8 +1,23 @@
 plugin.tx_feuerwehren.settings {
-    # Wohin gespeichert wird (auf dem Dateisystem)
-    tilesDir = fileadmin/tiles
-    # Wie Leaflet darauf zugreift (URL-Pfad)
-    tilesUrl = /fileadmin/tiles
-    # Quelle zum Nachladen (NUR DEV/TEST! Policies beachten)
-    remoteUrl = https://a.tile.openstreetmap.org/{z}/{x}/{y}.png
+    bboxW = 11.30
+    bboxS = 48.30
+    bboxE = 12.08
+    bboxN = 48.70
+
+    # Tiles: 'mbtiles' (lokale .mbtiles) oder 'proxy' (direkt OSM XYZ)
+    tileSource = mbtiles
+    #tileSource = proxy
+
+    # Pfad zur lokalen MBTiles-Datei (relativ zu public/ oder absolut)
+    mbtilesPath = fileadmin/tiles/osm.mbtiles
+
+    # Direkt-Proxy (wird genutzt, wenn tileSource = proxy ODER MBTiles nicht gefunden wird)
+    proxyUrl = https://a.tile.openstreetmap.org/{z}/{x}/{y}.png
+
+    # OPTIONAL: Quelle für eine fertige MBTiles-Datei (HTTP/HTTPS/FILE)
+    # Beispiel: https://example.internal/tiles/oberbayern.mbtiles
+    mbtilesUrl =
+
+    vectorTiles.enable = 1
+    vectorTiles.mbtilesPath = fileadmin/tiles/oberbayern-vt.mbtiles   # <<< Vektor-MBTiles (nicht dein aktuelles Raster .mbtiles)
 }

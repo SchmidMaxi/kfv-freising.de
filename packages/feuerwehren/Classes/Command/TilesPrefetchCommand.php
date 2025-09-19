@@ -3,209 +3,192 @@ declare(strict_types=1);
 
 namespace Schmid\Feuerwehren\Command;
 
-use Psr\Log\LoggerInterface;
-use Symfony\Component\Console\Attribute\AsCommand;
+use Psr\Http\Message\ResponseInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Console\Output\OutputInterface;
 use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Http\RequestFactory;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use Schmid\Feuerwehren\Domain\Repository\FeuerwehrRepository;
 
-#[AsCommand(name: 'feuerwehren:tiles:prefetch', description: 'Prefetch raster tiles into a local directory')]
 final class TilesPrefetchCommand extends Command
 {
-    public function __construct(
-        private readonly ?FeuerwehrRepository $feuerwehrRepository = null,
-        private readonly ?LoggerInterface $logger = null
-    ) {
-        parent::__construct();
-    }
+    protected static $defaultName = 'feuerwehren:tiles:prefetch';
+    protected static $defaultDescription = 'Prefetch Vector Tiles (.pbf) into var/tiles for given bbox and zooms';
 
     protected function configure(): void
     {
         $this
-            ->addOption('minZoom', null, InputOption::VALUE_REQUIRED, 'Min zoom', '8')
-            ->addOption('maxZoom', null, InputOption::VALUE_REQUIRED, 'Max zoom', '12')
-            ->addOption('bbox', null, InputOption::VALUE_REQUIRED, 'Bounding box lonW,latS,lonE,latN (e.g. 10.0,47.0,13.9,49.8)')
-            ->addOption('fromDb', null, InputOption::VALUE_NONE, 'Derive bbox from all Feuerwehr lat/lon')
-            ->addOption('tilesDir', null, InputOption::VALUE_REQUIRED, 'Target directory (webroot-relative)', '')
-            ->addOption('tilesUrl', null, InputOption::VALUE_REQUIRED, 'Base URL (not used for fetch)', '')
-            ->addOption('remoteUrl', null, InputOption::VALUE_REQUIRED, 'Remote template URL', '')
-            ->addOption('dryRun', null, InputOption::VALUE_NONE, 'Only print, do not download');
+            ->addOption(
+                'bbox',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Bounding box as "minLon,minLat,maxLon,maxLat" (W,S,E,N)',
+                '11.30,48.30,12.08,48.70'
+            )
+            ->addOption(
+                'zooms',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Zooms "10-14" or csv "10,11,12" (WebMercator)',
+                '10-14'
+            )
+            ->addOption(
+                'source',
+                null,
+                InputOption::VALUE_OPTIONAL,
+                'Upstream template URL for PBF tiles (with {z}/{x}/{y}); falls back to EXT conf vtProxy.baseUrl',
+                ''
+            )
+            ->addOption(
+                'overwrite',
+                'f',
+                InputOption::VALUE_NONE,
+                'Overwrite existing tiles'
+            );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        // Load settings via TypoScript @ runtime (CLI has no TSFE; use sane defaults + CLI options)
-        $tilesDir = $input->getOption('tilesDir') ?: 'fileadmin/tiles';
-        $remote   = $input->getOption('remoteUrl') ?: 'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png';
-        $minZ     = (int)$input->getOption('minZoom');
-        $maxZ     = (int)$input->getOption('maxZoom');
-        $dry      = (bool)$input->getOption('dryRun');
+        $io    = new SymfonyStyle($input, $output);
+        $bbox  = (string)$input->getOption('bbox');
+        $zooms = (string)$input->getOption('zooms');
+        $src   = (string)$input->getOption('source');
+        $force = (bool)$input->getOption('overwrite');
 
-        // Resolve bbox
-        $bboxOpt = $input->getOption('bbox');
-        if ($input->getOption('fromDb')) {
-            $bbox = $this->bboxFromDb();
-            if (!$bbox) {
-                $output->writeln('<error>No coordinates in DB; please pass --bbox.</error>');
-                return Command::FAILURE;
-            }
-        } elseif ($bboxOpt) {
-            $bbox = $this->parseBbox((string)$bboxOpt);
-            if (!$bbox) {
-                $output->writeln('<error>Invalid --bbox format. Use lonW,latS,lonE,latN</error>');
-                return Command::FAILURE;
-            }
-        } else {
-            $output->writeln('<error>Provide --bbox or use --fromDb</error>');
-            return Command::FAILURE;
+        // Upstream aus EXT-Konfig übernehmen, wenn --source fehlt
+        if ($src === '') {
+            $conf = $GLOBALS['TYPO3_CONF_VARS']['EXTENSIONS']['feuerwehren']['vtProxy'] ?? [];
+            $src  = (string)($conf['baseUrl'] ?? '');
+        }
+        if ($src === '' || !str_contains($src, '{z}') || !str_contains($src, '{x}') || !str_contains($src, '{y}')) {
+            $io->error('Upstream "source" fehlt oder enthält keine {z}/{x}/{y}-Platzhalter.');
+            $io->writeln('Beispiel: --source="https://tiles.example.com/data/v3/{z}/{x}/{y}.pbf?key=APIKEY"');
+            return Command::INVALID;
         }
 
-        // Build absolute target dir
-        $publicPath = Environment::getPublicPath();
-        $targetBase = rtrim($publicPath . '/' . ltrim($tilesDir, '/'), '/');
-        if (!is_dir($targetBase) && !$dry) {
-            GeneralUtility::mkdir_deep($targetBase);
+        [$w, $s, $e, $n] = $this->parseBbox($bbox);
+        $zoomList = $this->parseZooms($zooms);
+        if ($zoomList === []) {
+            $io->error('Ungültige Zoom-Angabe.');
+            return Command::INVALID;
         }
 
-        $output->writeln(sprintf(
-            '<info>Prefetch tiles %s → %s (z=%d..%d)</info>',
-            $remote, $targetBase, $minZ, $maxZ
-        ));
-        $output->writeln(sprintf('<info>BBOX: W=%f S=%f E=%f N=%f</info>', $bbox['w'], $bbox['s'], $bbox['e'], $bbox['n']));
+        $baseVar = Environment::getVarPath();
+        $destRoot = $baseVar . '/tiles';
+
+        /** @var RequestFactory $rf */
+        $rf = GeneralUtility::makeInstance(RequestFactory::class);
 
         $total = 0;
-        for ($z = $minZ; $z <= $maxZ; $z++) {
-            [$xMin,$xMax,$yMin,$yMax] = $this->tileRangeForBbox($bbox, $z);
-            for ($x = $xMin; $x <= $xMax; $x++) {
-                for ($y = $yMin; $y <= $yMax; $y++) {
-                    $url  = strtr($remote, ['{z}' => (string)$z, '{x}' => (string)$x, '{y}' => (string)$y]);
-                    $dir  = $targetBase . '/' . $z . '/' . $x;
-                    $file = $dir . '/' . $y . '.png';
-                    $total++;
+        foreach ($zoomList as $z) {
+            [$minX, $maxX, $minY, $maxY] = $this->tileBounds($w, $s, $e, $n, $z);
+            $countThisZoom = max(0, ($maxX - $minX + 1)) * max(0, ($maxY - $minY + 1));
+            $io->section(sprintf('Zoom %d: %d Tiles (%d..%d x %d..%d)', $z, $countThisZoom, $minX, $maxX, $minY, $maxY));
+            $total += $countThisZoom;
+            $bar = $io->createProgressBar($countThisZoom);
+            $bar->start();
 
-                    if ($dry) {
-                        $output->writeln("DRY: $url -> $file");
+            for ($x = $minX; $x <= $maxX; $x++) {
+                for ($y = $minY; $y <= $maxY; $y++) {
+                    $destDir = sprintf('%s/%d/%d', $destRoot, $z, $x);
+                    $dest = sprintf('%s/%d/%d/%d.pbf', $destRoot, $z, $x, $y);
+
+                    if (!$force && is_file($dest) && filesize($dest) > 0) {
+                        $bar->advance();
+                        continue;
+                    }
+                    if (!is_dir($destDir) && !@mkdir($destDir, 0775, true) && !is_dir($destDir)) {
+                        $io->warning('Konnte Verzeichnis nicht anlegen: ' . $destDir);
+                        $bar->advance();
                         continue;
                     }
 
-                    if (!is_dir($dir)) {
-                        GeneralUtility::mkdir_deep($dir);
+                    $url = strtr($src, ['{z}' => (string)$z, '{x}' => (string)$x, '{y}' => (string)$y]);
+                    try {
+                        $res = $rf->request($url, 'GET', [
+                            'headers' => [
+                                'Accept' => 'application/x-protobuf, */*',
+                                'User-Agent' => 'FeuerwehrenTilesPrefetch/1.0 (+TYPO3)',
+                            ],
+                            'http_errors' => false,
+                            'timeout' => 20,
+                            'verify' => false,
+                        ]);
+                        if ($res->getStatusCode() === 200) {
+                            file_put_contents($dest, (string)$res->getBody());
+                        } else {
+                            // leere Datei nicht schreiben, um „defekte“ Tiles zu vermeiden
+                        }
+                    } catch (\Throwable $e) {
+                        // still: skip
                     }
-                    if (is_file($file)) {
-                        continue; // already cached
-                    }
-
-                    $data = @file_get_contents($url);
-                    if ($data === false) {
-                        $this->logger?->warning('Tile fetch failed', ['url' => $url]);
-                        continue;
-                    }
-                    file_put_contents($file, $data);
+                    $bar->advance();
                 }
             }
-            $output->writeln(sprintf('z=%d done (%d x %d tiles)', $z, ($xMax-$xMin+1), ($yMax-$yMin+1)));
+            $bar->finish();
+            $io->newLine(2);
         }
 
-        $output->writeln("<info>Done. Total tiles touched: $total</info>");
+        $io->success(sprintf('Fertig. %d Tiles in %s gespeichert.', $total, $destRoot));
+        $io->writeln('Hinweis: Stelle sicher, dass die Middleware auf storage=var und fileBase=tiles zeigt.');
         return Command::SUCCESS;
     }
 
-    private function parseBbox(string $s): ?array
+    /** @return array{0:float,1:float,2:float,3:float} */
+    private function parseBbox(string $bbox): array
     {
-        $p = array_map('trim', explode(',', $s));
-        if (count($p) !== 4) { return null; }
-        return ['w' => (float)$p[0], 's' => (float)$p[1], 'e' => (float)$p[2], 'n' => (float)$p[3]];
+        $p = array_map('trim', explode(',', $bbox));
+        if (count($p) !== 4) {
+            throw new \InvalidArgumentException('bbox erwartet "minLon,minLat,maxLon,maxLat"');
+        }
+        return [ (float)$p[0], (float)$p[1], (float)$p[2], (float)$p[3] ];
     }
 
-    /** @return array{w:float,s:float,e:float,n:float}|null */
-// NEU: robust gegen VARCHAR, Leerstring, Komma-Dezimal usw.
-    private function bboxFromDb(): ?array
+    /** @return int[] */
+    private function parseZooms(string $zooms): array
     {
-        if (!$this->feuerwehrRepository) {
-            return null;
+        $zooms = trim($zooms);
+        if ($zooms === '') { return []; }
+        if (preg_match('~^(\d+)\s*-\s*(\d+)$~', $zooms, $m)) {
+            $a = (int)$m[1]; $b = (int)$m[2];
+            if ($a > $b) { [$a, $b] = [$b, $a]; }
+            return range($a, $b);
         }
-
-        $minLat =  90.0;  $maxLat = -90.0;
-        $minLon = 180.0;  $maxLon = -180.0;
-
-        foreach ($this->feuerwehrRepository->findAll() as $fw) {
-            $lat = $this->parseCoord($fw->getLatitude(),  -90.0,  90.0);
-            $lon = $this->parseCoord($fw->getLongitude(), -180.0, 180.0);
-            if ($lat === null || $lon === null) {
-                continue; // ungültige/fehlende Koordinate
+        $list = [];
+        foreach (explode(',', $zooms) as $z) {
+            $z = trim($z);
+            if ($z !== '' && ctype_digit($z)) {
+                $list[] = (int)$z;
             }
-            $minLat = min($minLat, $lat);
-            $maxLat = max($maxLat, $lat);
-            $minLon = min($minLon, $lon);
-            $maxLon = max($maxLon, $lon);
         }
-
-        if ($minLat > $maxLat || $minLon > $maxLon) {
-            return null; // keine gültigen Koordinaten gefunden
-        }
-
-        // kleiner Puffer um die Punkte
-        $pad = 0.02;
-        return [
-            'w' => $minLon - $pad,
-            's' => $minLat - $pad,
-            'e' => $maxLon + $pad,
-            'n' => $maxLat + $pad,
-        ];
+        sort($list);
+        return array_values(array_unique($list));
     }
-
-    /**
-     * Konvertiert eine VARCHAR-Koordinate zu float.
-     * - trimmt
-     * - wandelt Komma in Punkt
-     * - validiert Format und Wertebereich
-     * - gibt null bei Ungültigkeit zurück
-     */
-    private function parseCoord(?string $value, float $min, float $max): ?float
-    {
-        if ($value === null) {
-            return null;
-        }
-        $s = trim($value);
-        if ($s === '') {
-            return null;
-        }
-        $s = str_replace(',', '.', $s);
-
-        // nur - . und Ziffern erlauben (einfach & schnell)
-        if (!preg_match('/^-?\d+(?:\.\d+)?$/', $s)) {
-            return null;
-        }
-
-        $f = (float)$s;
-        if ($f < $min || $f > $max) {
-            return null;
-        }
-        return $f;
-    }
-
 
     /** @return array{0:int,1:int,2:int,3:int} */
-    private function tileRangeForBbox(array $bbox, int $z): array
+    private function tileBounds(float $w, float $s, float $e, float $n, int $z): array
     {
-        $xMin = $this->lon2tile($bbox['w'], $z);
-        $xMax = $this->lon2tile($bbox['e'], $z);
-        $yMin = $this->lat2tile($bbox['n'], $z); // north is smaller y in XYZ
-        $yMax = $this->lat2tile($bbox['s'], $z);
-        return [max(0,$xMin), max(0,$xMax), max(0,$yMin), max(0,$yMax)];
-    }
-    private function lon2tile(float $lon, int $z): int
-    {
-        return (int)floor(($lon + 180.0) / 360.0 * (1 << $z));
-    }
-    private function lat2tile(float $lat, int $z): int
-    {
-        $latRad = deg2rad($lat);
-        return (int)floor((1.0 - log(tan($latRad) + 1.0 / cos($latRad)) / M_PI) / 2.0 * (1 << $z));
+        $tile = static function (float $lon, float $lat, int $z): array {
+            $lat = max(min($lat, 85.05112878), -85.05112878); // WebMercator clamp
+            $x = (int)floor(($lon + 180.0) / 360.0 * (1 << $z));
+            $sin = sin(deg2rad($lat));
+            $y = (int)floor((1.0 - log((1.0 + $sin) / (1.0 - $sin)) / M_PI) / 2.0 * (1 << $z));
+            return [$x, $y];
+        };
+
+        [$x1, $y1] = $tile($w, $n, $z);
+        [$x2, $y2] = $tile($e, $s, $z);
+
+        $minX = min($x1, $x2);
+        $maxX = max($x1, $x2);
+        $minY = min($y1, $y2);
+        $maxY = max($y1, $y2);
+
+        // Wrap um Antimeridian ignorieren (nicht notwendig für Lkr. Freising)
+        return [$minX, $maxX, $minY, $maxY];
     }
 }

@@ -4,7 +4,22 @@ plugin.tx_feuerwehren {
         partialRootPaths.10  = EXT:feuerwehren/Resources/Private/Partials/
         layoutRootPaths.10   = EXT:feuerwehren/Resources/Private/Layouts/
     }
+    settings {
+        # --- Landkreis Freising grobe Bounding Box (W/S/E/N) in WGS84 ---
+        bboxW = 11.30
+        bboxS = 48.30
+        bboxE = 12.08
+        bboxN = 48.70
+
+        # Vektor-Tiles (lokal per Proxy/Route):
+        vtUrlTemplate = /_vt/{z}/{x}/{y}.pbf
+
+        # API-Endpunkte
+        apiSearchUrl  = /?type=171001
+        overlaysUrl   = /?type=171002
+    }
 }
+
 
 tt_content.list.20.feuerwehren_karte = USER
 tt_content.list.20.feuerwehren_karte {
@@ -25,4 +40,52 @@ tt_content.list.20.feuerwehren_jubilaeen {
     userFunc = TYPO3\CMS\Extbase\Core\Bootstrap->run
     extensionName = Feuerwehren
     pluginName = Jubilaeen
+}
+
+# === API: search → ?type=171001 ===
+feuerwehren_api_search = PAGE
+feuerwehren_api_search {
+    typeNum = 171001
+    config {
+        disableAllHeaderCode = 1
+        no_cache = 1
+        additionalHeaders.10.header = Content-Type: application/json; charset=utf-8
+        additionalGetParametersAllowedKeys = bbox, mode, f
+    }
+    10 = USER_INT
+    10 {
+        userFunc = Schmid\Feuerwehren\Api\SearchEndpoint->render
+    }
+}
+
+
+# === API: overlays → ?type=171002 ===
+feuerwehren_api_overlays = PAGE
+feuerwehren_api_overlays {
+    typeNum = 171002
+    config {
+        disableAllHeaderCode = 1
+        no_cache = 1
+        additionalHeaders.10.header = Content-Type: application/json; charset=utf-8
+    }
+    10 = USER_INT
+    10 {
+        userFunc = Schmid\Feuerwehren\Api\OverlaysEndpoint->render
+    }
+}
+
+
+# === Tiles → ?type=171003&z=..&x=..&y=..&format=png ===
+feuerwehren_tiles = PAGE
+feuerwehren_tiles {
+    typeNum = 171003
+    config {
+        disableAllHeaderCode = 1
+        no_cache = 1
+        additionalGetParametersAllowedKeys = z, x, y, format
+    }
+    10 = USER_INT
+    10 {
+        userFunc = Schmid\Feuerwehren\Api\TileEndpoint->render
+    }
 }
