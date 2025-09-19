@@ -11,6 +11,7 @@ Local OpenStreetMap tiles + Leaflet overlays for Gemeinden/Feuerwehren, plus Org
 - **Jubiläen:** Inline zu Feuerwehr; eigenes Plugin zur Ausgabe.
 - **Lokale OSM-Tiles:** Tile-Endpunkt `/_tiles/{z}/{x}/{y}.png` aus **MBTiles** (empfohlen) oder **Proxy+Cache** (Fallback).  
 - **Scheduler/CLI:** `feuerwehren:update-tiles` zum Aktualisieren/Prewarming des lokalen Tile-Caches.
+- ddev exec vendor/bin/typo3 feuerwehren:tiles:prefetch --bbox="11.30,48.30,12.08,48.70" --zooms="9-14" --source="https://api.maptiler.com/tiles/v3/{z}/{x}/{y}.pbf?key=qKjtLVvUmYMRbgrRm72l"
 
 ---
 
