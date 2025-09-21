@@ -18,6 +18,7 @@ plugin.tx_feuerwehren {
         apiSearchUrl  = /?type=171001
         overlaysUrl   = /?type=171002
     }
+    persistence.storagePid = 46
 }
 
 

@@ -23,6 +23,14 @@ final class FeuerwehrController extends ActionController
         protected PersonRepository $personRepository
     ) {}
 
+
+    public function injectGemeindeRepository(GemeindeRepository $r): void {
+        $this->gemeindeRepository = $r;
+    }
+    public function injectPersonRepository(PersonRepository $r): void {
+        $this->personRepository = $r;
+    }
+
     // ⬇️ WICHTIG: ResponseInterface zurückgeben
     public function listAction(): ResponseInterface
     {
@@ -116,41 +124,64 @@ final class FeuerwehrController extends ActionController
     }
 
     /** JSON: Overlays (Gemeinden-GeoJSON + KBM/KBI-Zuordnung) */
-    public function apiOverlaysAction(ServerRequestInterface $request): ResponseInterface
+    // Classes/Controller/FeuerwehrController.php
+
+    public function apiOverlaysAction(): \Psr\Http\Message\ResponseInterface
     {
+        // 1) Gemeinden einsammeln (wie gehabt)
         $gemeinden = [];
         foreach ($this->gemeindeRepository->findAll() as $g) {
-            $raw = trim((string)$g->getGemeindegebiet());
-            $geo = $raw !== '' ? json_decode($raw, true) : null;
-            if (!$geo) { continue; }
+            $gj = $g->getGeojson(); // string|array, je nach Modell
+            if (is_string($gj)) {
+                $decoded = json_decode($gj, true);
+                if (!is_array($decoded)) { continue; }
+                $gj = $decoded;
+            }
+            if (!is_array($gj)) { continue; }
+
             $gemeinden[] = [
                 'uid' => (int)$g->getUid(),
                 'name' => (string)$g->getName(),
-                'geojson' => $geo,
+                'geojson' => $gj,
             ];
         }
 
-        $kbm = []; // personUid => [gemeindeUids...]
-        $kbi = []; // personUid => [kbmPersonUids...]
+        // 2) Aus Personen die Bereiche ableiten
+        $kbm = []; // personUid => [gemeindeUid,...]
+        $kbi = []; // personUid => [gemeindeUid,...]
 
         foreach ($this->personRepository->findAll() as $p) {
-            $role = strtolower((string)$p->getRolle());
-            if ($role === 'kbm' || $role === 'fach_kbm') {
-                $uids = [];
-                foreach ($p->getGemeinde() as $g) { $uids[] = (int)$g->getUid(); }
-                $kbm[(int)$p->getUid()] = $uids;
-            } elseif ($role === 'kbi') {
-                $uids = [];
-                foreach ($p->getUntergeordnet() as $child) {
-                    $r = strtolower((string)$child->getRolle());
-                    if ($r === 'kbm' || $r === 'fach_kbm') { $uids[] = (int)$child->getUid(); }
+            $role = strtolower((string)$p->getRolle()); // "kbm", "fach-kbm", "kbi", "kbr", ...
+            // Hole die zugeordneten Gemeinden (Multi-Select)
+            $gUids = [];
+            $gs = $p->getGemeinden();
+            if ($gs) {
+                foreach ($gs as $g) {
+                    $gUids[] = (int)$g->getUid();
                 }
-                $kbi[(int)$p->getUid()] = $uids;
             }
+
+            if (in_array($role, ['kbm', 'fach-kbm'], true)) {
+                $kbm[(int)$p->getUid()] = $gUids;
+            } elseif ($role === 'kbi') {
+                $kbi[(int)$p->getUid()] = $gUids;
+            }
+            // KBR wird hier ignoriert
         }
 
-        return new JsonResponse(['gemeinden' => $gemeinden, 'kbm' => $kbm, 'kbi' => $kbi]);
+        // 3) JSON-Antwort
+        $payload = [
+            'gemeinden' => $gemeinden,
+            'kbm' => $kbm,
+            'kbi' => $kbi,
+        ];
+
+        $response = $this->responseFactory->createResponse()
+            ->withHeader('Content-Type', 'application/json; charset=utf-8');
+        $response->getBody()->write(json_encode($payload, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
+        return $response;
     }
+
 
     // Helper
     private function parseCoord($value, float $min, float $max): ?float

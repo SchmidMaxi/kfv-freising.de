@@ -241,6 +241,9 @@ AddEncoding x-gzip .gz
 	AddType text/vnd.rim.location.xloc                  xloc
 	AddType text/vtt                                    vtt
 	AddType text/x-component                            htc
+    AddType application/vnd.mapbox-vector-tile          pbf
+    AddType application/x-protobuf                      pbf
+    AddType application/vnd.mapbox-vector-tile          .pbf
 
 </IfModule>
 
@@ -273,6 +276,12 @@ AddDefaultCharset utf-8
 	</FilesMatch>
 </IfModule>
 
+<IfModule mod_headers.c>
+  <FilesMatch "\.pbf$">
+    Header set Access-Control-Allow-Origin "*"
+    Header set Cache-Control "public, max-age=604800, s-maxage=604800"
+  </FilesMatch>
+</IfModule>
 ### End: Cross Origin ###
 
 
