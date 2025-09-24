@@ -6,7 +6,6 @@
         "georgringer/news": "^12.2",
         "lochmueller/calendarize": "^14.0",
         "mediadreams/md_fullcalendar": "^5.0",
-        "mediadreams/md_news_author": "^8.0",
         "reelworx/rx-shariff": "^15.2",
         "schmid/feuerwehren": "@dev",
         "schmid/sitepackage": "@dev",

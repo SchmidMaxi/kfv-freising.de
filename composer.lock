@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "68b9ab2ffaa79585a4a93dc2a63fed73",
+    "content-hash": "a01423ab81dfcb5798b26361b46a3ae2",
     "packages": [
         {
             "name": "b13/container",
@@ -1107,78 +1107,6 @@
             "time": "2025-08-27T06:25:50+00:00"
         },
         {
-            "name": "georgringer/numbered-pagination",
-            "version": "2.1.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/georgringer/numbered_pagination.git",
-                "reference": "0d287bb6d298519829dc689b2629a112950e94f2"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/georgringer/numbered_pagination/zipball/0d287bb6d298519829dc689b2629a112950e94f2",
-                "reference": "0d287bb6d298519829dc689b2629a112950e94f2",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=7.3",
-                "typo3/cms-core": "^9 || ^10 || ^11 || ^12 || ^13"
-            },
-            "replace": {
-                "typo3-ter/numbered-pagination": "self.version"
-            },
-            "type": "typo3-cms-extension",
-            "extra": {
-                "typo3/cms": {
-                    "extension-key": "numbered_pagination"
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "GeorgRinger\\NumberedPagination\\": "Classes"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "GPL-2.0-or-later"
-            ],
-            "authors": [
-                {
-                    "name": "Georg Ringer",
-                    "role": "Developer"
-                }
-            ],
-            "description": "Improved pagination for TYPO3",
-            "homepage": "https://github.com/georgringer/numbered_pagination",
-            "keywords": [
-                "pagination",
-                "typo3"
-            ],
-            "support": {
-                "issues": "https://github.com/georgringer/numbered_pagination/issues",
-                "source": "https://github.com/georgringer/numbered_pagination/tree/2.1.0"
-            },
-            "funding": [
-                {
-                    "url": "https://paypal.me/GeorgRinger/10",
-                    "type": "custom"
-                },
-                {
-                    "url": "https://www.amazon.de/hz/wishlist/ls/8F573K08TSDG",
-                    "type": "custom"
-                },
-                {
-                    "url": "https://github.com/georgringer",
-                    "type": "github"
-                },
-                {
-                    "url": "https://www.patreon.com/georgringer",
-                    "type": "patreon"
-                }
-            ],
-            "time": "2024-10-20T10:52:10+00:00"
-        },
-        {
             "name": "guzzlehttp/guzzle",
             "version": "7.10.0",
             "source": {
@@ -2175,64 +2103,6 @@
                 "source": "https://github.com/cdaecke/md_fullcalendar"
             },
             "time": "2025-04-17T10:19:01+00:00"
-        },
-        {
-            "name": "mediadreams/md_news_author",
-            "version": "v8.0.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/cdaecke/md_news_author.git",
-                "reference": "181b3d05ae70e673cd791830da66fec2b73b5c30"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/cdaecke/md_news_author/zipball/181b3d05ae70e673cd791830da66fec2b73b5c30",
-                "reference": "181b3d05ae70e673cd791830da66fec2b73b5c30",
-                "shasum": ""
-            },
-            "require": {
-                "georgringer/news": ">=10.0,<13.0",
-                "georgringer/numbered-pagination": ">=1.0.1,<3.0.0",
-                "typo3/cms-core": ">=12.0,<14.0"
-            },
-            "type": "typo3-cms-extension",
-            "extra": {
-                "typo3/cms": {
-                    "extension-key": "md_news_author"
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "Mediadreams\\MdNewsAuthor\\": "Classes"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "GPL-2.0-or-later"
-            ],
-            "authors": [
-                {
-                    "name": "Christoph Daecke",
-                    "role": "Developer"
-                }
-            ],
-            "description": "Adds one or more authors to a tx_news record, show a list of all authors and display a detail page of the author containing the attached news entries.",
-            "homepage": "http://www.mediadreams.org",
-            "keywords": [
-                "TYPO3 CMS",
-                "author",
-                "blog author",
-                "extension",
-                "news",
-                "news author",
-                "tx_news",
-                "typo3"
-            ],
-            "support": {
-                "issues": "https://github.com/cdaecke/md_news_author/issues",
-                "source": "https://github.com/cdaecke/md_news_author"
-            },
-            "time": "2024-12-17T07:35:20+00:00"
         },
         {
             "name": "nikic/php-parser",
@@ -3372,7 +3242,7 @@
             "dist": {
                 "type": "path",
                 "url": "./packages/feuerwehren",
-                "reference": "fff21561f79b30fd1af06037cdd34ec4e80f2d32"
+                "reference": "39cbcb578284b68aba4008aca1d9bc580a9c0304"
             },
             "require": {
                 "php": ">=8.2",
@@ -3400,7 +3270,7 @@
             "dist": {
                 "type": "path",
                 "url": "./packages/icsimporter",
-                "reference": "2f1348462f7ccf8647f0477bfc4483e865b0b4ec"
+                "reference": "4e1df817536622b4270342d81fc1f63c8067b198"
             },
             "require": {
                 "lochmueller/calendarize": "^14.0",
@@ -3428,7 +3298,7 @@
             "dist": {
                 "type": "path",
                 "url": "./packages/sitepackage",
-                "reference": "97ef1e10bdc5750531ee5122a27c42d6d80ad776"
+                "reference": "828b72fdf801adb9b76ea62793af18bac5bc574f"
             },
             "require": {
                 "typo3/cms-core": "^13.4",
