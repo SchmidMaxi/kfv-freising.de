@@ -22,6 +22,8 @@ class Gemeinde extends AbstractEntity
     /** GeoJSON als String */
     protected string $gemeindegebiet = '';
 
+    protected ?Area $kbmArea = null;
+
     /** @var ObjectStorage<Feuerwehr> */
     #[Lazy]
     protected ObjectStorage $feuerwehren;
