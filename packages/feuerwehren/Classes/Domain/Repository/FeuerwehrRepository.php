@@ -10,6 +10,17 @@ use TYPO3\CMS\Extbase\Persistence\Repository;
 final class FeuerwehrRepository extends Repository
 {
     /**
+     * Stellt sicher, dass alle Datensätze gefunden werden,
+     * unabhängig von der Seitenspeicherung (PID).
+     */
+    public function initializeObject(): void
+    {
+        $querySettings = $this->createQuery()->getQuerySettings();
+        $querySettings->setRespectStoragePage(false);
+        $this->setDefaultQuerySettings($querySettings);
+    }
+
+    /**
      * Findet Feuerwehren basierend auf Bounding Box und Fahrzeugkategorien.
      *
      * @param float $west
@@ -29,37 +40,37 @@ final class FeuerwehrRepository extends Repository
         string $mode = 'and'
     ): QueryResultInterface {
         $query = $this->createQuery();
-        $constraints = [];
+        $mainConstraints = [];
 
-        // 1. Bounding Box Constraint
-        $constraints[] = $query->logicalAnd([
-            $query->greaterThanOrEqual('longitude', $west),
-            $query->lessThanOrEqual('longitude', $east),
-            $query->greaterThanOrEqual('latitude', $south),
-            $query->lessThanOrEqual('latitude', $north),
-        ]);
+        // 1. Bounding Box Constraints (immer AND)
+        // KORREKTUR: Variablen statt Strings verwenden
+        $mainConstraints[] = $query->greaterThanOrEqual('longitude', $west);
+        $mainConstraints[] = $query->lessThanOrEqual('longitude', $east);
+        $mainConstraints[] = $query->greaterThanOrEqual('latitude', $south);
+        $mainConstraints[] = $query->lessThanOrEqual('latitude', $north);
 
-        // 2. Fahrzeugkategorien Constraint
+        // 2. Fahrzeugkategorien verarbeiten
         if (!empty($fahrzeugKategorieUids)) {
             $categoryConstraints = [];
             foreach ($fahrzeugKategorieUids as $uid) {
-                // 'fahrzeugkategorien' ist der Property-Name im Model
                 $categoryConstraints[] = $query->contains('fahrzeugkategorien', $uid);
             }
 
-            if ($mode === 'or') {
-                $constraints[] = $query->logicalOr($categoryConstraints);
-            } else {
-                // 'AND' ist der Standard bei logicalAnd
-                $constraints[] = $query->logicalAnd($categoryConstraints);
+            if (count($categoryConstraints) > 0) {
+                if ($mode === 'or') {
+                    $combinedCategoryConstraint = $query->logicalOr(...$categoryConstraints);
+                } else {
+                    $combinedCategoryConstraint = $query->logicalAnd(...$categoryConstraints);
+                }
+                $mainConstraints[] = $combinedCategoryConstraint;
             }
         }
 
-        if (empty($constraints)) {
+        if (empty($mainConstraints)) {
             return $query->execute();
         }
 
-        $query->matching($query->logicalAnd($constraints));
+        $query->matching($query->logicalAnd(...$mainConstraints));
 
         return $query->execute();
     }

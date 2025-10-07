@@ -256,7 +256,7 @@
         params.set('_', String(Date.now())); // cache-bust
 
         try {
-            const res = await fetch(API_SEARCH + '&' + params.toString());
+            const res = await fetch(API_SEARCH + '?' + params.toString());
             const data = await res.json();
             const items = Array.isArray(data.items) ? data.items : [];
 

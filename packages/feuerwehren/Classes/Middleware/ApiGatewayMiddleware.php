@@ -98,7 +98,8 @@ final class ApiGatewayMiddleware implements MiddlewareInterface
     private function rateLimit(ServerRequestInterface $request, string $path): ?ResponseInterface
     {
         $ip = $request->getServerParams()['REMOTE_ADDR'] ?? '0.0.0.0';
-        $key = 'rl:' . md5($ip . '|' . $path);
+        // ÄNDERUNG HIER: ':' durch '_' ersetzen
+        $key = 'rl_' . md5($ip . '|' . $path);
 
         $cache = $this->cacheManager->getCache('feuerwehren_rate');
         $entry = $cache->get($key);

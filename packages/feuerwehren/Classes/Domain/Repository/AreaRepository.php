@@ -17,6 +17,17 @@ final class AreaRepository extends Repository
     ];
 
     /**
+     * HINZUGEFÜGT: Stellt sicher, dass alle Datensätze gefunden werden,
+     * unabhängig von der Seitenspeicherung (PID).
+     */
+    public function initializeObject(): void
+    {
+        $querySettings = $this->createQuery()->getQuerySettings();
+        $querySettings->setRespectStoragePage(false);
+        $this->setDefaultQuerySettings($querySettings);
+    }
+
+    /**
      * @return \TYPO3\CMS\Extbase\Persistence\QueryResultInterface|Area[]
      */
     public function findByType(string $type)
