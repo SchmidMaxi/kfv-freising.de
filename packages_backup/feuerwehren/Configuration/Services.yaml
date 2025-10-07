@@ -1,0 +1,16 @@
+# EXT:feuerwehren/Configuration/Services.yaml
+services:
+  _defaults:
+    autowire: true
+    autoconfigure: true
+    public: false
+
+  Schmid\Feuerwehren\:
+    resource: '../Classes/*'
+
+  Schmid\Feuerwehren\Command\TilesPrefetchCommand:
+    arguments: [ ]          # wichtig: nichts injizieren
+    tags:
+      - name: 'console.command'
+        command: 'feuerwehren:tiles:prefetch'
+        description: 'Prefetch XYZ tiles into var/tiles for a given BBOX and zoom levels'

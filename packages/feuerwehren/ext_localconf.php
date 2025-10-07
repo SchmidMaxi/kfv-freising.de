@@ -11,13 +11,6 @@ use Schmid\Feuerwehren\Controller\{
     TileController
 };
 
-/**
- * WICHTIG:
- * 1) Erster Parameter = ExtensionName OHNE Vendor -> 'Feuerwehren' (UpperCamelCase)
- * 2) PluginName exakt wie in tt_content-Plugin -> 'Karte', 'Organigramm', 'Jubilaeen'
- * 3) API- und Tile-Actions beim Karte-Plugin registrieren (und non-cacheable)
- */
-
 // Organigramm
 ExtensionUtility::configurePlugin(
     'Feuerwehren',

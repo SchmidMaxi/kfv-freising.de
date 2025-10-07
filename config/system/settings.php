@@ -81,6 +81,24 @@ return [
             'storageUidImporter' => '1',
             'tagPid' => '1',
         ],
+        'nnhelpers' => [
+            'autoCreateFilemounts' => '1',
+            'clearAllCaches' => '0',
+            'deeplApiKey' => '',
+            'deeplApiUrl' => 'https://api-free.deepl.com/v2/translate',
+            'devModeEnabled' => '0',
+            'googleGeoApiKey' => '',
+            'saltingKey' => '',
+            'showMod' => '1',
+        ],
+        'nnrestapi' => [
+            'apiKeys' => 'examplefeUserName:exampleApiKey',
+            'disableDefaultEndpoints' => '0',
+            'disableDonationWarning' => '0',
+            'disablePreCheck' => '0',
+            'fileEncryptionKey' => '',
+            'maxSessionLifetime' => '3600',
+        ],
         'redirects' => [
             'showCheckIntegrityInfoInReports' => '1',
             'showCheckIntegrityInfoInReportsSeconds' => '86400',
@@ -102,7 +120,7 @@ return [
         ],
         'debug' => true,
         'disableNoCacheParameter' => true,
-        'pageNotFoundOnCHashError' => false,
+        'pageNotFoundOnCHashError' => true,
         'passwordHashing' => [
             'className' => 'TYPO3\\CMS\\Core\\Crypto\\PasswordHashing\\Argon2iPasswordHash',
             'options' => [],

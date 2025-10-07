@@ -23,7 +23,6 @@ return [
             'kbm'       => 'tx-feuerwehren-area-kbm',
             'fach-kbm'  => 'tx-feuerwehren-area-fachkbm',
         ],
-        'iconfile' => 'EXT:feuerwehren/Resources/Public/Icons/tx_feuerwehren_domain_model_area.svg',
     ],
 
     'types' => [

@@ -8,8 +8,12 @@ return [
         'crdate' => 'crdate',
         'cruser_id' => 'cruser_id',
         'delete' => 'deleted',
-        'enablecolumns' => ['disabled' => 'hidden'],
-        'iconfile' => 'EXT:feuerwehren/Resources/Public/Icons/person.svg',
+        'enablecolumns' => [
+            'disabled' => 'hidden'
+        ],
+        'typeicon_classes' => [
+            'default' => 'tx-feuerwehren-person'
+        ],
     ],
     'columns' => [
         'hidden' => ['config' => ['type' => 'check']],

@@ -52,8 +52,8 @@ CREATE TABLE tx_feuerwehren_domain_model_feuerwehr (
     strasse VARCHAR(255) DEFAULT '',
     plz VARCHAR(10) DEFAULT '',
     ort VARCHAR(255) DEFAULT '',
-    longitude varchar(255) DEFAULT '' NOT NULL,
-    latitude varchar(255) DEFAULT '' NOT NULL,
+    longitude DECIMAL(11, 8) DEFAULT 0.0 NOT NULL,
+    latitude DECIMAL(10, 8) DEFAULT 0.0 NOT NULL,
     gruendungsdatum DATE DEFAULT NULL
 );
 

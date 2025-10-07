@@ -1,0 +1,10 @@
+######################
+#### DEPENDENCIES ####
+######################
+@import 'EXT:md_fullcalendar/Configuration/TypoScript/constants.typoscript'
+
+
+##################
+#### TEMPLATE ####
+##################
+@import './TypoScript/Constants/'

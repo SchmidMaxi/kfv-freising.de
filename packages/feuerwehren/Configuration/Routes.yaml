@@ -7,23 +7,6 @@ feuerwehren_tiles:
     y: '\d+'
     format: 'png|jpg|jpeg|webp'
   methods: [GET]
-
-feuerwehren_api_search:
-  path: '/feuerwehren/api/search'
-  target: 'Schmid\\Feuerwehren\\Controller\\FeuerwehrController::apiSearchAction'
-  methods: [GET]
-  access: 'public'
-
-feuerwehren_api_overlays:
-  path: '/feuerwehren/api/overlays'
-  target: 'Schmid\\Feuerwehren\\Controller\\FeuerwehrController::apiOverlaysAction'
-  methods: [GET]
-  access: 'public'
-
-feuerwehren_health:
-  path: '/feuerwehren/health'
-  target: 'Schmid\\Feuerwehren\\Controller\\HealthController::healthAction'
-  methods: [GET]
   access: 'public'
 
 feuerwehren_vt:
@@ -34,3 +17,4 @@ feuerwehren_vt:
     x: '\d+'
     y: '\d+'
   methods: [GET]
+  access: 'public'

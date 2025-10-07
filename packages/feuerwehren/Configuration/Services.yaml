@@ -1,18 +1,23 @@
+# EXT:feuerwehren/Configuration/Services.yaml
 services:
   _defaults:
     autowire: true
     autoconfigure: true
     public: false
+
   Schmid\Feuerwehren\:
     resource: '../Classes/*'
-  Schmid\Feuerwehren\Command\MbtilesFetchCommand:
-    tags:
-      - name: 'console.command'
-        command: 'feuerwehren:mbtiles:fetch'
-        description: 'Download/replace a MBTiles file from a URL'
+
   Schmid\Feuerwehren\Command\TilesPrefetchCommand:
-    arguments: [ ]          # wichtig: nichts injizieren
+    arguments: [ ]
     tags:
       - name: 'console.command'
         command: 'feuerwehren:tiles:prefetch'
         description: 'Prefetch XYZ tiles into var/tiles for a given BBOX and zoom levels'
+
+  # Middleware muss public sein (wird vom Core instanziert)
+  Schmid\Feuerwehren\Middleware\ApiGatewayMiddleware:
+    public: true
+
+  Schmid\Feuerwehren\Middleware\ApiMiddleware:
+    public: true

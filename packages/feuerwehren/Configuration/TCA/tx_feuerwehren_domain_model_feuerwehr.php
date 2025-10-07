@@ -9,7 +9,9 @@ return [
         'cruser_id' => 'cruser_id',
         'delete' => 'deleted',
         'enablecolumns' => ['disabled' => 'hidden'],
-        'iconfile' => 'EXT:feuerwehren/Resources/Public/Icons/feuerwehr.svg',
+        'typeicon_classes' => [
+            'default' => 'tx-feuerwehren-feuerwehr'
+        ],
     ],
     'columns' => [
         'hidden' => [
@@ -64,8 +66,8 @@ return [
             'config' => [
                 'type' => 'input',
                 'size' => 30,
-                'eval' => 'trim',
-                'default' => '',
+                'eval' => 'trim,double2',
+                'default' => '0.0',
             ],
         ],
         'longitude' => [
@@ -73,8 +75,8 @@ return [
             'config' => [
                 'type' => 'input',
                 'size' => 30,
-                'eval' => 'trim',
-                'default' => '',
+                'eval' => 'trim,double2',
+                'default' => '0.0',
             ],
         ],
         'gruendungsdatum' => [

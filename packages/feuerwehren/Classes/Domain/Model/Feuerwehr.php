@@ -21,8 +21,8 @@ class Feuerwehr extends AbstractEntity
     protected string $strasse = '';
     protected string $plz = '';
     protected string $ort = '';
-    protected string $latitude = '';
-    protected string $longitude = '';
+    protected ?float $latitude = null;
+    protected ?float $longitude = null;
 
     /** Gründungsdatum (TCA eval=date -> Domain: DateTimeImmutable) */
     protected ?DateTimeImmutable $gruendungsdatum = null;
@@ -47,26 +47,54 @@ class Feuerwehr extends AbstractEntity
         return $this->crdate;
     }
 
-    public function getName(): string { return $this->name; }
-    public function setName(string $name): void { $this->name = $name; }
+    public function getName(): string {
+        return $this->name;
+    }
+    public function setName(string $name): void {
+        $this->name = $name;
+    }
 
-    public function getSlug(): string { return $this->slug; }
-    public function setSlug(string $slug): void { $this->slug = $slug; }
+    public function getSlug(): string {
+        return $this->slug;
+    }
+    public function setSlug(string $slug): void {
+        $this->slug = $slug;
+    }
 
-    public function getStrasse(): string { return $this->strasse; }
-    public function setStrasse(string $strasse): void { $this->strasse = $strasse; }
+    public function getStrasse(): string {
+        return $this->strasse;
+    }
+    public function setStrasse(string $strasse): void {
+        $this->strasse = $strasse;
+    }
 
-    public function getPlz(): string { return $this->plz; }
-    public function setPlz(string $plz): void { $this->plz = $plz; }
+    public function getPlz(): string {
+        return $this->plz;
+    }
+    public function setPlz(string $plz): void {
+        $this->plz = $plz;
+    }
 
-    public function getOrt(): string { return $this->ort; }
-    public function setOrt(string $ort): void { $this->ort = $ort; }
+    public function getOrt(): string {
+        return $this->ort;
+    }
+    public function setOrt(string $ort): void {
+        $this->ort = $ort;
+    }
 
-    public function getLatitude(): string { return $this->latitude; }
-    public function setLatitude(string $latitude): void { $this->latitude = $latitude; }
+    public function getLatitude(): ?float {
+        return $this->latitude;
+    }
+    public function setLatitude(?float $latitude): void {
+        $this->latitude = $latitude;
+    }
 
-    public function getLongitude(): string { return $this->longitude; }
-    public function setLongitude(string $longitude): void { $this->longitude = $longitude; }
+    public function getLongitude(): ?float {
+        return $this->longitude;
+    }
+    public function setLongitude(?float $longitude): void {
+        $this->longitude = $longitude;
+    }
 
     public function getGruendungsdatum(): ?DateTimeImmutable
     {

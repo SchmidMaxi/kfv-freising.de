@@ -10,7 +10,9 @@ return [
         'enablecolumns' => [
             'disabled' => 'hidden'
         ],
-        'iconfile' => 'EXT:feuerwehren/Resources/Public/Icons/jubilaeum.svg',
+        'typeicon_classes' => [
+            'default' => 'tx-feuerwehren-jubilaeum'
+        ],
     ],
     'columns' => [
         'hidden' => [
