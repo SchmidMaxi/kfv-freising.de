@@ -3,3 +3,9 @@ label: 'Sitepackage'
 dependencies:
   - typo3/fluid-styled-content
   - typo3/fluid-styled-content-css
+  - typo3/seo-sitemap
+  - typo3/form
+  - georgringer/news
+  - georgringer/news-sitemap
+  - lochmueller/calendarize
+  - schmid/feuerwehren

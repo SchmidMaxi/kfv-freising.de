@@ -1,0 +1,31 @@
+.org-level {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  @include media-breakpoint-up(lg) {
+
+  }
+}
+
+.org-item {
+  padding: 8px;
+  border: 1px solid #ccc;
+  width: 100%;
+  @include media-breakpoint-up(lg) {
+    max-width: 200px;
+  }
+}
+
+.org-item--kbr {
+  background-color: red;
+}
+.org-item--fach-kbm {
+  background-color: green;
+}
+.org-item--kbi {
+  background-color: blue;
+}
+.org-item--kbm {
+  background-color: cadetblue;
+}
+

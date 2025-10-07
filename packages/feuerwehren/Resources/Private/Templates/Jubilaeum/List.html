@@ -1,0 +1,45 @@
+<f:layout name="Default" />
+<f:section name="main">
+    <h1>Jubiläen der Feuerwehren</h1>
+
+    <table class="table" id="jubilaeum-table">
+        <thead>
+        <tr>
+            <th scope="col">Feuerwehr</th>
+            <th scope="col">Gründungsdatum</th>
+            <f:for each="{jubilaeumsTitel}" as="titel">
+                <th scope="col">{titel} Jahre</th>
+            </f:for>
+        </tr>
+        </thead>
+        <tbody>
+        <f:for each="{feuerwehrenData}" as="data">
+            <tr>
+                <td>{data.feuerwehr.name}</td>
+                <td>
+                    <f:if condition="{data.feuerwehr.gruendungsdatum}">
+                        <f:format.date format="d.m.Y">{data.feuerwehr.gruendungsdatum}</f:format.date>
+                    </f:if>
+                </td>
+                <f:for each="{jubilaeumsTitel}" as="titel">
+                    <td>
+                        <f:if condition="{data.jubilaeen.{titel}.datum}">
+                            <f:format.date format="d.m.Y">{data.jubilaeen.{titel}.datum}</f:format.date>
+                        </f:if>
+                    </td>
+                </f:for>
+            </tr>
+        </f:for>
+        </tbody>
+    </table>
+
+    <f:asset.script identifier="jubilaeum-sortable">
+        // Die Funktion auf Ihre Tabelle anwenden, sobald das DOM geladen ist
+        document.addEventListener('DOMContentLoaded', () => {
+            const jubilaeumTable = document.getElementById('jubilaeum-table');
+            if (jubilaeumTable) {
+                makeTableSortable(jubilaeumTable);
+            }
+        });
+    </f:asset.script>
+</f:section>

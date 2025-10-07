@@ -12,18 +12,6 @@ if (getenv('IS_DDEV_PROJECT') == 'true') {
     $GLOBALS['TYPO3_CONF_VARS'] = array_replace_recursive(
         $GLOBALS['TYPO3_CONF_VARS'],
         [
-            'DB' => [
-                'Connections' => [
-                    'Default' => [
-                        'dbname' => 'db',
-                        'driver' => 'mysqli',
-                        'host' => 'db',
-                        'password' => 'db',
-                        'port' => '3306',
-                        'user' => 'db',
-                    ],
-                ],
-            ],
             // This GFX configuration allows processing by installed ImageMagick 6
             'GFX' => [
                 'processor' => 'ImageMagick',

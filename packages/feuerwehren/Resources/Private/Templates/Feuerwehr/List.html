@@ -1,0 +1,36 @@
+<f:layout name="Default" />
+<f:section name="main">
+
+    <div class="feuerwehren-karte-wrap">
+        <div id="map" style="min-height:500px;"></div>
+        <div class="sidebar">
+            <div id="fzFilters">
+                <label><input type="radio" name="mode" value="and" checked> Alle müssen passen (UND)</label>
+                <label><input type="radio" name="mode" value="or"> Mind. eins passt (ODER)</label>
+                <hr>
+                <f:for each="{fahrzeugkategorien}" as="kategorie">
+                    <label>
+                        <input type="checkbox" name="fz[]" value="{kategorie.uid}">
+                        {kategorie.title}
+                    </label>
+                </f:for>
+            </div>
+            <div id="layerToggles">
+                <label><input type="checkbox" id="toggle-gemeinden" checked> Gemeinden</label>
+                <label><input type="checkbox" id="toggle-kbm"> KBM-Bereiche</label>
+                <label><input type="checkbox" id="toggle-kbi"> KBI-Bereiche</label>
+            </div>
+            <div id="fwList"></div>
+        </div>
+    </div>
+
+    <f:comment>
+        KORREKTUR: Wir fügen einen Zeitstempel hinzu, um das Browser-Caching zu umgehen.
+        Die Zahl "17..." wird bei jeder Bearbeitung durch einen neuen Zeitstempel ersetzt,
+        was den Browser zwingt, die Datei neu zu laden.
+    </f:comment>
+    <f:asset.script identifier="turf" src="EXT:feuerwehren/Resources/Public/JavaScript/turf.min.js?v=1759900000" />
+    <f:asset.script identifier="maplibre" src="EXT:feuerwehren/Resources/Public/JavaScript/maplibre-gl.js?v=1759900000" />
+    <f:asset.script identifier="feuerwehren-map" src="EXT:feuerwehren/Resources/Public/JavaScript/map-feuerwehren.js?v=1759900001" />
+
+</f:section>

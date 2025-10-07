@@ -1,1 +1,8 @@
-@import './TypoScript/'
+######################
+#### DEPENDENCIES ####
+######################
+@import 'EXT:md_fullcalendar/Configuration/TypoScript/setup.typoscript'
+
+
+@import './TypoScript/Setup/'
+@import './TypoScript/Setup/Helper'

@@ -1,0 +1,31 @@
+config.no_cache = 1
+
+############
+### PAGE ###
+############
+page {
+    favicon = EXT:sitepackage/Resources/Public/Icons/favicon.svg
+    touchIcon = EXT:sitepackage/Resources/Public/Icons/touchIcon.png
+    pageview {
+        paths = EXT:sitepackage/Resources/Private/PageView/
+    }
+    meta {
+        viewport = width=device-width, initial-scale=1
+        robots = index,follow
+        apple-mobile-web-app-capable = no
+        compatible = IE=edge
+    }
+}
+
+styles {
+    content {
+        textmedia {
+            linkWrap {
+                lightboxEnabled = 1
+                width = 1900m
+                height = 1000m
+            }
+        }
+    }
+
+}

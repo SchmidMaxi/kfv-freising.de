@@ -1,35 +1,56 @@
 <?php
+declare(strict_types=1);
 
-use TYPO3\CMS\Backend\Form\FormDataProvider\DatabaseRowInitializeNew;
-use TYPO3\CMS\Core\Cache\Backend\FileBackend;
-use TYPO3\CMS\Core\Cache\Frontend\PhpFrontend;
-use TYPO3\CMS\Core\Cache\Frontend\VariableFrontend;
-use TYPO3\CMS\Core\Information\Typo3Version;
-use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
-use TYPO3\CMS\Extbase\Service\ExtensionService;
+defined('TYPO3') or die();
+
+/**
+ * Cache für Rate-Limit (60s)
+ * Wir registrieren den Cache hier direkt, um Lade-Reihenfolge-Probleme zu umgehen.
+ */
+if (!isset($GLOBALS['TYPO3_CONF_VARS']['SYS']['caching']['cacheConfigurations']['feuerwehren_rate'])) {
+    $GLOBALS['TYPO3_CONF_VARS']['SYS']['caching']['cacheConfigurations']['feuerwehren_rate'] = [
+        'backend' => \TYPO3\CMS\Core\Cache\Backend\SimpleFileBackend::class,
+        'options' => [
+            'defaultLifetime' => 60,
+        ],
+    ];
+}
+
 use TYPO3\CMS\Extbase\Utility\ExtensionUtility;
+use Schmid\Feuerwehren\Controller\{
+    FeuerwehrController,
+    PersonController,
+    JubilaeumController,
+    TileController
+};
 
-use Schmid\Feuerwehren\Controller\PersonController;
-use Schmid\Feuerwehren\Controller\FeuerwehrController;
-use Schmid\Feuerwehren\Controller\JubilaeumController;
-
-\TYPO3\CMS\Extbase\Utility\ExtensionUtility::configurePlugin(
-    'Schmid.Feuerwehren',
+// Organigramm
+ExtensionUtility::configurePlugin(
+    'Feuerwehren',
     'Organigramm',
-    [PersonController::class => 'list, show'],
-    [PersonController::class => 'list, show']
+    [
+        PersonController::class => 'list,show'
+    ],
+    []
 );
 
-\TYPO3\CMS\Extbase\Utility\ExtensionUtility::configurePlugin(
-    'Schmid.Feuerwehren',
+// Karte
+ExtensionUtility::configurePlugin(
+    'Feuerwehren',
     'Karte',
-    [FeuerwehrController::class => 'list, show'],
-    [FeuerwehrController::class => 'list, show']
+    [
+        FeuerwehrController::class => 'list,show',
+    ],
+    []
 );
 
-\TYPO3\CMS\Extbase\Utility\ExtensionUtility::configurePlugin(
-    'Schmid.Feuerwehren',
+
+// Jubiläen
+ExtensionUtility::configurePlugin(
+    'Feuerwehren',
     'Jubilaeen',
-    [JubilaeumController::class => 'list, show'],
-    [JubilaeumController::class => 'list, show']
+    [
+        JubilaeumController::class => 'list,show'
+    ],
+    []
 );

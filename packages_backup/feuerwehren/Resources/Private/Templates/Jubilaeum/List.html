@@ -1,0 +1,7 @@
+<f:layout name="Default" />
+<f:section name="main">
+    <h1>Jubiläen</h1>
+    <ul>
+        <f:for each="{jubilaeen}" as="j"><li>{j.jahr}: {j.titel} ({j.feuerwehr.name})</li></f:for>
+    </ul>
+</f:section>

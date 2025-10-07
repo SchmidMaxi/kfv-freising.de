@@ -1,0 +1,87 @@
+
+
+
+tt_content.section < lib.contentElement
+tt_content.section {
+    templateName = Section
+    dataProcessing {
+        20 = TYPO3\CMS\Frontend\DataProcessing\FilesProcessor
+        20 {
+            references.fieldName = image
+        }
+        200 = B13\Container\DataProcessing\ContainerProcessor
+        200 {
+            colPos = 200
+            as = children_200
+        }
+    }
+}
+
+tt_content.2cols < lib.contentElement
+tt_content.2cols {
+    templateName = TwoColumns
+    dataProcessing {
+        10 = flex-form
+        200 = B13\Container\DataProcessing\ContainerProcessor
+        200 {
+            colPos = 200
+            as = children_200
+        }
+        201 = B13\Container\DataProcessing\ContainerProcessor
+        201 {
+            colPos = 201
+            as = children_201
+        }
+    }
+}
+
+tt_content.3cols < lib.contentElement
+tt_content.3cols {
+    templateName = ThreeColumns
+    dataProcessing {
+        10 = flex-form
+        200 = B13\Container\DataProcessing\ContainerProcessor
+        200 {
+            colPos = 200
+            as = children_200
+        }
+        201 = B13\Container\DataProcessing\ContainerProcessor
+        201 {
+            colPos = 201
+            as = children_201
+        }
+        202 = B13\Container\DataProcessing\ContainerProcessor
+        202 {
+            colPos = 202
+            as = children_202
+        }
+    }
+}
+
+tt_content.4cols < lib.contentElement
+tt_content.4cols {
+    templateName = FourColumns
+    dataProcessing {
+        10 = flex-form
+        200 = B13\Container\DataProcessing\ContainerProcessor
+        200 {
+            colPos = 200
+            as = children_200
+        }
+        201 = B13\Container\DataProcessing\ContainerProcessor
+        201 {
+            colPos = 201
+            as = children_201
+        }
+        202 = B13\Container\DataProcessing\ContainerProcessor
+        202 {
+            colPos = 202
+            as = children_202
+        }
+        203 = B13\Container\DataProcessing\ContainerProcessor
+        203 {
+            colPos = 203
+            as = children_203
+        }
+    }
+}

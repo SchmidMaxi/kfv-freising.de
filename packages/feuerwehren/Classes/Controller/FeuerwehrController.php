@@ -1,50 +1,81 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Schmid\Feuerwehren\Controller;
 
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Extbase\Mvc\Controller\ActionController;
-use Schmid\Feuerwehren\Domain\Repository\FeuerwehrRepository;
-use Schmid\Feuerwehren\Domain\Repository\FahrzeugkategorieRepository;
-use Schmid\Feuerwehren\Domain\Repository\GemeindeRepository;
+use TYPO3\CMS\Core\Http\JsonResponse;
+use Schmid\Feuerwehren\Domain\Model\Feuerwehr;
+use Schmid\Feuerwehren\Domain\Repository\{
+    FeuerwehrRepository,
+    FahrzeugkategorieRepository,
+    GemeindeRepository,
+    AreaRepository
+};
 
-class FeuerwehrController extends ActionController
+final class FeuerwehrController extends ActionController
 {
-    protected FeuerwehrRepository $feuerwehrRepository;
-    protected FahrzeugkategorieRepository $fahrzeugkategorieRepository;
-    protected GemeindeRepository $gemeindeRepository;
+    public function __construct(
+        protected FeuerwehrRepository $feuerwehrRepository,
+        protected FahrzeugkategorieRepository $fahrzeugkategorieRepository,
+        protected GemeindeRepository $gemeindeRepository,
+        protected AreaRepository $areaRepository
+    ) {}
 
-    public function injectFeuerwehrRepository(FeuerwehrRepository $feuerwehrRepository): void
+    public function listAction(): ResponseInterface
     {
-        $this->feuerwehrRepository = $feuerwehrRepository;
-    }
+        $kategorien = $this->fahrzeugkategorieRepository->findAll();
 
-    public function injectFahrzeugkategorieRepository(FahrzeugkategorieRepository $fahrzeugkategorieRepository): void
-    {
-        $this->fahrzeugkategorieRepository = $fahrzeugkategorieRepository;
-    }
-
-    public function injectGemeindeRepository(GemeindeRepository $gemeindeRepository): void
-    {
-        $this->gemeindeRepository = $gemeindeRepository;
-    }
-
-    public function listAction(): void
-    {
-        $feuerwehren = $this->feuerwehrRepository->findAll();
-        $fahrzeugkategorien = $this->fahrzeugkategorieRepository->findAll();
-        $gemeinden = $this->gemeindeRepository->findAll();
+        $mapConfig = [
+            'vtUrlTemplate' => (string)($this->settings['vtUrlTemplate'] ?? '/_vt/{z}/{x}/{y}.pbf'),
+            'apiSearchUrl'  => (string)($this->settings['apiSearchUrl']  ?? '/?type=171001'),
+            'overlaysUrl'   => (string)($this->settings['overlaysUrl']   ?? '/?type=171002'),
+        ];
 
         $this->view->assignMultiple([
-            'feuerwehren' => $feuerwehren,
-            'fahrzeugkategorien' => $fahrzeugkategorien,
-            'gemeinden' => $gemeinden
+            'fahrzeugkategorien' => $kategorien,
+            'mapConfig' => $mapConfig,
         ]);
+        return $this->htmlResponse();
     }
 
-    public function showAction(\Schmid\Feuerwehren\Domain\Model\Feuerwehr $feuerwehr): void
-    {
-        $this->view->assign('feuerwehr', $feuerwehr);
+    private function normalizeGeom($raw): ?array {
+        $geom = is_string($raw) ? json_decode($raw, true) : $raw;
+        if (!is_array($geom)) { return null; }
+        $type = $geom['type'] ?? '';
+        if ($type === 'Feature' && isset($geom['geometry'])) return $geom['geometry'];
+        if ($type === 'FeatureCollection') {
+            foreach ($geom['features'] ?? [] as $f) {
+                if (($f['type'] ?? '')==='Feature' && is_array($f['geometry'] ?? null)) {
+                    return $f['geometry'];
+                }
+            }
+            return null;
+        }
+        return $geom;
+    }
+
+    private function multiFromGemeinden(array $gemeindeUids, array $gjByGemeinde): ?array {
+        $polys = [];
+        foreach (array_unique($gemeindeUids) as $gid) {
+            $g = $gjByGemeinde[$gid] ?? null;
+            if (!$g) continue;
+            $type = $g['type'] ?? '';
+            $coords = $g['coordinates'] ?? null;
+            if (!is_array($coords)) continue;
+            if ($type === 'Polygon') { $polys[] = $coords; }
+            elseif ($type === 'MultiPolygon') { foreach ($coords as $p) { $polys[] = $p; } }
+        }
+        return $polys ? ['type'=>'MultiPolygon','coordinates'=>$polys] : null;
+    }
+
+    private function parseCoord($value, float $min, float $max): ?float {
+        if ($value === null) { return null; }
+        $s = str_replace(',', '.', trim((string)$value));
+        if ($s === '' || !preg_match('/^-?\d+(?:\.\d+)?$/', $s)) { return null; }
+        $f = (float)$s;
+        return ($f < $min || $f > $max) ? null : $f;
     }
 }

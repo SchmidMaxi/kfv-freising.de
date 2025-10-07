@@ -1,49 +1,192 @@
 <?php
-// TCA Definitions
-
-// === TCA for Feuerwehr ===
 return [
     'ctrl' => [
         'title' => 'Feuerwehr',
         'label' => 'name',
+        'searchFields' => 'name,slug,ort',
         'tstamp' => 'tstamp',
         'crdate' => 'crdate',
         'cruser_id' => 'cruser_id',
         'delete' => 'deleted',
-        'hidden' => 'hidden',
-        'iconfile' => 'EXT:feuerwehren/Resources/Public/Icons/feuerwehr.svg',
+        'enablecolumns' => ['disabled' => 'hidden'],
+        'typeicon_classes' => [
+            'default' => 'tx-feuerwehren-feuerwehr'
+        ],
     ],
     'columns' => [
-        'name' => ['label' => 'Name', 'config' => ['type' => 'input']],
-        'slug' => ['label' => 'Slug', 'config' => ['type' => 'slugd']],
-        'strasse' => ['label' => 'Straße + Hausnummer', 'config' => ['type' => 'input']],
-        'plz' => ['label' => 'PLZ', 'config' => ['type' => 'input']],
-        'ort' => ['label' => 'Ort', 'config' => ['type' => 'input']],
-        'latitude' => ['label' => 'Latitude', 'config' => ['type' => 'input']],
-        'longitude' => ['label' => 'Longitude', 'config' => ['type' => 'input']],
-        'gruendungsdatum' => ['label' => 'Gründungsjahr', 'config' => ['type' => 'input', 'eval' => 'date']],
-        'kommandant' => ['label' => 'Kommandant', 'config' => ['type' => 'group', 'internal_type' => 'db', 'allowed' => 'fe_users']],
-        'stellv_kommandant' => ['label' => 'Stv. Kommandant', 'config' => ['type' => 'group', 'internal_type' => 'db', 'allowed' => 'fe_users']],
-        'jugendwart' => ['label' => 'Jugendwart', 'config' => ['type' => 'group', 'internal_type' => 'db', 'allowed' => 'fe_users']],
-        'stellv_jugendwart' => ['label' => 'Stv. Jugendwart', 'config' => ['type' => 'group', 'internal_type' => 'db', 'allowed' => 'fe_users']],
-        'kinderwart' => ['label' => 'Kinderwart', 'config' => ['type' => 'group', 'internal_type' => 'db', 'allowed' => 'fe_users']],
-        'stellv_kinderwart' => ['label' => 'Stv. Kinderwart', 'config' => ['type' => 'group', 'internal_type' => 'db', 'allowed' => 'fe_users']],
+        'hidden' => [
+            'config' => [
+                'type' => 'check'
+            ],
+        ],
+        'name' => [
+            'label' => 'Name',
+            'config' => [
+                'type' => 'input',
+                'eval' => 'trim,required'
+            ],
+        ],
+        'slug' => [
+            'label' => 'Slug',
+            'config' => [
+                'type' => 'slug',
+                'generatorOptions' => [
+                    'fields' => [
+                        'name'
+                    ]
+                ],
+                'fallbackCharacter' => '-',
+                'eval' => 'uniqueInSite',
+            ],
+        ],
+        'strasse' => [
+            'label' => 'Straße + Hausnummer',
+            'config' => [
+                'type' => 'input',
+                'eval' => 'trim'
+            ],
+        ],
+        'plz' => [
+            'label' => 'PLZ',
+            'config' => [
+                'type' => 'input',
+                'size' => 10,
+                'eval' => 'trim'
+            ],
+        ],
+        'ort' => [
+            'label' => 'Ort',
+            'config' => [
+                'type' => 'input',
+                'eval' => 'trim'
+            ],
+        ],
+        'latitude' => [
+            'label' => 'Latitude',
+            'config' => [
+                'type' => 'input',
+                'size' => 30,
+                'eval' => 'trim,number', // Geändert von double2
+                'default' => '0.0',
+            ],
+        ],
+        'longitude' => [
+            'label' => 'Longitude',
+            'config' => [
+                'type' => 'input',
+                'size' => 30,
+                'eval' => 'trim,number', // Geändert von double2
+                'default' => '0.0',
+            ],
+        ],
+        'gruendungsdatum' => [
+            'label' => 'Gründungsdatum',
+            'config' => [
+                'type' => 'input',
+                'renderType' => 'inputDateTime',
+                'eval' => 'date',
+                'dbType' => 'date',
+                'default' => null,
+                'nullable' => true,
+            ]
+        ],
         'fahrzeugkategorien' => [
             'label' => 'Fahrzeuge',
             'config' => [
                 'type' => 'select',
+                'renderType' => 'selectMultipleSideBySide',
                 'foreign_table' => 'tx_feuerwehren_domain_model_fahrzeugkategorie',
                 'MM' => 'tx_feuerwehren_feuerwehr_fahrzeugkategorie_mm',
                 'size' => 10,
                 'autoSizeMax' => 30,
-                'multiple' => 1,
-                'renderType' => 'selectMultipleSideBySide'
-            ]
-        ]
+            ],
+        ],
+        'kommandant' => [
+            'label' => 'Kommandant',
+            'config' => [
+                'type' => 'select',
+                'renderType' => 'selectSingle',
+                'foreign_table' => 'fe_users',
+                'maxitems' => 1,
+                'items' => [['-', 0]],
+            ],
+        ],
+        'stellv_kommandant' => [
+            'label' => 'Stv. Kommandant',
+            'config' => [
+                'type' => 'select',
+                'renderType' => 'selectSingle',
+                'foreign_table' => 'fe_users',
+                'maxitems' => 1,
+                'items' => [['-', 0]],
+            ],
+        ],
+        'jugendwart' => [
+            'label' => 'Jugendwart',
+            'config' => [
+                'type' => 'select',
+                'renderType' => 'selectSingle',
+                'foreign_table' => 'fe_users',
+                'maxitems' => 1,
+                'items' => [['-', 0]],
+            ],
+        ],
+        'stellv_jugendwart' => [
+            'label' => 'Stv. Jugendwart',
+            'config' => [
+                'type' => 'select',
+                'renderType' => 'selectSingle',
+                'foreign_table' => 'fe_users',
+                'maxitems' => 1,
+                'items' => [['-', 0]],
+            ],
+        ],
+        'kinderwart' => [
+            'label' => 'Kinderwart',
+            'config' => [
+                'type' => 'select',
+                'renderType' => 'selectSingle',
+                'foreign_table' => 'fe_users',
+                'maxitems' => 1,
+                'items' => [['-', 0]],
+            ],
+        ],
+        'stellv_kinderwart' => [
+            'label' => 'Stv. Kinderwart',
+            'config' => [
+                'type' => 'select',
+                'renderType' => 'selectSingle',
+                'foreign_table' => 'fe_users',
+                'maxitems' => 1,
+                'items' => [['-', 0]],
+            ],
+        ],
+        'jubilaeen' => [
+            'exclude' => true,
+            'label' => 'LLL:EXT:feuerwehren/Resources/Private/Language/locallang_db.xlf:tx_feuerwehren_domain_model_feuerwehr.jubilaeen',
+            'config' => [
+                'type' => 'inline',
+                'foreign_table' => 'tx_feuerwehren_domain_model_jubilaeum',
+                'foreign_field' => 'feuerwehr',
+                'maxitems' => 9999,
+                'appearance' => [
+                    'collapseAll' => 1,
+                    'levelLinksPosition' => 'top',
+                    'showSynchronizationLink' => 1,
+                    'showPossibleLocalizationRecords' => 1,
+                    'showAllLocalizationLink' => 1
+                ],
+            ],
+        ],
     ],
     'types' => [
         '0' => [
-            'showitem' => 'name, slug, strasse, plz, ort, latitude, longitude, gruendungsdatum, fahrzeugkategorien, kommandant, stellv_kommandant, jugendwart, stellv_jugendwart, kinderwart, stellv_kinderwart'
-        ]
-    ]
+            'showitem' =>
+                'name, slug, strasse, plz, ort, latitude, longitude, gruendungsdatum,
+         --div--;Fahrzeuge, fahrzeugkategorien,
+         --div--;Führung, kommandant, stellv_kommandant, jugendwart, stellv_jugendwart, kinderwart, stellv_kinderwart,
+         --div--;Jubiläen, jubilaeen,
+         --div--;Access, hidden',
+        ],
+    ],
 ];

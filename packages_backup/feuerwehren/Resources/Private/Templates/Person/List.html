@@ -1,0 +1,8 @@
+<f:layout name="Default" />
+<f:section name="main">
+    <h1>TODO: Organigramm</h1>
+    <f:debug inline="true">{_all}</f:debug>
+    <ul>
+        <f:for each="{personen}" as="p"><li>{p.title} – {p.rolle}</li></f:for>
+    </ul>
+</f:section>

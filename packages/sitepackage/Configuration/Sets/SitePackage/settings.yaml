@@ -4,6 +4,11 @@ styles:
     partialRootPath: 'EXT:sitepackage/Resources/Private/ContentElements/Partials/'
     templateRootPath: 'EXT:sitepackage/Resources/Private/ContentElements/Templates/'
 
+  content:
+    textmedia:
+      linkWrap:
+        lightboxEnabled: true
+
 page:
   pageview:
     paths: 'EXT:sitepackage/Resources/Private/PageView/'
@@ -24,5 +29,5 @@ config:
   removeDefaultJS: '0'
   admPanel: '1'
   prefixLocalAnchors: 'all'
-  headerComment: 'build by get.typo3.org/sitepackage'
+  headerComment: 'build by Maxi Schmid. kontakt@maxischmid.de'
   sendCacheHeaders: '1'

@@ -5,13 +5,22 @@ mod {
     web_layout {
         BackendLayouts {
             default {
-                title = LLL:EXT:sitepackage/Resources/Private/Language/locallang_be.xlf:backend_layout.example
+                title = LLL:EXT:sitepackage/Resources/Private/Language/locallang_be.xlf:backend_layout.default
                 config {
                     backend_layout {
                         colCount = 1
-                        rowCount = 1
+                        rowCount = 2
                         rows {
                             1 {
+                                columns {
+                                    1 {
+                                        name = LLL:EXT:sitepackage/Resources/Private/Language/locallang_be.xlf:backend_layout.column.stage
+                                        colPos = 1
+                                        identifier = stage
+                                    }
+                                }
+                            }
+                            2 {
                                 columns {
                                     1 {
                                         name = LLL:EXT:sitepackage/Resources/Private/Language/locallang_be.xlf:backend_layout.column.normal
@@ -23,7 +32,6 @@ mod {
                         }
                     }
                 }
-                icon = EXT:sitepackage/Resources/Public/Icons/BackendLayouts/example.svg
             }
         }
     }
