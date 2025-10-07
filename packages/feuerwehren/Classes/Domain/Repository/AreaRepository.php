@@ -13,13 +13,9 @@ final class AreaRepository extends Repository
      * @var array<string,int>
      */
     protected $defaultOrderings = [
-        'title' => QueryInterface::ORDER_ASCENDING,
+        'sorting' => QueryInterface::ORDER_ASCENDING,
     ];
 
-    /**
-     * HINZUGEFÜGT: Stellt sicher, dass alle Datensätze gefunden werden,
-     * unabhängig von der Seitenspeicherung (PID).
-     */
     public function initializeObject(): void
     {
         $querySettings = $this->createQuery()->getQuerySettings();
@@ -30,6 +26,15 @@ final class AreaRepository extends Repository
     /**
      * @return \TYPO3\CMS\Extbase\Persistence\QueryResultInterface|Area[]
      */
+    public function findRootNodes()
+    {
+        $query = $this->createQuery();
+        $query->matching(
+            $query->equals('parent', null)
+        );
+        return $query->execute();
+    }
+
     public function findByType(string $type)
     {
         $q = $this->createQuery();

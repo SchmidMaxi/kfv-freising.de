@@ -84,22 +84,8 @@ CREATE TABLE tx_feuerwehren_domain_model_jubilaeum (
     hidden TINYINT DEFAULT 0,
     feuerwehr INT DEFAULT 0,
     date DATE DEFAULT NULL,
-    titel VARCHAR(255) DEFAULT '',
+    titel INT DEFAULT 0,
     beschreibung TEXT
-);
-
-CREATE TABLE tx_feuerwehren_area (
-    uid int AUTO_INCREMENT PRIMARY KEY,
-    pid int DEFAULT 0 NOT NULL,
-    tstamp int DEFAULT 0 NOT NULL,
-    crdate int DEFAULT 0 NOT NULL,
-    cruser_id int DEFAULT 0 NOT NULL,
-    deleted tinyint(4) DEFAULT 0 NOT NULL,
-    hidden tinyint(4) DEFAULT 0 NOT NULL,
-    title varchar(255) DEFAULT '' NOT NULL,
-    type varchar(20) DEFAULT '' NOT NULL,
-    parent int DEFAULT 0 NOT NULL,
-    person int DEFAULT 0 NOT NULL
 );
 
 -- Optional member MM tables

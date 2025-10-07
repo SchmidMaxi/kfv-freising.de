@@ -1,8 +1,46 @@
 <f:layout name="Default" />
 <f:section name="main">
-    <h1>TODO: Organigramm</h1>
+
+    <h1>Organigramm der Kreisbrandinspektion</h1>
+
     <f:debug inline="true">{_all}</f:debug>
-    <ul>
-        <f:for each="{personen}" as="p"><li>{p.title} – {p.rolle}</li></f:for>
-    </ul>
+
+    <div class="organigramm-list">
+
+        <f:if condition="{kbr}">
+            <div class="org-level org-level-kbr">
+                <f:render partial="Person/AreaItem" arguments="{area: kbr}" />
+            </div>
+        </f:if>
+
+        <f:if condition="{fachKbms}">
+            <h3>Fach-Kreisbrandmeister</h3>
+            <div class="org-level org-level-fach-kbm d-flex flex-wrap gap-2">
+                <f:for each="{fachKbms}" as="fachKbm">
+                    <f:render partial="Person/AreaItem" arguments="{area: fachKbm}" />
+                </f:for>
+            </div>
+        </f:if>
+
+        <f:if condition="{kbisWithChildren}">
+            <h3>Kreisbrandinspektoren</h3>
+            <div class="org-level org-level-kbi-list d-flex flex-wrap gap-2">
+                <f:for each="{kbisWithChildren}" as="kbiItem">
+                    <div class="kbi-block">
+                        <f:render partial="Person/AreaItem" arguments="{area: kbiItem.kbi}" />
+
+                        <f:if condition="{kbiItem.kbms}">
+                            <div class="org-level-kbm">
+                                <f:for each="{kbiItem.kbms}" as="kbm">
+                                    <f:render partial="Person/AreaItem" arguments="{area: kbm}" />
+                                </f:for>
+                            </div>
+                        </f:if>
+                    </div>
+                </f:for>
+            </div>
+        </f:if>
+
+    </div>
+
 </f:section>

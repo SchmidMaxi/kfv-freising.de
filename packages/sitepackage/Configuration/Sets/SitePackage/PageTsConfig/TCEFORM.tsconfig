@@ -8,12 +8,14 @@ TCEFORM {
         }
         frame_class {
             removeItems = ruler-before, ruler-after, indent-left, indent-right
+            addItems {
+                container-fluid = Volle Breite
+            }
             types {
                 section {
                     addItems {
                         icon-before = Icon oben-rechts
                         icon-after = Icon unten-links
-                        badge = Badge
                     }
                 }
             }

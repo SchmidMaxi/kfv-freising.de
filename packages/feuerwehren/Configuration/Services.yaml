@@ -6,6 +6,7 @@ services:
 
   Schmid\Feuerwehren\:
     resource: '../Classes/*'
+    exclude: '../Classes/Domain/Model/*'
 
   Schmid\Feuerwehren\Command\TilesPrefetchCommand:
     arguments: [ ]
@@ -16,4 +17,18 @@ services:
 
   # Middleware muss public sein (wird vom Core instanziert)
   Schmid\Feuerwehren\Middleware\ApiGatewayMiddleware:
+    public: true
+
+  Schmid\Feuerwehren\Controller\PersonController:
+    public: true
+
+  Schmid\Feuerwehren\Controller\FeuerwehrController:
+    public: true
+
+  Schmid\Feuerwehren\Controller\JubilaeumController:
+    public: true
+    arguments:
+      $feuerwehrRepository: '@Schmid\Feuerwehren\Domain\Repository\FeuerwehrRepository' # Hinzufügen
+
+  Schmid\Feuerwehren\Controller\VectorTileController:
     public: true

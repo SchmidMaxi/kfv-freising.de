@@ -34,42 +34,9 @@ return [
                 'foreign_table' => 'fe_users', 'maxitems' => 1, 'items' => [['-', 0]]
             ]
         ],
-        'rolle' => [
-            'label' => 'Rolle',
-            'config' => [
-                'type' => 'select',
-                'renderType' => 'selectSingle',
-                'items' => [
-                    ['KBR', 'kbr'],
-                    ['KBI', 'kbi'],
-                    ['KBM', 'kbm'],
-                    ['Fach-KBM', 'fach_kbm'],
-                ],
-                'default' => '',
-            ],
-        ],
-        'gemeinde' => [
-            'label' => 'Gemeinden',
-            'config' => [
-                'type' => 'select',
-                'renderType' => 'selectMultipleSideBySide',
-                'foreign_table' => 'tx_feuerwehren_domain_model_gemeinde',
-                'MM' => 'tx_feuerwehren_person_gemeinde_mm',
-                'size' => 10,
-                'autoSizeMax' => 30,
-            ],
-        ],
-        'untergeordnet' => [
-            'label' => 'Untergeordnete Personen',
-            'config' => [
-                'type' => 'select', 'renderType' => 'selectMultipleSideBySide',
-                'foreign_table' => 'tx_feuerwehren_domain_model_person',
-                'MM' => 'tx_feuerwehren_person_person_mm', 'size' => 10, 'autoSizeMax' => 30,
-            ]
-        ],
     ],
     'types' => [
         '0' => [
-            'showitem' => 'title, slug, fe_user, rolle, gemeinde, untergeordnet, 
+            'showitem' => 'title, slug, fe_user, 
             --div--;Access, hidden']],
 ];

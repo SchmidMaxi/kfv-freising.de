@@ -66,7 +66,7 @@ return [
             'config' => [
                 'type' => 'input',
                 'size' => 30,
-                'eval' => 'trim,double2',
+                'eval' => 'trim,number', // Geändert von double2
                 'default' => '0.0',
             ],
         ],
@@ -75,7 +75,7 @@ return [
             'config' => [
                 'type' => 'input',
                 'size' => 30,
-                'eval' => 'trim,double2',
+                'eval' => 'trim,number', // Geändert von double2
                 'default' => '0.0',
             ],
         ],
@@ -162,15 +162,19 @@ return [
             ],
         ],
         'jubilaeen' => [
-            'label' => 'Jubiläen',
+            'exclude' => true,
+            'label' => 'LLL:EXT:feuerwehren/Resources/Private/Language/locallang_db.xlf:tx_feuerwehren_domain_model_feuerwehr.jubilaeen',
             'config' => [
                 'type' => 'inline',
                 'foreign_table' => 'tx_feuerwehren_domain_model_jubilaeum',
                 'foreign_field' => 'feuerwehr',
+                'maxitems' => 9999,
                 'appearance' => [
-                    'useSortable' => true,
-                    'collapseAll' => true,
-                    'newRecordLinkTitle' => 'Jubiläum hinzufügen',
+                    'collapseAll' => 1,
+                    'levelLinksPosition' => 'top',
+                    'showSynchronizationLink' => 1,
+                    'showPossibleLocalizationRecords' => 1,
+                    'showAllLocalizationLink' => 1
                 ],
             ],
         ],
