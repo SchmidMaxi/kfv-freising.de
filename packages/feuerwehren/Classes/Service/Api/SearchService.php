@@ -14,21 +14,26 @@ final class SearchService
 
     public function search(array $queryParams): array
     {
-        // KORREKTUR: Den einzelnen 'bbox'-Parameter verarbeiten
+        // KORREKTUR: Variablen initialisieren und den 'bbox'-Parameter robust verarbeiten
+        $west = null;
+        $south = null;
+        $east = null;
+        $north = null;
+
         if (!empty($queryParams['bbox']) && is_string($queryParams['bbox'])) {
             $coords = explode(',', $queryParams['bbox']);
             if (count($coords) === 4) {
+                // Sicherstellen, dass alle Werte als float interpretiert werden
                 [$west, $south, $east, $north] = array_map('floatval', $coords);
             }
         }
 
-        // Fallback auf die Standardwerte, falls bbox nicht vorhanden oder ungültig ist
+        // Fallback auf die Standardwerte, falls bbox nicht vorhanden oder ungültig war
         $west  ??= 11.30;
         $south ??= 48.30;
         $east  ??= 12.08;
         $north ??= 48.70;
 
-        // Der Rest der Methode bleibt unverändert
         $selectedCategories = array_filter(
             array_map('intval', $queryParams['f'] ?? []),
             static fn(int $uid) => $uid > 0
@@ -58,7 +63,6 @@ final class SearchService
             ];
         }
 
-        // Wir geben direkt das Array zurück, die Middleware erstellt die JsonResponse
         return ['items' => $items];
     }
 }

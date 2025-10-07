@@ -80,57 +80,74 @@
     async function loadOverlays() {
         try {
             const res = await fetch(API_OVERLAYS);
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
             const payload = await res.json();
 
-            // 1. Gemeinden bleiben wie sie sind
+            // 1. Gemeinden als separate Features aufbereiten (unverändert)
             const gemeindenFeatures = (payload.gemeinden || []).map(g => ({
                 type: 'Feature',
                 id: String(g.uid),
                 properties: { uid: String(g.uid), name: g.name || '' },
                 geometry: g.geojson
-            })).filter(f => !!f.geometry);
+            })).filter(f => f.geometry && f.geometry.coordinates);
 
             const gemeindeSrc = map.getSource('gemeinden');
             if (gemeindeSrc) {
                 gemeindeSrc.setData({ type: 'FeatureCollection', features: gemeindenFeatures });
             }
 
-            // KORREKTUR: Verwende turf.union, um die Polygone zu verschmelzen
-            const dissolveFeatureCollection = (featureCollection) => {
-                if (!featureCollection || !featureCollection.features || featureCollection.features.length === 0) {
-                    return null;
-                }
-                try {
-                    // Start mit dem ersten Polygon
-                    let unioned = featureCollection.features[0];
-                    // Iteriere über die restlichen und füge sie hinzu
-                    for (let i = 1; i < featureCollection.features.length; i++) {
-                        unioned = turf.union(unioned, featureCollection.features[i]);
+            // KORREKTUR: Neue Hilfsfunktion, die MultiPolygons in Polygone "plattklopft"
+            const flattenMultiPolygons = (featureCollection) => {
+                const flattenedFeatures = [];
+                featureCollection.features.forEach(feature => {
+                    if (feature.geometry.type === 'MultiPolygon') {
+                        // Für jedes Polygon im MultiPolygon ein eigenes Feature erstellen
+                        feature.geometry.coordinates.forEach(polygonCoords => {
+                            flattenedFeatures.push({
+                                type: 'Feature',
+                                properties: feature.properties, // Eigenschaften beibehalten
+                                geometry: {
+                                    type: 'Polygon',
+                                    coordinates: polygonCoords
+                                }
+                            });
+                        });
+                    } else if (feature.geometry.type === 'Polygon') {
+                        flattenedFeatures.push(feature); // Polygon direkt übernehmen
                     }
-                    return unioned;
-                } catch (e) {
-                    console.error("Turf union failed, falling back to MultiPolygon", e);
-                    // Fallback: Wenn das Verschmelzen fehlschlägt, zeige die Originaldaten an
-                    return featureCollection;
-                }
+                });
+                return { type: 'FeatureCollection', features: flattenedFeatures };
             };
 
-            // 2. KBM-Bereiche verarbeiten
-            if (payload.kbmFeatures && payload.kbmFeatures.features.length) {
-                const kbmSrc = map.getSource('kbm');
-                const dissolvedKbm = dissolveFeatureCollection(payload.kbmFeatures);
-                if (kbmSrc && dissolvedKbm) {
-                    // turf.union erzeugt ein einzelnes Feature, wir brauchen eine FeatureCollection
-                    kbmSrc.setData({ type: 'FeatureCollection', features: [dissolvedKbm] });
+            // 2. KBM-Bereiche verarbeiten: Erst flachklopfen, dann verschmelzen
+            if (payload.kbmFeatures && payload.kbmFeatures.features.length > 0) {
+                try {
+                    const flattened = flattenMultiPolygons(payload.kbmFeatures);
+                    const dissolved = turf.dissolve(flattened); // Funktioniert jetzt
+                    const kbmSrc = map.getSource('kbm');
+                    if (kbmSrc && dissolved) {
+                        kbmSrc.setData(dissolved);
+                    }
+                } catch(e) {
+                    console.error("Turf dissolve for KBM failed:", e);
+                    const kbmSrc = map.getSource('kbm');
+                    if (kbmSrc) kbmSrc.setData(payload.kbmFeatures); // Fallback
                 }
             }
 
-            // 3. KBI-Bereiche verarbeiten
-            if (payload.kbiFeatures && payload.kbiFeatures.features.length) {
-                const kbiSrc = map.getSource('kbi');
-                const dissolvedKbi = dissolveFeatureCollection(payload.kbiFeatures);
-                if (kbiSrc && dissolvedKbi) {
-                    kbiSrc.setData({ type: 'FeatureCollection', features: [dissolvedKbi] });
+            // 3. KBI-Bereiche verarbeiten: Erst flachklopfen, dann verschmelzen
+            if (payload.kbiFeatures && payload.kbiFeatures.features.length > 0) {
+                try {
+                    const flattened = flattenMultiPolygons(payload.kbiFeatures);
+                    const dissolved = turf.dissolve(flattened); // Funktioniert jetzt
+                    const kbiSrc = map.getSource('kbi');
+                    if (kbiSrc && dissolved) {
+                        kbiSrc.setData(dissolved);
+                    }
+                } catch(e) {
+                    console.error("Turf dissolve for KBI failed:", e);
+                    const kbiSrc = map.getSource('kbi');
+                    if (kbiSrc) kbiSrc.setData(payload.kbiFeatures); // Fallback
                 }
             }
 
