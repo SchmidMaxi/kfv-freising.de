@@ -25,7 +25,8 @@ final class ApiGatewayMiddleware implements MiddlewareInterface
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        $path = $request->getUri()->getPath();
+        // KORREKTUR: Pfad vom Query String trennen für robustes Matching
+        $path = explode('?', $request->getUri()->getPath(), 2)[0];
 
         // Nur unsere API übernehmen
         if (!str_starts_with($path, '/api/feuerwehren')) {
@@ -62,13 +63,7 @@ final class ApiGatewayMiddleware implements MiddlewareInterface
 
     private function handleSearch(ServerRequestInterface $request): ResponseInterface
     {
-        $q = $request->getQueryParams();
-        // Beispiel: Site-Settings nutzen (falls benötigt)
-        $tileSource = $this->settings->get($request, 'feuerwehren.tileSource', 'mbtiles');
-
-        $data = $this->search->search($q);
-        $data['meta']['tileSource'] = $tileSource;
-
+        $data = $this->search->search($request->getQueryParams());
         return new JsonResponse($data, 200);
     }
 

@@ -1,62 +1,54 @@
 <?php
-// EXT:feuerwehren/Classes/Service/Api/SearchService.php
 declare(strict_types=1);
 
 namespace Schmid\Feuerwehren\Service\Api;
 
-use TYPO3\CMS\Core\Database\ConnectionPool;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
+use Schmid\Feuerwehren\Domain\Model\Feuerwehr;
+use Schmid\Feuerwehren\Domain\Repository\FeuerwehrRepository;
 
 final class SearchService
 {
-    private const TABLE_FW = 'tx_feuerwehren_domain_model_feuerwehr'; // anpassen falls anders
-
-    /**
-     * @param array{bbox?:string,mode?:string,f?:array<int,string>} $query
-     * @return array{items:array<int,array<string,mixed>>,meta:array<string,mixed>}
-     */
-    public function search(array $query): array
+    public function __construct(private readonly FeuerwehrRepository $feuerwehrRepository)
     {
-        [$west,$south,$east,$north] = array_pad(explode(',', (string)($query['bbox'] ?? '')), 4, null);
-        $mode = strtolower((string)($query['mode'] ?? 'or'));
-        $filters = $query['f'] ?? []; // Fahrzeugkategorien etc.
+    }
 
-        $qb = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable(self::TABLE_FW);
-        $qb->select('uid','title','latitude','longitude') // Felder ergänzen
-        ->from(self::TABLE_FW)
-            ->where($qb->expr()->eq('deleted', 0), $qb->expr()->eq('hidden', 0))
-            ->orderBy('title', 'ASC')
-            ->setMaxResults(1000);
+    public function search(array $queryParams): array
+    {
+        $west  = (float)($queryParams['bboxW'] ?? 11.30);
+        $south = (float)($queryParams['bboxS'] ?? 48.30);
+        $east  = (float)($queryParams['bboxE'] ?? 12.08);
+        $north = (float)($queryParams['bboxN'] ?? 48.70);
 
-        $rows = $qb->executeQuery()->fetchAllAssociative();
+        $selectedCategories = array_filter(
+            array_map('intval', $queryParams['f'] ?? []),
+            static fn(int $uid) => $uid > 0
+        );
+        $mode = ($queryParams['mode'] ?? 'and') === 'or' ? 'or' : 'and';
 
-        // BBox & Filter im PHP (oder via SQL, wenn Spalten vorhanden sind)
+        $feuerwehren = $this->feuerwehrRepository->findForMapSearch(
+            $west, $south, $east, $north, $selectedCategories, $mode
+        );
+
         $items = [];
-        foreach ($rows as $r) {
-            $lat = (float)($r['latitude'] ?? 0);
-            $lon = (float)($r['longitude'] ?? 0);
-            if ($west !== null) {
-                if ($lon < (float)$west || $lon > (float)$east || $lat < (float)$south || $lat > (float)$north) {
-                    continue;
-                }
+        /** @var Feuerwehr $fw */
+        foreach ($feuerwehren as $fw) {
+            $cats = [];
+            foreach ($fw->getFahrzeugkategorien() as $cat) {
+                $cats[] = (string)$cat->getTitle();
             }
-            // TODO: Filter f[] gegen Kategorien prüfen (wenn Relation/Join bekannt)
             $items[] = [
-                'uid'  => (int)$r['uid'],
-                'title'=> (string)$r['title'],
-                'lat'  => $lat,
-                'lon'  => $lon,
+                'uid'       => $fw->getUid(),
+                'name'      => $fw->getName(),
+                'strasse'   => $fw->getStrasse(),
+                'plz'       => $fw->getPlz(),
+                'ort'       => $fw->getOrt(),
+                'lat'       => $fw->getLatitude(),
+                'lon'       => $fw->getLongitude(),
+                'fahrzeuge' => $cats,
             ];
         }
 
-        return [
-            'items' => $items,
-            'meta'  => [
-                'count' => count($items),
-                'bbox'  => [$west,$south,$east,$north],
-                'mode'  => $mode,
-                'filters' => $filters,
-            ],
-        ];
+        // Wir geben direkt das Array zurück, die Middleware erstellt die JsonResponse
+        return ['items' => $items];
     }
 }

@@ -1,13 +1,13 @@
 feuerwehren_tiles:
   path: '/_tiles/{z}/{x}/{y}.{format}'
-  controller: 'Schmid\\Feuerwehren\\Controller\\TileController::tileAction'
+  controller: \Schmid\Feuerwehren\Controller\TileController::tile
   requirements:
-    z: '\d+'
-    x: '\d+'
-    y: '\d+'
-    format: 'png|jpg|jpeg|webp'
-  methods: [GET]
-  access: 'public'
+    z: \d+
+    x: \d+
+    y: \d+
+    format: png|jpg
+  defaults:
+    format: png
 
 feuerwehren_vt:
   path: '/_vt/{z}/{x}/{y}.pbf'
