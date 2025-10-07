@@ -1,0 +1,31 @@
+# Definition der Extbase-Plugins
+tt_content.list.20 {
+    feuerwehren_karte = USER
+    feuerwehren_karte {
+        userFunc = TYPO3\CMS\Extbase\Core\Bootstrap->run
+        extensionName = Feuerwehren
+        pluginName = Karte
+        vendorName = Schmid
+    }
+
+    feuerwehren_organigramm = USER
+    feuerwehren_organigramm {
+        userFunc = TYPO3\CMS\Extbase\Core\Bootstrap->run
+        extensionName = Feuerwehren
+        pluginName = Organigramm
+        vendorName = Schmid
+    }
+
+    feuerwehren_jubilaeen = USER
+    feuerwehren_jubilaeen {
+        userFunc = TYPO3\CMS\Extbase\Core\Bootstrap->run
+        extensionName = Feuerwehren
+        pluginName = Jubilaeen
+        vendorName = Schmid
+    }
+}
+
+# Vektor-Kachel Endpunkt für MapLibre
+# Dieser Pfad wird vom VectorTileController bedient.
+page.10.subparts.VECTOR_TILES_URL = TEXT
+page.10.subparts.VECTOR_TILES_URL.value = /_vt/{z}/{x}/{y}.pbf

@@ -9,7 +9,9 @@ return [
         'cruser_id' => 'cruser_id',
         'delete' => 'deleted',
         'enablecolumns' => ['disabled' => 'hidden'],
-        'iconfile' => 'EXT:feuerwehren/Resources/Public/Icons/feuerwehr.svg',
+        'typeicon_classes' => [
+            'default' => 'tx-feuerwehren-feuerwehr'
+        ],
     ],
     'columns' => [
         'hidden' => [
@@ -64,8 +66,8 @@ return [
             'config' => [
                 'type' => 'input',
                 'size' => 30,
-                'eval' => 'trim',
-                'default' => '',
+                'eval' => 'trim,number', // Geändert von double2
+                'default' => '0.0',
             ],
         ],
         'longitude' => [
@@ -73,8 +75,8 @@ return [
             'config' => [
                 'type' => 'input',
                 'size' => 30,
-                'eval' => 'trim',
-                'default' => '',
+                'eval' => 'trim,number', // Geändert von double2
+                'default' => '0.0',
             ],
         ],
         'gruendungsdatum' => [
@@ -160,15 +162,19 @@ return [
             ],
         ],
         'jubilaeen' => [
-            'label' => 'Jubiläen',
+            'exclude' => true,
+            'label' => 'LLL:EXT:feuerwehren/Resources/Private/Language/locallang_db.xlf:tx_feuerwehren_domain_model_feuerwehr.jubilaeen',
             'config' => [
                 'type' => 'inline',
                 'foreign_table' => 'tx_feuerwehren_domain_model_jubilaeum',
                 'foreign_field' => 'feuerwehr',
+                'maxitems' => 9999,
                 'appearance' => [
-                    'useSortable' => true,
-                    'collapseAll' => true,
-                    'newRecordLinkTitle' => 'Jubiläum hinzufügen',
+                    'collapseAll' => 1,
+                    'levelLinksPosition' => 'top',
+                    'showSynchronizationLink' => 1,
+                    'showPossibleLocalizationRecords' => 1,
+                    'showAllLocalizationLink' => 1
                 ],
             ],
         ],

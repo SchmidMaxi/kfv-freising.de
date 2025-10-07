@@ -1,0 +1,8 @@
+# EXT:feuerwehren/Configuration/Sets/Feuerwehren/settings.yaml
+
+# Grundeinstellungen für die feuerwehren Extension
+vars:
+  - name: plugin.tx_feuerwehren.settings.vectorTiles.mbtilesPath
+    value: 'fileadmin/tiles/vektorkarte.mbtiles'
+    label: 'Pfad zur Vektor-MBTiles-Datei'
+    category: feuerwehren

@@ -6,6 +6,8 @@ baseVariants:
   -
     base: 'https://kfv-freising.ddev.site/'
     condition: 'applicationContext == "Development"'
+dependencies:
+  - schmid/sitepackage
 languages:
   -
     title: Deutsch
@@ -19,4 +21,3 @@ languages:
     websiteTitle: ''
 rootPageId: 1
 websiteTitle: ''
-

@@ -1,31 +1,3 @@
-feuerwehren_tiles:
-  path: '/_tiles/{z}/{x}/{y}.{format}'
-  controller: 'Schmid\\Feuerwehren\\Controller\\TileController::tileAction'
-  requirements:
-    z: '\d+'
-    x: '\d+'
-    y: '\d+'
-    format: 'png|jpg|jpeg|webp'
-  methods: [GET]
-
-feuerwehren_api_search:
-  path: '/feuerwehren/api/search'
-  target: 'Schmid\\Feuerwehren\\Controller\\FeuerwehrController::apiSearchAction'
-  methods: [GET]
-  access: 'public'
-
-feuerwehren_api_overlays:
-  path: '/feuerwehren/api/overlays'
-  target: 'Schmid\\Feuerwehren\\Controller\\FeuerwehrController::apiOverlaysAction'
-  methods: [GET]
-  access: 'public'
-
-feuerwehren_health:
-  path: '/feuerwehren/health'
-  target: 'Schmid\\Feuerwehren\\Controller\\HealthController::healthAction'
-  methods: [GET]
-  access: 'public'
-
 feuerwehren_vt:
   path: '/_vt/{z}/{x}/{y}.pbf'
   controller: 'Schmid\\Feuerwehren\\Controller\\VectorTileController::pbfAction'
@@ -34,3 +6,4 @@ feuerwehren_vt:
     x: '\d+'
     y: '\d+'
   methods: [GET]
+  access: 'public'

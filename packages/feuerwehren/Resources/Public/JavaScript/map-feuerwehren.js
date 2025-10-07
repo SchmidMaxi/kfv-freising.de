@@ -1,7 +1,7 @@
 (function () {
-    const ORIGIN = window.location.origin; // absolute Basis-URL!
-    const API_SEARCH = ORIGIN + '/?type=171001';
-    const API_OVERLAYS = ORIGIN + '/?type=171002';
+    const ORIGIN = window.location.origin;
+    const API_SEARCH = ORIGIN + '/api/feuerwehren/search';
+    const API_OVERLAYS = ORIGIN + '/api/feuerwehren/overlays';
     const VT_TILES = ORIGIN + '/_vt/{z}/{x}/{y}.pbf';
 
     const mapContainerId = 'map';
@@ -30,53 +30,18 @@
                 "feuerwehren": { "type": "geojson", "data": { "type": "FeatureCollection", "features": [] } }
             },
             "layers": [
-                // sehr simples Basemap-Rendering, damit es nicht grau ist:
-                { "id": "water", "type": "fill", "source": "basemap", "source-layer": "water",
-                    "paint": { "fill-color": "#a0c8f0" } },
-                { "id": "landcover", "type": "fill", "source": "basemap", "source-layer": "landcover",
-                    "paint": { "fill-color": "#e8e8e8", "fill-opacity": 0.5 } },
-                { "id": "roads", "type": "line", "source": "basemap", "source-layer": "transportation",
-                    "paint": { "line-color": "#bdbdbd", "line-width": ["interpolate",["linear"],["zoom"],6,0.2,14,2] } },
-                { "id": "boundary", "type": "line", "source": "basemap", "source-layer": "boundary",
-                    "paint": { "line-color": "#888", "line-dasharray": [3,2], "line-width": 1 } },
-
-                // Overlays
-                { "id": "gemeinden-fill", "type": "fill", "source": "gemeinden",
-                    "paint": { "fill-color": "#66bb6a", "fill-opacity": 0.10 } },
-                { "id": "gemeinden-outline", "type": "line", "source": "gemeinden",
-                    "paint": { "line-color": "#2e7d32", "line-width": 1 } },
-
-                { "id": "kbm-fill", "type": "fill", "source": "kbm",
-                    "layout": { "visibility": "none" },
-                    "paint": { "fill-color": "#42a5f5", "fill-opacity": 0.08 } },
-                { "id": "kbm-outline", "type": "line", "source": "kbm",
-                    "layout": { "visibility": "none" },
-                    "paint": { "line-color": "#1e88e5", "line-width": 1 } },
-
-                { "id": "kbi-fill", "type": "fill", "source": "kbi",
-                    "layout": { "visibility": "none" },
-                    "paint": { "fill-color": "#7e57c2", "fill-opacity": 0.06 } },
-                { "id": "kbi-outline", "type": "line", "source": "kbi",
-                    "layout": { "visibility": "none" },
-                    "paint": { "line-color": "#6a1b9a", "line-width": 1 } },
-
-                // Feuerwehren (Basis + Highlight)
-                { "id": "feuerwehren", "type": "circle", "source": "feuerwehren",
-                    "paint": {
-                        "circle-color": "#1e88e5",
-                        "circle-radius": 6,
-                        "circle-stroke-color": "#ffffff",
-                        "circle-stroke-width": 1,
-                        "circle-opacity": 0.9
-                    } },
-                { "id": "feuerwehren-highlight", "type": "circle", "source": "feuerwehren",
-                    "filter": ["==", ["get","uid"], "__none__"],
-                    "paint": {
-                        "circle-color": "#ff6d00",
-                        "circle-radius": 8,
-                        "circle-stroke-color": "#ffffff",
-                        "circle-stroke-width": 2
-                    } }
+                { "id": "water", "type": "fill", "source": "basemap", "source-layer": "water", "paint": { "fill-color": "#a0c8f0" } },
+                { "id": "landcover", "type": "fill", "source": "basemap", "source-layer": "landcover", "paint": { "fill-color": "#e8e8e8", "fill-opacity": 0.5 } },
+                { "id": "roads", "type": "line", "source": "basemap", "source-layer": "transportation", "paint": { "line-color": "#bdbdbd", "line-width": ["interpolate",["linear"],["zoom"],6,0.2,14,2] } },
+                { "id": "boundary", "type": "line", "source": "basemap", "source-layer": "boundary", "paint": { "line-color": "#888", "line-dasharray": [3,2], "line-width": 1 } },
+                { "id": "gemeinden-fill", "type": "fill", "source": "gemeinden", "paint": { "fill-color": "#66bb6a", "fill-opacity": 0.10 } },
+                { "id": "gemeinden-outline", "type": "line", "source": "gemeinden", "paint": { "line-color": "#2e7d32", "line-width": 1 } },
+                { "id": "kbm-fill", "type": "fill", "source": "kbm", "layout": { "visibility": "none" }, "paint": { "fill-color": "#42a5f5", "fill-opacity": 0.08 } },
+                { "id": "kbm-outline", "type": "line", "source": "kbm", "layout": { "visibility": "none" }, "paint": { "line-color": "#1e88e5", "line-width": 1 } },
+                { "id": "kbi-fill", "type": "fill", "source": "kbi", "layout": { "visibility": "none" }, "paint": { "fill-color": "#7e57c2", "fill-opacity": 0.06 } },
+                { "id": "kbi-outline", "type": "line", "source": "kbi", "layout": { "visibility": "none" }, "paint": { "line-color": "#6a1b9a", "line-width": 1 } },
+                { "id": "feuerwehren", "type": "circle", "source": "feuerwehren", "paint": { "circle-color": "#1e88e5", "circle-radius": 6, "circle-stroke-color": "#ffffff", "circle-stroke-width": 1, "circle-opacity": 0.9 } },
+                { "id": "feuerwehren-highlight", "type": "circle", "source": "feuerwehren", "filter": ["==", ["get","uid"], "__none__"], "paint": { "circle-color": "#ff6d00", "circle-radius": 8, "circle-stroke-color": "#ffffff", "circle-stroke-width": 2 } }
             ]
         };
     }
@@ -92,7 +57,6 @@
         if (map.getLayer('feuerwehren-highlight')) {
             map.setFilter('feuerwehren-highlight', filter);
         }
-        // Liste dimmen
         const list = document.getElementById(listContainerId);
         if (list) {
             Array.from(list.querySelectorAll('.fw-item')).forEach(li => {
@@ -116,85 +80,78 @@
     async function loadOverlays() {
         try {
             const res = await fetch(API_OVERLAYS);
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
             const payload = await res.json();
 
-            const gemeinden = payload.gemeinden || [];
-            const kbmMap = payload.kbm || {}; // { kbmUid: [gemeindeUid,...] }
-            const kbiMap = payload.kbi || {}; // { kbiUid: [kbmUid,...] }
-
-            // 1) Gemeinden in Source schreiben + Index aufbauen
-            const gjFeatures = gemeinden.map(g => ({
+            // 1. Gemeinden als separate Features aufbereiten (unverändert)
+            const gemeindenFeatures = (payload.gemeinden || []).map(g => ({
                 type: 'Feature',
                 id: String(g.uid),
                 properties: { uid: String(g.uid), name: g.name || '' },
-                geometry: g.geojson?.type ? g.geojson : (g.geojson?.geometry || g.geojson)
-            })).filter(f => !!f.geometry);
+                geometry: g.geojson
+            })).filter(f => f.geometry && f.geometry.coordinates);
 
             const gemeindeSrc = map.getSource('gemeinden');
             if (gemeindeSrc) {
-                gemeindeSrc.setData({ type: 'FeatureCollection', features: gjFeatures });
+                gemeindeSrc.setData({ type: 'FeatureCollection', features: gemeindenFeatures });
             }
 
-            const gById = new Map(gjFeatures.map(f => [String(f.properties.uid), f]));
-
-            // helper: Union über Feature-Liste
-            function unionAll(features) {
-                if (!features.length) return null;
-                let merged = features[0];
-                for (let i = 1; i < features.length; i++) {
-                    try {
-                        merged = window.turf.union(merged, features[i]);
-                    } catch (e) {
-                        // eslint-disable-next-line no-console
-                        console.warn('Union error, skipping one piece', e);
+            // KORREKTUR: Neue Hilfsfunktion, die MultiPolygons in Polygone "plattklopft"
+            const flattenMultiPolygons = (featureCollection) => {
+                const flattenedFeatures = [];
+                featureCollection.features.forEach(feature => {
+                    if (feature.geometry.type === 'MultiPolygon') {
+                        // Für jedes Polygon im MultiPolygon ein eigenes Feature erstellen
+                        feature.geometry.coordinates.forEach(polygonCoords => {
+                            flattenedFeatures.push({
+                                type: 'Feature',
+                                properties: feature.properties, // Eigenschaften beibehalten
+                                geometry: {
+                                    type: 'Polygon',
+                                    coordinates: polygonCoords
+                                }
+                            });
+                        });
+                    } else if (feature.geometry.type === 'Polygon') {
+                        flattenedFeatures.push(feature); // Polygon direkt übernehmen
                     }
+                });
+                return { type: 'FeatureCollection', features: flattenedFeatures };
+            };
+
+            // 2. KBM-Bereiche verarbeiten: Erst flachklopfen, dann verschmelzen
+            if (payload.kbmFeatures && payload.kbmFeatures.features.length > 0) {
+                try {
+                    const flattened = flattenMultiPolygons(payload.kbmFeatures);
+                    const dissolved = turf.dissolve(flattened); // Funktioniert jetzt
+                    const kbmSrc = map.getSource('kbm');
+                    if (kbmSrc && dissolved) {
+                        kbmSrc.setData(dissolved);
+                    }
+                } catch(e) {
+                    console.error("Turf dissolve for KBM failed:", e);
+                    const kbmSrc = map.getSource('kbm');
+                    if (kbmSrc) kbmSrc.setData(payload.kbmFeatures); // Fallback
                 }
-                if (!merged) return null;
-                // Sauber klonen + Properties setzen
-                const out = JSON.parse(JSON.stringify(merged));
-                if (!out.properties) out.properties = {};
-                return out;
             }
 
-            // 2) KBM: union(Gemeinden)
-            const kbmFeatures = [];
-            Object.entries(kbmMap).forEach(([kbmUid, gemeindeUids]) => {
-                const parts = (gemeindeUids || [])
-                    .map(id => gById.get(String(id)))
-                    .filter(Boolean);
-                const merged = unionAll(parts);
-                if (merged) {
-                    merged.properties.uid = String(kbmUid);
-                    kbmFeatures.push(merged);
+            // 3. KBI-Bereiche verarbeiten: Erst flachklopfen, dann verschmelzen
+            if (payload.kbiFeatures && payload.kbiFeatures.features.length > 0) {
+                try {
+                    const flattened = flattenMultiPolygons(payload.kbiFeatures);
+                    const dissolved = turf.dissolve(flattened); // Funktioniert jetzt
+                    const kbiSrc = map.getSource('kbi');
+                    if (kbiSrc && dissolved) {
+                        kbiSrc.setData(dissolved);
+                    }
+                } catch(e) {
+                    console.error("Turf dissolve for KBI failed:", e);
+                    const kbiSrc = map.getSource('kbi');
+                    if (kbiSrc) kbiSrc.setData(payload.kbiFeatures); // Fallback
                 }
-            });
-
-            const kbmSrc = map.getSource('kbm');
-            if (kbmSrc) {
-                kbmSrc.setData({ type: 'FeatureCollection', features: kbmFeatures });
             }
 
-            const kbmById = new Map(kbmFeatures.map(f => [String(f.properties.uid), f]));
-
-            // 3) KBI: union(KBM-Flächen)
-            const kbiFeatures = [];
-            Object.entries(kbiMap).forEach(([kbiUid, kbmUids]) => {
-                const parts = (kbmUids || [])
-                    .map(id => kbmById.get(String(id)))
-                    .filter(Boolean);
-                const merged = unionAll(parts);
-                if (merged) {
-                    merged.properties.uid = String(kbiUid);
-                    kbiFeatures.push(merged);
-                }
-            });
-
-            const kbiSrc = map.getSource('kbi');
-            if (kbiSrc) {
-                kbiSrc.setData({ type: 'FeatureCollection', features: kbiFeatures });
-            }
         } catch (e) {
-            // eslint-disable-next-line no-console
             console.error('Overlay-Load failed', e);
         }
     }
@@ -202,8 +159,7 @@
 
     function bboxQS() {
         const b = map.getBounds();
-        // west,south,east,north
-        return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(',');
+        return `${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
     }
 
     function renderList(items) {
@@ -251,20 +207,19 @@
         params.set('bbox', bboxQS());
         params.set('mode', getMode());
         getSelectedFz().forEach(v => params.append('f[]', v));
-        params.set('_', String(Date.now())); // cache-bust
+        params.set('_', String(Date.now()));
 
         try {
-            const res = await fetch(API_SEARCH + '&' + params.toString());
+            // KORREKTUR: '?' statt '&' für den Query-String verwenden
+            const res = await fetch(API_SEARCH + '?' + params.toString());
             const data = await res.json();
             const items = Array.isArray(data.items) ? data.items : [];
 
-            // Liste + Marker
             renderList(items);
             const src = map.getSource('feuerwehren');
             if (src) src.setData(itemsToGeoJSON(items));
 
-            // Popup bei Click
-            map.off('click', 'feuerwehren'); // doppelte binding vermeiden
+            map.off('click', 'feuerwehren');
             map.on('click', 'feuerwehren', (ev) => {
                 const f = ev.features && ev.features[0];
                 if (!f) return;
@@ -289,13 +244,11 @@
                 map.getCanvas().style.cursor = '';
             });
         } catch (e) {
-            // eslint-disable-next-line no-console
             console.error('Data-Load failed', e);
         }
     }
 
     function wireToggles() {
-        // Layer-Toggles
         const setVis = (layerId, visible) => {
             if (!map.getLayer(layerId)) return;
             map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none');
@@ -309,7 +262,7 @@
                 setVis('gemeinden-outline', gEl.checked);
             };
             gEl.addEventListener('change', handler);
-            handler(); // initial
+            handler();
         }
         if (kbmEl) {
             const handler = () => {
@@ -328,21 +281,18 @@
             handler();
         }
 
-        // Filter-Inputs
         document.querySelectorAll('input[name="fz[]"], input[name="mode"]').forEach(el => {
             el.addEventListener('change', () => loadData());
         });
 
-        // Map Events
         map.on('moveend', () => loadData());
         map.on('zoomend', () => loadData());
     }
 
     function init() {
-        // MapLibre initialisieren
         map = new maplibregl.Map({
             container: mapContainerId,
-            center: [11.75, 48.46], // Fokus Freising
+            center: [11.75, 48.46],
             zoom: 10,
             style: buildBaseStyle()
         });
@@ -355,7 +305,6 @@
         });
     }
 
-    // Start
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {

@@ -1,0 +1,58 @@
+TCEFORM {
+    pages {
+
+    }
+    tt_content {
+        CType {
+            removeItems = text, textpic, image, html
+        }
+        frame_class {
+            removeItems = ruler-before, ruler-after, indent-left, indent-right
+            addItems {
+                container-fluid = Volle Breite
+            }
+            types {
+                section {
+                    addItems {
+                        icon-before = Icon oben-rechts
+                        icon-after = Icon unten-links
+                    }
+                }
+            }
+        }
+        header_layout {
+            altLabels {
+                1 = Überschrift 1 (H1)
+                2 = Überschrift 2 (H2)
+                3 = Überschrift 3 (H3)
+                4 = Überschrift 4 (H4)
+                5 = Überschrift 5 (H5)
+            }
+        }
+        layout {
+            types {
+                blockquote {
+                    removeItems = 2,3
+                    altLabels {
+                        0 = Mit Icon
+                        1 = Ohne Icon
+                    }
+                }
+                timeline {
+                    removeItems = 2,3
+                    altLabels {
+                        0 = Timeline
+                        1 = Slider
+                    }
+                }
+                card-slider {
+                    removeItems = 2,3
+                    altLabels {
+                        0 = Im Raster
+                        1 = Ganze Breite
+                    }
+                }
+            }
+        }
+    }
+}

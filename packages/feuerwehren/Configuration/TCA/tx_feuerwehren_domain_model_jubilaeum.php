@@ -1,63 +1,63 @@
 <?php
 return [
     'ctrl' => [
-        'title' => 'Jubiläum',
+        'title' => 'LLL:EXT:feuerwehren/Resources/Private/Language/locallang_db.xlf:tx_feuerwehren_domain_model_jubilaeum',
         'label' => 'titel',
         'tstamp' => 'tstamp',
         'crdate' => 'crdate',
         'cruser_id' => 'cruser_id',
+        'versioningWS' => true,
+        'languageField' => 'sys_language_uid',
+        'transOrigPointerField' => 'l10n_parent',
+        'transOrigDiffSourceField' => 'l10n_diffsource',
         'delete' => 'deleted',
         'enablecolumns' => [
-            'disabled' => 'hidden'
+            'disabled' => 'hidden',
+            'starttime' => 'starttime',
+            'endtime' => 'endtime',
         ],
-        'iconfile' => 'EXT:feuerwehren/Resources/Public/Icons/jubilaeum.svg',
+        'searchFields' => 'titel,beschreibung',
+        'typeicon_classes' => [
+            'default' => 'tx-feuerwehren-jubilaeum'
+        ],
+        'hideTable' => true,
+    ],
+    'types' => [
+        '1' => ['showitem' => 'titel, datum, beschreibung, --div--;Access, hidden',],
     ],
     'columns' => [
-        'hidden' => [
+        'titel' => [
+            'label' => 'LLL:EXT:feuerwehren/Resources/Private/Language/locallang_db.xlf:tx_feuerwehren_domain_model_jubilaeum.titel',
             'config' => [
-                'type' => 'check'
+                'type' => 'input',
+                'size' => 4,
+                'eval' => 'int,required',
+                'default' => 0
             ]
         ],
-        'feuerwehr' => [
-            'label' => 'Feuerwehr',
-            'config' => [
-                'type' => 'select',
-                'renderType' => 'selectSingle',
-                'foreign_table' => 'tx_feuerwehren_domain_model_feuerwehr',
-                'maxitems' => 1
-            ]
-        ],
-        'date' => [
-            'label' => 'Datum',
+        'datum' => [
+            'label' => 'LLL:EXT:feuerwehren/Resources/Private/Language/locallang_db.xlf:tx_feuerwehren_domain_model_jubilaeum.datum',
             'config' => [
                 'type' => 'input',
                 'renderType' => 'inputDateTime',
                 'eval' => 'date',
                 'dbType' => 'date',
-                'default' => null,
-                'nullable' => true,
-            ]
-        ],
-        'titel' => [
-            'label' => 'Titel',
-            'config' => [
-                'type' => 'input',
-                'eval' => 'trim,required'
             ]
         ],
         'beschreibung' => [
-            'label' => 'Beschreibung',
+            'label' => 'LLL:EXT:feuerwehren/Resources/Private/Language/locallang_db.xlf:tx_feuerwehren_domain_model_jubilaeum.beschreibung',
             'config' => [
                 'type' => 'text',
-                'rows' => 6
-            ]
+                'enableRichtext' => true,
+                'cols' => 40,
+                'rows' => 15,
+                'eval' => 'trim',
+            ],
         ],
-    ],
-    'types' => [
-        '0' => [
-            'showitem' => '
-            feuerwehr, date, titel, beschreibung, 
-            --div--;Access, hidden'
-        ]
+        'feuerwehr' => [
+            'config' => [
+                'type' => 'passthrough',
+            ],
+        ],
     ],
 ];

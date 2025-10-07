@@ -3,6 +3,19 @@ declare(strict_types=1);
 
 defined('TYPO3') or die();
 
+/**
+ * Cache für Rate-Limit (60s)
+ * Wir registrieren den Cache hier direkt, um Lade-Reihenfolge-Probleme zu umgehen.
+ */
+if (!isset($GLOBALS['TYPO3_CONF_VARS']['SYS']['caching']['cacheConfigurations']['feuerwehren_rate'])) {
+    $GLOBALS['TYPO3_CONF_VARS']['SYS']['caching']['cacheConfigurations']['feuerwehren_rate'] = [
+        'backend' => \TYPO3\CMS\Core\Cache\Backend\SimpleFileBackend::class,
+        'options' => [
+            'defaultLifetime' => 60,
+        ],
+    ];
+}
+
 use TYPO3\CMS\Extbase\Utility\ExtensionUtility;
 use Schmid\Feuerwehren\Controller\{
     FeuerwehrController,
@@ -11,18 +24,13 @@ use Schmid\Feuerwehren\Controller\{
     TileController
 };
 
-/**
- * WICHTIG:
- * 1) Erster Parameter = ExtensionName OHNE Vendor -> 'Feuerwehren' (UpperCamelCase)
- * 2) PluginName exakt wie in tt_content-Plugin -> 'Karte', 'Organigramm', 'Jubilaeen'
- * 3) API- und Tile-Actions beim Karte-Plugin registrieren (und non-cacheable)
- */
-
 // Organigramm
 ExtensionUtility::configurePlugin(
     'Feuerwehren',
     'Organigramm',
-    [PersonController::class => 'list,show'],
+    [
+        PersonController::class => 'list,show'
+    ],
     []
 );
 
@@ -32,11 +40,8 @@ ExtensionUtility::configurePlugin(
     'Karte',
     [
         FeuerwehrController::class => 'list,show',
-        TileController::class      => 'tileByQuery',
     ],
-    [
-        TileController::class      => 'tileByQuery',
-    ]
+    []
 );
 
 
@@ -44,6 +49,8 @@ ExtensionUtility::configurePlugin(
 ExtensionUtility::configurePlugin(
     'Feuerwehren',
     'Jubilaeen',
-    [JubilaeumController::class => 'list,show'],
+    [
+        JubilaeumController::class => 'list,show'
+    ],
     []
 );

@@ -9,6 +9,7 @@ return [
         'crdate' => 'crdate',
         'cruser_id' => 'cruser_id',
         'delete' => 'deleted',
+        'sortby' => 'sorting',
         'enablecolumns' => [
             'disabled'  => 'hidden',
             'starttime' => 'starttime',
@@ -23,7 +24,6 @@ return [
             'kbm'       => 'tx-feuerwehren-area-kbm',
             'fach-kbm'  => 'tx-feuerwehren-area-fachkbm',
         ],
-        'iconfile' => 'EXT:feuerwehren/Resources/Public/Icons/tx_feuerwehren_domain_model_area.svg',
     ],
 
     'types' => [
@@ -134,10 +134,13 @@ return [
 
         // Selbst-Referenz auf übergeordnete Area
         'parent' => [
-            'label' => 'Parent area',
+            'label' => 'Übergeordneter Bereich wählen',
             'config' => [
                 'type' => 'select',
                 'renderType' => 'selectSingle',
+                'items' => [
+                    ['Bereich wählen', 0],
+                ],
                 'foreign_table' => 'tx_feuerwehren_domain_model_area',
                 // Nur Bedingung(en) hier lassen – KEIN ORDER BY!
                 'foreign_table_where' => 'AND tx_feuerwehren_domain_model_area.type IN (\'kbi\', \'kbr\')',

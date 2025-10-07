@@ -3,8 +3,10 @@ declare(strict_types=1);
 
 namespace Schmid\Feuerwehren\Domain\Model;
 
-use TYPO3\CMS\Extbase\DomainObject\AbstractEntity;
+use DateTime;
+use DateTimeImmutable;
 use TYPO3\CMS\Extbase\Annotation\ORM\Lazy;
+use TYPO3\CMS\Extbase\DomainObject\AbstractEntity;
 
 class Jubilaeum extends AbstractEntity
 {
@@ -14,8 +16,12 @@ class Jubilaeum extends AbstractEntity
     #[Lazy]
     protected ?Feuerwehr $feuerwehr = null;
 
-    protected int $jahr = 0;
-    protected string $titel = '';
+    /** Das ist die Art des Jubiläums, z.B. 150 */
+    protected int $titel = 0;
+
+    /** Das ist das exakte Datum der Feier */
+    protected ?DateTimeImmutable $datum = null;
+
     protected string $beschreibung = '';
 
     public function getCrdate(): int
@@ -32,22 +38,28 @@ class Jubilaeum extends AbstractEntity
         $this->feuerwehr = $feuerwehr;
     }
 
-    public function getJahr(): int
-    {
-        return $this->jahr;
-    }
-    public function setJahr(int $jahr): void
-    {
-        $this->jahr = $jahr;
-    }
-
-    public function getTitel(): string
+    public function getTitel(): int
     {
         return $this->titel;
     }
-    public function setTitel(string $titel): void
+    public function setTitel(int $titel): void
     {
         $this->titel = $titel;
+    }
+
+    public function getDatum(): ?DateTimeImmutable
+    {
+        return $this->datum;
+    }
+    public function setDatum($date): void
+    {
+        if ($date instanceof DateTimeImmutable) {
+            $this->datum = $date;
+        } elseif ($date instanceof DateTime) {
+            $this->datum = DateTimeImmutable::createFromInterface($date);
+        } elseif ($date === null) {
+            $this->datum = null;
+        }
     }
 
     public function getBeschreibung(): string

@@ -1,10 +1,19 @@
 <?php
 return [
     'ctrl' => [
-        'title' => 'Gemeinde', 'label' => 'name', 'searchFields' => 'name,slug',
-        'tstamp' => 'tstamp','crdate' => 'crdate','cruser_id' => 'cruser_id',
-        'delete' => 'deleted','enablecolumns' => ['disabled' => 'hidden'],
-        'iconfile' => 'EXT:feuerwehren/Resources/Public/Icons/gemeinde.svg',
+        'title' => 'Gemeinde',
+        'label' => 'name',
+        'searchFields' => 'name,slug',
+        'tstamp' => 'tstamp',
+        'crdate' => 'crdate',
+        'cruser_id' => 'cruser_id',
+        'delete' => 'deleted',
+        'enablecolumns' => [
+            'disabled' => 'hidden'
+        ],
+        'typeicon_classes' => [
+            'default' => 'tx-feuerwehren-gemeinde'
+        ],
     ],
     'columns' => [
         'hidden' => [

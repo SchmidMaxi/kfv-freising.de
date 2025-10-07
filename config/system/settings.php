@@ -102,7 +102,7 @@ return [
         ],
         'debug' => true,
         'disableNoCacheParameter' => true,
-        'pageNotFoundOnCHashError' => false,
+        'pageNotFoundOnCHashError' => true,
         'passwordHashing' => [
             'className' => 'TYPO3\\CMS\\Core\\Crypto\\PasswordHashing\\Argon2iPasswordHash',
             'options' => [],

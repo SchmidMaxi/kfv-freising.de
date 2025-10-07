@@ -1,0 +1,18 @@
+<f:layout name="Default" />
+<f:section name="main">
+
+    <h1><f:if condition="{person.feUser}">{person.feUser.name}<f:else>{person.title}</f:else></f:if></h1>
+    <p><strong>Funktion:</strong> {person.title}</p>
+
+    <f:if condition="{person.gemeinde}">
+        <h3>Zugeordnete Gemeinden:</h3>
+        <ul>
+            <f:for each="{person.gemeinde}" as="gemeinde">
+                <li>{gemeinde.name}</li>
+            </f:for>
+        </ul>
+    </f:if>
+
+    <f:link.action action="list" class="btn btn-primary">Zurück zum Organigramm</f:link.action>
+
+</f:section>

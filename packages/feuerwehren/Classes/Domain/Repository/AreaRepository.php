@@ -13,12 +13,28 @@ final class AreaRepository extends Repository
      * @var array<string,int>
      */
     protected $defaultOrderings = [
-        'title' => QueryInterface::ORDER_ASCENDING,
+        'sorting' => QueryInterface::ORDER_ASCENDING,
     ];
+
+    public function initializeObject(): void
+    {
+        $querySettings = $this->createQuery()->getQuerySettings();
+        $querySettings->setRespectStoragePage(false);
+        $this->setDefaultQuerySettings($querySettings);
+    }
 
     /**
      * @return \TYPO3\CMS\Extbase\Persistence\QueryResultInterface|Area[]
      */
+    public function findRootNodes()
+    {
+        $query = $this->createQuery();
+        $query->matching(
+            $query->equals('parent', null)
+        );
+        return $query->execute();
+    }
+
     public function findByType(string $type)
     {
         $q = $this->createQuery();
