@@ -18,6 +18,3 @@ services:
   # Middleware muss public sein (wird vom Core instanziert)
   Schmid\Feuerwehren\Middleware\ApiGatewayMiddleware:
     public: true
-
-  Schmid\Feuerwehren\Middleware\ApiMiddleware:
-    public: true

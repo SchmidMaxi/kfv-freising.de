@@ -1,19 +1,8 @@
-settings:
-  feuerwehren:
-    api:
-      allowedOrigins:
-        - 'https://www.kfv-freising.de'
-        - 'https://staging.kfv-freising.de'
-        - 'https://kfv-freising.ddev.site'
-    bbox:
-      west: 11.3
-      south: 48.3
-      east: 12.08
-      north: 48.7
-    tileSource: mbtiles
-    mbtilesPath: fileadmin/tiles/osm.mbtiles
-    proxyUrl: https://a.tile.openstreetmap.org/{z}/{x}/{y}.png
-    mbtilesUrl: ""
-    vectorTiles:
-      enabled: true
-      mbtilesPath: fileadmin/tiles/oberbayern-vt.mbtiles
+# EXT:feuerwehren/Configuration/Sets/Feuerwehren/settings.yaml
+
+# Grundeinstellungen für die feuerwehren Extension
+vars:
+  - name: plugin.tx_feuerwehren.settings.vectorTiles.mbtilesPath
+    value: 'fileadmin/tiles/vektorkarte.mbtiles'
+    label: 'Pfad zur Vektor-MBTiles-Datei'
+    category: feuerwehren

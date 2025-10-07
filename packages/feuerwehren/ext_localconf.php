@@ -28,7 +28,9 @@ use Schmid\Feuerwehren\Controller\{
 ExtensionUtility::configurePlugin(
     'Feuerwehren',
     'Organigramm',
-    [PersonController::class => 'list,show'],
+    [
+        PersonController::class => 'list,show'
+    ],
     []
 );
 
@@ -38,11 +40,8 @@ ExtensionUtility::configurePlugin(
     'Karte',
     [
         FeuerwehrController::class => 'list,show',
-        TileController::class      => 'tileByQuery',
     ],
-    [
-        TileController::class      => 'tileByQuery',
-    ]
+    []
 );
 
 
@@ -50,6 +49,8 @@ ExtensionUtility::configurePlugin(
 ExtensionUtility::configurePlugin(
     'Feuerwehren',
     'Jubilaeen',
-    [JubilaeumController::class => 'list,show'],
+    [
+        JubilaeumController::class => 'list,show'
+    ],
     []
 );

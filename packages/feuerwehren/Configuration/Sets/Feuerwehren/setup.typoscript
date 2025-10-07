@@ -1,37 +1,31 @@
-# Settings aus Site config.yaml übernehmen
-plugin.tx_feuerwehren.settings {
-    bboxW.data = site:settings.feuerwehren.bbox.west
-    bboxS.data = site:settings.feuerwehren.bbox.south
-    bboxE.data = site:settings.feuerwehren.bbox.east
-    bboxN.data = site:settings.feuerwehren.bbox.north
+# Definition der Extbase-Plugins
+tt_content.list.20 {
+    feuerwehren_karte = USER
+    feuerwehren_karte {
+        userFunc = TYPO3\CMS\Extbase\Core\Bootstrap->run
+        extensionName = Feuerwehren
+        pluginName = Karte
+        vendorName = Schmid
+    }
 
-    tileSource.data = site:settings.feuerwehren.tileSource
-    mbtilesPath.data = site:settings.feuerwehren.mbtilesPath
-    proxyUrl.data = site:settings.feuerwehren.proxyUrl
-    proxyCacheMinutes.data = site:settings.feuerwehren.proxyCacheMinutes
+    feuerwehren_organigramm = USER
+    feuerwehren_organigramm {
+        userFunc = TYPO3\CMS\Extbase\Core\Bootstrap->run
+        extensionName = Feuerwehren
+        pluginName = Organigramm
+        vendorName = Schmid
+    }
 
-    vectorTiles.enabled.data = site:settings.feuerwehren.vectorTiles.enabled
-    vectorTiles.pbfPath.data = site:settings.feuerwehren.vectorTiles.pbfPath
+    feuerwehren_jubilaeen = USER
+    feuerwehren_jubilaeen {
+        userFunc = TYPO3\CMS\Extbase\Core\Bootstrap->run
+        extensionName = Feuerwehren
+        pluginName = Jubilaeen
+        vendorName = Schmid
+    }
 }
 
-# Plugins (wie bisher)
-tt_content.list.20.feuerwehren_karte = USER
-tt_content.list.20.feuerwehren_karte {
-    userFunc = TYPO3\CMS\Extbase\Core\Bootstrap->run
-    extensionName = Feuerwehren
-    pluginName = Karte
-}
-
-tt_content.list.20.feuerwehren_organigramm = USER
-tt_content.list.20.feuerwehren_organigramm {
-    userFunc = TYPO3\CMS\Extbase\Core\Bootstrap->run
-    extensionName = Feuerwehren
-    pluginName = Organigramm
-}
-
-tt_content.list.20.feuerwehren_jubilaeen = USER
-tt_content.list.20.feuerwehren_jubilaeen {
-    userFunc = TYPO3\CMS\Extbase\Core\Bootstrap->run
-    extensionName = Feuerwehren
-    pluginName = Jubilaeen
-}
+# Vektor-Kachel Endpunkt für MapLibre
+# Dieser Pfad wird vom VectorTileController bedient.
+page.10.subparts.VECTOR_TILES_URL = TEXT
+page.10.subparts.VECTOR_TILES_URL.value = /_vt/{z}/{x}/{y}.pbf
