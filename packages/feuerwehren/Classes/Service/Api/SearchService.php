@@ -14,11 +14,21 @@ final class SearchService
 
     public function search(array $queryParams): array
     {
-        $west  = (float)($queryParams['bboxW'] ?? 11.30);
-        $south = (float)($queryParams['bboxS'] ?? 48.30);
-        $east  = (float)($queryParams['bboxE'] ?? 12.08);
-        $north = (float)($queryParams['bboxN'] ?? 48.70);
+        // KORREKTUR: Den einzelnen 'bbox'-Parameter verarbeiten
+        if (!empty($queryParams['bbox']) && is_string($queryParams['bbox'])) {
+            $coords = explode(',', $queryParams['bbox']);
+            if (count($coords) === 4) {
+                [$west, $south, $east, $north] = array_map('floatval', $coords);
+            }
+        }
 
+        // Fallback auf die Standardwerte, falls bbox nicht vorhanden oder ungültig ist
+        $west  ??= 11.30;
+        $south ??= 48.30;
+        $east  ??= 12.08;
+        $north ??= 48.70;
+
+        // Der Rest der Methode bleibt unverändert
         $selectedCategories = array_filter(
             array_map('intval', $queryParams['f'] ?? []),
             static fn(int $uid) => $uid > 0
