@@ -3238,14 +3238,14 @@
         },
         {
             "name": "schmid/feuerwehren",
-            "version": "dev-feature/feuerwehren",
+            "version": "dev-develop",
             "dist": {
                 "type": "path",
                 "url": "./packages/feuerwehren",
-                "reference": "7296dad1f7bc3481d07b004ede4fe1c8ee269bf2"
+                "reference": "77b0937a021c61fb72c10d11218c2c47f7d51e6d"
             },
             "require": {
-                "php": ">=8.4",
+                "php": ">=8.3",
                 "typo3/cms-core": "^13.4",
                 "typo3/cms-frontend": "^13.4"
             },
@@ -3270,7 +3270,7 @@
         },
         {
             "name": "schmid/icsimporter",
-            "version": "dev-feature/feuerwehren",
+            "version": "dev-develop",
             "dist": {
                 "type": "path",
                 "url": "./packages/icsimporter",
@@ -3298,7 +3298,7 @@
         },
         {
             "name": "schmid/sitepackage",
-            "version": "dev-feature/feuerwehren",
+            "version": "dev-develop",
             "dist": {
                 "type": "path",
                 "url": "./packages/sitepackage",
