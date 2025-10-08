@@ -11,7 +11,7 @@ set('repository', 'git@github.com-typo3:SchmidMaxi/kfv-freising.de.git');
 set('keep_releases', 3);
 set('typo3_webroot', 'public');
 set('ssh_multiplexing', false);
-set('bin/php', '/usr/bin/php83');
+set('bin/php', '/usr/bin/php84');
 
 // server configuration - STAGING
 host('staging')
