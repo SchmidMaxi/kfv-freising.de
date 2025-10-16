@@ -2,6 +2,11 @@
 //
 // Custom variables for the `[data-bs-theme="dark"]` theme. Use this as a starting point for your own custom color modes by creating a new theme-specific file like `_variables-dark.scss` and adding the variables you need.
 
+// ========================================
+// KFV Freising Dark Mode
+// Basierend auf dem Styleguide
+// ========================================
+
 //
 // Global colors
 //
@@ -40,22 +45,27 @@ $light-border-subtle-dark:          $gray-700 !default;
 $dark-border-subtle-dark:           $gray-800 !default;
 // scss-docs-end theme-border-subtle-dark-variables
 
-$body-color-dark:                   $gray-300 !default;
-$body-bg-dark:                      $gray-900 !default;
-$body-secondary-color-dark:         rgba($body-color-dark, .75) !default;
-$body-secondary-bg-dark:            $gray-800 !default;
-$body-tertiary-color-dark:          rgba($body-color-dark, .5) !default;
-$body-tertiary-bg-dark:             mix($gray-800, $gray-900, 50%) !default;
+// KFV Dark Mode Hauptfarben aus Styleguide
+$body-color-dark:                   #F5F5F7 !default; // KFV Dark Text Primary
+$body-bg-dark:                      #1D1D1F !default; // KFV Dark BG Primary
+$body-secondary-color-dark:         #A1A1A6 !default; // KFV Dark Text Secondary
+$body-secondary-bg-dark:            #2C2C2E !default; // KFV Dark BG Secondary
+$body-tertiary-color-dark:          #86868B !default; // KFV Dark Text Tertiary
+$body-tertiary-bg-dark:             #3A3A3C !default; // KFV Dark BG Tertiary
 $body-emphasis-color-dark:          $white !default;
-$border-color-dark:                 $gray-700 !default;
+$border-color-dark:                 #48484A !default; // KFV Dark Border
 $border-color-translucent-dark:     rgba($white, .15) !default;
 $headings-color-dark:               inherit !default;
-$link-color-dark:                   tint-color($primary, 40%) !default;
-$link-hover-color-dark:             shift-color($link-color-dark, -$link-shade-percentage) !default;
+$link-color-dark:                   $fire-red-light !default; // KFV: Helleres Rot für bessere Lesbarkeit
+$link-hover-color-dark:             $fire-red !default; // KFV Hover
 $code-color-dark:                   tint-color($code-color, 40%) !default;
 $mark-color-dark:                   $body-color-dark !default;
 $mark-bg-dark:                      $yellow-800 !default;
 
+// KFV Dark Mode Schatten - intensiver für bessere Sichtbarkeit
+$box-shadow-dark:                   0 4px 16px rgba($black, .4) !default;  // KFV Dark Shadow Medium
+$box-shadow-sm-dark:                0 2px 8px rgba($black, .3) !default;   // KFV Dark Shadow Small
+$box-shadow-lg-dark:                0 8px 32px rgba($black, .5) !default;  // KFV Dark Shadow Large
 
 //
 // Forms
@@ -74,14 +84,168 @@ $form-invalid-color-dark:           $red-300 !default;
 $form-invalid-border-color-dark:    $red-300 !default;
 // scss-docs-end form-validation-colors-dark
 
+// KFV Dark Mode Input Focus
+$input-focus-border-color-dark:     $fire-red !default; // KFV Focus im Dark Mode
+$input-focus-box-shadow-dark:       0 0 0 0.25rem rgba($fire-red, 0.25) !default;
+
+//
+// Buttons
+//
+
+// KFV Dark Mode Button Hover - leichter für Dark Mode
+$btn-hover-bg-shade-amount-dark:    10% !default;
+$btn-hover-bg-tint-amount-dark:     20% !default;
+
+//
+// Cards
+//
+
+$card-bg-dark:                      $body-secondary-bg-dark !default; // KFV Dark Card BG
+$card-border-color-dark:            $border-color-dark !default;
 
 //
 // Accordion
 //
 
-$accordion-icon-color-dark:         $primary-text-emphasis-dark !default;
-$accordion-icon-active-color-dark:  $primary-text-emphasis-dark !default;
+$accordion-bg-dark:                 $body-secondary-bg-dark !default; // KFV Dark
+$accordion-button-bg-dark:          $body-secondary-bg-dark !default;
+$accordion-button-active-bg-dark:   rgba($fire-red, 0.1) !default; // KFV: Dezenter im Dark Mode
+$accordion-button-active-color-dark: $fire-red-light !default; // KFV: Helleres Rot
 
-$accordion-button-icon-dark:         url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='#{$accordion-icon-color-dark}'><path fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/></svg>") !default;
-$accordion-button-active-icon-dark:  url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='#{$accordion-icon-active-color-dark}'><path fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/></svg>") !default;
+$accordion-icon-color-dark:         $fire-red-light !default; // KFV angepasst
+$accordion-icon-active-color-dark:  $fire-red-light !default; // KFV angepasst
+
+$accordion-button-icon-dark:         url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='#{$accordion-icon-color-dark}' stroke-linecap='round' stroke-linejoin='round'><path d='M2 5L8 11L14 5'/></svg>") !default;
+$accordion-button-active-icon-dark:  url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='#{$accordion-icon-active-color-dark}' stroke-linecap='round' stroke-linejoin='round'><path d='M2 5L8 11L14 5'/></svg>") !default;
+
+//
+// Navbar
+//
+
+$navbar-dark-color-dark:            rgba($white, .85) !default;
+$navbar-dark-hover-color-dark:      $white !default;
+$navbar-dark-active-color-dark:     $fire-red-light !default; // KFV angepasst
+
+//
+// Dropdowns
+//
+
+$dropdown-bg-dark:                  $body-secondary-bg-dark !default; // KFV Dark
+$dropdown-link-color-dark:          $body-color-dark !default;
+$dropdown-link-hover-color-dark:    $fire-red-light !default; // KFV angepasst
+$dropdown-link-hover-bg-dark:       $body-tertiary-bg-dark !default; // KFV Dark
+$dropdown-link-active-color-dark:   $white !default;
+$dropdown-link-active-bg-dark:      $fire-red !default; // KFV Primary
+
+//
+// Pagination
+//
+
+$pagination-color-dark:             $body-color-dark !default;
+$pagination-bg-dark:                $body-secondary-bg-dark !default;
+$pagination-border-color-dark:      $border-color-dark !default;
+$pagination-hover-color-dark:       $fire-red-light !default; // KFV angepasst
+$pagination-hover-bg-dark:          $body-tertiary-bg-dark !default;
+$pagination-active-color-dark:      $white !default;
+$pagination-active-bg-dark:         $fire-red !default; // KFV Primary
+$pagination-active-border-color-dark: $fire-red !default;
+
+//
+// List Group
+//
+
+$list-group-bg-dark:                $body-secondary-bg-dark !default;
+$list-group-border-color-dark:      $border-color-dark !default;
+$list-group-hover-bg-dark:          $body-tertiary-bg-dark !default;
+$list-group-active-color-dark:      $white !default;
+$list-group-active-bg-dark:         $fire-red !default; // KFV Primary
+$list-group-active-border-color-dark: $fire-red !default;
+
+//
+// Modals
+//
+
+$modal-content-bg-dark:             $body-secondary-bg-dark !default; // KFV Dark
+$modal-content-border-color-dark:   $border-color-dark !default;
+$modal-backdrop-bg-dark:            $black !default;
+$modal-backdrop-opacity-dark:       .7 !default; // Etwas stärker im Dark Mode
+
+//
+// Alerts
+//
+
+$alert-bg-factor-dark:              .1 !default;
+$alert-border-factor-dark:          .1 !default;
+$alert-color-factor-dark:           .8 !default;
+
+//
+// Progress
+//
+
+$progress-bg-dark:                  $body-tertiary-bg-dark !default;
+$progress-bar-bg-dark:              $fire-red !default; // KFV Primary
+
+//
+// Tooltips
+//
+
+$tooltip-bg-dark:                   $gray-800 !default;
+$tooltip-opacity-dark:              .95 !default;
+
+//
+// Popovers
+//
+
+$popover-bg-dark:                   $body-secondary-bg-dark !default;
+$popover-border-color-dark:         $border-color-dark !default;
+$popover-header-bg-dark:            $body-tertiary-bg-dark !default;
+
+//
+// Toasts
+//
+
+$toast-background-color-dark:       rgba($body-secondary-bg-dark, .95) !default;
+$toast-border-color-dark:           $border-color-dark !default;
+$toast-header-background-color-dark: rgba($body-secondary-bg-dark, .95) !default;
+
+//
+// Badges
+//
+
+$badge-color-dark:                  $white !default;
+
+//
+// Breadcrumb
+//
+
+$breadcrumb-divider-color-dark:     $body-secondary-color-dark !default;
+$breadcrumb-active-color-dark:      $body-color-dark !default;
+
+//
+// Offcanvas
+//
+
+$offcanvas-bg-color-dark:           $body-secondary-bg-dark !default;
+$offcanvas-color-dark:              $body-color-dark !default;
+$offcanvas-border-color-dark:       $border-color-dark !default;
+
+//
+// Tables
+//
+
+$table-color-dark:                  $body-color-dark !default;
+$table-bg-dark:                     $body-bg-dark !default;
+$table-striped-bg-dark:             $body-secondary-bg-dark !default;
+$table-hover-bg-dark:               rgba($fire-red, 0.1) !default; // KFV Hover
+$table-border-color-dark:           $border-color-dark !default;
+
+//
+// Nav Tabs & Pills
+//
+
+$nav-tabs-link-active-bg-dark:      $body-bg-dark !default;
+$nav-tabs-link-active-color-dark:   $body-color-dark !default;
+$nav-pills-link-active-color-dark:  $white !default;
+$nav-pills-link-active-bg-dark:     $fire-red !default; // KFV Primary
+
 // scss-docs-end sass-dark-mode-vars

@@ -12,6 +12,9 @@
             <trans-unit id="backend_layout.news">
                 <source>News-Detail</source>
             </trans-unit>
+            <trans-unit id="backend_layout.functional">
+                <source>Funktion Seite (ohne Header)</source>
+            </trans-unit>
             <trans-unit id="backend_layout.column.stage">
                 <source>Stage</source>
             </trans-unit>

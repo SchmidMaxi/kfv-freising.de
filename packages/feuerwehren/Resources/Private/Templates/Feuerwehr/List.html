@@ -2,26 +2,47 @@
 <f:section name="main">
 
     <div class="feuerwehren-karte-wrap">
-        <div id="map" style="height:500px;"></div>
-        <div class="sidebar">
-            <div id="fzFilters">
-                <label><input type="radio" name="mode" value="and" checked> Alle müssen passen (UND)</label>
-                <label><input type="radio" name="mode" value="or"> Mind. eins passt (ODER)</label>
-                <hr>
-                <f:for each="{fahrzeugkategorien}" as="kategorie">
-                    <label>
-                        <input type="checkbox" name="fz[]" value="{kategorie.uid}">
-                        {kategorie.title}
-                    </label>
-                </f:for>
-            </div>
+        <div class="container">
+            <f:security.ifAuthenticated>
+                <div id="fzFilters" class="section ">
+                    <h3 class="filter-title">
+                        🔍 Filter nach Fahrzeugtyp
+                    </h3>
+                    <input class="btn-check" autocomplete="off" type="radio" id="mode_and" name="mode" value="and" checked>
+                    <label class="btn btn-outline-secondary" for="mode_and">Alle müssen passen (UND)</label>
+                    <input class="btn-check" autocomplete="off" type="radio" id="mode_or" name="mode" value="or">
+                    <label class="btn btn-outline-secondary" for="mode_or">Mind. eins passt (ODER)</label>
+                    <hr>
+                    <f:if condition="{fahrzeugkategorien}">
+                        <div class="filter-grid d-flex flex-wrap gap-2">
+                            <f:for each="{fahrzeugkategorien}" as="kategorie">
+                                <div class="filter-chip">
+                                    <input class="btn-check" autocomplete="off" type="checkbox" id="fz-{kategorie.uid}" name="fz[]" value="{kategorie.uid}">
+                                    <label class="btn rounded-pill btn-kfv" for="fz-{kategorie.uid}">{kategorie.title}</label>
+                                </div>
+                            </f:for>
+                        </div>
+                    </f:if>
+                </div>
+            </f:security.ifAuthenticated>
             <div id="layerToggles">
                 <label><input type="checkbox" id="toggle-gemeinden" checked> Gemeinden</label>
                 <label><input type="checkbox" id="toggle-kbm"> KBM-Bereiche</label>
                 <label><input type="checkbox" id="toggle-kbi"> KBI-Bereiche</label>
             </div>
-            <div id="fwList"></div>
+
         </div>
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-12 col-md-4 col-xl-3">
+                    <div id="fwList"></div>
+                </div>
+                <div class="col-12 col-md-8 col-xl-9">
+                    <div id="map" style="height:500px;"></div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <f:comment>

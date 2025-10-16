@@ -47,10 +47,10 @@
                                 </f:then>
                                 <f:else>
                                     <li class="nav-item dropdown">
-                                        <a class="nav-link dropdown-toggle{f:if(condition:navItem.active, then:' show')}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="{f:if(condition:navItem.active, then:'true', else:'false')}">
+                                        <a class="nav-link dropdown-toggle{f:if(condition:navItem.active, then:' active')}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                             {navItem.title}
                                         </a>
-                                        <ul class="dropdown-menu{f:if(condition:navItem.active, then:' show')}">
+                                        <ul class="dropdown-menu">
                                             <f:for each="{navItem.children}" as="child">
                                                 <f:if condition="!{child.spacer}">
                                                     <f:then>
