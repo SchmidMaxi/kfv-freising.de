@@ -47,12 +47,12 @@
     border-color: var(--#{$prefix}btn-hover-border-color);
   }
 
-  .btn-check + &:hover {
-    // override for the checkbox/radio buttons
-    color: var(--#{$prefix}btn-color);
-    background-color: var(--#{$prefix}btn-bg);
-    border-color: var(--#{$prefix}btn-border-color);
-  }
+  //.btn-check + &:hover {
+  //  // override for the checkbox/radio buttons
+  //  color: var(--#{$prefix}btn-color);
+  //  background-color: var(--#{$prefix}btn-bg);
+  //  border-color: var(--#{$prefix}btn-border-color);
+  //}
 
   &:focus-visible {
     color: var(--#{$prefix}btn-hover-color);
@@ -202,18 +202,18 @@
   // No need for an active state here
 }
 
-.btn-gradient {
-  background: var(--#{$prefix}secondary);
-  background: linear-gradient(120deg, var(--#{$prefix}secondary), var(--#{$prefix}primary), var(--#{$prefix}secondary));
-  --bs-btn-border-width: 0;
-  background-size: 200% 100%;
-  background-position: 100% 0;
-  transition: background-position .5s;
-  color: white;
-  &:hover {
-    color: white;
-    background-position: 0 0;
-  }
+.btn-kfv {
+  --#{$prefix}btn-border-width: 2px;
+  --#{$prefix}btn-color: var(--#{$prefix}gray);
+  --#{$prefix}btn-bg: var(--#{$prefix}light);
+  --#{$prefix}btn-border-color: var(--#{$prefix}gray);
+  --#{$prefix}btn-hover-color: var(--#{$prefix}primary);
+  --#{$prefix}btn-hover-bg: var(--#{$prefix}light);
+  --#{$prefix}btn-hover-border-color: var(--#{$prefix}primary);
+  --#{$prefix}btn-focus-shadow-rgb: 245, 245, 247;
+  --#{$prefix}btn-active-color: var(--#{$prefix}white);
+  --#{$prefix}btn-active-bg: var(--#{$prefix}primary);
+  --#{$prefix}btn-active-border-color: var(--#{$prefix}primary);
 }
 
 

@@ -35,8 +35,6 @@
   background-color: var(--#{$prefix}card-bg);
   background-clip: border-box;
   border: var(--#{$prefix}card-border-width) solid var(--#{$prefix}card-border-color);
-  overflow: hidden;
-  transition: box-shadow ease-in-out .15s;
   @include border-radius(var(--#{$prefix}card-border-radius));
   @include box-shadow(var(--#{$prefix}card-box-shadow));
 
@@ -58,10 +56,6 @@
       border-bottom-width: 0;
       @include border-bottom-radius(var(--#{$prefix}card-inner-border-radius));
     }
-  }
-
-  &:hover {
-    box-shadow: $box-shadow-lg;
   }
 
   // Due to specificity of the above selector (`.card > .list-group`), we must
@@ -199,8 +193,7 @@
     // The child selector allows nested `.card` within `.card-group`
     // to display properly.
     > .card {
-      // Flexbugs #4: https://github.com/philipwalton/flexbugs#flexbug-4
-      flex: 1 0 0%;
+      flex: 1 0 0;
       margin-bottom: 0;
 
       + .card {
@@ -213,13 +206,13 @@
         &:not(:last-child) {
           @include border-end-radius(0);
 
-          .card-img-top,
-          .card-header {
+          > .card-img-top,
+          > .card-header {
             // stylelint-disable-next-line property-disallowed-list
             border-top-right-radius: 0;
           }
-          .card-img-bottom,
-          .card-footer {
+          > .card-img-bottom,
+          > .card-footer {
             // stylelint-disable-next-line property-disallowed-list
             border-bottom-right-radius: 0;
           }
@@ -228,13 +221,13 @@
         &:not(:first-child) {
           @include border-start-radius(0);
 
-          .card-img-top,
-          .card-header {
+          > .card-img-top,
+          > .card-header {
             // stylelint-disable-next-line property-disallowed-list
             border-top-left-radius: 0;
           }
-          .card-img-bottom,
-          .card-footer {
+          > .card-img-bottom,
+          > .card-footer {
             // stylelint-disable-next-line property-disallowed-list
             border-bottom-left-radius: 0;
           }

@@ -46,4 +46,4 @@ Sie können Kacheln auch direkt von einem Anbieter herunterladen und in eine `mb
 
 **Beispiel:** Lädt Kacheln für den Landkreis Freising (Zoom 9-14) von MapTiler.
 ```bash
-ddev exec vendor/bin/typo3 feuerwehren:tiles:prefetch --bbox="11.30,48.30,12.08,48.70" --zooms="9-14" --source="[https://api.maptiler.com/tiles/v3/](https://api.maptiler.com/tiles/v3/){z}/{x}/{y}.pbf?key=DEIN_MAPTILER_KEY"
+ddev exec vendor/bin/typo3 feuerwehren:tiles:prefetch --preset="oberbayern" --zooms="6-14" --source="https://api.maptiler.com/tiles/v3/{z}/{x}/{y}.pbf?key=qKjtLVvUmYMRbgrRm72l

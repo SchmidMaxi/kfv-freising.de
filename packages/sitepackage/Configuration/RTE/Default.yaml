@@ -10,7 +10,7 @@ editor:
         stylesSet:
             - { name: "Lead", element: "p", attributes: { 'class': 'lead' } }
             -
-            - { name: "Button Primär", element: "a", attributes: { 'class': 'btn btn-gradient' } }
+            - { name: "Button Primär", element: "a", attributes: { 'class': 'btn btn-kfv' } }
             - { name: "Button Hellgrau", element: "a", attributes: { 'class': 'btn btn-light' } }
             - { name: "Button Grau", element: "a", attributes: { 'class': 'btn btn-light' } }
             - { name: "Button Dunkel", element: "a", attributes: { 'class': 'btn btn-dark' } }
