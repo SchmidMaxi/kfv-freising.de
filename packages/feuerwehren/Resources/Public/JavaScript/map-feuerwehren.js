@@ -242,7 +242,7 @@
         map = new maplibregl.Map({
             container: mapContainerId,
             center: [11.75, 48.46],
-            zoom: 10,
+            zoom: 9,
             style: buildBaseStyle()
         });
         map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');

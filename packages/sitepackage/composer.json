@@ -8,7 +8,11 @@
     "require": {
         "typo3/cms-core": "^13.4",
         "typo3/cms-rte-ckeditor": "^13.4",
-        "typo3/cms-fluid-styled-content": "^13.4"
+        "typo3/cms-fluid-styled-content": "^13.4",
+        "georgringer/news": "^12.3",
+        "georgringer/numbered-pagination": "^2.1",
+        "b13/container": "3.1.0",
+        "friendsoftypo3/content-blocks": "^1.1"
     },
     "autoload": {
         "psr-4": {

@@ -8,15 +8,13 @@
                 <type>array</type>
                 <el>
                     <settings.showPastJubilaeen>
-                        <TCEforms>
-                            <label>Vergangene Jubiläen anzeigen</label>
-                            <onChange>reload</onChange>
-                            <config>
-                                <type>check</type>
-                                <renderType>checkboxToggle</renderType>
-                                <default>0</default>
-                            </config>
-                        </TCEforms>
+                        <label>Vergangene Jubiläen anzeigen</label>
+                        <onChange>reload</onChange>
+                        <config>
+                            <type>check</type>
+                            <renderType>checkboxToggle</renderType>
+                            <default>0</default>
+                        </config>
                     </settings.showPastJubilaeen>
                 </el>
             </ROOT>
