@@ -3,42 +3,52 @@
 
     <div class="feuerwehren-karte-wrap">
         <div class="container">
-            <f:security.ifAuthenticated>
+            <f:comment><f:security.ifHasRole role="Inspektion"></f:comment>
                 <div id="fzFilters" class="section ">
                     <h3 class="filter-title">
                         🔍 Filter nach Fahrzeugtyp
                     </h3>
                     <input class="btn-check" autocomplete="off" type="radio" id="mode_and" name="mode" value="and" checked>
-                    <label class="btn btn-outline-secondary" for="mode_and">Alle müssen passen (UND)</label>
+                    <label class="btn btn-sm btn-outline-secondary" for="mode_and">Alle müssen passen (UND)</label>
                     <input class="btn-check" autocomplete="off" type="radio" id="mode_or" name="mode" value="or">
-                    <label class="btn btn-outline-secondary" for="mode_or">Mind. eins passt (ODER)</label>
+                    <label class="btn btn-sm btn-outline-secondary" for="mode_or">Mind. eins passt (ODER)</label>
                     <hr>
                     <f:if condition="{fahrzeugkategorien}">
                         <div class="filter-grid d-flex flex-wrap gap-2">
                             <f:for each="{fahrzeugkategorien}" as="kategorie">
                                 <div class="filter-chip">
                                     <input class="btn-check" autocomplete="off" type="checkbox" id="fz-{kategorie.uid}" name="fz[]" value="{kategorie.uid}">
-                                    <label class="btn rounded-pill btn-kfv" for="fz-{kategorie.uid}">{kategorie.title}</label>
+                                    <label class="btn btn-sm px-4 rounded-pill btn-kfv" for="fz-{kategorie.uid}">{kategorie.title}</label>
                                 </div>
                             </f:for>
                         </div>
                     </f:if>
                 </div>
-            </f:security.ifAuthenticated>
-            <div id="layerToggles">
-                <label><input type="checkbox" id="toggle-gemeinden" checked> Gemeinden</label>
-                <label><input type="checkbox" id="toggle-kbm"> KBM-Bereiche</label>
-                <label><input type="checkbox" id="toggle-kbi"> KBI-Bereiche</label>
+            <f:comment></f:security.ifHasRole></f:comment>
+            <hr>
+            <div id="layerToggles" class="my-2">
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" id="toggle-gemeinden" checked>
+                    <label class="form-check-label" for="toggle-gemeinden">Gemeinden</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" id="toggle-kbm">
+                    <label class="form-check-label" for="toggle-kbm">KBM-Bereiche</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" id="toggle-kbi">
+                    <label class="form-check-label" for="toggle-kbi">KBI-Bereiche</label>
+                </div>
             </div>
 
         </div>
         <div class="container-fluid">
             <div class="row">
+                <div class="col-12 col-md-8 col-xl-9 order-md-last">
+                    <div id="map"></div>
+                </div>
                 <div class="col-12 col-md-4 col-xl-3">
                     <div id="fwList"></div>
-                </div>
-                <div class="col-12 col-md-8 col-xl-9">
-                    <div id="map" style="height:500px;"></div>
                 </div>
             </div>
         </div>

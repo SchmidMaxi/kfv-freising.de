@@ -1,9 +1,5 @@
 {
     "require": {
-        "b13/container": "3.1.0",
-        "featdd/dpn-glossary": "^6.0",
-        "friendsoftypo3/content-blocks": "^1.1",
-        "georgringer/news": "^12.2",
         "lochmueller/calendarize": "^14.0",
         "mediadreams/md_fullcalendar": "^5.0",
         "reelworx/rx-shariff": "^15.2",

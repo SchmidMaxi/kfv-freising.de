@@ -6,6 +6,7 @@ plugin.tx_news {
         list {
             paginate {
                 insertAbove = 0
+                itemsPerPage = 9
             }
             media {
                 dummyImage = EXT:sitepackage/Resources/Public/Images/Fallback-Images/news.jpg
