@@ -103,33 +103,4 @@ page {
         }
     }
 
-    includeCSSLibs {
-        glightbox = EXT:sitepackage/Resources/Public/Css/glightbox.min.css
-    }
-
-    includeCSS {
-        layout = EXT:sitepackage/Resources/Public/Scss/layout.scss
-        layout.outputfile = EXT:sitepackage/Resources/Public/Css/layout.css
-        icons = EXT:sitepackage/Resources/Public/Scss/icons.scss
-        icons.outputfile = EXT:sitepackage/Resources/Public/Css/icons.css
-    }
-
-    includeJSLibs {
-
-    }
-
-    includeJS {
-
-    }
-
-    includeJSFooterlibs {
-        bootstrap = EXT:sitepackage/Resources/Public/JavaScript/bootstrap.bundle.js
-        glightbox = EXT:sitepackage/Resources/Public/JavaScript/glightbox.min.js
-#        splide = EXT:sitepackage/Resources/Public/JavaScript/splide.min.js
-    }
-
-    includeJSFooter {
-        colormode = EXT:sitepackage/Resources/Public/JavaScript/colormode.js
-        main = EXT:sitepackage/Resources/Public/JavaScript/main.js
-    }
 }

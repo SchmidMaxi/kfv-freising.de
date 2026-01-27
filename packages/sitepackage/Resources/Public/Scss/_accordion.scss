@@ -34,14 +34,12 @@
   align-items: center;
   width: 100%;
   padding: var(--#{$prefix}accordion-btn-padding-y) var(--#{$prefix}accordion-btn-padding-x);
-  @include font-size($font-size-lg);
-  font-weight: $font-weight-medium;
-  text-transform: uppercase;
+  @include font-size($font-size-base);
   color: var(--#{$prefix}accordion-btn-color);
   text-align: left; // Reset button style
   background-color: var(--#{$prefix}accordion-btn-bg);
   border: 0;
-  @include border-radius($accordion-border-radius);
+  @include border-radius(0);
   overflow-anchor: none;
   @include transition(var(--#{$prefix}accordion-transition));
 
@@ -74,7 +72,7 @@
   }
 
   &:focus {
-    z-index: 2;
+    z-index: 3;
     outline: 0;
     box-shadow: var(--#{$prefix}accordion-btn-focus-box-shadow);
   }
@@ -88,35 +86,33 @@
   color: var(--#{$prefix}accordion-color);
   background-color: var(--#{$prefix}accordion-bg);
   border: var(--#{$prefix}accordion-border-width) solid var(--#{$prefix}accordion-border-color);
-  margin-bottom: $spacer;
-  box-shadow: $box-shadow-sm;
-  @include border-radius($accordion-border-radius);
-  //&:first-of-type {
-  //  @include border-top-radius(var(--#{$prefix}accordion-border-radius));
-  //
-  //  > .accordion-header .accordion-button {
-  //    @include border-top-radius(var(--#{$prefix}accordion-inner-border-radius));
-  //  }
-  //}
-  //
-  //&:not(:first-of-type) {
-  //  border-top: 0;
-  //}
+
+  &:first-of-type {
+    @include border-top-radius(var(--#{$prefix}accordion-border-radius));
+
+    > .accordion-header .accordion-button {
+      @include border-top-radius(var(--#{$prefix}accordion-inner-border-radius));
+    }
+  }
+
+  &:not(:first-of-type) {
+    border-top: 0;
+  }
 
   // Only set a border-radius on the last item if the accordion is collapsed
-  //&:last-of-type {
-  //  @include border-bottom-radius(var(--#{$prefix}accordion-border-radius));
-  //
-  //  > .accordion-header .accordion-button {
-  //    &.collapsed {
-  //      @include border-bottom-radius(var(--#{$prefix}accordion-inner-border-radius));
-  //    }
-  //  }
-  //
-  //  > .accordion-collapse {
-  //    @include border-bottom-radius(var(--#{$prefix}accordion-border-radius));
-  //  }
-  //}
+  &:last-of-type {
+    @include border-bottom-radius(var(--#{$prefix}accordion-border-radius));
+
+    > .accordion-header .accordion-button {
+      &.collapsed {
+        @include border-bottom-radius(var(--#{$prefix}accordion-inner-border-radius));
+      }
+    }
+
+    > .accordion-collapse {
+      @include border-bottom-radius(var(--#{$prefix}accordion-border-radius));
+    }
+  }
 }
 
 .accordion-body {
@@ -138,17 +134,12 @@
     &:last-child { border-bottom: 0; }
 
     // stylelint-disable selector-max-class
-    > .accordion-header .accordion-button {
-      &,
-      &.collapsed {
-        @include border-radius(0);
-      }
-    }
-    // stylelint-enable selector-max-class
-
-    > .accordion-collapse {
+    > .accordion-collapse,
+    > .accordion-header .accordion-button,
+    > .accordion-header .accordion-button.collapsed {
       @include border-radius(0);
     }
+    // stylelint-enable selector-max-class
   }
 }
 

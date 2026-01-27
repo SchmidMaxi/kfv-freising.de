@@ -169,8 +169,8 @@
 .nav-justified {
   > .nav-link,
   .nav-item {
-    flex-basis: 0;
     flex-grow: 1;
+    flex-basis: 0;
     text-align: center;
   }
 }
@@ -193,33 +193,5 @@
   }
   > .active {
     display: block;
-  }
-}
-
-#nav_main {
-  //border-bottom-left-radius: var(--#{$prefix}border-radius-xxl);
-  //border-bottom-right-radius: var(--#{$prefix}border-radius-xxl);
-
-  .offcanvas-body {
-    --#{$prefix}offcanvas-padding-x: 2rem;
-  }
-  .nav-link {
-    @include media-breakpoint-down(lg) {
-      --#{$prefix}nav-link-font-size: 1.5rem;
-    }
-  }
-}
-#nav_sec {
-  @include media-breakpoint-up(lg) {
-    min-height: 5px;
-  }
-}
-#theme-switch {
-  .bi {
-    width: 1rem;
-    height: 1rem;
-    display: inline-block;
-    vertical-align: -0.125em;
-    fill: currentcolor;
   }
 }

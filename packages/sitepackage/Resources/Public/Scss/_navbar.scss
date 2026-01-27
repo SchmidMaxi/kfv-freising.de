@@ -70,11 +70,7 @@
   color: var(--#{$prefix}navbar-brand-color);
   text-decoration: if($link-decoration == none, null, none);
   white-space: nowrap;
-  &:before {
-    content: url(../Images/Logo_KFV-Freising-b.svg);
-    width: 200px;
-    display: block;
-  }
+
   &:hover,
   &:focus {
     color: var(--#{$prefix}navbar-brand-hover-color);
@@ -143,8 +139,8 @@
 // the default flexbox row orientation. Requires the use of `flex-wrap: wrap`
 // on the `.navbar` parent.
 .navbar-collapse {
-  flex-basis: 100%;
   flex-grow: 1;
+  flex-basis: 100%;
   // For always expanded or extra full navbars, ensure content aligns itself
   // properly vertically. Can be easily overridden with flex utilities.
   align-items: center;
@@ -204,11 +200,6 @@
         flex-wrap: nowrap;
         justify-content: flex-start;
 
-        .navbar-brand {
-          &:before {
-            width: 320px;
-          }
-        }
         .navbar-nav {
           flex-direction: row;
 
@@ -291,11 +282,6 @@
 
 @if $enable-dark-mode {
   @include color-mode(dark) {
-    .navbar-brand {
-      &:before {
-        content: url(../Images/Logo_KFV-Freising-w.svg);
-      }
-    }
     .navbar-toggler-icon {
       --#{$prefix}navbar-toggler-icon-bg: #{escape-svg($navbar-dark-toggler-icon-bg)};
     }

@@ -1,0 +1,5 @@
+services:
+  web:
+    labels:
+      - "traefik.http.routers.kfv-freising-vite-https.middlewares=vite-cors@file"
+      - "traefik.http.routers.kfv-freising-vite-http.middlewares=vite-cors@file"
