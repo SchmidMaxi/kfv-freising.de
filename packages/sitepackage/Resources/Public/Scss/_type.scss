@@ -84,23 +84,22 @@
   text-transform: uppercase;
 }
 
-// Blockquotes
-.blockquote {
-  margin-bottom: $blockquote-margin-y;
-  @include font-size($blockquote-font-size);
+.ce-bodytext {
 
-  > :last-child {
-    margin-bottom: 0;
-  }
-}
-
-.blockquote-footer {
-  margin-top: -$blockquote-margin-y;
-  margin-bottom: $blockquote-margin-y;
-  @include font-size($blockquote-footer-font-size);
-  color: $blockquote-footer-color;
-
-  &::before {
-    content: "\2014\00A0"; // em dash, nbsp
+  a {
+    &:not([class]) {
+      color: inherit;
+      &:hover {
+        color: var(--#{$prefix}link-hover-color);
+      }
+    }
+    &.highlight {
+      text-decoration: none;
+      font-weight: $font-weight-medium;
+      &:hover {
+        color: var(--#{$prefix}link-hover-color);
+        text-decoration: underline;
+      }
+    }
   }
 }

@@ -85,7 +85,6 @@ hr {
   margin-bottom: $headings-margin-bottom;
   font-family: $headings-font-family;
   font-style: $headings-font-style;
-  font-weight: $headings-font-weight;
   line-height: $headings-line-height;
   color: var(--#{$prefix}heading-color);
 }
@@ -93,31 +92,37 @@ hr {
 h1 {
   @extend %heading;
   @include font-size($h1-font-size);
+  font-weight: $font-weight-bold;
 }
 
 h2 {
   @extend %heading;
   @include font-size($h2-font-size);
+  font-weight: $font-weight-bold;
 }
 
 h3 {
   @extend %heading;
   @include font-size($h3-font-size);
+  font-weight: $font-weight-semibold;
 }
 
 h4 {
   @extend %heading;
   @include font-size($h4-font-size);
+  font-weight: $font-weight-semibold;
 }
 
 h5 {
   @extend %heading;
   @include font-size($h5-font-size);
+  font-weight: $font-weight-medium;
 }
 
 h6 {
   @extend %heading;
   @include font-size($h6-font-size);
+  font-weight: $font-weight-medium;
 }
 
 
@@ -190,7 +195,24 @@ dd {
 // Blockquote
 
 blockquote {
-  margin: 0 0 1rem;
+  padding: .25rem .25rem .25rem 1rem;
+  margin: 0 0 $blockquote-margin-y;
+  @include font-size($blockquote-font-size);
+  font-style: italic;
+  border-left: $blockquote-border-width solid var(--#{$prefix}primary);
+  > :last-child {
+    margin-bottom: 0;
+  }
+}
+.blockquote-footer {
+  margin-top: -$blockquote-margin-y;
+  margin-bottom: $blockquote-margin-y;
+  @include font-size($blockquote-footer-font-size);
+  color: $blockquote-footer-color;
+
+  &::before {
+    content: "\2014\00A0"; // em dash, nbsp
+  }
 }
 
 

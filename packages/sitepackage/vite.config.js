@@ -29,5 +29,11 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     cors: true,
+    allowedHosts: ['kfv-freising.ddev.site'],
+    origin: 'https://kfv-freising.ddev.site:5173',
+    watch: {
+      usePolling: true,
+      interval: 300,
+    },
   },
 })

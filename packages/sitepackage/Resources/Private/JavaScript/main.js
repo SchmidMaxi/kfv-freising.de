@@ -67,3 +67,4 @@ function sortTableByColumn(table, columnIndex, direction) {
 
     tbody.append(...sortedRows)
 }
+// test change

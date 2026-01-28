@@ -19,6 +19,9 @@ config {
     sendCacheHeaders = {$config.sendCacheHeaders}
     intTarget =
     extTarget =
+
+    spamProtectEmailAddresses = 2
+
     disablePrefixComment = 1
     index_enable = 1
     index_externals = 1

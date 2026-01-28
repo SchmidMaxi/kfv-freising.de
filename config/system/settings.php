@@ -98,7 +98,7 @@ return [
         'vite_asset_collector' => [
             'defaultManifest' => 'EXT:sitepackage/Resources/Public/Vite/.vite/manifest.json',
             'devServerUri' => 'auto',
-            'useDevServer' => '0',
+            'useDevServer' => '1',
         ],
     ],
     'FE' => [
@@ -114,7 +114,7 @@ return [
         ],
     ],
     'GFX' => [
-        'processor' => 'GraphicsMagick',
+        'processor' => 'ImageMagick',
         'processor_effects' => false,
         'processor_enabled' => true,
         'processor_path' => '/usr/bin/',
