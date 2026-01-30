@@ -1,0 +1,43 @@
+#preheader {
+  font-size: 0.875rem;
+  a {
+    text-decoration: none;
+    --#{$prefix}link-color-rgb: rgba(var(--#{$prefix}white-rgb), 1);
+    &:hover {
+      --#{$prefix}link-color-rgb: var(--#{$prefix}primary-rgb);
+    }
+    &.icon {
+      padding-left: 1.5rem;
+      &::before {
+        width: 16px;
+        height: 16px;
+        background-color: currentColor;
+      }
+    }
+  }
+}
+#nav_main {
+  .logo {
+    max-width: 250px;
+  }
+}
+#theme-switch {
+  .bi {
+    width: 1rem;
+    height: 1rem;
+    display: inline-block;
+    vertical-align: -0.125em;
+    fill: currentcolor;
+  }
+}
+
+[data-bs-theme="light"] {
+  .show-dark-mode {
+    display: none;
+  }
+}
+[data-bs-theme="dark"] {
+  .show-light-mode {
+    display: none;
+  }
+}

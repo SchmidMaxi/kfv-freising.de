@@ -1,9 +1,10 @@
 feuerwehren_vt:
   path: '/_vt/{z}/{x}/{y}.pbf'
-  controller: 'Schmid\\Feuerwehren\\Controller\\VectorTileController::pbfAction'
+  controller: 'Schmid\Feuerwehren\Controller\VectorTileController::pbfAction'
   requirements:
     z: '\d+'
     x: '\d+'
     y: '\d+'
   methods: [GET]
-  access: 'public'
+  options:
+    no_cache: true

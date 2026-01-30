@@ -1,67 +1,145 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Schmid\Feuerwehren\Controller;
 
 use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use SQLite3;
+use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Http\Response;
+use TYPO3\CMS\Core\Site\Entity\Site;
 
+/**
+ * Controller for serving vector tiles from MBTiles database.
+ *
+ * Serves Protocol Buffer Format (PBF) tiles for MapLibre GL JS.
+ * Tiles are read from a SQLite MBTiles database and served with
+ * appropriate caching headers.
+ */
 final class VectorTileController
 {
-    public function pbfAction(int $z, int $x, int $y): ResponseInterface
+    private const DEFAULT_MBTILES_PATH = 'fileadmin/tiles/osm.mbtiles';
+    private const CACHE_MAX_AGE = 31536000; // 1 year
+    private const GZIP_MAGIC_BYTE_1 = 0x1f;
+    private const GZIP_MAGIC_BYTE_2 = 0x8b;
+
+    /**
+     * Serves a single vector tile.
+     *
+     * @param ServerRequestInterface $request The current request
+     * @param int $z Zoom level
+     * @param int $x Tile column
+     * @param int $y Tile row (XYZ scheme, will be converted to TMS)
+     */
+    public function pbfAction(ServerRequestInterface $request, int $z, int $x, int $y): ResponseInterface
     {
-        // Keine (zlib-)Kompression / kein HTML-Overhead
-        @ini_set('zlib.output_compression', '0');
-        while (function_exists('ob_get_level') && ob_get_level() > 0) { @ob_end_clean(); }
+        $this->disableOutputBuffering();
 
-        $settings = $this->getSettings();
-        $mbtiles = $settings['vectorTiles']['mbtilesPath'] ?? $settings['vectorTiles.mbtilesPath'] ?? '';
+        $mbtilesPath = $this->resolveMbtilesPath($request);
+        $response = new Response();
 
-        $res = new Response();
-        if (!is_file($mbtiles)) {
-            return $res->withStatus(404);
+        if (!is_file($mbtilesPath)) {
+            return $response->withStatus(404);
         }
 
-        $tile = $this->readMbtilesTile($mbtiles, $z, $x, $y); // raw PBF, oft gzip-komprimiert gespeichert
-        if ($tile === null) {
-            return $res->withStatus(204); // no content
+        $tileData = $this->readTileFromMbtiles($mbtilesPath, $z, $x, $y);
+
+        if ($tileData === null) {
+            return $response->withStatus(204);
         }
 
-        $res->getBody()->write($tile);
-        $res = $res
+        $response->getBody()->write($tileData);
+        $response = $response
             ->withHeader('Content-Type', 'application/x-protobuf')
-            ->withHeader('Cache-Control', 'public, max-age=31536000, immutable');
+            ->withHeader('Cache-Control', sprintf('public, max-age=%d, immutable', self::CACHE_MAX_AGE));
 
-        // Wenn in der MBTiles-Datei gzip-komprimiert abgelegt (üblich), setze den Header korrekt:
-        if (strlen($tile) >= 2 && ord($tile[0]) === 0x1f && ord($tile[1]) === 0x8b) {
-            $res = $res->withHeader('Content-Encoding', 'gzip');
-        } else {
-            $res = $res->withoutHeader('Content-Encoding');
+        if ($this->isGzipCompressed($tileData)) {
+            $response = $response->withHeader('Content-Encoding', 'gzip');
         }
-        return $res;
+
+        return $response;
     }
 
-    private function readMbtilesTile(string $path, int $z, int $x, int $y): ?string
+    /**
+     * Resolves the MBTiles file path from site configuration.
+     */
+    private function resolveMbtilesPath(ServerRequestInterface $request): string
     {
-        $db = new \SQLite3($path, \SQLITE3_OPEN_READONLY);
-        // MBTiles nutzt TMS → Y invertieren
+        $relativePath = self::DEFAULT_MBTILES_PATH;
+
+        /** @var Site|null $site */
+        $site = $request->getAttribute('site');
+
+        if ($site instanceof Site) {
+            $settings = $site->getConfiguration()['settings'] ?? [];
+            $relativePath = $settings['feuerwehren']['vectorTiles']['mbtilesPath']
+                ?? $settings['feuerwehren.vectorTiles.mbtilesPath']
+                ?? self::DEFAULT_MBTILES_PATH;
+        }
+
+        // Handle both absolute and relative paths
+        if (str_starts_with($relativePath, '/')) {
+            return $relativePath;
+        }
+
+        return Environment::getPublicPath() . '/' . $relativePath;
+    }
+
+    /**
+     * Reads a tile from the MBTiles SQLite database.
+     *
+     * MBTiles uses TMS (Tile Map Service) coordinate scheme where Y is inverted
+     * compared to the XYZ/Slippy Map scheme used by web maps.
+     *
+     * @param string $path Path to MBTiles file
+     * @param int $z Zoom level
+     * @param int $x Tile column
+     * @param int $y Tile row (XYZ scheme)
+     * @return string|null Raw tile data or null if not found
+     */
+    private function readTileFromMbtiles(string $path, int $z, int $x, int $y): ?string
+    {
+        $db = new SQLite3($path, SQLITE3_OPEN_READONLY);
+
+        // Convert XYZ to TMS: Y is inverted
         $tmsY = (1 << $z) - 1 - $y;
-        $stmt = $db->prepare('SELECT tile_data FROM tiles WHERE zoom_level = :z AND tile_column = :x AND tile_row = :y LIMIT 1');
-        $stmt->bindValue(':z', $z, \SQLITE3_INTEGER);
-        $stmt->bindValue(':x', $x, \SQLITE3_INTEGER);
-        $stmt->bindValue(':y', $tmsY, \SQLITE3_INTEGER);
-        $row = $stmt->execute()?->fetchArray(\SQLITE3_ASSOC);
+
+        $stmt = $db->prepare(
+            'SELECT tile_data FROM tiles WHERE zoom_level = :z AND tile_column = :x AND tile_row = :y LIMIT 1'
+        );
+        $stmt->bindValue(':z', $z, SQLITE3_INTEGER);
+        $stmt->bindValue(':x', $x, SQLITE3_INTEGER);
+        $stmt->bindValue(':y', $tmsY, SQLITE3_INTEGER);
+
+        $result = $stmt->execute();
+        $row = $result?->fetchArray(SQLITE3_ASSOC);
+
         $db->close();
+
         return $row['tile_data'] ?? null;
     }
 
-    private function getSettings(): array
+    /**
+     * Checks if the tile data is gzip compressed by inspecting magic bytes.
+     */
+    private function isGzipCompressed(string $data): bool
     {
-        $ts = $GLOBALS['TSFE']->tmpl->setup['plugin.']['tx_feuerwehren.']['settings.'] ?? [];
-        $out = [];
-        foreach ($ts as $k=>$v) {
-            $key = rtrim($k, '.'); $out[$key] = is_array($v) ? $v : (string)$v;
+        return strlen($data) >= 2
+            && ord($data[0]) === self::GZIP_MAGIC_BYTE_1
+            && ord($data[1]) === self::GZIP_MAGIC_BYTE_2;
+    }
+
+    /**
+     * Disables output buffering to ensure raw tile data is sent.
+     */
+    private function disableOutputBuffering(): void
+    {
+        @ini_set('zlib.output_compression', '0');
+
+        while (ob_get_level() > 0) {
+            @ob_end_clean();
         }
-        return $out;
     }
 }

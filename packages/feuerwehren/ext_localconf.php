@@ -17,12 +17,9 @@ if (!isset($GLOBALS['TYPO3_CONF_VARS']['SYS']['caching']['cacheConfigurations'][
 }
 
 use TYPO3\CMS\Extbase\Utility\ExtensionUtility;
-use Schmid\Feuerwehren\Controller\{
-    FeuerwehrController,
-    PersonController,
-    JubilaeumController,
-    TileController
-};
+use Schmid\Feuerwehren\Controller\FeuerwehrController;
+use Schmid\Feuerwehren\Controller\PersonController;
+use Schmid\Feuerwehren\Controller\JubilaeumController;
 
 // Organigramm
 ExtensionUtility::configurePlugin(

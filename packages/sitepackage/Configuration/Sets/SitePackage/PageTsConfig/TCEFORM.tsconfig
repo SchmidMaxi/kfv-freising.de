@@ -4,7 +4,7 @@ TCEFORM {
     }
     tt_content {
         CType {
-            removeItems = text, textpic, image, html
+            removeItems = text, textpic, image
         }
         frame_class {
             removeItems = ruler-before, ruler-after, indent-left, indent-right

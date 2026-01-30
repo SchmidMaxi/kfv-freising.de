@@ -1,17 +1,27 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Schmid\Feuerwehren\Domain\Repository;
 
-use TYPO3\CMS\Extbase\Persistence\QueryInterface;
+use Schmid\Feuerwehren\Domain\Model\Feuerwehr;
 use TYPO3\CMS\Extbase\Persistence\QueryResultInterface;
 use TYPO3\CMS\Extbase\Persistence\Repository;
 
+/**
+ * Repository for Feuerwehr (fire department) domain model.
+ *
+ * Provides methods for querying fire departments, including
+ * geographic bounding box searches with optional vehicle category filtering.
+ *
+ * @extends Repository<Feuerwehr>
+ */
 final class FeuerwehrRepository extends Repository
 {
     /**
-     * Stellt sicher, dass alle Datensätze gefunden werden,
-     * unabhängig von der Seitenspeicherung (PID).
+     * Initializes query settings to ignore storage page restrictions.
+     *
+     * Fire department data should be accessible across all pages.
      */
     public function initializeObject(): void
     {
@@ -21,15 +31,17 @@ final class FeuerwehrRepository extends Repository
     }
 
     /**
-     * Findet Feuerwehren basierend auf Bounding Box und Fahrzeugkategorien.
+     * Finds fire departments within a geographic bounding box.
      *
-     * @param float $west
-     * @param float $south
-     * @param float $east
-     * @param float $north
-     * @param int[] $fahrzeugKategorieUids
-     * @param string $mode ('and' | 'or')
-     * @return QueryResultInterface
+     * Optionally filters by vehicle categories using AND or OR logic.
+     *
+     * @param float $west Western boundary (minimum longitude)
+     * @param float $south Southern boundary (minimum latitude)
+     * @param float $east Eastern boundary (maximum longitude)
+     * @param float $north Northern boundary (maximum latitude)
+     * @param list<int> $fahrzeugKategorieUids Vehicle category UIDs to filter by
+     * @param 'and'|'or' $mode How to combine category filters
+     * @return QueryResultInterface<Feuerwehr>
      */
     public function findForMapSearch(
         float $west,
@@ -40,37 +52,26 @@ final class FeuerwehrRepository extends Repository
         string $mode = 'and'
     ): QueryResultInterface {
         $query = $this->createQuery();
-        $mainConstraints = [];
 
-        // 1. Bounding Box Constraints (immer AND)
-        // KORREKTUR: Variablen statt Strings verwenden
-        $mainConstraints[] = $query->greaterThanOrEqual('longitude', $west);
-        $mainConstraints[] = $query->lessThanOrEqual('longitude', $east);
-        $mainConstraints[] = $query->greaterThanOrEqual('latitude', $south);
-        $mainConstraints[] = $query->lessThanOrEqual('latitude', $north);
+        $constraints = [
+            $query->greaterThanOrEqual('longitude', $west),
+            $query->lessThanOrEqual('longitude', $east),
+            $query->greaterThanOrEqual('latitude', $south),
+            $query->lessThanOrEqual('latitude', $north),
+        ];
 
-        // 2. Fahrzeugkategorien verarbeiten
-        if (!empty($fahrzeugKategorieUids)) {
-            $categoryConstraints = [];
-            foreach ($fahrzeugKategorieUids as $uid) {
-                $categoryConstraints[] = $query->contains('fahrzeugkategorien', $uid);
-            }
+        if ($fahrzeugKategorieUids !== []) {
+            $categoryConstraints = array_map(
+                fn(int $uid) => $query->contains('fahrzeugkategorien', $uid),
+                $fahrzeugKategorieUids
+            );
 
-            if (count($categoryConstraints) > 0) {
-                if ($mode === 'or') {
-                    $combinedCategoryConstraint = $query->logicalOr(...$categoryConstraints);
-                } else {
-                    $combinedCategoryConstraint = $query->logicalAnd(...$categoryConstraints);
-                }
-                $mainConstraints[] = $combinedCategoryConstraint;
-            }
+            $constraints[] = $mode === 'or'
+                ? $query->logicalOr(...$categoryConstraints)
+                : $query->logicalAnd(...$categoryConstraints);
         }
 
-        if (empty($mainConstraints)) {
-            return $query->execute();
-        }
-
-        $query->matching($query->logicalAnd(...$mainConstraints));
+        $query->matching($query->logicalAnd(...$constraints));
 
         return $query->execute();
     }

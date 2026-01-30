@@ -8,7 +8,6 @@ baseVariants:
     condition: 'applicationContext == "Development"'
 dependencies:
   - schmid/sitepackage
-  - georgringer/news
 languages:
   -
     title: Deutsch

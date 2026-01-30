@@ -8,17 +8,20 @@ services:
     resource: '../Classes/*'
     exclude: '../Classes/Domain/Model/*'
 
+  # Console Commands
   Schmid\Feuerwehren\Command\TilesPrefetchCommand:
-    arguments: [ ]
     tags:
       - name: 'console.command'
         command: 'feuerwehren:tiles:prefetch'
         description: 'Prefetch XYZ tiles into var/tiles for a given BBOX and zoom levels'
 
-  # Middleware muss public sein (wird vom Core instanziert)
-  Schmid\Feuerwehren\Middleware\ApiGatewayMiddleware:
-    public: true
+  Schmid\Feuerwehren\Command\MbtilesFetchCommand:
+    tags:
+      - name: 'console.command'
+        command: 'feuerwehren:mbtiles:fetch'
+        description: 'Download MBTiles file from URL with optional checksum validation'
 
+  # Controllers (must be public for TYPO3 instantiation)
   Schmid\Feuerwehren\Controller\PersonController:
     public: true
 
@@ -27,8 +30,10 @@ services:
 
   Schmid\Feuerwehren\Controller\JubilaeumController:
     public: true
-    arguments:
-      $feuerwehrRepository: '@Schmid\Feuerwehren\Domain\Repository\FeuerwehrRepository' # Hinzufügen
 
   Schmid\Feuerwehren\Controller\VectorTileController:
+    public: true
+
+  # Middleware (must be public for TYPO3 middleware chain)
+  Schmid\Feuerwehren\Middleware\ApiGatewayMiddleware:
     public: true

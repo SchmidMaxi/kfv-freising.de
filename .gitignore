@@ -1,16 +1,41 @@
+# OS files
 .DS_Store
-.idea
-nbproject
+Thumbs.db
+
+# IDEs
+.idea/
+.vscode/
+nbproject/
+*.swp
+*.swo
+
+# Dependencies
+/vendor/
+
+# TYPO3 runtime
 /var/*
 !/var/labels
-/vendor
+
+# Public folder (generated/uploaded content)
 /public/*
 !/public/.htaccess
 !/public/robots.txt
 !/public/typo3conf
+
+# Environment and credentials
 env.php
+.env
+.env.local
+.env.*.local
 config/system/additional.local.php
 
-# Database sync credentials and dumps
+# Database sync
 .env.db-sync
 .dumps/
+
+# Logs
+*.log
+
+# Build artifacts (handled in package-level .gitignore)
+# packages/sitepackage/node_modules/
+# packages/sitepackage/Resources/Public/Vite/

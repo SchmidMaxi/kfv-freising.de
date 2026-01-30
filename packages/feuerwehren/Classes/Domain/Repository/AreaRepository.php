@@ -1,17 +1,25 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Schmid\Feuerwehren\Domain\Repository;
 
-use TYPO3\CMS\Extbase\Persistence\Repository;
-use TYPO3\CMS\Extbase\Persistence\QueryInterface;
 use Schmid\Feuerwehren\Domain\Model\Area;
+use TYPO3\CMS\Extbase\Persistence\QueryInterface;
+use TYPO3\CMS\Extbase\Persistence\QueryResultInterface;
+use TYPO3\CMS\Extbase\Persistence\Repository;
 
+/**
+ * Repository for Area domain model.
+ *
+ * Provides methods to query organizational areas (KBR, KBI, KBM, Fach-KBM)
+ * with their hierarchical relationships.
+ *
+ * @extends Repository<Area>
+ */
 final class AreaRepository extends Repository
 {
-    /**
-     * @var array<string,int>
-     */
+    /** @var array<string, string> */
     protected $defaultOrderings = [
         'sorting' => QueryInterface::ORDER_ASCENDING,
     ];
@@ -24,37 +32,48 @@ final class AreaRepository extends Repository
     }
 
     /**
-     * @return \TYPO3\CMS\Extbase\Persistence\QueryResultInterface|Area[]
+     * Finds all root areas (areas without a parent).
+     *
+     * @return QueryResultInterface<Area>
      */
-    public function findRootNodes()
+    public function findRootNodes(): QueryResultInterface
     {
         $query = $this->createQuery();
-        $query->matching(
-            $query->equals('parent', null)
-        );
+        $query->matching($query->equals('parent', null));
+
         return $query->execute();
     }
 
-    public function findByType(string $type)
+    /**
+     * Finds all areas of a specific type.
+     *
+     * @param string $type Area type ('kbr', 'kbi', 'kbm', 'fach-kbm')
+     * @return QueryResultInterface<Area>
+     */
+    public function findByType(string $type): QueryResultInterface
     {
-        $q = $this->createQuery();
-        $q->matching($q->equals('type', $type));
-        return $q->execute();
+        $query = $this->createQuery();
+        $query->matching($query->equals('type', $type));
+
+        return $query->execute();
     }
 
     /**
-     * Alle KBM unterhalb einer KBI.
-     * @return \TYPO3\CMS\Extbase\Persistence\QueryResultInterface|Area[]
+     * Finds all KBM areas under a specific parent (typically a KBI).
+     *
+     * @param Area $parent The parent area (KBI)
+     * @return QueryResultInterface<Area>
      */
-    public function findKbmsByParent(Area $parent)
+    public function findKbmsByParent(Area $parent): QueryResultInterface
     {
-        $q = $this->createQuery();
-        $q->matching(
-            $q->logicalAnd(
-                $q->equals('type', 'kbm'),
-                $q->equals('parent', $parent)
+        $query = $this->createQuery();
+        $query->matching(
+            $query->logicalAnd(
+                $query->equals('type', 'kbm'),
+                $query->equals('parent', $parent)
             )
         );
-        return $q->execute();
+
+        return $query->execute();
     }
 }

@@ -17,29 +17,14 @@ page {
             10 {
                 references.fieldName = media
             }
-            20 = menu
-            20 {
+            20 = page-content
+            30 = menu
+            30 {
                 special = directory
                 special.value = 2
                 levels = 2
                 includeSpacer = 1
                 as = main
-            }
-            30 = menu
-            30 {
-                special = directory
-                special.value = 3
-                levels = 2
-                includeSpacer = 1
-                as = secondary
-            }
-            40 = menu
-            40 {
-                special = directory
-                special.value = 4
-                levels = 2
-                includeSpacer = 1
-                as = tertiary
             }
             50 = menu
             50 {
@@ -56,20 +41,6 @@ page {
                 levels = 2
                 includeSpacer = 1
                 as = meta
-            }
-            70 = menu
-            70 {
-                special = directory
-                special.value = 7
-                levels = 2
-                includeSpacer = 1
-                as = social
-                dataProcessing {
-                    10 = files
-                    10 {
-                        references.fieldName = media
-                    }
-                }
             }
             80 = menu
             80 {
@@ -88,7 +59,6 @@ page {
                     }
                 }
             }
-            100 = page-content
         }
     }
 

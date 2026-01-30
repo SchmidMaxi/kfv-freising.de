@@ -36,9 +36,6 @@ return [
             'tillDaysRelative' => '',
             'timeTableManipulation' => '0',
         ],
-        'dpn_glossary' => [
-            'termSlugEvaluation' => 'unique',
-        ],
         'extensionmanager' => [
             'automaticInstallation' => '1',
             'offlineMode' => '0',
@@ -139,7 +136,7 @@ return [
         'defaultMailFromName' => 'KFV Freising e.V.',
         'transport' => 'smtp',
         'transport_sendmail_command' => '/usr/sbin/sendmail -t -i',
-        'transport_smtp_encrypt' => '',
+        'transport_smtp_encrypt' => false,
         'transport_smtp_password' => 'Tuf84067',
         'transport_smtp_server' => 'smtp-mail.outlook.com:587',
         'transport_smtp_username' => 'noreply@kfv-freising.de',

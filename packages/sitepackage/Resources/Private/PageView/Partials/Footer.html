@@ -1,11 +1,70 @@
-<footer class="bg-body-secondary py-3 mt-5">
-    <div class="container">
-        <div class="row">
+<footer class="bg-body-tertiary mt-5">
+    <div id="footer" class="container py-5 py-lg-9">
+        <div class="row gx-7 gy-5">
+            <div class="col-12 col-xl pe-xl-8">
+                <f:image src="EXT:sitepackage/Resources/Public/Images/Logo_KFV-Freising-w.svg" class="img-fluid mb-4" loading="lazy" />
+                <p>Gemeinsam für Ihre Sicherheit im Landkreis Freising. Rund um die Uhr im Einsatz.</p>
 
+                <ul id="social" class="nav nav-pills">
+                    <li class="nav-item">
+                        <f:link.external uri="https://www.facebook.com/kbifs/" class="nav-link">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+                                <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
+                            </svg>
+                        </f:link.external>
+                    </li>
+                    <li class="nav-item">
+                        <f:link.external uri="https://www.instagram.com/kreisbrandinspektionfreising/" class="nav-link">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+                                <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/>
+                                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37zm1.5-4.87h.01"/>
+                            </svg>
+                        </f:link.external>
+                    </li>
+                    <li class="nav-item">
+                        <f:link.external uri="https://www.youtube.com/@kreisbrandinspektionfreising" class="nav-link">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+                                <path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"/>
+                                <path d="m10 15 5-3-5-3z"/>
+                            </svg>
+                        </f:link.external>
+                    </li>
+                </ul>
+            </div>
+            <f:for each="{footer}" as="footerItem">
+                <div class="col-12 col-md-6 col-xl">
+                    <h3 class="fs-5 mb-3 text-white">{footerItem.title}</h3>
+                    <f:if condition="{footerItem.children}">
+                        <ul  class="nav flex-column">
+                            <f:for each="{footerItem.children}" as="child">
+                                <li class="nav-item">
+                                    <f:link.typolink parameter="{child.link}" class="nav-link">{child.title}</f:link.typolink>
+                                </li>
+                            </f:for>
+                        </ul>
+                    </f:if>
+                </div>
+            </f:for>
+            <div class="col-12 col-md-6 col-xl">
+                <h3 class="fs-5 mb-4 text-white">Kontakt</h3>
+                <div class="icon icon-marker mb-3">
+                    {settings.Sitepackage.address -> f:format.raw()}
+                </div>
+                <p>
+                    <f:link.external class="icon icon-phone" uri="tel:{settings.Sitepackage.phone}">
+                        {settings.Sitepackage.phone}
+                    </f:link.external>
+                </p>
+                <p>
+                    <f:link.email class="icon icon-mail" email="{settings.Sitepackage.email}" />
+                </p>
+            </div>
         </div>
-        <hr>
+    </div>
+    <hr class="m-0">
+    <div id="meta" class="container py-3">
         <div class="row justify-content-between">
-            <div id="meta" class="col-12 col-lg-auto order-lg-2">
+            <div class="col-12 col-lg-auto order-lg-2">
                 <ul class="nav justify-content-center">
                     <f:for each="{meta}" as="navItem" iteration="i">
                         <li class="nav-item">
