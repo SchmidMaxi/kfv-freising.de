@@ -16,9 +16,17 @@
     <nav>
         <div id="nav_main" class="shadow navbar navbar-expand-lg bg-body">
             <div class="container">
-                <f:link.typolink parameter="/" class="navbar-brand">
-                    <f:image src="{settings.Sitepackage.logo}" alt="Kreisfeuerwehrverband Freising e.V. Logo" class="img-fluid logo show-light-mode" />
-                    <f:image src="{settings.Sitepackage.logoInverse}" alt="Kreisfeuerwehrverband Freising e.V. Logo" class="img-fluid logo show-dark-mode" />
+                <f:link.typolink parameter="/" class="navbar-brand d-flex align-items-center gap-2">
+                    <f:image src="{settings.Sitepackage.emblem}" alt="Kreisfeuerwehrverband Freising e.V. Logo" width="72" class="img-fluid logo" />
+                    <div class="logo-claim">
+                        Kreisfeuerwehrverband
+                        <br />
+                        Freising e.V.
+                    </div>
+                    <f:comment>
+                        <f:image src="{settings.Sitepackage.logo}" alt="Kreisfeuerwehrverband Freising e.V. Logo" class="d-none img-fluid logo show-light-mode" />
+                        <f:image src="{settings.Sitepackage.logoInverse}" alt="Kreisfeuerwehrverband Freising e.V. Logo" class="d-none img-fluid logo show-dark-mode" />
+                    </f:comment>
                 </f:link.typolink>
 
                 <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#navbarOffcanvasLg" aria-controls="navbarOffcanvasLg" aria-label="Toggle navigation">

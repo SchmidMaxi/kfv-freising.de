@@ -71,6 +71,13 @@
   text-decoration: if($link-decoration == none, null, none);
   white-space: nowrap;
 
+
+
+  //background-image: url('/_assets/f6310bce72be5047b6ed81e0c7a0a928/Images/Logo_KFV-Freising-b.webp');
+  //background-size: 262px 56px;
+  //background-repeat: no-repeat;
+  //background-position: left center;
+
   &:hover,
   &:focus {
     color: var(--#{$prefix}navbar-brand-hover-color);
@@ -109,23 +116,6 @@
 
   .dropdown-menu {
     position: static;
-  }
-}
-
-
-// Navbar text
-//
-//
-
-.navbar-text {
-  padding-top: $nav-link-padding-y;
-  padding-bottom: $nav-link-padding-y;
-  color: var(--#{$prefix}navbar-color);
-
-  a,
-  a:hover,
-  a:focus  {
-    color: var(--#{$prefix}navbar-active-color);
   }
 }
 
