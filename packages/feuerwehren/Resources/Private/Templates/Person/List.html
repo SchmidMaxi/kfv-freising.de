@@ -1,46 +1,53 @@
 <f:layout name="Default" />
 <f:section name="main">
 
-    <h1>Organigramm der Kreisbrandinspektion</h1>
+  <div class="container py-8">
+    <h1 class="mb-8 font-heading text-3xl font-bold text-foreground">Organigramm der Kreisbrandinspektion</h1>
 
-    <f:debug inline="true">{_all}</f:debug>
+    <div class="organigramm-list space-y-8">
 
-    <div class="organigramm-list">
+      <f:if condition="{kbr}">
+        <div class="org-level org-level-kbr flex justify-center">
+          <f:render partial="Person/AreaItem" arguments="{area: kbr}" />
+        </div>
+      </f:if>
 
-        <f:if condition="{kbr}">
-            <div class="org-level org-level-kbr">
-                <f:render partial="Person/AreaItem" arguments="{area: kbr}" />
-            </div>
-        </f:if>
+      <f:if condition="{fachKbms}">
+        <div>
+          <h3 class="mb-4 font-heading text-lg font-semibold text-muted-foreground uppercase tracking-wide">
+            Fach-Kreisbrandmeister
+          </h3>
+          <div class="org-level org-level-fach-kbm flex flex-wrap gap-3">
+            <f:for each="{fachKbms}" as="fachKbm">
+              <f:render partial="Person/AreaItem" arguments="{area: fachKbm}" />
+            </f:for>
+          </div>
+        </div>
+      </f:if>
 
-        <f:if condition="{fachKbms}">
-            <h3>Fach-Kreisbrandmeister</h3>
-            <div class="org-level org-level-fach-kbm d-flex flex-wrap gap-2">
-                <f:for each="{fachKbms}" as="fachKbm">
-                    <f:render partial="Person/AreaItem" arguments="{area: fachKbm}" />
-                </f:for>
-            </div>
-        </f:if>
-
-        <f:if condition="{kbisWithChildren}">
-            <h3>Kreisbrandinspektoren</h3>
-            <div class="org-level org-level-kbi-list d-flex flex-wrap gap-2">
-                <f:for each="{kbisWithChildren}" as="kbiItem">
-                    <div class="kbi-block">
-                        <f:render partial="Person/AreaItem" arguments="{area: kbiItem.kbi}" />
-
-                        <f:if condition="{kbiItem.kbms}">
-                            <div class="org-level-kbm">
-                                <f:for each="{kbiItem.kbms}" as="kbm">
-                                    <f:render partial="Person/AreaItem" arguments="{area: kbm}" />
-                                </f:for>
-                            </div>
-                        </f:if>
-                    </div>
-                </f:for>
-            </div>
-        </f:if>
+      <f:if condition="{kbisWithChildren}">
+        <div>
+          <h3 class="mb-4 font-heading text-lg font-semibold text-muted-foreground uppercase tracking-wide">
+            Kreisbrandinspektoren
+          </h3>
+          <div class="org-level org-level-kbi-list flex flex-wrap gap-6">
+            <f:for each="{kbisWithChildren}" as="kbiItem">
+              <div class="kbi-block rounded-xl border border-border bg-card p-4 shadow-sm">
+                <f:render partial="Person/AreaItem" arguments="{area: kbiItem.kbi}" />
+                <f:if condition="{kbiItem.kbms}">
+                  <div class="org-level-kbm mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
+                    <f:for each="{kbiItem.kbms}" as="kbm">
+                      <f:render partial="Person/AreaItem" arguments="{area: kbm}" />
+                    </f:for>
+                  </div>
+                </f:if>
+              </div>
+            </f:for>
+          </div>
+        </div>
+      </f:if>
 
     </div>
+  </div>
 
 </f:section>

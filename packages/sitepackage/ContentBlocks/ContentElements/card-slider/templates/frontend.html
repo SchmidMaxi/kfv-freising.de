@@ -1,36 +1,38 @@
 <f:asset.css identifier="splideCss" href="{cb:assetPath()}/splide-core.min.css"/>
-<f:asset.css identifier="heroslider" href="{cb:assetPath()}/frontend.css"/>
 <f:asset.script identifier="splideJs" src="{cb:assetPath()}/splide.min.js"/>
-<f:asset.script identifier="splideInit" src="{cb:assetPath()}/frontend.js"/>
+<f:asset.script identifier="cardsliderInit" src="{cb:assetPath()}/frontend.js"/>
 
-<div id="c{data.uid}" class="{f:if(condition:'{data.layout} == 0', then:'container ')}frame frame-{data.frame_class} frame-type-{data.CType} frame-layout-{data.layout}{f:if(condition: data.space_before_class, then: ' frame-space-before-{data.space_before_class}')}{f:if(condition: data.space_after_class, then: ' frame-space-after-{data.space_after_class}')}">
-    <div class="splide" role="group" aria-label="{data.header}" data-splide='{"type":"loop","perPage":<f:format.raw>{data.breakpoint_desktop}</f:format.raw>, "perMove":1, "gap":"2rem", "breakpoints":{ "992":{"perPage":<f:format.raw>{data.breakpoint_tablet}</f:format.raw>}, "576":{"perPage":<f:format.raw>{data.breakpoint_mobile}</f:format.raw>} }}'>
-
-        <div class="splide__arrows">
-            <button class="splide__arrow splide__arrow--prev">
-                <f:image src="{cb:assetPath()}/slider_arrow.svg" />
-            </button>
-            <button class="splide__arrow splide__arrow--next">
-                <f:image src="{cb:assetPath()}/slider_arrow.svg" />
-            </button>
-        </div>
-
-        <div class="splide__track">
-            <ul class="splide__list">
-                <f:for each="{data.items}" as="item">
-                    <li class="splide__slide">
-                        <div class="card h-100 text-bg-{data.color}">
-                            <f:if condition="{item.image}">
-                                <f:image image="{item.image.0}" class="card-img-top img-fluid mb-2" />
-                            </f:if>
-                            <div class="card-body">
-                                <h4 class="card-title">{item.header}</h4>
-                                <div class="card-text">{item.bodytext->f:format.html()}</div>
-                            </div>
-                        </div>
-                    </li>
-                </f:for>
-            </ul>
-        </div>
+<div id="c{data.uid}" class="my-8 {f:if(condition:'{data.layout} == 0', then:'container')}">
+  <f:if condition="{data.header}">
+    <h2 class="mb-6 font-heading text-2xl font-bold text-foreground">{data.header}</h2>
+  </f:if>
+  <div class="splide" role="group" aria-label="{data.header}" data-splide='{"type":"loop","perPage":<f:format.raw>{data.breakpoint_desktop}</f:format.raw>,"perMove":1,"gap":"1.5rem","breakpoints":{"1024":{"perPage":<f:format.raw>{data.breakpoint_tablet}</f:format.raw>},"640":{"perPage":<f:format.raw>{data.breakpoint_mobile}</f:format.raw>}}}'>
+    <div class="splide__arrows">
+      <button class="splide__arrow splide__arrow--prev">
+        <f:image src="{cb:assetPath()}/slider_arrow.svg" />
+      </button>
+      <button class="splide__arrow splide__arrow--next">
+        <f:image src="{cb:assetPath()}/slider_arrow.svg" />
+      </button>
     </div>
+    <div class="splide__track">
+      <ul class="splide__list">
+        <f:for each="{data.items}" as="item">
+          <li class="splide__slide">
+            <div class="card-color-{data.color} flex h-full flex-col overflow-hidden rounded-lg border border-border shadow">
+              <f:if condition="{item.image}">
+                <f:image image="{item.image.0}" class="h-48 w-full object-cover" />
+              </f:if>
+              <div class="flex flex-1 flex-col p-5">
+                <f:if condition="{item.header}">
+                  <h4 class="mb-2 font-heading text-lg font-bold">{item.header}</h4>
+                </f:if>
+                <div class="text-sm">{item.bodytext->f:format.html()}</div>
+              </div>
+            </div>
+          </li>
+        </f:for>
+      </ul>
+    </div>
+  </div>
 </div>

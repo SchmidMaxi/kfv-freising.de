@@ -1,0 +1,15 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+      xmlns:cb="http://typo3.org/ns/T3docs/ContentBlocks/ViewHelpers"
+      data-namespace-typo3-fluid="true">
+
+<div style="background: linear-gradient(135deg, hsl(0 100% 25%), hsl(0 100% 35%)); color: white; padding: 1rem 1.25rem; border-radius: 4px; font-family: sans-serif;">
+    <strong style="display: block; font-size: 0.7rem; letter-spacing: 0.1em; opacity: 0.7; text-transform: uppercase; margin-bottom: 0.25rem;">Hero (statisch)</strong>
+    <f:if condition="{data.header}">
+        <span style="font-size: 1.1rem; font-weight: bold;">{data.header}</span>
+    </f:if>
+    <f:if condition="{data.subheadline}">
+        <span style="display: block; font-size: 0.85rem; opacity: 0.8; margin-top: 0.25rem;">{data.subheadline -> f:format.crop(maxCharacters: 80)}</span>
+    </f:if>
+</div>
+
+</html>

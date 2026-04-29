@@ -1,15 +1,12 @@
 <html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
-<div class="mediaelement">
-	<div class="mediaelement-video">
-		<f:media file="{mediaElement}" class="img-fluid" width="{settings.detail.media.video.width}" height="{settings.detail.media.video.height}"/>
-	</div>
-
-	<f:if condition="{mediaElement.description}">
-		<div class="medialement-alternative-content">
-			<p class="news-img-caption">
-				{mediaElement.description}
-			</p>
-		</div>
-	</f:if>
-</div>
+<figure class="my-4">
+  <div class="overflow-hidden rounded">
+    <f:media file="{mediaElement}" class="max-w-full h-auto"
+             width="{settings.detail.media.video.width}"
+             height="{settings.detail.media.video.height}" />
+  </div>
+  <f:if condition="{mediaElement.description}">
+    <figcaption class="mt-2 text-sm text-muted-foreground">{mediaElement.description}</figcaption>
+  </f:if>
+</figure>
 </html>

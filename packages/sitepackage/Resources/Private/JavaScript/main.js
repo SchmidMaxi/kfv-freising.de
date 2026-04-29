@@ -1,16 +1,43 @@
-// SCSS importieren
-import '../../Public/Scss/layout.scss'
-import '../../Public/Scss/icons.scss'
+// Design System & Tailwind CSS
+import '../Css/main.css'
 
-// Bibliotheken importieren
-import * as bootstrap from 'bootstrap'
+// Bootstrap Icons (lokale Schrift wird in main.css geladen, CSS-Klassen hier)
+import 'bootstrap-icons/font/bootstrap-icons.css'
+
+// Bootstrap JS — für Navbar-Offcanvas, Dropdowns und Theme-Toggle
+// wird in Phase 2 ersetzt, sobald die Templates auf Tailwind umgestellt sind
+import 'bootstrap'
+
+// Lightbox
 import GLightbox from 'glightbox'
-import Splide from '@splidejs/splide'
 import 'glightbox/dist/css/glightbox.min.css'
-import '@splidejs/splide/css'
 
-// Colormode (inline, da es früh geladen werden muss)
+// Splide-Slider (für Card-Slider und Hero-Slider Content-Blocks)
+import Splide from '@splidejs/splide'
+import '@splidejs/splide/css/core'
+
+// Colormode-Toggle (setzt data-bs-theme auf <html>)
 import './colormode.js'
+
+// Mobile-Menü Toggle
+document.addEventListener('DOMContentLoaded', () => {
+    const toggle = document.getElementById('mobile-menu-toggle')
+    const menu   = document.getElementById('mobile-menu')
+    const icon   = document.getElementById('mobile-menu-icon')
+
+    if (toggle && menu) {
+        toggle.addEventListener('click', () => {
+            const isOpen = !menu.classList.contains('hidden')
+            menu.classList.toggle('hidden')
+            toggle.setAttribute('aria-expanded', String(!isOpen))
+            if (icon) {
+                icon.className = isOpen
+                    ? 'bi bi-list text-2xl'
+                    : 'bi bi-x-lg text-xl'
+            }
+        })
+    }
+})
 
 // GLightbox initialisieren
 const lightbox = GLightbox({
@@ -28,8 +55,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 /**
  * Macht eine HTML-Tabelle sortierbar.
- * Um diese Funktion zu nutzen, geben Sie Ihrer Tabelle eine ID (z.B. id="sortier-tabelle")
- * und rufen Sie auf: makeTableSortable(document.getElementById('sortier-tabelle'));
+ * Aufruf: makeTableSortable(document.getElementById('meine-tabelle'))
  */
 export function makeTableSortable(table) {
     const headers = table.querySelectorAll('th')
@@ -54,11 +80,9 @@ function sortTableByColumn(table, columnIndex, direction) {
         const aColText = a.querySelector(`td:nth-child(${columnIndex + 1})`).textContent.trim()
         const bColText = b.querySelector(`td:nth-child(${columnIndex + 1})`).textContent.trim()
 
-        if (direction === 'asc') {
-            return aColText > bColText ? 1 : -1
-        } else {
-            return bColText > aColText ? 1 : -1
-        }
+        return direction === 'asc'
+            ? aColText > bColText ? 1 : -1
+            : bColText > aColText ? 1 : -1
     })
 
     while (tbody.firstChild) {
@@ -67,4 +91,3 @@ function sortTableByColumn(table, columnIndex, direction) {
 
     tbody.append(...sortedRows)
 }
-// test change

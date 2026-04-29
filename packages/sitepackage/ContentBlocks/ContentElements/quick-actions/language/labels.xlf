@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+	<file datatype="plaintext" original="labels.xlf" source-language="de" date="2026-04-28T00:00:00+00:00" product-name="sitepackage/quick-actions">
+		<header/>
+		<body>
+			<trans-unit id="title" resname="title">
+				<source>Quick Actions</source>
+			</trans-unit>
+			<trans-unit id="description" resname="description">
+				<source>Raster aus Aktionskarten mit Icon, Titel, Beschreibung und Link</source>
+			</trans-unit>
+			<trans-unit id="items.label" resname="items.label">
+				<source>Aktionskarten</source>
+			</trans-unit>
+			<trans-unit id="items.title.label" resname="items.title.label">
+				<source>Titel</source>
+			</trans-unit>
+			<trans-unit id="items.description.label" resname="items.description.label">
+				<source>Beschreibung</source>
+			</trans-unit>
+			<trans-unit id="items.link.label" resname="items.link.label">
+				<source>Ziel-Link</source>
+			</trans-unit>
+			<trans-unit id="items.icon.label" resname="items.icon.label">
+				<source>Icon (Bootstrap Icons Name)</source>
+			</trans-unit>
+			<trans-unit id="items.variant.label" resname="items.variant.label">
+				<source>Stil</source>
+			</trans-unit>
+		</body>
+	</file>
+</xliff>

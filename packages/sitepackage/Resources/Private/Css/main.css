@@ -1,0 +1,378 @@
+/* Lokale Schriften — kein Google Fonts (DSGVO) */
+
+/* oswald-regular */
+@font-face {
+  font-display: swap;
+  font-family: 'Oswald';
+  font-style: normal;
+  font-weight: 400;
+  src: url('../../Public/Fonts/oswald-v57-latin-400.woff2') format('woff2');
+}
+/* oswald-500 */
+@font-face {
+  font-display: swap;
+  font-family: 'Oswald';
+  font-style: normal;
+  font-weight: 500;
+  src: url('../../Public/Fonts/oswald-v57-latin-500.woff2') format('woff2');
+}
+/* oswald-600 */
+@font-face {
+  font-display: swap;
+  font-family: 'Oswald';
+  font-style: normal;
+  font-weight: 600;
+  src: url('../../Public/Fonts/oswald-v57-latin-600.woff2') format('woff2');
+}
+/* oswald-700 */
+@font-face {
+  font-display: swap;
+  font-family: 'Oswald';
+  font-style: normal;
+  font-weight: 700;
+  src: url('../../Public/Fonts/oswald-v57-latin-700.woff2') format('woff2');
+}
+
+/* roboto-300 */
+@font-face {
+  font-display: swap;
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 300;
+  src: url('../../Public/Fonts/roboto-v50-latin-300.woff2') format('woff2');
+}
+/* roboto-300italic */
+@font-face {
+  font-display: swap;
+  font-family: 'Roboto';
+  font-style: italic;
+  font-weight: 300;
+  src: url('../../Public/Fonts/roboto-v50-latin-300italic.woff2') format('woff2');
+}
+/* roboto-regular */
+@font-face {
+  font-display: swap;
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 400;
+  src: url('../../Public/Fonts/roboto-v50-latin-400.woff2') format('woff2');
+}
+/* roboto-italic */
+@font-face {
+  font-display: swap;
+  font-family: 'Roboto';
+  font-style: italic;
+  font-weight: 400;
+  src: url('../../Public/Fonts/roboto-v50-latin-400italic.woff2') format('woff2');
+}
+/* roboto-500 */
+@font-face {
+  font-display: swap;
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 500;
+  src: url('../../Public/Fonts/roboto-v50-latin-500.woff2') format('woff2');
+}
+/* roboto-500italic */
+@font-face {
+  font-display: swap;
+  font-family: 'Roboto';
+  font-style: italic;
+  font-weight: 500;
+  src: url('../../Public/Fonts/roboto-v50-latin-500italic.woff2') format('woff2');
+}
+/* roboto-700 */
+@font-face {
+  font-display: swap;
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 700;
+  src: url('../../Public/Fonts/roboto-v50-latin-700.woff2') format('woff2');
+}
+/* roboto-700italic */
+@font-face {
+  font-display: swap;
+  font-family: 'Roboto';
+  font-style: italic;
+  font-weight: 700;
+  src: url('../../Public/Fonts/roboto-v50-latin-700italic.woff2') format('woff2');
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =============================================================================
+   Kreisfeuerwehrverband Freising — Design System
+   Primary Accent: Fire Red #CC0000 → hsl(0, 100%, 40%)
+   Text/Dark:      Charcoal       → hsl(215, 28%, 20%)
+   Alle Farben in HSL.
+   ============================================================================= */
+
+@layer base {
+  :root,
+  [data-bs-theme="light"] {
+    /* === Neutrale Grau-Skala (5 Stufen) ===
+       100 = Surface, 200 = Muted Surface, 300 = Border/Disabled,
+       500 = Muted Text, 900 = Foreground
+    */
+    --white: 0 0% 100%;
+    --black: 0 0% 0%;
+
+    --gray-100: 40 20% 98%;   /* Surface (Cream) */
+    --gray-200: 30 10% 94%;   /* Muted Surface (Warm Gray) */
+    --gray-300: 30 10% 82%;   /* Border / Divider */
+    --gray-500: 215 20% 45%;  /* Muted Text */
+    --gray-900: 215 28% 20%;  /* Foreground / Charcoal */
+
+    /* Dunkle Markenfläche — für Preheader, Footer, dunkle Sektionen */
+    --surface-dark: 215 28% 15%;
+    --surface-dark-foreground: 0 0% 100%;
+    --surface-dark-muted: 0 0% 100% / 0.7;
+
+    /* Aliases */
+    --cream: var(--gray-100);
+    --warm-gray: var(--gray-200);
+    --charcoal-dark: var(--gray-900);
+    --charcoal: var(--gray-900);
+    --charcoal-light: var(--gray-500);
+    --charcoal-muted: var(--gray-500);
+
+    /* Feuerwehr-Akzentfarben */
+    --fire-red: 0 100% 40%;
+    --fire-red-light: 0 90% 65%;
+    --fire-red-dark: 0 100% 30%;
+    --fire-orange: 25 95% 42%;
+    --fire-yellow: 45 95% 55%;
+
+    /* === Semantische Mappings === */
+    --background: var(--white);
+    --foreground: var(--gray-900);
+
+    --card: var(--white);
+    --card-foreground: var(--gray-900);
+
+    --popover: var(--white);
+    --popover-foreground: var(--gray-900);
+
+    --primary: var(--gray-900);
+    --primary-foreground: var(--white);
+
+    --secondary: var(--gray-100);
+    --secondary-foreground: var(--gray-900);
+
+    --muted: var(--gray-200);
+    --muted-foreground: var(--gray-500);
+
+    --accent: var(--fire-red);
+    --accent-foreground: var(--white);
+
+    --destructive: 0 72% 50%;
+    --destructive-foreground: var(--white);
+
+    --border: var(--gray-300);
+    --input: 30 8% 55%;
+    --ring: var(--fire-red);
+
+    --radius: 0.5rem;
+
+    /* Schatten-Skala */
+    --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.04);
+    --shadow-xs:  0 1px 3px 0px hsl(0 0% 0% / 0.05);
+    --shadow-sm:  0 2px 4px 0px hsl(0 0% 0% / 0.06), 0 1px 2px -1px hsl(0 0% 0% / 0.06);
+    --shadow:     0 4px 6px -1px hsl(0 0% 0% / 0.08), 0 2px 4px -1px hsl(0 0% 0% / 0.06);
+    --shadow-md:  0 6px 12px -2px hsl(0 0% 0% / 0.08), 0 3px 6px -2px hsl(0 0% 0% / 0.06);
+    --shadow-lg:  0 10px 20px -3px hsl(0 0% 0% / 0.10), 0 4px 8px -2px hsl(0 0% 0% / 0.06);
+    --shadow-xl:  0 20px 30px -5px hsl(0 0% 0% / 0.12), 0 8px 12px -4px hsl(0 0% 0% / 0.08);
+    --shadow-2xl: 0 25px 50px -12px hsl(0 0% 0% / 0.25);
+  }
+
+  [data-bs-theme="dark"] {
+    /* === Dark Mode — invertierte Grau-Skala ===
+       gray-100 = dunkelste Fläche, gray-900 = hellste Schrift
+    */
+    --white: 215 28% 10%;
+    --black: 0 0% 100%;
+
+    --gray-100: 215 28% 13%;  /* Surface */
+    --gray-200: 215 25% 18%;  /* Muted Surface */
+    --gray-300: 215 15% 44%;  /* Border */
+    --gray-500: 215 12% 62%;  /* Muted Text */
+    --gray-900: 30 10% 96%;   /* Foreground */
+
+    --surface-dark: 215 30% 8%;
+    --surface-dark-foreground: 0 0% 100%;
+    --surface-dark-muted: 0 0% 100% / 0.7;
+
+    --cream: var(--gray-100);
+    --warm-gray: var(--gray-200);
+    --charcoal-dark: var(--gray-900);
+    --charcoal: var(--gray-900);
+    --charcoal-light: var(--gray-500);
+    --charcoal-muted: var(--gray-500);
+
+    /* Akzentfarben im Dark Mode etwas heller */
+    --fire-red: 0 100% 55%;
+    --fire-red-light: 0 85% 70%;
+    --fire-red-dark: 0 100% 40%;
+    --fire-orange: 25 95% 55%;
+    --fire-yellow: 45 95% 60%;
+
+    --background: var(--white);
+    --foreground: var(--gray-900);
+
+    --card: var(--gray-100);
+    --card-foreground: var(--gray-900);
+
+    --popover: var(--gray-100);
+    --popover-foreground: var(--gray-900);
+
+    --primary: var(--gray-900);
+    --primary-foreground: var(--white);
+
+    --secondary: var(--gray-200);
+    --secondary-foreground: var(--gray-900);
+
+    --muted: var(--gray-200);
+    --muted-foreground: var(--gray-500);
+
+    --accent: var(--fire-red);
+    --accent-foreground: 215 30% 8%;
+
+    --destructive: 0 85% 58%;
+    --destructive-foreground: 215 30% 8%;
+
+    --border: var(--gray-300);
+    --input: var(--gray-300);
+    --ring: var(--fire-red);
+
+    /* Schatten im Dark Mode tiefer */
+    --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.10);
+    --shadow-xs:  0 1px 3px 0px hsl(0 0% 0% / 0.12);
+    --shadow-sm:  0 2px 4px 0px hsl(0 0% 0% / 0.15), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
+    --shadow:     0 4px 6px -1px hsl(0 0% 0% / 0.18), 0 2px 4px -1px hsl(0 0% 0% / 0.12);
+    --shadow-md:  0 6px 12px -2px hsl(0 0% 0% / 0.20), 0 3px 6px -2px hsl(0 0% 0% / 0.14);
+    --shadow-lg:  0 10px 20px -3px hsl(0 0% 0% / 0.22), 0 4px 8px -2px hsl(0 0% 0% / 0.16);
+    --shadow-xl:  0 20px 30px -5px hsl(0 0% 0% / 0.25), 0 8px 12px -4px hsl(0 0% 0% / 0.18);
+    --shadow-2xl: 0 25px 50px -12px hsl(0 0% 0% / 0.35);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading;
+  }
+
+  a {
+    @apply text-accent;
+  }
+
+  a:hover {
+    @apply text-fire-red-dark;
+  }
+
+  /* TYPO3 RTE-Inhalte */
+  .ce-textpic figure,
+  .ce-gallery figure {
+    @apply mb-4;
+  }
+}
+
+/*
+ * Inline-SVG-Icons (.bi) — werden im Header für Theme-Toggle verwendet
+ */
+.bi {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.125em;
+  fill: currentColor;
+}
+
+/* Aktiver Theme-Button: colormode.js setzt .active + aria-pressed */
+.kfv-theme-btn.active {
+  color: hsl(var(--accent));
+  font-weight: 600;
+}
+
+/* Details-Summary: Standard-Dreieck entfernen (Webkit + Firefox) */
+details > summary {
+  list-style: none;
+}
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Sticky Header: verhindert Layout-Jump bei Seiten-Scroll */
+body {
+  scroll-padding-top: 80px;
+}
+
+/*
+ * KFV-Utilities — außerhalb von @layer, damit Tailwind's JIT sie nicht purgt.
+ * Diese Klassen stehen immer zur Verfügung, unabhängig von Template-Referenzen.
+ */
+
+.gradient-fire {
+  background: linear-gradient(135deg, hsl(var(--fire-red)) 0%, hsl(var(--fire-red-light)) 100%);
+}
+
+.gradient-charcoal {
+  background: linear-gradient(135deg, hsl(var(--charcoal)) 0%, hsl(var(--charcoal-light)) 100%);
+}
+
+.gradient-warm {
+  background: linear-gradient(180deg, hsl(var(--cream)) 0%, hsl(var(--warm-gray)) 100%);
+}
+
+.gradient-navy {
+  background: linear-gradient(135deg, hsl(var(--gray-900)) 0%, hsl(215 28% 17%) 100%);
+}
+
+.bg-surface-dark {
+  background-color: hsl(var(--surface-dark));
+  color: hsl(var(--surface-dark-foreground));
+}
+
+.text-surface-dark-foreground {
+  color: hsl(var(--surface-dark-foreground));
+}
+
+.text-surface-dark-muted {
+  color: hsl(var(--surface-dark-muted, 0 0% 100% / 0.7));
+}
+
+.text-shadow {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Karten-Farbvarianten (verwendet in card + card-group + card-slider Content Blocks) */
+.card-color-default {
+  background-color: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+}
+.card-color-light {
+  background-color: hsl(var(--gray-100));
+  color: hsl(var(--foreground));
+}
+.card-color-dark {
+  background-color: hsl(var(--surface-dark));
+  color: hsl(var(--surface-dark-foreground));
+}
+
+.backdrop-blur-nav {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}

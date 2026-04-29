@@ -1,18 +1,31 @@
 <f:layout name="Default" />
 <f:section name="main">
 
-    <h1><f:if condition="{person.feUser}">{person.feUser.name}<f:else>{person.title}</f:else></f:if></h1>
-    <p><strong>Funktion:</strong> {person.title}</p>
+  <div class="container py-8 max-w-2xl">
+    <h1 class="mb-2 font-heading text-3xl font-bold text-foreground">
+      <f:if condition="{person.feUser}">{person.feUser.name}<f:else>{person.title}</f:else></f:if>
+    </h1>
+    <p class="mb-6 text-muted-foreground">
+      <span class="font-medium text-foreground">Funktion:</span> {person.title}
+    </p>
 
     <f:if condition="{person.gemeinde}">
-        <h3>Zugeordnete Gemeinden:</h3>
-        <ul>
-            <f:for each="{person.gemeinde}" as="gemeinde">
-                <li>{gemeinde.name}</li>
-            </f:for>
+      <div class="mb-6 rounded-lg border border-border bg-card p-5">
+        <h3 class="mb-3 font-heading text-base font-semibold text-foreground">Zugeordnete Gemeinden</h3>
+        <ul class="space-y-1 text-sm">
+          <f:for each="{person.gemeinde}" as="gemeinde">
+            <li class="flex items-center gap-2 text-foreground">
+              <i class="bi bi-geo-alt text-accent"></i>{gemeinde.name}
+            </li>
+          </f:for>
         </ul>
+      </div>
     </f:if>
 
-    <f:link.action action="list" class="btn btn-primary">Zurück zum Organigramm</f:link.action>
+    <f:link.action action="list"
+                   class="inline-flex items-center gap-2 gradient-fire rounded-lg px-4 py-2 font-medium text-white no-underline transition-opacity hover:opacity-90">
+      <i class="bi bi-arrow-left"></i>Zurück zum Organigramm
+    </f:link.action>
+  </div>
 
 </f:section>

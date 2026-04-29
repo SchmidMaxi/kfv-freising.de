@@ -1,0 +1,64 @@
+name: sitepackage/hero-static
+typeName: hero-static
+group: default
+prefixFields: true
+prefixType: full
+basics:
+  - TYPO3/Appearance
+fields:
+  - identifier: header
+    useExistingField: true
+  - identifier: subheadline
+    type: Textarea
+  - identifier: badge_text
+    type: Text
+    default: 'Retten • Löschen • Bergen • Schützen'
+  - identifier: image
+    useExistingField: true
+    label: Hintergrundbild
+    maxitems: 1
+  - identifier: cta_primary_text
+    type: Text
+    default: 'Aktuelle Einsätze'
+  - identifier: cta_primary_link
+    type: Link
+  - identifier: cta_secondary_text
+    type: Text
+    default: 'Feuerwehr finden'
+  - identifier: cta_secondary_link
+    type: Link
+  - identifier: stats
+    type: Collection
+    labelField: stat_label
+    minitems: 0
+    maxitems: 4
+    appearance:
+      collapseAll: true
+    fields:
+      - identifier: stat_value
+        type: Text
+      - identifier: stat_label
+        type: Text
+      - identifier: stat_icon
+        type: Select
+        renderType: selectSingle
+        default: 'people-fill'
+        items:
+          - label: 'Personen / Mitglieder'
+            value: 'people-fill'
+          - label: 'Schild / Schutz'
+            value: 'shield-fill'
+          - label: 'Uhr / Zeit'
+            value: 'clock-fill'
+          - label: 'Feuer'
+            value: 'fire'
+          - label: 'Haus / Feuerwache'
+            value: 'house-fill'
+          - label: 'Kalender'
+            value: 'calendar-fill'
+          - label: 'Standort'
+            value: 'geo-alt-fill'
+          - label: 'Stern'
+            value: 'star-fill'
+          - label: 'Telefon'
+            value: 'telephone-fill'

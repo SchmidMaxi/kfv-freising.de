@@ -1,137 +1,236 @@
-<header class="fixed-top">
-    <div id="preheader" class="bg-body-tertiary text-body-tertiary container-fluid d-none d-md-block py-2">
-        <div class="container">
-            <div class="row justify-content-between align-items-center">
-                <div class="col-auto">
-                    <a class="icon icon-phone me-3" href="tel:+49816160033170">08161 / 600 33 170</a>
-                    <f:link.email class="icon icon-mail" email="info@kfv-freising.de" />
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+
+<header class="sticky top-0 z-50 w-full">
+
+    <!-- Preheader: dunkle Top-Bar, nur Desktop -->
+    <div id="preheader" class="bg-surface-dark hidden md:block">
+        <div class="container py-2">
+            <div class="flex justify-between items-center text-sm">
+                <div class="flex items-center gap-6">
+                    <a href="tel:+49816160033170"
+                       class="flex items-center gap-2 text-white/80 hover:text-fire-red-light transition-colors no-underline">
+                        <i class="bi bi-telephone-fill text-xs"></i>
+                        <span>08161 / 600 33 170</span>
+                    </a>
+                    <f:link.email email="info@kfv-freising.de"
+                                  class="flex items-center gap-2 text-white/80 hover:text-fire-red-light transition-colors no-underline">
+                        <i class="bi bi-envelope-fill text-xs"></i>
+                        <span>info@kfv-freising.de</span>
+                    </f:link.email>
                 </div>
-                <div class="col-auto">
-                    Notruf: <a class="h5 fw-bold text-primary" href="tel:112">112</a>
+                <div class="flex items-center gap-2 text-white">
+                    <span class="opacity-60 text-xs uppercase tracking-widest">Notruf</span>
+                    <a href="tel:112" class="font-heading font-bold text-fire-red-light text-xl no-underline leading-none">112</a>
                 </div>
             </div>
         </div>
     </div>
 
-    <nav>
-        <div id="nav_main" class="shadow navbar navbar-expand-lg bg-body">
-            <div class="container">
-                <f:link.typolink parameter="/" class="navbar-brand d-flex align-items-center gap-2">
-                    <f:image src="{settings.Sitepackage.emblem}" alt="Kreisfeuerwehrverband Freising e.V. Logo" width="72" class="img-fluid logo" />
-                    <div class="logo-claim">
-                        Kreisfeuerwehrverband
-                        <br />
-                        Freising e.V.
-                    </div>
-                    <f:comment>
-                        <f:image src="{settings.Sitepackage.logo}" alt="Kreisfeuerwehrverband Freising e.V. Logo" class="d-none img-fluid logo show-light-mode" />
-                        <f:image src="{settings.Sitepackage.logoInverse}" alt="Kreisfeuerwehrverband Freising e.V. Logo" class="d-none img-fluid logo show-dark-mode" />
-                    </f:comment>
-                </f:link.typolink>
+    <!-- Hauptnavigation -->
+    <nav class="bg-background border-b border-border shadow-sm">
+        <div class="container flex items-center justify-between h-16 lg:h-20">
 
-                <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#navbarOffcanvasLg" aria-controls="navbarOffcanvasLg" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="offcanvas offcanvas-end" tabindex="-1" id="navbarOffcanvasLg" aria-labelledby="navbarOffcanvasLgLabel">
-                    <div class="offcanvas-header">
-                        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-                    </div>
-                    <div class="offcanvas-body">
-                        <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-                            <li class="nav-item">
-                                <a href="/" class="nav-link" >
-                                    <i class="bi bi-house-fill"></i>
+            <!-- Logo -->
+            <f:link.typolink parameter="/" class="flex items-center gap-3 no-underline shrink-0">
+                <f:image src="{settings.Sitepackage.emblem}"
+                         alt="Kreisfeuerwehrverband Freising e.V. Logo"
+                         width="56"
+                         class="h-12 lg:h-14 w-auto" />
+                <div class="font-heading text-foreground leading-snug hidden sm:block">
+                    <span class="font-semibold text-sm block">Kreisfeuerwehrverband</span>
+                    <span class="font-light italic tracking-wide text-xs block">Freising e.V.</span>
+                </div>
+            </f:link.typolink>
+
+            <!-- Desktop-Navigation (ab lg) -->
+            <ul class="hidden lg:flex items-center gap-0.5 list-none m-0 p-0">
+                <li>
+                    <a href="/"
+                       class="inline-flex h-9 items-center px-3 py-2 rounded-md text-foreground hover:bg-secondary hover:text-foreground transition-colors no-underline">
+                        <i class="bi bi-house-fill text-sm"></i>
+                    </a>
+                </li>
+                <f:for each="{main}" as="navItem">
+                    <f:if condition="!{navItem.children}">
+                        <f:then>
+                            <li>
+                                <a href="{navItem.link}"
+                                   class="inline-flex h-9 items-center px-4 py-2 text-sm font-medium rounded-md transition-colors no-underline {f:if(condition: navItem.active, then: 'text-accent font-semibold', else: 'text-foreground hover:bg-secondary')}">
+                                    {navItem.title}
                                 </a>
                             </li>
-                            <f:for each="{main}" as="navItem">
-                                <f:if condition="!{navItem.children}">
-                                    <f:then>
-                                        <li class="nav-item">
-                                            <a
-                                                href="{navItem.link}"
-                                                class="nav-link{f:if(condition:navItem.active, then:' active')}"
-                                                {f:if(condition: navItem.current, then: ' aria-current="page"')}
-                                            >
-                                            {navItem.title}
-                                            </a>
-                                        </li>
-                                    </f:then>
-                                    <f:else>
-                                        <li class="nav-item dropdown">
-                                            <a class="nav-link dropdown-toggle{f:if(condition:navItem.active, then:' active')}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                                {navItem.title}
-                                            </a>
-                                            <ul class="dropdown-menu">
-                                                <f:for each="{navItem.children}" as="child">
-                                                    <f:if condition="!{child.spacer}">
-                                                        <f:then>
-                                                            <li>
-                                                                <a class="dropdown-item{f:if(condition:child.active, then:' active')}" href="{child.link}">
-                                                                    {child.title}
-                                                                </a>
-                                                            </li>
-                                                        </f:then>
-                                                        <f:else>
-                                                            <li><hr class="dropdown-divider"></li>
-                                                        </f:else>
-                                                    </f:if>
-                                                </f:for>
-                                            </ul>
-                                        </li>
-                                    </f:else>
-                                </f:if>
-                            </f:for>
-                            <li id="theme-switch" class="pt-4 pt-lg-1 nav-item dropdown">
-                                <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
-                                    <symbol id="circle-half" viewBox="0 0 16 16">
-                                        <path d="M8 15A7 7 0 1 0 8 1v14zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16z"/>
-                                    </symbol>
-                                    <symbol id="moon-stars-fill" viewBox="0 0 16 16">
-                                        <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/>
-                                        <path d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.734 1.734 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.734 1.734 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.734 1.734 0 0 0 1.097-1.097l.387-1.162zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.156 1.156 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.156 1.156 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732L13.863.1z"/>
-                                    </symbol>
-                                    <symbol id="sun-fill" viewBox="0 0 16 16">
-                                        <path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z"/>
-                                    </symbol>
-                                </svg>
-                                <a class="btn btn-link nav-link py-2 px-0 px-lg-2 dropdown-toggle d-flex align-items-center"
-                                   id="bd-theme"
-                                   role="button"
-                                   aria-expanded="false"
-                                   data-bs-toggle="dropdown"
-                                   data-bs-display="static"
-                                   aria-label="Toggle theme (auto)">
-                                    <svg class="bi theme-icon-active"><use href="#circle-half"></use></svg>
-                                    <span class="d-lg-none ms-2 d-none" id="bd-theme-text">Toggle theme</span>
-                                </a>
-                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="bd-theme-text">
-                                    <li>
-                                        <button type="button" class="dropdown-item d-flex align-items-center" data-bs-theme-value="light" aria-pressed="false">
-                                            <svg class="bi me-2 opacity-50 theme-icon"><use href="#sun-fill"></use></svg>
-                                            Light
-                                        </button>
-                                    </li>
-                                    <li>
-                                        <button type="button" class="dropdown-item d-flex align-items-center" data-bs-theme-value="dark" aria-pressed="false">
-                                            <svg class="bi me-2 opacity-50 theme-icon"><use href="#moon-stars-fill"></use></svg>
-                                            Dark
-                                        </button>
-                                    </li>
-                                    <li>
-                                        <button type="button" class="dropdown-item d-flex align-items-center active" data-bs-theme-value="auto" aria-pressed="true">
-                                            <svg class="bi me-2 opacity-50 theme-icon"><use href="#circle-half"></use></svg>
-                                            Auto
-                                        </button>
-                                    </li>
+                        </f:then>
+                        <f:else>
+                            <!-- Dropdown via CSS :hover -->
+                            <li class="relative group">
+                                <div class="flex items-center">
+                                    <a href="{navItem.link}"
+                                       class="inline-flex h-9 items-center pl-4 pr-2 py-2 text-sm font-medium rounded-l-md transition-colors no-underline {f:if(condition: navItem.active, then: 'text-accent font-semibold', else: 'text-foreground hover:bg-secondary')}">
+                                        {navItem.title}
+                                    </a>
+                                    <span class="inline-flex h-9 items-center pr-2 py-2 rounded-r-md text-foreground cursor-default">
+                                        <i class="bi bi-chevron-down text-xs transition-transform duration-200 group-hover:rotate-180"></i>
+                                    </span>
+                                </div>
+                                <!-- Dropdown-Menü -->
+                                <ul class="hidden group-hover:block absolute top-full left-0 mt-1 min-w-48 bg-card border border-border rounded-lg shadow-md py-1 z-50 list-none p-0 m-0">
+                                    <f:for each="{navItem.children}" as="child">
+                                        <f:if condition="!{child.spacer}">
+                                            <li>
+                                                <a href="{child.link}"
+                                                   class="block px-4 py-2 text-sm transition-colors no-underline {f:if(condition: child.active, then: 'text-accent bg-secondary', else: 'text-foreground hover:bg-secondary hover:text-accent')}">
+                                                    {child.title}
+                                                </a>
+                                            </li>
+                                        </f:if>
+                                    </f:for>
                                 </ul>
                             </li>
-                        </ul>
-                    </div>
+                        </f:else>
+                    </f:if>
+                </f:for>
+            </ul>
+
+            <!-- Desktop Rechts: Suche + Theme-Toggle -->
+            <div class="hidden lg:flex items-center gap-1">
+                <!-- Suche -->
+                <a href="/suche"
+                   class="inline-flex h-9 w-9 items-center justify-center rounded-md text-foreground hover:bg-secondary transition-colors no-underline"
+                   aria-label="Suche">
+                    <i class="bi bi-search"></i>
+                </a>
+
+                <!-- Theme-Toggle (CSS hover Dropdown) -->
+                <div id="theme-switch" class="relative group">
+                    <button id="bd-theme"
+                            class="inline-flex h-9 w-9 items-center justify-center rounded-md text-foreground hover:bg-secondary transition-colors"
+                            aria-label="Design-Modus wählen"
+                            aria-expanded="false">
+                        <svg class="bi theme-icon-active"><use href="#circle-half"></use></svg>
+                    </button>
+                    <ul class="hidden group-hover:block absolute right-0 top-full mt-1 w-36 bg-card border border-border rounded-lg shadow-md py-1 z-50 list-none p-0 m-0">
+                        <li>
+                            <button type="button"
+                                    class="kfv-theme-btn flex items-center gap-2 w-full px-4 py-2 text-sm text-foreground hover:bg-secondary transition-colors"
+                                    data-bs-theme-value="light"
+                                    aria-pressed="false">
+                                <svg class="bi theme-icon opacity-50"><use href="#sun-fill"></use></svg>
+                                Hell
+                            </button>
+                        </li>
+                        <li>
+                            <button type="button"
+                                    class="kfv-theme-btn flex items-center gap-2 w-full px-4 py-2 text-sm text-foreground hover:bg-secondary transition-colors"
+                                    data-bs-theme-value="dark"
+                                    aria-pressed="false">
+                                <svg class="bi theme-icon opacity-50"><use href="#moon-stars-fill"></use></svg>
+                                Dunkel
+                            </button>
+                        </li>
+                        <li>
+                            <button type="button"
+                                    class="kfv-theme-btn flex items-center gap-2 w-full px-4 py-2 text-sm text-foreground hover:bg-secondary transition-colors"
+                                    data-bs-theme-value="auto"
+                                    aria-pressed="false">
+                                <svg class="bi theme-icon opacity-50"><use href="#circle-half"></use></svg>
+                                Auto
+                            </button>
+                        </li>
+                    </ul>
                 </div>
             </div>
+
+            <!-- Mobile: Hamburger-Button -->
+            <button id="mobile-menu-toggle"
+                    class="lg:hidden inline-flex items-center justify-center h-10 w-10 rounded-md text-foreground hover:bg-secondary transition-colors"
+                    aria-label="Menü öffnen"
+                    aria-expanded="false"
+                    aria-controls="mobile-menu">
+                <i class="bi bi-list text-2xl" id="mobile-menu-icon"></i>
+            </button>
+        </div>
+
+        <!-- Mobile-Menü -->
+        <div id="mobile-menu" class="hidden lg:hidden border-t border-border">
+            <ul class="container py-3 space-y-0.5 list-none p-4 m-0">
+                <li>
+                    <a href="/"
+                       class="flex items-center gap-2 px-4 py-3 rounded-md font-medium text-foreground hover:bg-secondary transition-colors no-underline">
+                        <i class="bi bi-house-fill text-sm"></i>
+                        Startseite
+                    </a>
+                </li>
+                <f:for each="{main}" as="navItem">
+                    <li>
+                        <f:if condition="!{navItem.children}">
+                            <f:then>
+                                <a href="{navItem.link}"
+                                   class="block px-4 py-3 rounded-md font-medium transition-colors no-underline {f:if(condition: navItem.active, then: 'text-accent bg-secondary', else: 'text-foreground hover:bg-secondary')}">
+                                    {navItem.title}
+                                </a>
+                            </f:then>
+                            <f:else>
+                                <!-- Mobile Sub-Navigation via <details> (kein JS nötig) -->
+                                <details class="group">
+                                    <summary class="flex items-center justify-between px-4 py-3 rounded-md font-medium text-foreground hover:bg-secondary cursor-pointer list-none transition-colors">
+                                        {navItem.title}
+                                        <i class="bi bi-chevron-down text-xs transition-transform duration-200 group-open:rotate-180"></i>
+                                    </summary>
+                                    <ul class="mt-1 ml-4 pl-4 border-l-2 border-accent space-y-0.5 list-none p-0 m-0">
+                                        <f:for each="{navItem.children}" as="child">
+                                            <f:if condition="!{child.spacer}">
+                                                <li>
+                                                    <a href="{child.link}"
+                                                       class="block px-4 py-2 text-sm rounded-md transition-colors no-underline {f:if(condition: child.active, then: 'text-accent', else: 'text-muted-foreground hover:text-foreground hover:bg-secondary')}">
+                                                        {child.title}
+                                                    </a>
+                                                </li>
+                                            </f:if>
+                                        </f:for>
+                                    </ul>
+                                </details>
+                            </f:else>
+                        </f:if>
+                    </li>
+                </f:for>
+                <!-- Mobile: Theme-Buttons -->
+                <li class="pt-4 border-t border-border mt-4">
+                    <p class="px-4 text-xs text-muted-foreground uppercase tracking-widest mb-2">Design-Modus</p>
+                    <div class="flex gap-2 px-4">
+                        <button type="button"
+                                class="kfv-theme-btn flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium border border-border text-foreground hover:bg-secondary transition-colors"
+                                data-bs-theme-value="light" aria-pressed="false">
+                            <i class="bi bi-sun-fill text-xs"></i> Hell
+                        </button>
+                        <button type="button"
+                                class="kfv-theme-btn flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium border border-border text-foreground hover:bg-secondary transition-colors"
+                                data-bs-theme-value="dark" aria-pressed="false">
+                            <i class="bi bi-moon-stars-fill text-xs"></i> Dunkel
+                        </button>
+                        <button type="button"
+                                class="kfv-theme-btn flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium border border-border text-foreground hover:bg-secondary transition-colors"
+                                data-bs-theme-value="auto" aria-pressed="false">
+                            <i class="bi bi-circle-half text-xs"></i> Auto
+                        </button>
+                    </div>
+                </li>
+            </ul>
         </div>
     </nav>
-
 </header>
 
+<!-- SVG-Sprites für Theme-Icons (versteckt) -->
+<svg xmlns="http://www.w3.org/2000/svg" class="hidden" aria-hidden="true">
+    <symbol id="circle-half" viewBox="0 0 16 16">
+        <path d="M8 15A7 7 0 1 0 8 1v14zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16z"/>
+    </symbol>
+    <symbol id="moon-stars-fill" viewBox="0 0 16 16">
+        <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/>
+        <path d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.734 1.734 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.734 1.734 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.734 1.734 0 0 0 1.097-1.097l.387-1.162zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.156 1.156 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.156 1.156 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732L13.863.1z"/>
+    </symbol>
+    <symbol id="sun-fill" viewBox="0 0 16 16">
+        <path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z"/>
+    </symbol>
+</svg>
 
+</html>

@@ -1,0 +1,40 @@
+footer {
+  color: rgba(var(--#{$prefix}white-rgb), .7);
+}
+#footer {
+  a {
+    --#{$prefix}link-color-rgb: rgba(var(--#{$prefix}white-rgb), .7);
+    --#{$prefix}link-hover-color-rgb: var(--#{$prefix}primary-rgb);
+    text-decoration: none;
+  }
+  .nav-link {
+    --#{$prefix}nav-link-color: rgba(var(--#{$prefix}white-rgb), .7);
+    --#{$prefix}nav-link-hover-color: var(--#{$prefix}primary);
+    --#{$prefix}nav-link-padding-x: 0;
+    --#{$prefix}nav-link-padding-y: .2rem;
+  }
+}
+#social {
+  gap: .75rem;
+  .nav-link {
+    --#{$prefix}nav-link-color: var(--#{$prefix}white);
+    --#{$prefix}nav-link-hover-color: var(--#{$prefix}white);
+    --#{$prefix}nav-link-padding-x: .5rem;
+    --#{$prefix}nav-link-padding-y: .5rem;
+    line-height: 1;
+
+    background: rgba($white, .1);
+
+    &:hover {
+      background: rgba($primary, 1);
+    }
+  }
+}
+#meta {
+  font-size: 0.875rem;
+  color: rgba(var(--#{$prefix}white-rgb), .5);
+  .nav-link {
+    --#{$prefix}nav-link-color: rgba(var(--#{$prefix}white-rgb), .5);
+    --#{$prefix}nav-link-hover-color: $white;
+  }
+}

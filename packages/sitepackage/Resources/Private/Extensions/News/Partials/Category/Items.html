@@ -1,19 +1,19 @@
 <html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
-<!-- categories -->
-<div class="news-list-category d-flex gap-2">
-	<f:for each="{categories}" as="category">
-		<f:if condition="{category.shortcut}">
-			<f:then>
-				<f:link.typolink parameter="{category.shortcut}" class="badge text-bg-primary">
-					{category.title}
-				</f:link.typolink>
-			</f:then>
-			<f:else>
-                <span class="badge text-bg-primary">
-				    {category.title}
-                </span>
-			</f:else>
-		</f:if>
-	</f:for>
+<div class="flex flex-wrap gap-2">
+  <f:for each="{categories}" as="category">
+    <f:if condition="{category.shortcut}">
+      <f:then>
+        <f:link.typolink parameter="{category.shortcut}"
+                         class="gradient-fire inline-block rounded-full px-3 py-0.5 text-sm font-medium text-white no-underline transition-opacity hover:opacity-90">
+          {category.title}
+        </f:link.typolink>
+      </f:then>
+      <f:else>
+        <span class="gradient-fire inline-block rounded-full px-3 py-0.5 text-sm font-medium text-white">
+          {category.title}
+        </span>
+      </f:else>
+    </f:if>
+  </f:for>
 </div>
 </html>

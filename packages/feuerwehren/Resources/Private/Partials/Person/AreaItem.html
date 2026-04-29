@@ -1,15 +1,17 @@
-<div class="org-item org-item--{area.type}">
-    <div class="org-item-title">{area.title}</div>
-    <div class="org-item-person">
-        <f:if condition="{area.person}">
-            <f:then>
-                <f:link.action action="show" controller="Person" pluginName="Organigramm" arguments="{person: area.person}">
-                    {area.person.title}
-                </f:link.action>
-            </f:then>
-            <f:else>
-                <span class="text-muted">Nicht besetzt</span>
-            </f:else>
-        </f:if>
-    </div>
+<div class="org-item org-item--{area.type} min-w-[150px] rounded-lg border border-border bg-card p-3 shadow-sm">
+  <div class="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{area.title}</div>
+  <div class="text-sm font-medium">
+    <f:if condition="{area.person}">
+      <f:then>
+        <f:link.action action="show" controller="Person" pluginName="Organigramm"
+                       arguments="{person: area.person}"
+                       class="text-accent no-underline transition-colors hover:text-fire-red-dark">
+          {area.person.title}
+        </f:link.action>
+      </f:then>
+      <f:else>
+        <span class="italic text-muted-foreground">Nicht besetzt</span>
+      </f:else>
+    </f:if>
+  </div>
 </div>
