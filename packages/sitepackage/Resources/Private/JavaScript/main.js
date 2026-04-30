@@ -1,13 +1,6 @@
 // Design System & Tailwind CSS
 import '../Css/main.css'
 
-// Bootstrap Icons (lokale Schrift wird in main.css geladen, CSS-Klassen hier)
-import 'bootstrap-icons/font/bootstrap-icons.css'
-
-// Bootstrap JS — für Navbar-Offcanvas, Dropdowns und Theme-Toggle
-// wird in Phase 2 ersetzt, sobald die Templates auf Tailwind umgestellt sind
-import 'bootstrap'
-
 // Lightbox
 import GLightbox from 'glightbox'
 import 'glightbox/dist/css/glightbox.min.css'
@@ -21,20 +14,18 @@ import './colormode.js'
 
 // Mobile-Menü Toggle
 document.addEventListener('DOMContentLoaded', () => {
-    const toggle = document.getElementById('mobile-menu-toggle')
-    const menu   = document.getElementById('mobile-menu')
-    const icon   = document.getElementById('mobile-menu-icon')
+    const toggle    = document.getElementById('mobile-menu-toggle')
+    const menu      = document.getElementById('mobile-menu')
+    const iconOpen  = document.getElementById('mobile-icon-open')
+    const iconClose = document.getElementById('mobile-icon-close')
 
     if (toggle && menu) {
         toggle.addEventListener('click', () => {
             const isOpen = !menu.classList.contains('hidden')
             menu.classList.toggle('hidden')
             toggle.setAttribute('aria-expanded', String(!isOpen))
-            if (icon) {
-                icon.className = isOpen
-                    ? 'bi bi-list text-2xl'
-                    : 'bi bi-x-lg text-xl'
-            }
+            iconOpen?.classList.toggle('hidden')
+            iconClose?.classList.toggle('hidden')
         })
     }
 })

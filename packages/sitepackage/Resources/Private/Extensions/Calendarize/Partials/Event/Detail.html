@@ -1,0 +1,105 @@
+{namespace c=HDNET\Calendarize\ViewHelpers}
+
+<f:alias map="{event: index.originalObject}">
+    <div class="state-{index.state}">
+        <h1 class="font-heading font-bold text-2xl md:text-3xl text-foreground mb-2">
+            <f:render partial="{index.configuration.partialIdentifier}/Title" arguments="{index: index}"/>
+            <c:titleTag><f:render partial="{index.configuration.partialIdentifier}/Title" arguments="{index: index}"/></c:titleTag>
+        </h1>
+
+        <p class="text-muted-foreground mb-6">
+            <f:if condition="{index.state}=='canceled'">
+                <f:then>
+                    <span class="inline-flex items-center gap-1 text-destructive font-medium">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+                        <f:translate key="canceled" />
+                    </span>
+                </f:then>
+                <f:else>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="inline-block mr-1 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+                    <f:render partial="DateInformation" arguments="{index: index}"/>
+                </f:else>
+            </f:if>
+        </p>
+
+        <f:if condition="{event.images}">
+            <div class="flex flex-wrap gap-4 mb-6">
+                <f:for each="{event.images}" as="image">
+                    <f:if condition="{image.originalResource.type}==4">
+                        <f:then>
+                            <f:media file="{image}" class="rounded-lg" />
+                        </f:then>
+                        <f:else>
+                            <f:image image="{image}" alt="" maxWidth="600" class="rounded-lg w-full max-w-xl" />
+                        </f:else>
+                    </f:if>
+                </f:for>
+            </div>
+        </f:if>
+
+        <div class="prose prose-sm max-w-none text-foreground mb-6">
+            <f:format.html>{event.description}</f:format.html>
+        </div>
+
+        <f:if condition="{event.location}">
+            <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm mb-4">
+                <dt class="font-medium text-foreground">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="inline-block mr-1 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
+                    <f:translate key="tx_calendarize_domain_model_event.location" />
+                </dt>
+                <dd class="text-muted-foreground">
+                    <f:if condition="{event.locationLink}">
+                        <f:then>
+                            <f:link.typolink parameter="{event.locationLink}" class="text-accent hover:text-accent/80 no-underline">{event.location}</f:link.typolink>
+                        </f:then>
+                        <f:else>
+                            {event.location}
+                        </f:else>
+                    </f:if>
+                </dd>
+                <f:if condition="{event.organizer}">
+                    <dt class="font-medium text-foreground">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="inline-block mr-1 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        <f:translate key="tx_calendarize_domain_model_event.organizer" />
+                    </dt>
+                    <dd class="text-muted-foreground">
+                        <f:if condition="{event.organizerLink}">
+                            <f:then>
+                                <f:link.typolink parameter="{event.organizerLink}" class="text-accent hover:text-accent/80 no-underline">{event.organizer}</f:link.typolink>
+                            </f:then>
+                            <f:else>
+                                {event.organizer}
+                            </f:else>
+                        </f:if>
+                    </dd>
+                </f:if>
+            </dl>
+        </f:if>
+
+        <f:if condition="{event.downloads}">
+            <div class="flex flex-col gap-2 mb-6">
+                <f:for each="{event.downloads}" as="download">
+                    <a href="{download.originalResource.publicUrl}"
+                       class="inline-flex items-center gap-2 text-sm text-accent hover:text-accent/80 no-underline transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>
+                        {download.originalResource.name}
+                    </a>
+                </f:for>
+            </div>
+        </f:if>
+
+        <f:if condition="{settings.bookingPid}">
+            <f:if condition="{event.bookable}">
+                <c:link.booking index="{index}"
+                                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg gradient-fire text-white text-sm font-medium hover:opacity-90 transition-opacity no-underline">
+                    <f:translate key="booking"/>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                </c:link.booking>
+            </f:if>
+        </f:if>
+    </div>
+</f:alias>
+
+<c:ifExtensionLoaded extensionKey="schema">
+    <f:render partial="{index.configuration.partialIdentifier}/StructuredData/Detail" arguments="{index: index}"/>
+</c:ifExtensionLoaded>

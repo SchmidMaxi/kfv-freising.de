@@ -9,13 +9,9 @@
             <!-- Marken-Spalte -->
             <div>
                 <div class="flex items-center gap-3 mb-5">
-                    <div class="w-12 h-12 gradient-fire rounded-lg flex items-center justify-center shadow-md shrink-0">
-                        <span class="font-heading font-bold text-xl text-white">KFV</span>
-                    </div>
-                    <div>
-                        <p class="font-heading font-semibold text-white leading-tight">Kreisfeuerwehrverband</p>
-                        <p class="text-sm text-white/60">Freising e.V.</p>
-                    </div>
+                    <img src="{f:uri.image(src: settings.Sitepackage.logoInverse)}"
+                         alt="Kreisfeuerwehrverband Freising e.V. Logo"
+                         class="h-14 w-auto" />
                 </div>
                 <p class="text-white/60 text-sm leading-relaxed mb-6">
                     Gemeinsam für Ihre Sicherheit im Landkreis Freising.
@@ -76,7 +72,7 @@
                 <h3 class="font-heading font-semibold text-white text-base mb-5">Kontakt</h3>
                 <ul class="space-y-4 list-none p-0 m-0">
                     <li class="flex items-start gap-3">
-                        <i class="bi bi-geo-alt-fill text-accent mt-0.5 shrink-0"></i>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 mt-0.5 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
                         <span class="text-white/60 text-sm leading-relaxed">
                             {settings.Sitepackage.address -> f:format.raw()}
                         </span>
@@ -84,14 +80,14 @@
                     <li>
                         <f:link.external uri="tel:{settings.Sitepackage.phone}"
                                          class="flex items-center gap-3 text-white/60 hover:text-accent transition-colors text-sm no-underline">
-                            <i class="bi bi-telephone-fill text-accent shrink-0"></i>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12.1a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.8 1.2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.96a16 16 0 0 0 6.29 6.29l1.02-1.04a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                             <span>{settings.Sitepackage.phone}</span>
                         </f:link.external>
                     </li>
                     <li>
                         <f:link.email email="{settings.Sitepackage.email}"
                                       class="flex items-center gap-3 text-white/60 hover:text-accent transition-colors text-sm no-underline">
-                            <i class="bi bi-envelope-fill text-accent shrink-0"></i>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
                             <span>{settings.Sitepackage.email}</span>
                         </f:link.email>
                     </li>

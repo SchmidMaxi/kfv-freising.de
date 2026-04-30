@@ -1,7 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  // Tailwind dark mode folgt dem Bootstrap-Attribut data-bs-theme="dark"
-  darkMode: ['selector', '[data-bs-theme="dark"]'],
+  darkMode: 'class',
   content: [
     './Resources/Private/**/*.html',
     './Resources/Private/**/*.js',

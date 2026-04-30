@@ -12,7 +12,7 @@ Website for **KFV Freising** (Kreisfeuerwehrverband Freising - Fire Department D
 | PHP | PHP | 8.4 (CI: 8.3) |
 | Database | MySQL | 8.0 |
 | CSS Framework | Tailwind CSS | 3.4 |
-| JS (legacy) | Bootstrap JS | 5.3.3 (nur JS, kein CSS) |
+| Icons | Bootstrap Icons | 1.11.3 |
 | Build Tool | Vite | 6.0 |
 | Dev Environment | DDEV | Latest |
 | Deployment | Deployer | 7.4 |
@@ -136,7 +136,7 @@ packages/sitepackage/
 **Design Tokens** (CSS Custom Properties in `main.css`):
 - Farben: `--fire-red`, `--fire-red-light`, `--surface-dark`, `--gray-{100|200|300|500|900}`
 - Semantik: `--background`, `--foreground`, `--card`, `--accent`, `--muted`, `--border` etc.
-- Dark Mode: `[data-bs-theme="dark"]` — kompatibel mit `colormode.js`
+- Dark Mode: `class="dark"` auf `<html>` — `darkMode: 'class'` in tailwind.config.js, Storage key `kfv-ui-theme`
 - Fonts: Oswald (heading) + Roboto (body) — lokal, kein Google Fonts
 
 **Tailwind content-Pfade** (werden für JIT-Scan verwendet):
@@ -361,24 +361,24 @@ git push
 
 Ein neues React/Tailwind-Frontend-Prototyp liegt unter `/frontend`. Ziel ist die vollständige Übernahme des Designs in die TYPO3 Sitepackage Extension.
 
-**Grundsatzentscheidung:** Tailwind CSS statt Bootstrap CSS. Bootstrap JS bleibt temporär erhalten (für colormode.js und etwaige Legacy-Komponenten) und wird in Phase 4 vollständig entfernt.
+**Grundsatzentscheidung:** Tailwind CSS statt Bootstrap CSS. Bootstrap JS wurde vollständig entfernt — colormode.js, Theme-Toggle und Mobile-Menü laufen via Vanilla JS / reines CSS.
 
 ### Abgeschlossene Phasen
 
 #### ✅ Phase 1 — Design System
 - Backup aller SCSS-Dateien nach `Resources/Public/Scss_backup/` (52 Dateien)
-- `tailwind.config.js` mit vollständigem Design System (Farben, Fonts, Schatten, Animationen, dark mode via `[data-bs-theme="dark"]`)
+- `tailwind.config.js` mit vollständigem Design System (Farben, Fonts, Schatten, Animationen, dark mode via `class="dark"` / `darkMode: 'class'`)
 - `postcss.config.js` (tailwindcss + autoprefixer)
 - `Resources/Private/Css/main.css` — CSS Custom Properties (HSL), lokale Fonts, Tailwind-Directives, eigene Utilities
 - `package.json` — Bootstrap CSS + Sass entfernt, Tailwind + bootstrap-icons hinzugefügt
-- `main.js` — importiert neue main.css, Bootstrap Icons, Bootstrap JS (temporär), colormode.js
+- `main.js` — importiert neue main.css, Bootstrap Icons, colormode.js; kein Bootstrap JS
 
 #### ✅ Phase 2 — Header & Footer
 - `PageView/Partials/Header.html` — vollständig neu in Tailwind:
   - Preheader (dunkel, nur Desktop) mit Telefon/E-Mail/Notruf 112
   - Desktop-Nav mit CSS-`group`/`group-hover:block`-Dropdowns (kein JS)
   - Mobile-Menü mit Hamburger-Toggle (vanilla JS in main.js) und `<details>`-Sub-Navigation (kein JS)
-  - Theme-Toggle (Dropdown mit SVG-Sprites, `data-bs-theme-value`)
+  - Theme-Toggle (einfacher Sun/Moon-Button, `data-theme-toggle`-Attribut, kein Dropdown)
 - `PageView/Partials/Footer.html` — vollständig neu in Tailwind:
   - 4-Spalten-Grid: KFV-Brand + dynamische Nav-Spalten (`f:for each="{footer}"`) + Kontakt
   - Social Icons (Facebook/Instagram/YouTube als Inline-SVG)
@@ -395,15 +395,13 @@ Ein neues React/Tailwind-Frontend-Prototyp liegt unter `/frontend`. Ziel ist die
   - `Extensions/News/Templates/News/List.html` — Bootstrap-Grid → `flex flex-col gap-6`
   - `Extensions/News/Partials/List/Item.html` — horizontales Karten-Layout: Bild links (`sm:w-52`), `gradient-fire`-Kategorie-Badge, Hover-Effekte
 
-### Abgeschlossene Phasen (Fortsetzung)
-
 #### ✅ Phase 4 — Bestehende Content Blocks
 - `accordion` — `data-bs-toggle="collapse"` → `<details>`/`<summary>` (kein JS), chevron mit `group-open:rotate-180`
 - `card` + `card-group` — Bootstrap-Card → Tailwind, `.card-color-{variant}` Utilities in `main.css`
 - `card-slider` — Splide bleibt, Bootstrap-Wrapper → Tailwind-Karten
 - `heroslider` — Splide bleibt, `.caption` (Bootstrap) → `absolute inset-0 bg-gradient-to-r`
 - `tailwind.config.js` — `safelist` für `grid-cols-[1-4]` mit `md:`/`xl:` Varianten (dynamische Spaltenzahl)
-- **Bootstrap JS** bleibt vorerst in `main.js` (colormode.js-Abhängigkeit)
+- **Bootstrap JS** zu diesem Zeitpunkt noch in `main.js` (wurde in Phase 6 entfernt)
 
 #### ✅ Phase 5 — Seiten & Extensions
 - **News Detail** (`Extensions/News/Templates/News/Detail.html`) — Hero-Header, Article-Card mit `-mt-12 border-t-[5px] border-accent`, Related-News/Files/Links als Tailwind-Karten, Prev/Next-Nav
@@ -415,20 +413,27 @@ Ein neues React/Tailwind-Frontend-Prototyp liegt unter `/frontend`. Ziel ist die
 - **feuerwehren-map.css** — `#map` und `#fwList` Höhen (600px desktop / 450px/300px mobile)
 - **tailwind.config.js** — `../feuerwehren/Resources/Private/**/*.html` zu content-Pfaden hinzugefügt
 
+#### ✅ Phase 6 — Bootstrap JS entfernen, Kalender-Overrides, 404-Seite
+
+- **Bootstrap JS entfernt** — `import 'bootstrap'` aus `main.js` entfernt, `bootstrap`-Paket aus `package.json` entfernt; colormode.js ist Bootstrap-unabhängig (reines DOM), Theme-Toggle und Mobile-Menü laufen via Vanilla JS / CSS
+- **Footer-Logo** — KFV-Icon+Text-Placeholder durch `{settings.Sitepackage.logoInverse}` (weißes Logo) ersetzt
+- **Header Dark Mode** — Emblem mit `dark:hidden`, weißes Komplett-Logo mit `hidden dark:block`; Text-Div ebenfalls `dark:hidden`
+- **Calendarize Template-Overrides** — `Partials/Event/ListItem.html`, `Partials/Event/Detail.html`, `Partials/Pagination.html`, `Templates/Calendar/Detail.html`, `Templates/Calendar/Search.html` in `Resources/Private/Extensions/Calendarize/`
+- **md_fullcalendar Template-Overrides** — `Templates/Cal/Show.html` (Tailwind Layout + nativer `<dialog>` statt Bootstrap Modal), `Templates/Cal/Detail.html` (Tailwind Karten-Ansicht, Close-Button via Event-Delegation)
+- **404-Seite** — Standalone Fluid-Template `Templates/Error/404.html` (vollständiges HTML mit `vite:asset`, Logo-Dark-Mode-Switching, 404-Content, Beliebte Seiten); `config/sites/kfv/config.yaml` — `errorHandling` für Code 404 + Catch-All 0 konfiguriert
+
 ### Offene Punkte
 
-#### 🔲 Noch ausstehend (Reihenfolge)
+#### Alles abgeschlossen ✅
 
-1. **Bootstrap JS entfernen** aus `main.js` — Bootstrap-Import + colormode.js-Abhängigkeit prüfen, ggf. colormode.js direkt einbinden
-2. **Kalender/calendarize-Overrides** — Template-Overrides für `lochmueller/calendarize` und `mediadreams/md_fullcalendar` erstellen (aktuell keine vorhanden, Extension rendert mit eigenen Templates)
-3. **404-Seite** — neues Template + TYPO3-Fehlerseiten-Konfiguration (aktuell kein Override)
+Die Tailwind-Migration ist vollständig abgeschlossen. Alle Phasen 1–6 wurden umgesetzt.
 
 ### Technische Hinweise für die Weiterarbeit
 
 **Tailwind-Klassen in neuen Templates:**
 - Keine Bootstrap-CSS-Klassen mehr verwenden (`.row`, `.col-*`, `.card`, `.btn`, `.badge` etc.)
 - Tailwind-Farben über CSS Custom Properties: `bg-accent`, `text-foreground`, `bg-surface-dark` etc.
-- Dark Mode via `[data-bs-theme="dark"]` — Tailwind-Selektoren mit `dark:` funktionieren automatisch
+- Dark Mode via `class="dark"` auf `<html>` — `darkMode: 'class'`, Storage `kfv-ui-theme`, Toggle via `data-theme-toggle`-Attribut
 - Eigene Utilities (`.gradient-fire`, `.bg-surface-dark`) stehen immer zur Verfügung
 
 **Fluid-Template-Besonderheiten:**
@@ -440,4 +445,4 @@ Ein neues React/Tailwind-Frontend-Prototyp liegt unter `/frontend`. Ziel ist die
 **Bootstrap Icons:**
 - Installiert als npm-Paket (`bootstrap-icons ^1.11.3`)
 - Verwendung: `<i class="bi bi-{iconname}"></i>` — alle Icons verfügbar
-- SVG-Inline für Theme-Toggle: `<svg class="bi theme-icon"><use href="#circle-half"></use></svg>` + Sprite-Block im Header
+- Theme-Toggle: `<button data-theme-toggle>` + Bootstrap Icons `bi-sun-fill` / `bi-moon-stars-fill` mit `dark:-rotate-90 dark:scale-0` / `dark:rotate-0 dark:scale-100`

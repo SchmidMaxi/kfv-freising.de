@@ -1,0 +1,247 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;500;600;700&display=swap");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Kreisfeuerwehrverband Freising - Fresh CI Design System
+   Primary Accent: Fire Red #CC0000 → hsl(0, 100%, 40%)
+   Text/Dark: Charcoal #2D3748 → hsl(215, 28%, 23%)
+   Background: Warm White/Cream
+   All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* === BASE NEUTRAL SCALE — 5 Stufen ===
+       Schlanke, semantisch klare Skala. Alle anderen Neutral-Tokens
+       (cream, warm-gray, charcoal*, semantic colors) referenzieren diese.
+       100 = Surface, 200 = Muted Surface, 300 = Border/Disabled,
+       500 = Muted Text, 900 = Foreground.
+    */
+    --white: 0 0% 100%;
+    --black: 0 0% 0%;
+
+    --gray-100: 40 20% 98%;   /* Surface (cream) */
+    --gray-200: 30 10% 94%;   /* Muted Surface (warm-gray) */
+    --gray-300: 30 10% 82%;   /* Border / Divider — dekorativ */
+    --gray-500: 215 20% 45%;  /* Muted Text */
+    --gray-900: 215 28% 20%;  /* Foreground / Charcoal */
+
+    /* Dunkle Marken-Fläche — bleibt in Light & Dark Mode dunkel
+       (für Top-Header, Footer, u.ä.) */
+    --surface-dark: 215 28% 15%;
+    --surface-dark-foreground: 0 0% 100%;
+    --surface-dark-muted: 0 0% 100% / 0.7;
+
+    /* Aliases — Rückwärtskompatibilität, gemappt auf die Skala */
+    --cream: var(--gray-100);
+    --warm-gray: var(--gray-200);
+    --charcoal-dark: var(--gray-900);
+    --charcoal: var(--gray-900);
+    --charcoal-light: var(--gray-500);
+    --charcoal-muted: var(--gray-500);
+    
+    /* Fire department accent colors */
+    --fire-red: 0 100% 40%;
+    --fire-red-light: 0 90% 65%;
+    --fire-red-dark: 0 100% 30%;
+    --fire-orange: 25 95% 42%;
+    --fire-yellow: 45 95% 55%;
+
+    /* === SEMANTIC MAPPINGS — reference the gray scale === */
+    --background: var(--white);
+    --foreground: var(--gray-900);
+
+    --card: var(--white);
+    --card-foreground: var(--gray-900);
+
+    --popover: var(--white);
+    --popover-foreground: var(--gray-900);
+
+    --primary: var(--gray-900);
+    --primary-foreground: var(--white);
+
+    --secondary: var(--gray-100);
+    --secondary-foreground: var(--gray-900);
+
+    --muted: var(--gray-200);
+    --muted-foreground: var(--gray-500);
+
+    --accent: var(--fire-red);
+    --accent-foreground: var(--white);
+
+    --destructive: 0 72% 50%;
+    --destructive-foreground: var(--white);
+
+    --border: var(--gray-300);
+    --input: 30 8% 55%;       /* Input-Border — ≥3:1 auf Weiß für WCAG 1.4.11 */
+    --ring: var(--fire-red);
+
+    --radius: 0.5rem;
+
+    /* Sidebar */
+    --sidebar-background: var(--gray-900);
+    --sidebar-foreground: var(--white);
+    --sidebar-primary: var(--fire-red);
+    --sidebar-primary-foreground: var(--white);
+    --sidebar-accent: var(--gray-500);
+    --sidebar-accent-foreground: var(--white);
+    --sidebar-border: 215 25% 30%;
+    --sidebar-ring: var(--fire-red);
+    --sidebar: var(--white);
+    
+    /* Charts */
+    --chart-1: var(--fire-red);
+    --chart-2: 30 80% 55%;
+    --chart-3: 45 90% 50%;
+    --chart-4: 215 28% 45%;
+    --chart-5: 215 20% 65%;
+    
+    /* Typography & Spacing */
+    --font-sans: 'DM Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+    --font-serif: 'Crimson Pro', ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
+    --font-mono: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    
+    /* Shadows */
+    --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.04);
+    --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+    --shadow-sm: 0 2px 4px 0px hsl(0 0% 0% / 0.06), 0 1px 2px -1px hsl(0 0% 0% / 0.06);
+    --shadow: 0 4px 6px -1px hsl(0 0% 0% / 0.08), 0 2px 4px -1px hsl(0 0% 0% / 0.06);
+    --shadow-md: 0 6px 12px -2px hsl(0 0% 0% / 0.08), 0 3px 6px -2px hsl(0 0% 0% / 0.06);
+    --shadow-lg: 0 10px 20px -3px hsl(0 0% 0% / 0.1), 0 4px 8px -2px hsl(0 0% 0% / 0.06);
+    --shadow-xl: 0 20px 30px -5px hsl(0 0% 0% / 0.12), 0 8px 12px -4px hsl(0 0% 0% / 0.08);
+    --shadow-2xl: 0 25px 50px -12px hsl(0 0% 0% / 0.25);
+    --tracking-normal: 0em;
+    --spacing: 0.25rem;
+  }
+
+  .dark {
+    /* === DARK MODE — reduzierte Skala invertiert ===
+       gray-100 ist die hellste Fläche im Dark, gray-900 die hellste Schrift.
+       Semantische Mappings (background = white, foreground = gray-900)
+       funktionieren in beiden Modi identisch.
+    */
+    --white: 215 28% 10%;   /* "white" surface in dark mode */
+    --black: 0 0% 100%;
+
+    --gray-100: 215 28% 13%;  /* Surface */
+    --gray-200: 215 25% 18%;  /* Muted Surface */
+    --gray-300: 215 15% 44%;  /* Border / Disabled — ≥3:1 auf background im Dark Mode */
+    --gray-500: 215 12% 62%;  /* Muted Text */
+    --gray-900: 30 10% 96%;   /* Foreground */
+
+    /* Dunkle Marken-Fläche — im Dark Mode noch etwas tiefer */
+    --surface-dark: 215 30% 8%;
+    --surface-dark-foreground: 0 0% 100%;
+    --surface-dark-muted: 0 0% 100% / 0.7;
+
+    /* Aliases stay in sync with the inverted scale */
+    --cream: var(--gray-100);
+    --warm-gray: var(--gray-200);
+    --charcoal-dark: var(--gray-900);
+    --charcoal: var(--gray-900);
+    --charcoal-light: var(--gray-500);
+    --charcoal-muted: var(--gray-500);
+
+    /* Fire department accent colors - slightly brighter */
+    --fire-red: 0 100% 55%;       /* Im Dark Mode heller — 4.58:1 als Text auf bg */
+    --fire-red-light: 0 85% 70%;
+    --fire-red-dark: 0 100% 40%;
+    --fire-orange: 25 95% 55%;
+    --fire-yellow: 45 95% 60%;
+
+    /* === SEMANTIC MAPPINGS — same structure as light mode === */
+    --background: var(--white);
+    --foreground: var(--gray-900);
+
+    --card: var(--gray-100);
+    --card-foreground: var(--gray-900);
+
+    --popover: var(--gray-100);
+    --popover-foreground: var(--gray-900);
+
+    --primary: var(--gray-900);
+    --primary-foreground: var(--white);
+
+    --secondary: var(--gray-200);
+    --secondary-foreground: var(--gray-900);
+
+    --muted: var(--gray-200);
+    --muted-foreground: var(--gray-500);
+
+    --accent: var(--fire-red);
+    --accent-foreground: 215 30% 8%;  /* Dunkle Schrift auf hellem fire-red — 4.58:1 */
+
+    --destructive: 0 85% 58%;
+    --destructive-foreground: 215 30% 8%;
+
+    --border: var(--gray-300);
+    --input: var(--gray-300);
+    --ring: var(--fire-red);
+
+    /* Sidebar */
+    --sidebar-background: 215 28% 8%;
+    --sidebar-foreground: var(--gray-900);
+    --sidebar-primary: var(--fire-red);
+    --sidebar-primary-foreground: var(--white);
+    --sidebar-accent: var(--gray-200);
+    --sidebar-accent-foreground: var(--gray-900);
+    --sidebar-border: var(--gray-300);
+    --sidebar-ring: var(--fire-red);
+    --sidebar: var(--gray-100);
+    
+    /* Charts */
+    --chart-1: var(--fire-red);
+    --chart-2: 30 80% 60%;
+    --chart-3: 45 90% 55%;
+    --chart-4: 215 20% 60%;
+    --chart-5: 215 15% 75%;
+    
+    /* Shadows - deeper for dark mode */
+    --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.1);
+    --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.12);
+    --shadow-sm: 0 2px 4px 0px hsl(0 0% 0% / 0.15), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
+    --shadow: 0 4px 6px -1px hsl(0 0% 0% / 0.18), 0 2px 4px -1px hsl(0 0% 0% / 0.12);
+    --shadow-md: 0 6px 12px -2px hsl(0 0% 0% / 0.2), 0 3px 6px -2px hsl(0 0% 0% / 0.14);
+    --shadow-lg: 0 10px 20px -3px hsl(0 0% 0% / 0.22), 0 4px 8px -2px hsl(0 0% 0% / 0.16);
+    --shadow-xl: 0 20px 30px -5px hsl(0 0% 0% / 0.25), 0 8px 12px -4px hsl(0 0% 0% / 0.18);
+    --shadow-2xl: 0 25px 50px -12px hsl(0 0% 0% / 0.35);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading;
+  }
+}
+
+@layer utilities {
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  }
+
+  .gradient-fire {
+    background: linear-gradient(135deg, hsl(var(--fire-red)) 0%, hsl(var(--fire-red-light)) 100%);
+  }
+
+  .gradient-charcoal {
+    background: linear-gradient(135deg, hsl(var(--charcoal)) 0%, hsl(var(--charcoal-light)) 100%);
+  }
+
+  .gradient-warm {
+    background: linear-gradient(180deg, hsl(var(--cream)) 0%, hsl(var(--warm-gray)) 100%);
+  }
+
+  .gradient-navy {
+    background: linear-gradient(135deg, hsl(var(--charcoal)) 0%, hsl(215 28% 17%) 100%);
+  }
+}

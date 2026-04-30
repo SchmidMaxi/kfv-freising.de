@@ -1,4 +1,19 @@
 base: 'https://www.kfv-freising.de/'
+errorHandling:
+  -
+    errorCode: 404
+    errorHandler: Fluid
+    errorFluidTemplate: 'EXT:sitepackage/Resources/Private/Templates/Error/404.html'
+    errorFluidTemplatesRootPath: 'EXT:sitepackage/Resources/Private/Templates'
+    errorFluidLayoutsRootPath: 'EXT:sitepackage/Resources/Private/PageView/Layouts'
+    errorFluidPartialsRootPath: 'EXT:sitepackage/Resources/Private/PageView/Partials'
+  -
+    errorCode: 0
+    errorHandler: Fluid
+    errorFluidTemplate: 'EXT:sitepackage/Resources/Private/Templates/Error/404.html'
+    errorFluidTemplatesRootPath: 'EXT:sitepackage/Resources/Private/Templates'
+    errorFluidLayoutsRootPath: 'EXT:sitepackage/Resources/Private/PageView/Layouts'
+    errorFluidPartialsRootPath: 'EXT:sitepackage/Resources/Private/PageView/Partials'
 baseVariants:
   -
     base: 'https://staging.kfv-freising.de/'

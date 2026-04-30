@@ -110,8 +110,7 @@
    ============================================================================= */
 
 @layer base {
-  :root,
-  [data-bs-theme="light"] {
+  :root {
     /* === Neutrale Grau-Skala (5 Stufen) ===
        100 = Surface, 200 = Muted Surface, 300 = Border/Disabled,
        500 = Muted Text, 900 = Foreground
@@ -187,7 +186,7 @@
     --shadow-2xl: 0 25px 50px -12px hsl(0 0% 0% / 0.25);
   }
 
-  [data-bs-theme="dark"] {
+  .dark {
     /* === Dark Mode — invertierte Grau-Skala ===
        gray-100 = dunkelste Fläche, gray-900 = hellste Schrift
     */
@@ -290,22 +289,6 @@
   }
 }
 
-/*
- * Inline-SVG-Icons (.bi) — werden im Header für Theme-Toggle verwendet
- */
-.bi {
-  display: inline-block;
-  width: 1em;
-  height: 1em;
-  vertical-align: -0.125em;
-  fill: currentColor;
-}
-
-/* Aktiver Theme-Button: colormode.js setzt .active + aria-pressed */
-.kfv-theme-btn.active {
-  color: hsl(var(--accent));
-  font-weight: 600;
-}
 
 /* Details-Summary: Standard-Dreieck entfernen (Webkit + Firefox) */
 details > summary {

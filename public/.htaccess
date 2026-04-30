@@ -301,9 +301,9 @@ AddDefaultCharset utf-8
 	# Rules to set ApplicationContext based on hostname
 	RewriteCond %{HTTP_HOST} ^kfv-freising\.ddev\.site$
 	RewriteRule .? - [E=TYPO3_CONTEXT:Development]
-	RewriteCond %{HTTP_HOST} ^staging\.kfv-freising\.com$
+	RewriteCond %{HTTP_HOST} ^staging\.kfv-freising\.de$
 	RewriteRule .? - [E=TYPO3_CONTEXT:Production/Staging]
-	RewriteCond %{HTTP_HOST} ^www\.kfv-freising\.com$
+	RewriteCond %{HTTP_HOST} ^www\.kfv-freising\.de$
 	RewriteRule .? - [E=TYPO3_CONTEXT:Production]
 
 	# Rule for versioned static files, configured through:

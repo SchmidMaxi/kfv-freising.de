@@ -1,3 +1,31 @@
+plugin.tx_calendarize {
+    view {
+        templateRootPaths {
+            10 = EXT:sitepackage/Resources/Private/Extensions/Calendarize/Templates/
+        }
+        partialRootPaths {
+            10 = EXT:sitepackage/Resources/Private/Extensions/Calendarize/Partials/
+        }
+        layoutRootPaths {
+            10 = EXT:sitepackage/Resources/Private/Extensions/Calendarize/Layouts/
+        }
+    }
+}
+
+plugin.tx_mdfullcalendar {
+    view {
+        templateRootPaths {
+            10 = EXT:sitepackage/Resources/Private/Extensions/MdFullcalendar/Templates/
+        }
+        partialRootPaths {
+            10 = EXT:sitepackage/Resources/Private/Extensions/MdFullcalendar/Partials/
+        }
+        layoutRootPaths {
+            10 = EXT:sitepackage/Resources/Private/Extensions/MdFullcalendar/Layouts/
+        }
+    }
+}
+
 plugin.tx_news {
     settings {
         cssFile >
