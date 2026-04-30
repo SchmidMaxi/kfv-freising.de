@@ -86,5 +86,22 @@
       </div>
     </f:case>
 
+    <!-- Fallback: Card-Style -->
+    <f:defaultCase>
+      <div class="max-w-3xl space-y-4">
+        <f:for each="{data.items}" as="item" iteration="i">
+          <details class="group bg-card rounded-xl border border-border px-6 {f:if(condition: i.isFirst, then: 'open')}">
+            <summary class="flex cursor-pointer select-none items-center justify-between py-4 font-heading font-semibold text-card-foreground hover:text-fire-red transition-colors duration-150 list-none">
+              <span>{item.title}</span>
+              <i class="bi bi-chevron-down ml-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"></i>
+            </summary>
+            <div class="border-t border-border pb-5 pt-3 text-muted-foreground leading-relaxed">
+              {item.bodytext->f:format.html()}
+            </div>
+          </details>
+        </f:for>
+      </div>
+    </f:defaultCase>
+
   </f:switch>
 </div>
