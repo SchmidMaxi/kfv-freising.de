@@ -64,6 +64,7 @@ fields:
   -
     identifier: groups
     type: Collection
+    displayCond: 'FIELD:sitepackage_accordion_accordion_layout:=:grouped'
     labelField: group_title
     minitems: 1
     appearance:
