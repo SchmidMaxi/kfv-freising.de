@@ -2,19 +2,84 @@
   <f:if condition="{data.header}">
     <h2 class="mb-6 font-heading text-2xl font-bold text-foreground">{data.header}</h2>
   </f:if>
-  <div class="grid grid-cols-{data.breakpoint_mobile} gap-6 md:grid-cols-{data.breakpoint_tablet} xl:grid-cols-{data.breakpoint_desktop}">
-    <f:for each="{data.items}" as="item">
-      <div class="card-color-{data.color} flex flex-col overflow-hidden rounded-lg border border-border shadow transition-shadow duration-200 hover:shadow-md">
-        <f:if condition="{item.image}">
-          <f:image image="{item.image.0}" class="h-48 w-full object-cover" />
-        </f:if>
-        <div class="flex flex-1 flex-col p-5">
-          <f:if condition="{item.header}">
-            <h4 class="mb-2 font-heading text-lg font-bold">{item.header}</h4>
-          </f:if>
-          <div class="text-sm">{item.bodytext->f:format.html()}</div>
-        </div>
+
+  <f:switch expression="{data.card_layout}">
+
+    <f:case value="quick-action">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <f:for each="{data.items}" as="item">
+          <f:link.typolink parameter="{item.link}" class="group block no-underline h-full">
+            <div class="h-full bg-card rounded-lg shadow-md hover:shadow-xl transition-all duration-300 group-hover:-translate-y-1 overflow-hidden p-6 flex flex-col">
+              <div class="w-14 h-14 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shrink-0 {f:if(condition: '{item.variant} == accent', then: 'gradient-fire', else: 'bg-primary')}">
+                <i class="bi bi-{item.icon} text-2xl text-white"></i>
+              </div>
+              <h3 class="font-heading font-semibold text-xl text-card-foreground mb-2">{item.header}</h3>
+              <p class="text-muted-foreground text-sm leading-relaxed">{item.bodytext->f:format.html()}</p>
+            </div>
+          </f:link.typolink>
+        </f:for>
       </div>
-    </f:for>
-  </div>
+    </f:case>
+
+    <f:case value="stat">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <f:for each="{data.items}" as="item">
+          <div class="bg-card border border-border rounded-lg p-5">
+            <div class="flex items-center justify-between mb-3">
+              <div class="p-2 rounded-md bg-primary/10">
+                <i class="bi bi-{item.icon} text-base text-primary"></i>
+              </div>
+              <f:if condition="{item.stat_trend}">
+                <span class="text-xs font-medium text-emerald-700 bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-0.5 rounded-full">{item.stat_trend}</span>
+              </f:if>
+            </div>
+            <div class="text-2xl font-bold text-card-foreground">{item.stat_value}</div>
+            <p class="text-xs text-muted-foreground mt-1">{item.header}</p>
+          </div>
+        </f:for>
+      </div>
+    </f:case>
+
+    <f:case value="feature">
+      <div class="grid grid-cols-1 md:grid-cols-{data.breakpoint_tablet} xl:grid-cols-{data.breakpoint_desktop} gap-6">
+        <f:for each="{data.items}" as="item">
+          <div class="flex flex-col bg-card border border-border rounded-lg hover:shadow-lg transition-shadow">
+            <div class="p-6 flex-1">
+              <f:if condition="{item.badge}">
+                <span class="inline-block text-xs font-semibold border border-border rounded-full px-3 py-1 mb-3 text-muted-foreground">{item.badge}</span>
+              </f:if>
+              <h3 class="font-heading font-semibold text-lg text-card-foreground mb-2">{item.header}</h3>
+              <div class="text-sm text-muted-foreground leading-relaxed">{item.bodytext->f:format.html()}</div>
+            </div>
+            <f:if condition="{item.link}">
+              <div class="px-6 pb-5">
+                <f:link.typolink parameter="{item.link}" class="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+                  Details <i class="bi bi-arrow-right text-xs"></i>
+                </f:link.typolink>
+              </div>
+            </f:if>
+          </div>
+        </f:for>
+      </div>
+    </f:case>
+
+    <f:defaultCase>
+      <div class="grid grid-cols-{data.breakpoint_mobile} gap-6 md:grid-cols-{data.breakpoint_tablet} xl:grid-cols-{data.breakpoint_desktop}">
+        <f:for each="{data.items}" as="item">
+          <div class="card-color-{data.color} flex flex-col overflow-hidden rounded-lg border border-border shadow transition-shadow duration-200 hover:shadow-md">
+            <f:if condition="{item.image}">
+              <f:image image="{item.image.0}" class="h-48 w-full object-cover" />
+            </f:if>
+            <div class="flex flex-1 flex-col p-5">
+              <f:if condition="{item.header}">
+                <h4 class="mb-2 font-heading text-lg font-bold">{item.header}</h4>
+              </f:if>
+              <div class="text-sm">{item.bodytext->f:format.html()}</div>
+            </div>
+          </div>
+        </f:for>
+      </div>
+    </f:defaultCase>
+
+  </f:switch>
 </div>

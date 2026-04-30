@@ -44,6 +44,44 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 })
 
+// Tabs-Container: Tab-Switching
+document.addEventListener('DOMContentLoaded', () => {
+    const ACTIVE = {
+        pills:   ['bg-primary', 'text-primary-foreground', 'border-primary'],
+        default: ['bg-card', 'text-foreground', 'shadow-sm'],
+    }
+    const INACTIVE = {
+        pills:   ['bg-transparent', 'text-foreground'],
+        default: ['text-muted-foreground'],
+    }
+
+    document.querySelectorAll('[data-tabs]').forEach(container => {
+        const group  = container.dataset.tabs
+        const isPills = container.dataset.tabsLayout === 'pills'
+        const activeClasses   = isPills ? ACTIVE.pills   : ACTIVE.default
+        const inactiveClasses = isPills ? INACTIVE.pills : INACTIVE.default
+        const triggers = container.querySelectorAll(`[data-tab-group="${group}"]`)
+        const panels   = container.querySelectorAll(`[data-tab-panel="${group}"]`)
+
+        triggers.forEach(trigger => {
+            trigger.addEventListener('click', () => {
+                const targetId = trigger.dataset.tabTarget
+
+                triggers.forEach(t => {
+                    const isActive = t.dataset.tabTarget === targetId
+                    t.setAttribute('aria-selected', String(isActive))
+                    activeClasses.forEach(c => t.classList.toggle(c, isActive))
+                    inactiveClasses.forEach(c => t.classList.toggle(c, !isActive))
+                })
+
+                panels.forEach(panel => {
+                    panel.classList.toggle('hidden', panel.id !== targetId)
+                })
+            })
+        })
+    })
+})
+
 /**
  * Macht eine HTML-Tabelle sortierbar.
  * Aufruf: makeTableSortable(document.getElementById('meine-tabelle'))
