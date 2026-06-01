@@ -41,4 +41,9 @@ matomoWidgetsTitle: matomoWidgetsTitle
 matomoWidgetsTokenAuth: 630300504a26e65f5e72d0f50ed1d7fa
 matomoWidgetsUrl: //matomo.kfv-freising.de/
 rootPageId: 1
+staticRoutes:
+  -
+    route: oidc/callback
+    type: staticText
+    content: ''
 websiteTitle: ''
