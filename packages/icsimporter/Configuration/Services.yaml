@@ -1,0 +1,14 @@
+services:
+  _defaults:
+    autowire: true
+    autoconfigure: true
+    public: false
+
+  Schmid\IcsImporter\:
+    resource: '../Classes/*'
+
+  Schmid\IcsImporter\Service\FixedTimezoneICalService:
+    public: true
+
+  Schmid\IcsImporter\Service\CategoryAssignmentService:
+    public: true

@@ -1,11 +1,15 @@
 <?php
+
+declare(strict_types=1);
+
+use Schmid\IcsImporter\Task\ImportWithCategoryAdditionalFieldProvider;
+use Schmid\IcsImporter\Task\ImportWithCategoryTask;
+
 defined('TYPO3') or die();
 
-call_user_func(static function () {
-    $GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['scheduler']['tasks'][\Schmid\IcsImporter\Task\ImportWithCategoryTask::class] = [
-        'extension'        => 'icsimporter',
-        'title'            => 'ICS Import (Calendarize) mit Kategorie',
-        'description'      => 'Importiert einen ICS-Feed in Calendarize und weist eine sys_category zu.',
-        'additionalFields' => \Schmid\IcsImporter\Task\ImportWithCategoryAdditionalFieldProvider::class,
-    ];
-});
+$GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['scheduler']['tasks'][ImportWithCategoryTask::class] = [
+    'extension' => 'icsimporter',
+    'title' => 'LLL:EXT:icsimporter/Resources/Private/Language/locallang.xlf:task.title',
+    'description' => 'LLL:EXT:icsimporter/Resources/Private/Language/locallang.xlf:task.description',
+    'additionalFields' => ImportWithCategoryAdditionalFieldProvider::class,
+];

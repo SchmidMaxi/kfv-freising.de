@@ -45,7 +45,8 @@
         "helhum/typo3-console": "^8.2",
         "schmid/icsimporter": "@dev",
         "schmid/feuerwehren": "@dev",
-        "brotkrueml/typo3-matomo-widgets": "*"
+        "brotkrueml/typo3-matomo-widgets": "*",
+        "causal/oidc": "^4.0"
     },
     "config": {
         "allow-plugins": {
