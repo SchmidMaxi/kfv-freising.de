@@ -10,6 +10,7 @@ TCEFORM {
             removeItems = ruler-before, ruler-after, indent-left, indent-right
             addItems {
                 container-fluid = Volle Breite
+                primary-card = Primary-Karte
             }
             types {
                 section {

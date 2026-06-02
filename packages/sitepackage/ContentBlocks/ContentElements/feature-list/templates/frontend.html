@@ -1,0 +1,17 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+
+<div id="c{data.uid}" class="space-y-6 frame frame-{data.frame_class} frame-type-{data.CType} frame-layout-{data.layout}{f:if(condition: data.space_before_class, then: ' frame-space-before-{data.space_before_class}')}{f:if(condition: data.space_after_class, then: ' frame-space-after-{data.space_after_class}')}">
+    <f:for each="{data.features}" as="item">
+        <div class="flex items-start gap-4">
+            <div class="p-3 rounded-lg bg-accent/10 shrink-0">
+                <f:render partial="Icon" arguments="{icon: item.icon, class: 'text-accent text-xl'}" />
+            </div>
+            <div>
+                <h3 class="font-heading font-semibold text-lg mb-1 text-foreground">{item.title}</h3>
+                <p class="text-muted-foreground">{item.description}</p>
+            </div>
+        </div>
+    </f:for>
+</div>
+
+</html>

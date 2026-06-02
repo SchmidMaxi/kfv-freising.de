@@ -1,0 +1,24 @@
+name: sitepackage/feature-list
+typeName: feature-list
+group: default
+prefixFields: true
+prefixType: full
+basics:
+  - TYPO3/Appearance
+fields:
+  - identifier: features
+    type: Collection
+    labelField: title
+    minitems: 1
+    maxitems: 10
+    appearance:
+      collapseAll: true
+    fields:
+      - identifier: icon
+        type: Text
+        placeholder: 'Bootstrap Icon Name (z.B. people-fill, shield-fill, award, geo-alt-fill)'
+        default: 'check-circle-fill'
+      - identifier: title
+        type: Text
+      - identifier: description
+        type: Textarea

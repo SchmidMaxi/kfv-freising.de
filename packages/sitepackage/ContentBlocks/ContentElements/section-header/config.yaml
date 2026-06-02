@@ -1,0 +1,35 @@
+name: sitepackage/section-header
+typeName: section-header
+group: default
+prefixFields: true
+prefixType: full
+basics:
+  - TYPO3/Appearance
+fields:
+  - identifier: badge_text
+    type: Text
+    label: 'Badge-Text (optional, erscheint über der Überschrift)'
+  - identifier: header
+    useExistingField: true
+    label: Überschrift (H2)
+  - identifier: header_highlight
+    type: Text
+    label: 'Farbiger Überschriftsteil (optional, erscheint in Akzentfarbe nach der Überschrift)'
+  - identifier: subheadline
+    type: Textarea
+    label: 'Einleitungstext (optional)'
+  - identifier: link_text
+    type: Text
+    label: 'Link-Button Text (optional)'
+  - identifier: link_url
+    type: Link
+    label: 'Link-Button Ziel'
+  - identifier: alignment
+    type: Select
+    renderType: selectSingle
+    default: 'left'
+    items:
+      - label: 'Linksbündig (mit optionalem Button rechts)'
+        value: 'left'
+      - label: 'Zentriert'
+        value: 'center'

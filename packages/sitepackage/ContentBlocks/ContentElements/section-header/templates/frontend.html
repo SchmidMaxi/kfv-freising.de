@@ -1,0 +1,30 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+
+<div id="c{data.uid}" class="mb-12 frame frame-{data.frame_class} frame-type-{data.CType} frame-layout-{data.layout}{f:if(condition: data.space_before_class, then: ' frame-space-before-{data.space_before_class}')}{f:if(condition: data.space_after_class, then: ' frame-space-after-{data.space_after_class}')}">
+    <div class="flex flex-col {f:if(condition: '{data.alignment} == center', then: 'items-center text-center', else: 'md:flex-row md:items-end md:justify-between')}">
+        <div>
+            <f:if condition="{data.badge_text}">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border border-accent text-accent mb-4">{data.badge_text}</span>
+            </f:if>
+
+            <f:if condition="{data.header}">
+                <h2 class="font-heading text-3xl md:text-4xl font-bold text-foreground">
+                    {data.header}<f:if condition="{data.header_highlight}"> <span class="text-accent">{data.header_highlight}</span></f:if>
+                </h2>
+            </f:if>
+
+            <f:if condition="{data.subheadline}">
+                <p class="mt-4 text-lg text-muted-foreground max-w-2xl">{data.subheadline}</p>
+            </f:if>
+        </div>
+
+        <f:if condition="{data.link_text}">
+            <f:link.typolink parameter="{data.link_url}"
+                             class="mt-4 md:mt-0 inline-flex items-center gap-2 text-accent hover:text-accent/80 font-medium no-underline transition-colors shrink-0">
+                {data.link_text} <i class="bi bi-arrow-right"></i>
+            </f:link.typolink>
+        </f:if>
+    </div>
+</div>
+
+</html>

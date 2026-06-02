@@ -1,6 +1,18 @@
 
 
 
+lib.contentBlock {
+    partialRootPaths {
+        100 = EXT:sitepackage/Resources/Private/ContentElements/Partials/
+    }
+}
+
+lib.contentElement {
+    partialRootPaths {
+        100 = EXT:sitepackage/Resources/Private/ContentElements/Partials/
+    }
+}
+
 tt_content.section < lib.contentElement
 tt_content.section {
     templateName = Section

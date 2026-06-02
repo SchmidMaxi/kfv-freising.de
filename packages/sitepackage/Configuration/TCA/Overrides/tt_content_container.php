@@ -11,15 +11,19 @@ $additionalColumns = [
             'items' => [
                 [
                     'label' => 'Weiß',
-                    'value' => 'white',
+                    'value' => 'bg-white',
                 ],
                 [
                     'label' => 'Dunkelgrau',
-                    'value' => 'dark',
+                    'value' => 'bg-surface-dark',
                 ],
                 [
-                    'label' => 'Hellgrau',
-                    'value' => 'light',
+                    'label' => 'Hellgrau (Muted)',
+                    'value' => 'bg-muted',
+                ],
+                [
+                    'label' => 'Hellgrau (Secondary)',
+                    'value' => 'bg-secondary',
                 ],
             ]
         ],

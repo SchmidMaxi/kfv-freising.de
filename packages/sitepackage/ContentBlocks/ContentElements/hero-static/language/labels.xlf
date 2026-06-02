@@ -15,17 +15,17 @@
 			<trans-unit id="badge_text.label" resname="badge_text.label">
 				<source>Badge-Text</source>
 			</trans-unit>
-			<trans-unit id="cta_primary_text.label" resname="cta_primary_text.label">
-				<source>Button 1: Beschriftung</source>
+			<trans-unit id="buttons.label" resname="buttons.label">
+				<source>Buttons</source>
 			</trans-unit>
-			<trans-unit id="cta_primary_link.label" resname="cta_primary_link.label">
-				<source>Button 1: Ziel-Link</source>
+			<trans-unit id="buttons.button_text.label" resname="buttons.button_text.label">
+				<source>Beschriftung</source>
 			</trans-unit>
-			<trans-unit id="cta_secondary_text.label" resname="cta_secondary_text.label">
-				<source>Button 2: Beschriftung</source>
+			<trans-unit id="buttons.button_link.label" resname="buttons.button_link.label">
+				<source>Ziel-Link</source>
 			</trans-unit>
-			<trans-unit id="cta_secondary_link.label" resname="cta_secondary_link.label">
-				<source>Button 2: Ziel-Link</source>
+			<trans-unit id="buttons.button_style.label" resname="buttons.button_style.label">
+				<source>Style</source>
 			</trans-unit>
 			<trans-unit id="stats.label" resname="stats.label">
 				<source>Statistiken</source>

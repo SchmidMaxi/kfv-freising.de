@@ -1,0 +1,23 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+
+<div style="padding: 0.75rem 1rem; background: hsl(0 0% 97%); border-radius: 4px; font-family: sans-serif;">
+    <strong style="display: block; font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; color: #555; margin-bottom: 0.5rem;">Feature-Liste ({data.features -> f:count()} Einträge)</strong>
+    <f:for each="{data.features}" as="item" iteration="i">
+        <f:if condition="{i.index} < 3">
+            <div style="display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.35rem;">
+                <i class="bi bi-{item.icon}" style="color: hsl(0 100% 35%); font-size: 0.9rem; margin-top: 0.1rem; flex-shrink: 0;"></i>
+                <div>
+                    <span style="font-size: 0.85rem; font-weight: 600; color: #111;">{item.title}</span>
+                    <f:if condition="{item.description}">
+                        <span style="display: block; font-size: 0.75rem; color: #666;">{item.description -> f:format.crop(maxCharacters: 60)}</span>
+                    </f:if>
+                </div>
+            </div>
+        </f:if>
+    </f:for>
+    <f:if condition="{data.features -> f:count()} > 3">
+        <span style="font-size: 0.75rem; color: #999;">+ {data.features -> f:count() - 3} weitere…</span>
+    </f:if>
+</div>
+
+</html>

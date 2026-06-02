@@ -57,9 +57,11 @@ show_usage() {
 ${BLUE}TYPO3 Database Sync Tool${NC}
 
 Usage:
-  ddev sync --staging      Sync database from staging server
-  ddev sync --production   Sync database from production server
-  ddev sync --help         Show this help message
+  ddev sync --staging               Sync database from staging server
+  ddev sync --production            Sync database from production server
+  ddev sync --staging --with-files  Sync database + fileadmin (incl. news images)
+  ddev sync --production --with-files
+  ddev sync --help                  Show this help message
 
 Configuration:
   Copy .env.db-sync.example to .env.db-sync and fill in your credentials.
@@ -70,6 +72,7 @@ EOF
 
 # Parse arguments
 ENVIRONMENT=""
+WITH_FILES=0
 while [[ $# -gt 0 ]]; do
     case $1 in
         --staging)
@@ -78,6 +81,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --production)
             ENVIRONMENT="PRODUCTION"
+            shift
+            ;;
+        --with-files)
+            WITH_FILES=1
             shift
             ;;
         --help|-h)
@@ -230,6 +237,26 @@ print_info "Flushing TYPO3 caches..."
 ddev typo3 cache:flush 2>/dev/null || true
 
 print_success "Post-import tasks completed"
+
+# Optional: sync fileadmin (news images, uploaded files)
+if [ "$WITH_FILES" == "1" ]; then
+    echo ""
+    print_info "Step 5: Syncing fileadmin from remote server..."
+    print_info "This transfers uploaded files including news images (sys_file / sys_file_reference)."
+
+    LOCAL_FILEADMIN="public/fileadmin/user_upload/"
+
+    rsync -avz --progress \
+        -e "ssh -p ${SSH_PORT}" \
+        "${SSH_USER}@${SSH_HOST}:/var/www/html/public/fileadmin/user_upload/" \
+        "${LOCAL_FILEADMIN}"
+
+    if [ $? -eq 0 ]; then
+        print_success "fileadmin/user_upload/ synced successfully"
+    else
+        print_warning "fileadmin sync completed with warnings (some files may be missing)"
+    fi
+fi
 
 echo ""
 print_success "🎉 Database sync from ${ENVIRONMENT} completed successfully!"

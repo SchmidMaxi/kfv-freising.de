@@ -31,7 +31,7 @@
             <!-- Überschrift -->
             <f:if condition="{data.header}">
                 <h1 class="font-heading text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6">
-                    {data.header}
+                    {data.header}<f:if condition="{data.header_line2}"><span class="block text-white/90">{data.header_line2}</span></f:if>
                 </h1>
             </f:if>
 
@@ -43,19 +43,25 @@
             </f:if>
 
             <!-- CTA-Buttons -->
-            <f:if condition="{data.cta_primary_text}">
+            <f:if condition="{data.buttons}">
                 <div class="flex flex-wrap gap-4 mb-12">
-                    <f:link.typolink parameter="{data.cta_primary_link}"
-                                     class="inline-flex items-center gap-2 px-6 py-3 rounded-md bg-white text-accent hover:bg-white/90 font-heading font-semibold shadow-lg no-underline transition-colors">
-                        {data.cta_primary_text}
-                        <i class="bi bi-arrow-right"></i>
-                    </f:link.typolink>
-                    <f:if condition="{data.cta_secondary_text}">
-                        <f:link.typolink parameter="{data.cta_secondary_link}"
-                                         class="inline-flex items-center gap-2 px-6 py-3 rounded-md border border-white/40 bg-white/10 text-white hover:bg-white/20 font-heading font-semibold backdrop-blur-sm no-underline transition-colors">
-                            {data.cta_secondary_text}
-                        </f:link.typolink>
-                    </f:if>
+                    <f:for each="{data.buttons}" as="btn">
+                        <f:if condition="{btn.button_style} == 'secondary'">
+                            <f:then>
+                                <f:link.typolink parameter="{btn.button_link}"
+                                                 class="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border h-11 rounded-md px-8 border-background/40 bg-background/10 text-background hover:bg-background/20 hover:text-background font-heading font-semibold backdrop-blur-sm">
+                                    {btn.button_text}
+                                </f:link.typolink>
+                            </f:then>
+                            <f:else>
+                                <f:link.typolink parameter="{btn.button_link}"
+                                                 class="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-11 rounded-md px-8 bg-background text-accent hover:bg-background/90 font-heading font-semibold shadow-lg">
+                                    {btn.button_text}
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right ml-2 h-5 w-5"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+                                </f:link.typolink>
+                            </f:else>
+                        </f:if>
+                    </f:for>
                 </div>
             </f:if>
 
@@ -65,7 +71,7 @@
                     <f:for each="{data.stats}" as="item">
                         <div class="flex items-center gap-4 p-4 rounded-lg bg-white/15 backdrop-blur-sm border border-white/20">
                             <div class="p-3 rounded-lg bg-white/20 shrink-0">
-                                <i class="bi bi-{item.stat_icon} text-white text-2xl"></i>
+                                <f:render partial="Icon" arguments="{icon: item.icon, class: 'text-white text-2xl'}" />
                             </div>
                             <div>
                                 <p class="text-2xl font-heading font-bold text-white leading-none mb-1">{item.stat_value}</p>

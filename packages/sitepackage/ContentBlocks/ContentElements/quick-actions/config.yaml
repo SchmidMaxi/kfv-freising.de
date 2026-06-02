@@ -23,10 +23,8 @@ fields:
         type: Textarea
       - identifier: link
         type: Link
-      - identifier: icon
-        type: Text
-        placeholder: 'Bootstrap Icon Name (z.B. fire, calendar, geo-alt-fill, file-text-fill)'
-        default: 'arrow-right-circle-fill'
+      - identifier: sitepackage/icons
+        type: Basic
       - identifier: variant
         type: Select
         renderType: selectSingle

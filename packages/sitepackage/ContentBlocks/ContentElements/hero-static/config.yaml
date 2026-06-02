@@ -8,25 +8,45 @@ basics:
 fields:
   - identifier: header
     useExistingField: true
+  - identifier: header_line2
+    type: Text
+    label: 'Überschrift Zeile 2 (optional, erscheint leicht abgedunkelt)'
   - identifier: subheadline
     type: Textarea
   - identifier: badge_text
     type: Text
+    label: 'Badge-Text (erscheint über der Überschrift)'
     default: 'Retten • Löschen • Bergen • Schützen'
   - identifier: image
     useExistingField: true
     label: Hintergrundbild
     maxitems: 1
-  - identifier: cta_primary_text
-    type: Text
-    default: 'Aktuelle Einsätze'
-  - identifier: cta_primary_link
-    type: Link
-  - identifier: cta_secondary_text
-    type: Text
-    default: 'Feuerwehr finden'
-  - identifier: cta_secondary_link
-    type: Link
+  - identifier: buttons
+    type: Collection
+    label: Buttons
+    labelField: button_text
+    minitems: 0
+    maxitems: 4
+    appearance:
+      collapseAll: true
+    fields:
+      - identifier: button_text
+        type: Text
+        label: 'Beschriftung'
+        default: 'Mehr erfahren'
+      - identifier: button_link
+        type: Link
+        label: 'Ziel-Link'
+      - identifier: button_style
+        type: Select
+        renderType: selectSingle
+        default: 'primary'
+        label: 'Style'
+        items:
+          - label: 'Primary (Hell, prominent)'
+            value: 'primary'
+          - label: 'Secondary (Transparent, Outline)'
+            value: 'secondary'
   - identifier: stats
     type: Collection
     labelField: stat_label
@@ -39,26 +59,5 @@ fields:
         type: Text
       - identifier: stat_label
         type: Text
-      - identifier: stat_icon
-        type: Select
-        renderType: selectSingle
-        default: 'people-fill'
-        items:
-          - label: 'Personen / Mitglieder'
-            value: 'people-fill'
-          - label: 'Schild / Schutz'
-            value: 'shield-fill'
-          - label: 'Uhr / Zeit'
-            value: 'clock-fill'
-          - label: 'Feuer'
-            value: 'fire'
-          - label: 'Haus / Feuerwache'
-            value: 'house-fill'
-          - label: 'Kalender'
-            value: 'calendar-fill'
-          - label: 'Standort'
-            value: 'geo-alt-fill'
-          - label: 'Stern'
-            value: 'star-fill'
-          - label: 'Telefon'
-            value: 'telephone-fill'
+      - identifier: sitepackage/icons
+        type: Basic

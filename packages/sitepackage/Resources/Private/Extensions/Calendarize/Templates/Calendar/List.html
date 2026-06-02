@@ -1,0 +1,49 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+
+<f:layout name="Default"/>
+
+<f:section name="Main">
+    <f:if condition="{indices -> f:count()}">
+        <f:then>
+            <f:if condition="{settings.hidePagination}">
+                <f:then>
+                    <div class="flex flex-col gap-4">
+                        <f:for each="{indices}" as="index">
+                            <f:render partial="{index.configuration.partialIdentifier}/ListItem" arguments="{index: index}" />
+                        </f:for>
+                    </div>
+                </f:then>
+                <f:else>
+                    <f:if condition="{settings.paginateConfiguration.insertAbove -> f:or(alternative:0)}">
+                        <div class="mb-6">
+                            <f:render partial="Pagination" arguments="{pagination: pagination.pagination, paginator: pagination.paginator, searchMode: 0}" />
+                        </div>
+                    </f:if>
+
+                    <div class="flex flex-col gap-4">
+                        <f:for each="{pagination.paginator.paginatedItems}" as="index">
+                            <f:render partial="{index.configuration.partialIdentifier}/ListItem" arguments="{index: index}" />
+                        </f:for>
+                    </div>
+
+                    <f:if condition="{settings.paginateConfiguration.insertBelow -> f:or(alternative:1)}">
+                        <div class="mt-6">
+                            <f:render partial="Pagination" arguments="{pagination: pagination.pagination, paginator: pagination.paginator, searchMode: 0}" />
+                        </div>
+                    </f:if>
+                </f:else>
+            </f:if>
+        </f:then>
+        <f:else>
+            <div class="flex flex-col items-center py-16 text-center">
+                <div class="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                    <i class="bi bi-calendar-x text-2xl text-muted-foreground"></i>
+                </div>
+                <p class="text-muted-foreground">
+                    <f:translate key="no_events" />
+                </p>
+            </div>
+        </f:else>
+    </f:if>
+</f:section>
+</html>

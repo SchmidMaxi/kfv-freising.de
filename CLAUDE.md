@@ -231,8 +231,10 @@ Struktur je Block: `config.yaml` + `templates/frontend.html` + `templates/backen
 
 | Block | Status | Beschreibung |
 |-------|--------|--------------|
-| `hero-static` | ✅ Tailwind | Vollbild-Hero: Bild+Gradient, Headline, CTAs, Stats-Grid |
+| `hero-static` | ✅ Tailwind | Vollbild-Hero: Bild+Gradient, Badge, H1 (2 Zeilen via `header_line2`), CTAs, Stats-Grid |
 | `quick-actions` | ✅ Tailwind | Icon-Karten-Raster (bis 4 Spalten), konfigurierbares Icon/Link/Variante |
+| `section-header` | ✅ Tailwind | Badge + H2 (mit optionalem Akzent-Span) + Einleitungstext + Link-Button |
+| `feature-list` | ✅ Tailwind | Icon-Feature-Liste (Bootstrap Icons + Titel + Beschreibung), Collection |
 | `accordion` | ✅ Tailwind | Akkordeon via `<details>`/`<summary>`, chevron-Animation mit `group-open:rotate-180` |
 | `card` | ✅ Tailwind | Einzelne Karte mit `.card-color-{variant}` (default/light/dark) |
 | `card-group` | ✅ Tailwind | Responsive Grid (`grid-cols-*` mit safelist für dynamische Werte) |
@@ -357,6 +359,80 @@ git push
 
 ---
 
+## Frontend-Vorschau (Design-Referenz)
+
+**Lovable Prototype:** https://freising-fire-connect.lovable.app/
+**Quellcode:** `/frontend/src/` (React/TypeScript, nur Prototyp — nicht produktiv)
+
+### Seitenstruktur Startseite (Referenz → TYPO3 Umsetzung)
+
+```
+Startseite
+├── Hero (fullbleed)                       → ContentBlock: hero-static
+│     Hintergrundbild + Gradient, Badge,
+│     H1 (2 Zeilen), Subheadline,
+│     2 CTA-Buttons, Stats-Grid (3 Kacheln)
+│
+├── Quick Actions (bg-secondary)           → section-Container (bg-secondary)
+│     4 Icon-Karten (Einsätze / Termine /   └── ContentBlock: quick-actions
+│     Feuerwehr finden / Downloads)
+│
+├── Aktuelles & Termine (bg-background)   → section-Container (bg-white)
+│     Links: News-Liste (2/3)              └── 2cols-Container
+│     Rechts: Terminvorschau (1/3)              ├── News-Plugin (georgringer/news)
+│                                               └── Calendarize / section mit Terminen
+│
+└── Über uns (bg-muted)                   → section-Container (bg-muted)
+      Links: Text + Feature-Liste (1/2)    └── 2cols-Container (lg:w-6/12 | lg:w-6/12)
+      Rechts: Karte / Placeholder (1/2)        ├── Textblock + feature-items
+                                               └── Feuerwehren-Karte (Map-Plugin)
+```
+
+### Frontend-Komponenten → TYPO3 Mapping
+
+| React-Komponente | TYPO3-Umsetzung | Status |
+|------------------|-----------------|--------|
+| `Hero.tsx` | ContentBlock `hero-static` | ✅ implementiert |
+| `QuickActions.tsx` | ContentBlock `quick-actions` | ✅ implementiert |
+| `News.tsx` (Karten) | `georgringer/news` List-Plugin | ✅ Template vorhanden |
+| `News.tsx` (Termine-Sidebar) | `lochmueller/calendarize` | ✅ Template vorhanden |
+| `AboutSection.tsx` (Kopfzeile) | ContentBlock `section-header` | ✅ implementiert |
+| `AboutSection.tsx` (Feature-Items) | ContentBlock `feature-list` | ✅ implementiert |
+| `AboutSection.tsx` (Karte) | Feuerwehren Map-Plugin | ✅ vorhanden |
+| `Header.tsx` | Fluid Partial `Header.html` | ✅ implementiert |
+| `Footer.tsx` | Fluid Partial `Footer.html` | ✅ implementiert |
+
+### Container-Struktur (b13/container)
+
+| Container | CType | Verwendung |
+|-----------|-------|------------|
+| Section | `section` | Sektionen mit Hintergrundfarbe + `py-16 md:py-24` Padding |
+| 2 Spalten | `2cols` | Text + Bild, Text + Karte, News + Termine |
+| 3 Spalten | `3cols` | Feature-Kacheln, 3-spaltige Layouts |
+| 4 Spalten | `4cols` | Quick-Actions-Grid (alternativ zu quick-actions ContentBlock) |
+| Tabs | `tabs` | Tab-Navigation (4 Tabs) |
+
+**Section-Container Hintergrundfarben:**
+- `bg-white` — weißer Hintergrund
+- `bg-secondary` — hellgrau (wie QuickActions-Sektion)
+- `bg-muted` — hellgrau/gedämpft (wie About-Sektion)
+- `bg-surface-dark` — dunkelgrau (+ automatisch `text-surface-dark-foreground`)
+
+**Wichtig: Verschachtelung von Containern**
+Der `section`-Container rendert seine Kinder in einem `<div class="container py-16 md:py-24">`. Werden darin `2cols`/`3cols`/`4cols`-Container platziert, muss deren **Layout auf „Kein Layout" (frame_class=none)** gestellt werden, um doppeltes Containerizing zu vermeiden. Die `section-header`- und `feature-list`-ContentBlocks haben absichtlich KEINEN eigenen container-Wrapper und sind für die Verwendung innerhalb des section-Containers oder einer Spalte eines 2cols-Containers ausgelegt.
+
+**ContentBlocks für Seitenstruktur (fullbleed — direkt auf der Seite platzieren):**
+- `hero-static` — Vollbild-Hero (eigenes section-Element + container)
+- `quick-actions` — Icon-Karten-Raster (eigenes section-Element + bg-secondary + container)
+
+**ContentBlocks für Inhalt innerhalb von section/2cols:**
+- `section-header` — Badge + H2 + optionaler Link-Button (kein eigener container)
+- `feature-list` — Icon-Feature-Liste (kein eigener container)
+- `accordion` — Akkordeon (kein eigener container)
+- `card`, `card-group`, `card-slider` — Karten-Varianten
+
+---
+
 ## Frontend-Redesign: Tailwind Migration
 
 Ein neues React/Tailwind-Frontend-Prototyp liegt unter `/frontend`. Ziel ist die vollständige Übernahme des Designs in die TYPO3 Sitepackage Extension.
@@ -427,6 +503,63 @@ Ein neues React/Tailwind-Frontend-Prototyp liegt unter `/frontend`. Ziel ist die
 #### Alles abgeschlossen ✅
 
 Die Tailwind-Migration ist vollständig abgeschlossen. Alle Phasen 1–6 wurden umgesetzt.
+
+---
+
+## Implementierungs-Tracker: Startseiten-Struktur (Frontend → TYPO3)
+
+> Status-Legende: ✅ Code fertig | 🔲 Content im Backend anlegen | ⚠️ Klärung nötig
+
+### Phase A — ContentBlocks (Code)
+
+| Schritt | Was | Status |
+|---------|-----|--------|
+| A1 | `hero-static`: `header_line2`-Feld (zweizeilige H1) | ✅ 2026-05-05 |
+| A2 | `section`-Container: `py-16 md:py-24` + container-Wrapper | ✅ 2026-05-05 |
+| A3 | `section`-Container: `bg-secondary` als Farboptionen | ✅ 2026-05-05 |
+| A4 | ContentBlock `section-header` erstellt | ✅ 2026-05-05 |
+| A5 | ContentBlock `feature-list` erstellt | ✅ 2026-05-05 |
+| A6 | DB-Schema aktualisiert (alle neuen Felder/Tabellen) | ✅ 2026-05-05 |
+
+### Phase B — Content im TYPO3-Backend anlegen
+
+| Schritt | Was | Struktur | Status |
+|---------|-----|----------|--------|
+| B1 | Hero-Bereich | `hero-static` mit Hintergrundbild, H1-Zeile 1 + Zeile 2, Subheadline, 2 CTAs, 3 Stats | 🔲 |
+| B2 | Quick-Actions-Sektion | `quick-actions` direkt auf Seite (4 Karten: Einsätze, Termine, Feuerwehr finden, Downloads) | 🔲 |
+| B3 | Aktuelles-Sektion (Wrapper) | `section`-Container mit `bg-white` | 🔲 |
+| B4 | Aktuelles-Sektion (Header) | `section-header` in B3: Badge „Neuigkeiten", H2 „Aktuelles & Termine", Link „Alle Nachrichten" | 🔲 |
+| B5 | Aktuelles-Sektion (2-Spalten) | `2cols`-Container in B3 mit **frame_class=none** (lg: 8/12 \| 4/12) | 🔲 |
+| B6 | News-Plugin | `georgringer/news` List-Plugin in linker Spalte von B5 | 🔲 |
+| B7 | Termine-Sidebar | `calendarize`-Plugin oder Textblock in rechter Spalte von B5 | 🔲 |
+| B8 | Über-uns-Sektion (Wrapper) | `section`-Container mit `bg-muted` | 🔲 |
+| B9 | Über-uns-Sektion (2-Spalten) | `2cols`-Container in B8 mit **frame_class=none** (lg: 6/12 \| 6/12) | 🔲 |
+| B10 | Über-uns (linke Spalte) | `section-header` (Badge „Über uns", H2 „Wir im Landkreis", Highlight „Freising") + Textblock + `feature-list` | 🔲 |
+| B11 | Über-uns (rechte Spalte) | Feuerwehren-Map-Plugin | 🔲 |
+
+### Phase C — Weitere Seiten (nach Priorität)
+
+| Seite | Frontend-Referenz | Status |
+|-------|-------------------|--------|
+| Feuerwehren-Karte | `FireStationsMap.tsx` | ✅ TYPO3 Plugin vorhanden |
+| News-Liste | `Aktuelles.tsx` | ✅ Template vorhanden |
+| News-Detail | `NewsDetail.tsx` | ✅ Template vorhanden |
+| Termine | `Termine.tsx` | ✅ Template vorhanden |
+| Einsätze | `Einsaetze.tsx` | ⚠️ Kein Plugin — Datenquelle klären |
+| Ausbildung | `Ausbildung.tsx` | 🔲 Seite anlegen, Content strukturieren |
+| Service/Downloads | `Downloads.tsx` | 🔲 Seite anlegen, Content strukturieren |
+| Kontakt | `Kontakt.tsx` | 🔲 Seite anlegen, Formular einrichten |
+| Verband | `Verband.tsx` | 🔲 Seite anlegen, Content strukturieren |
+
+### Phase D — Offene technische Punkte
+
+| Punkt | Beschreibung | Status |
+|-------|-------------|--------|
+| D1 | Einsätze-Seite | Datenquelle klären (Alamos? Fax-to-Web? manuell?) | ⚠️ |
+| D2 | Kontaktformular | Extension auswählen (powermail / form-framework) | ⚠️ |
+| D3 | Tabs ContentBlock (b13/container) | Frontend-Template prüfen, ob korrekt gerendert | 🔲 |
+| D4 | Dark-Mode Feuerwehren-Karte | MapLibre-Karte im Dark Mode (Tile-Style wechseln?) | ⚠️ |
+| D5 | ICS-Importer | Scheduler-Task einrichten, Kategorie-Mapping prüfen | 🔲 |
 
 ### Technische Hinweise für die Weiterarbeit
 
