@@ -18,3 +18,13 @@
         height: 300px;
     }
 }
+
+.feuerwehren-karte-wrap--compact #map {
+    height: 400px;
+}
+
+@media (max-width: 768px) {
+    .feuerwehren-karte-wrap--compact #map {
+        height: 320px;
+    }
+}

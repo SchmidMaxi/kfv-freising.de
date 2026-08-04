@@ -5,41 +5,41 @@
 </f:if>
 
 <nav aria-label="Seitennavigation">
-    <ul class="flex items-center gap-1 list-none p-0 m-0 flex-wrap">
+    <ul class="pagination flex-wrap">
         <f:if condition="{pagination.previousPageNumber} && {pagination.previousPageNumber} >= {pagination.firstPageNumber}">
             <f:then>
-            <li>
+            <li class="page-item">
                 <f:render section="PaginationLink" arguments="{actionName:actionName, page: pagination.previousPageNumber, title: '{f:translate(key:\'pagination.previous\')}', searchMode:searchMode}" contentAs="content">
-                    <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-border text-foreground hover:bg-secondary text-sm transition-colors no-underline">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+                    <span class="page-link">
+                        <i class="bi bi-chevron-left" aria-hidden="true"></i>
                     </span>
                 </f:render>
             </li>
         </f:then>
         <f:else>
-            <li>
-                <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-border text-muted-foreground opacity-40 text-sm cursor-not-allowed">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+            <li class="page-item disabled">
+                <span class="page-link">
+                    <i class="bi bi-chevron-left" aria-hidden="true"></i>
                 </span>
             </li>
         </f:else>
     </f:if>
 
     <f:if condition="{pagination.hasLessPages}">
-        <li><span class="inline-flex items-center justify-center w-9 h-9 text-muted-foreground text-sm">…</span></li>
+        <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
     </f:if>
 
     <f:for each="{pagination.allPageNumbers}" as="page">
-        <li>
+        <li class="page-item">
             <f:if condition="{page} == {paginator.currentPageNumber}">
                 <f:then>
-                    <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg gradient-fire text-white text-sm font-medium cursor-default">
+                    <span class="page-link active" aria-current="page">
                         {page}
                     </span>
                 </f:then>
                 <f:else>
                     <f:render section="PaginationLink" arguments="{actionName:actionName, page: page, title: page, searchMode:searchMode}" contentAs="content">
-                        <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-border text-foreground hover:bg-secondary text-sm transition-colors no-underline">
+                        <span class="page-link">
                             {page}
                         </span>
                     </f:render>
@@ -49,28 +49,28 @@
     </f:for>
 
     <f:if condition="{pagination.hasMorePages}">
-        <li><span class="inline-flex items-center justify-center w-9 h-9 text-muted-foreground text-sm">…</span></li>
+        <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
     </f:if>
 
     <f:if condition="{pagination.nextPageNumber} && {pagination.nextPageNumber} <= {pagination.lastPageNumber}">
         <f:then>
-            <li>
+            <li class="page-item">
                 <f:render section="PaginationLink" arguments="{actionName:actionName, page: pagination.nextPageNumber, title: '{f:translate(key:\'pagination.next\')}', searchMode:searchMode}" contentAs="content">
-                    <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-border text-foreground hover:bg-secondary text-sm transition-colors no-underline">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+                    <span class="page-link">
+                        <i class="bi bi-chevron-right" aria-hidden="true"></i>
                     </span>
                 </f:render>
             </li>
         </f:then>
         <f:else>
-            <li>
-                <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-border text-muted-foreground opacity-40 text-sm cursor-not-allowed">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            <li class="page-item disabled">
+                <span class="page-link">
+                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
                 </span>
             </li>
         </f:else>
     </f:if>
-</ul>
+    </ul>
 </nav>
 
 <f:section name="PaginationLink">
@@ -79,13 +79,13 @@
             <a href="#"
                title="{title}"
                onclick="if(document.getElementById('calendarizePage')){document.getElementById('calendarizePage').value={page};document.getElementById('calendarizeSearchForm').submit();return false;}">
-                {content}
+                <f:format.raw>{content}</f:format.raw>
             </a>
         </f:then>
         <f:else>
             <a href="{f:uri.action(action:actionName, arguments:{currentPage: page})}"
                title="{title}">
-                {content}
+                <f:format.raw>{content}</f:format.raw>
             </a>
         </f:else>
     </f:if>

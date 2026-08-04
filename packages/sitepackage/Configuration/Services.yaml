@@ -1,0 +1,27 @@
+services:
+  _defaults:
+    autowire: true
+    autoconfigure: true
+    public: false
+
+  Schmid\Sitepackage\:
+    resource: '../Classes/*'
+
+  # Console Commands
+  Schmid\Sitepackage\Command\HomepageAboutSectionCommand:
+    tags:
+      - name: 'console.command'
+        command: 'sitepackage:homepage:about-section'
+        description: 'One-off, idempotent: wraps homepage "Über uns" 2cols in a bg-muted section, adds section-header + Feuerwehren-Karte plugin, fixes double-container frame_class, sets quick-actions card links'
+
+  Schmid\Sitepackage\Command\SeedPhaseCPagesCommand:
+    tags:
+      - name: 'console.command'
+        command: 'sitepackage:seed:phase-c'
+        description: 'One-off, idempotent: seeds content for Ausbildung (58), Downloads (47), Formulare (14) and Kontakt (17) pages'
+
+  Schmid\Sitepackage\Command\SeedPhaseDPagesCommand:
+    tags:
+      - name: 'console.command'
+        command: 'sitepackage:seed:phase-d'
+        description: 'One-off, idempotent: Musterseiten Tabs/Slider, Service-Hub (39), Kontakt-Shortcut (63), Einsätze via News-Kategorie (32), Termine-Ergänzung (13)'

@@ -7,27 +7,31 @@
         <f:then>
             <f:if condition="{settings.hidePagination}">
                 <f:then>
-                    <div class="flex flex-col gap-4">
+                    <div class="list-group">
                         <f:for each="{indices}" as="index">
                             <f:render partial="{index.configuration.partialIdentifier}/ListItem" arguments="{index: index}" />
                         </f:for>
                     </div>
+
+                    <f:link.typolink parameter="13" class="btn btn-light w-100 mt-3">
+                        Alle Termine anzeigen
+                    </f:link.typolink>
                 </f:then>
                 <f:else>
                     <f:if condition="{settings.paginateConfiguration.insertAbove -> f:or(alternative:0)}">
-                        <div class="mb-6">
+                        <div class="mb-4">
                             <f:render partial="Pagination" arguments="{pagination: pagination.pagination, paginator: pagination.paginator, searchMode: 0}" />
                         </div>
                     </f:if>
 
-                    <div class="flex flex-col gap-4">
+                    <div class="list-group">
                         <f:for each="{pagination.paginator.paginatedItems}" as="index">
                             <f:render partial="{index.configuration.partialIdentifier}/ListItem" arguments="{index: index}" />
                         </f:for>
                     </div>
 
                     <f:if condition="{settings.paginateConfiguration.insertBelow -> f:or(alternative:1)}">
-                        <div class="mt-6">
+                        <div class="mt-4">
                             <f:render partial="Pagination" arguments="{pagination: pagination.pagination, paginator: pagination.paginator, searchMode: 0}" />
                         </div>
                     </f:if>
@@ -35,11 +39,11 @@
             </f:if>
         </f:then>
         <f:else>
-            <div class="flex flex-col items-center py-16 text-center">
-                <div class="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-                    <i class="bi bi-calendar-x text-2xl text-muted-foreground"></i>
+            <div class="d-flex flex-column align-items-center py-5 text-center">
+                <div class="mb-4 d-flex align-items-center justify-content-center rounded-circle bg-body-secondary" style="width: 4rem; height: 4rem;">
+                    <i class="bi bi-calendar-x fs-3 text-body-secondary"></i>
                 </div>
-                <p class="text-muted-foreground">
+                <p class="text-body-secondary mb-0">
                     <f:translate key="no_events" />
                 </p>
             </div>

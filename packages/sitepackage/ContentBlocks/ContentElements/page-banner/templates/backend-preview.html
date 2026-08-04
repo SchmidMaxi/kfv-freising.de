@@ -1,0 +1,16 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+
+<div style="padding: 1rem 1.25rem; border-radius: 4px; background: #1f2937; color: #fff; font-family: sans-serif; text-align: center;">
+    <strong style="display: block; font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,.6); margin-bottom: 0.5rem;">Dunkles Seiten-Banner</strong>
+    <f:if condition="{data.header}">
+        <span style="display: block; font-size: 1.1rem; font-weight: bold;">{data.header}</span>
+    </f:if>
+    <f:if condition="{data.subheadline}">
+        <span style="display: block; font-size: 0.8rem; color: rgba(255,255,255,.7); margin-top: 0.35rem;">{data.subheadline -> f:format.crop(maxCharacters: 100)}</span>
+    </f:if>
+    <f:if condition="{data.badge_text}">
+        <span style="display: inline-block; font-size: 0.7rem; background: #fff; color: #1f2937; border-radius: 999px; padding: 0.15rem 0.6rem; margin-top: 0.5rem;">{data.badge_text}</span>
+    </f:if>
+</div>
+
+</html>

@@ -1,87 +1,90 @@
 <html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
 
-<section id="c{data.uid}" class="relative min-h-[600px] md:min-h-[700px] flex items-center overflow-hidden frame frame-{data.frame_class} frame-type-{data.CType} frame-layout-{data.layout}{f:if(condition: data.space_before_class, then: ' frame-space-before-{data.space_before_class}')}{f:if(condition: data.space_after_class, then: ' frame-space-after-{data.space_after_class}')}">
+<section id="c{data.uid}" class="position-relative d-flex align-items-center overflow-hidden frame frame-{data.frame_class} frame-type-{data.CType} frame-layout-{data.layout}{f:if(condition: data.space_before_class, then: ' frame-space-before-{data.space_before_class}')}{f:if(condition: data.space_after_class, then: ' frame-space-after-{data.space_after_class}')}" style="min-height: 600px;">
 
     <!-- Background: Bild mit Farbverlauf-Overlay, sonst reiner Gradient -->
     <f:if condition="{data.image}">
         <f:then>
-            <div class="absolute inset-0 bg-cover bg-center bg-no-repeat"
-                 style="background-image: linear-gradient(135deg, hsl(0 100% 25% / 0.85), hsl(0 100% 35% / 0.75)), url({f:uri.image(image: data.image.0)});">
+            <div class="position-absolute top-0 start-0 w-100 h-100"
+                 style="background-image: linear-gradient(135deg, hsl(0 100% 25% / 0.85), hsl(0 100% 35% / 0.75)), url({f:uri.image(image: data.image.0)}); background-size: cover; background-position: center; background-repeat: no-repeat;">
             </div>
         </f:then>
         <f:else>
-            <div class="absolute inset-0 gradient-fire"></div>
+            <div class="position-absolute top-0 start-0 w-100 h-100 gradient-fire"></div>
         </f:else>
     </f:if>
 
     <!-- Dekoratives Diagonal-Element -->
-    <div class="absolute right-0 bottom-0 w-1/2 h-1/2 bg-gradient-to-tl from-black/30 to-transparent hidden lg:block pointer-events-none"></div>
+    <div class="position-absolute bottom-0 end-0 w-50 h-50 d-none d-lg-block pe-none"
+         style="background: linear-gradient(315deg, rgba(0,0,0,0.3), transparent);"></div>
 
-    <div class="container relative z-10 py-16">
-        <div class="max-w-3xl">
+    <div class="container position-relative z-1 py-5">
+        <div class="row">
+            <div class="col-12 col-lg-9 col-xl-7">
 
-            <!-- Badge -->
-            <f:if condition="{data.badge_text}">
-                <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/20 border border-white/30 text-white mb-6 backdrop-blur-sm">
-                    <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span>
-                    <span class="text-sm font-medium">{data.badge_text}</span>
-                </div>
-            </f:if>
+                <!-- Badge -->
+                <f:if condition="{data.badge_text}">
+                    <span class="badge rounded-pill bg-white bg-opacity-25 text-white border border-white border-opacity-50 d-inline-flex align-items-center gap-2 px-3 py-2 mb-4">
+                        <span class="spinner-grow spinner-grow-sm text-white" style="width: 0.5rem; height: 0.5rem;" role="status" aria-hidden="true"></span>
+                        {data.badge_text}
+                    </span>
+                </f:if>
 
-            <!-- Überschrift -->
-            <f:if condition="{data.header}">
-                <h1 class="font-heading text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6">
-                    {data.header}<f:if condition="{data.header_line2}"><span class="block text-white/90">{data.header_line2}</span></f:if>
-                </h1>
-            </f:if>
+                <!-- Überschrift -->
+                <f:if condition="{data.header}">
+                    <h1 class="display-4 fw-bold text-white mb-4">
+                        {data.header}<f:if condition="{data.header_line2}"><span class="d-block text-white text-opacity-75">{data.header_line2}</span></f:if>
+                    </h1>
+                </f:if>
 
-            <!-- Untertitel -->
-            <f:if condition="{data.subheadline}">
-                <p class="text-lg md:text-xl text-white/85 mb-8 max-w-2xl">
-                    {data.subheadline}
-                </p>
-            </f:if>
+                <!-- Untertitel -->
+                <f:if condition="{data.subheadline}">
+                    <p class="lead text-white text-opacity-75 mb-4" style="max-width: 40rem;">
+                        {data.subheadline}
+                    </p>
+                </f:if>
 
-            <!-- CTA-Buttons -->
-            <f:if condition="{data.buttons}">
-                <div class="flex flex-wrap gap-4 mb-12">
-                    <f:for each="{data.buttons}" as="btn">
-                        <f:if condition="{btn.button_style} == 'secondary'">
-                            <f:then>
-                                <f:link.typolink parameter="{btn.button_link}"
-                                                 class="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border h-11 rounded-md px-8 border-background/40 bg-background/10 text-background hover:bg-background/20 hover:text-background font-heading font-semibold backdrop-blur-sm">
-                                    {btn.button_text}
-                                </f:link.typolink>
-                            </f:then>
-                            <f:else>
-                                <f:link.typolink parameter="{btn.button_link}"
-                                                 class="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-11 rounded-md px-8 bg-background text-accent hover:bg-background/90 font-heading font-semibold shadow-lg">
-                                    {btn.button_text}
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right ml-2 h-5 w-5"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
-                                </f:link.typolink>
-                            </f:else>
-                        </f:if>
-                    </f:for>
-                </div>
-            </f:if>
+                <!-- CTA-Buttons -->
+                <f:if condition="{data.buttons}">
+                    <div class="d-flex flex-wrap gap-3 mb-5">
+                        <f:for each="{data.buttons}" as="btn">
+                            <f:if condition="{btn.button_style} == 'secondary'">
+                                <f:then>
+                                    <f:link.typolink parameter="{btn.button_link}" class="btn btn-outline-light btn-lg">
+                                        {btn.button_text}
+                                    </f:link.typolink>
+                                </f:then>
+                                <f:else>
+                                    <f:link.typolink parameter="{btn.button_link}" class="btn btn-light text-primary btn-lg">
+                                        {btn.button_text}
+                                        <i class="bi bi-arrow-right ms-2"></i>
+                                    </f:link.typolink>
+                                </f:else>
+                            </f:if>
+                        </f:for>
+                    </div>
+                </f:if>
 
-            <!-- Statistiken -->
-            <f:if condition="{data.stats}">
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                    <f:for each="{data.stats}" as="item">
-                        <div class="flex items-center gap-4 p-4 rounded-lg bg-white/15 backdrop-blur-sm border border-white/20">
-                            <div class="p-3 rounded-lg bg-white/20 shrink-0">
-                                <f:render partial="Icon" arguments="{icon: item.icon, class: 'text-white text-2xl'}" />
+                <!-- Statistiken -->
+                <f:if condition="{data.stats}">
+                    <div class="row row-cols-1 row-cols-sm-3 g-3">
+                        <f:for each="{data.stats}" as="item">
+                            <div class="col">
+                                <div class="d-flex align-items-center gap-3 p-3 rounded-3 bg-white bg-opacity-10 border border-white border-opacity-25 h-100">
+                                    <div class="p-2 rounded-3 bg-white bg-opacity-25 flex-shrink-0">
+                                        <f:render partial="Icon" arguments="{icon: item.icon, class: 'text-white fs-3'}" />
+                                    </div>
+                                    <div>
+                                        <p class="h4 fw-bold text-white lh-1 mb-1">{item.stat_value}</p>
+                                        <p class="small text-white text-opacity-75 mb-0">{item.stat_label}</p>
+                                    </div>
+                                </div>
                             </div>
-                            <div>
-                                <p class="text-2xl font-heading font-bold text-white leading-none mb-1">{item.stat_value}</p>
-                                <p class="text-sm text-white/70">{item.stat_label}</p>
-                            </div>
-                        </div>
-                    </f:for>
-                </div>
-            </f:if>
+                        </f:for>
+                    </div>
+                </f:if>
 
+            </div>
         </div>
     </div>
 

@@ -5,14 +5,14 @@
     <f:if condition="{search}">
         <f:if condition="{news}">
             <f:then>
-                <div class="mb-6 flex items-center justify-between">
-                    <p class="text-sm text-muted-foreground">
-                        <span class="font-medium text-foreground">{news -> f:count()}</span>
+                <div class="mb-4 d-flex align-items-center justify-content-between">
+                    <p class="small text-body-secondary mb-0">
+                        <span class="fw-medium text-body">{news -> f:count()}</span>
                         <f:if condition="{news -> f:count()} == 1">
                             <f:then> Ergebnis</f:then>
                             <f:else> Ergebnisse</f:else>
                         </f:if>
-                        für <span class="font-medium text-foreground">„{search.subject}"</span>
+                        für <span class="fw-medium text-body">„{search.subject}"</span>
                     </p>
                 </div>
 
@@ -20,7 +20,7 @@
                     <f:render partial="List/Pagination" arguments="{pagination: pagination.pagination, paginator: pagination.paginator}" />
                 </f:if>
 
-                <div class="flex flex-col gap-6">
+                <div class="d-flex flex-column gap-4">
                     <f:for each="{pagination.paginator.paginatedItems}" as="newsItem" iteration="iterator">
                         <f:render partial="List/Item" arguments="{newsItem: newsItem, settings:settings, className:className, view:'list'}" />
                     </f:for>
@@ -31,14 +31,14 @@
                 </f:if>
             </f:then>
             <f:else>
-                <div class="flex flex-col items-center py-16 text-center">
-                    <div class="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-                        <i class="bi bi-search text-2xl text-muted-foreground"></i>
+                <div class="d-flex flex-column align-items-center py-5 text-center">
+                    <div class="mb-4 d-flex align-items-center justify-content-center rounded-circle bg-body-secondary" style="width: 4rem; height: 4rem;">
+                        <i class="bi bi-search fs-3 text-body-secondary"></i>
                     </div>
-                    <h2 class="mb-3 font-heading text-2xl font-semibold text-foreground">
+                    <h2 class="mb-3 fs-3 fw-semibold">
                         Keine Ergebnisse gefunden
                     </h2>
-                    <p class="max-w-md text-muted-foreground">
+                    <p class="text-body-secondary" style="max-width: 28rem;">
                         Wir konnten nichts zu „{search.subject}" finden. Versuchen Sie einen anderen Suchbegriff.
                     </p>
                 </div>

@@ -1,0 +1,17 @@
+name: sitepackage/page-banner
+typeName: page-banner
+group: default
+prefixFields: true
+prefixType: full
+basics:
+  - TYPO3/Appearance
+fields:
+  - identifier: header
+    useExistingField: true
+    label: Titel (H1)
+  - identifier: subheadline
+    type: Textarea
+    label: Untertitel
+  - identifier: badge_text
+    type: Text
+    label: Badge-Text (optional, z.B. "127 Dokumente verfügbar")

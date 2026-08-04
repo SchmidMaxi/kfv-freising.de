@@ -1,0 +1,85 @@
+identifier: kontaktformular
+label: Kontaktformular
+type: Form
+prototypeName: standard
+renderingOptions:
+  submitButtonLabel: Absenden
+finishers:
+  -
+    identifier: EmailToReceiver
+    options:
+      subject: 'Neue Kontaktanfrage über die Website'
+      recipients:
+        info@kfv-freising.de: 'KFV Freising'
+      senderAddress: '{email}'
+      senderName: '{name}'
+      replyToRecipients:
+        '{email}': '{name}'
+      addHtmlPart: true
+  -
+    identifier: EmailToSender
+    options:
+      subject: 'Ihre Nachricht an den KFV Freising'
+      recipients:
+        '{email}': '{name}'
+      senderAddress: info@kfv-freising.de
+      senderName: 'KFV Freising'
+      addHtmlPart: true
+  -
+    identifier: Confirmation
+    options:
+      message: 'Vielen Dank für Ihre Nachricht. Wir werden uns zeitnah bei Ihnen melden.'
+renderables:
+  -
+    identifier: page-1
+    label: Kontakt
+    type: Page
+    renderables:
+      -
+        identifier: name
+        label: Name
+        type: Text
+        properties:
+          fluidAdditionalAttributes:
+            required: required
+        validators:
+          -
+            identifier: NotEmpty
+      -
+        identifier: email
+        label: E-Mail
+        type: Text
+        properties:
+          fluidAdditionalAttributes:
+            type: email
+            required: required
+        validators:
+          -
+            identifier: NotEmpty
+          -
+            identifier: EmailAddress
+      -
+        identifier: subject
+        label: Betreff
+        type: Text
+        properties:
+          fluidAdditionalAttributes:
+            required: required
+        validators:
+          -
+            identifier: NotEmpty
+      -
+        identifier: message
+        label: Nachricht
+        type: Textarea
+        properties:
+          fluidAdditionalAttributes:
+            required: required
+        validators:
+          -
+            identifier: NotEmpty
+          -
+            identifier: StringLength
+            options:
+              minimum: 10
+              maximum: 2000

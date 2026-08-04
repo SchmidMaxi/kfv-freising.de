@@ -3,76 +3,80 @@
 
   <f:asset.css identifier="feuerwehren-map" href="EXT:feuerwehren/Resources/Public/Css/feuerwehren-map.css" />
 
-  <div class="feuerwehren-karte-wrap">
-    <div class="container py-4">
+  <f:if condition="{compact}">
+    <f:then>
+      <div class="feuerwehren-karte-wrap feuerwehren-karte-wrap--compact card shadow-sm p-3">
+        <div id="map" class="rounded-3 overflow-hidden"></div>
+        <f:link.typolink parameter="45" class="btn btn-outline-primary w-100 mt-3">
+          Feuerwehr finden
+        </f:link.typolink>
+      </div>
+    </f:then>
+    <f:else>
+      <div class="feuerwehren-karte-wrap">
+        <div class="container py-4">
 
-      <f:comment><f:security.ifHasRole role="Inspektion"></f:comment>
-        <div id="fzFilters" class="mb-4 rounded-lg border border-border bg-card p-4">
-          <h3 class="mb-3 font-heading text-base font-semibold text-foreground">
-            Filter nach Fahrzeugtyp
-          </h3>
-          <div class="mb-3 flex flex-wrap gap-2">
-            <div class="relative">
-              <input class="peer sr-only" autocomplete="off" type="radio" id="mode_and" name="mode" value="and" checked>
-              <label class="inline-flex cursor-pointer items-center rounded-full border border-border px-4 py-1 text-sm font-medium text-foreground transition-colors hover:bg-muted peer-checked:border-transparent peer-checked:bg-foreground peer-checked:text-white" for="mode_and">
+          <div id="fzFilters" class="mb-4 rounded border bg-body p-4">
+            <h3 class="mb-3 fs-6 fw-semibold">
+              Filter nach Fahrzeugtyp
+            </h3>
+            <div class="mb-3 d-flex flex-wrap gap-2">
+              <input class="btn-check" autocomplete="off" type="radio" id="mode_and" name="mode" value="and" checked>
+              <label class="btn btn-outline-secondary rounded-pill btn-sm" for="mode_and">
                 Alle müssen passen (UND)
               </label>
-            </div>
-            <div class="relative">
-              <input class="peer sr-only" autocomplete="off" type="radio" id="mode_or" name="mode" value="or">
-              <label class="inline-flex cursor-pointer items-center rounded-full border border-border px-4 py-1 text-sm font-medium text-foreground transition-colors hover:bg-muted peer-checked:border-transparent peer-checked:bg-foreground peer-checked:text-white" for="mode_or">
+              <input class="btn-check" autocomplete="off" type="radio" id="mode_or" name="mode" value="or">
+              <label class="btn btn-outline-secondary rounded-pill btn-sm" for="mode_or">
                 Mind. eins passt (ODER)
               </label>
             </div>
-          </div>
-          <hr class="mb-3 border-border">
-          <f:if condition="{fahrzeugkategorien}">
-            <div class="flex flex-wrap gap-2">
-              <f:for each="{fahrzeugkategorien}" as="kategorie">
-                <div class="relative">
-                  <input class="peer sr-only" autocomplete="off" type="checkbox"
+            <hr class="mb-3">
+            <f:if condition="{fahrzeugkategorien}">
+              <div class="d-flex flex-wrap gap-2">
+                <f:for each="{fahrzeugkategorien}" as="kategorie">
+                  <input class="btn-check" autocomplete="off" type="checkbox"
                          id="fz-{kategorie.uid}" name="fz[]" value="{kategorie.uid}">
-                  <label class="inline-flex cursor-pointer items-center rounded-full border border-border px-4 py-1 text-sm font-medium text-foreground transition-colors hover:bg-muted peer-checked:border-accent peer-checked:bg-accent peer-checked:text-white" for="fz-{kategorie.uid}">
+                  <label class="btn btn-outline-primary rounded-pill btn-sm" for="fz-{kategorie.uid}">
                     {kategorie.title}
                   </label>
-                </div>
-              </f:for>
+                </f:for>
+              </div>
+            </f:if>
+          </div>
+
+          <!-- Layer-Toggles -->
+          <div id="layerToggles" class="d-flex flex-wrap gap-4 py-2 small">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="toggle-gemeinden" checked>
+              <label class="form-check-label" for="toggle-gemeinden">Gemeinden</label>
             </div>
-          </f:if>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="toggle-kbm">
+              <label class="form-check-label" for="toggle-kbm">KBM-Bereiche</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="toggle-kbi">
+              <label class="form-check-label" for="toggle-kbi">KBI-Bereiche</label>
+            </div>
+          </div>
         </div>
-      <f:comment></f:security.ifHasRole></f:comment>
 
-      <!-- Layer-Toggles -->
-      <div id="layerToggles" class="flex flex-wrap gap-4 py-2 text-sm">
-        <label class="flex cursor-pointer items-center gap-2">
-          <input class="h-4 w-4 cursor-pointer accent-accent" type="checkbox" id="toggle-gemeinden" checked>
-          <span>Gemeinden</span>
-        </label>
-        <label class="flex cursor-pointer items-center gap-2">
-          <input class="h-4 w-4 cursor-pointer accent-accent" type="checkbox" id="toggle-kbm">
-          <span>KBM-Bereiche</span>
-        </label>
-        <label class="flex cursor-pointer items-center gap-2">
-          <input class="h-4 w-4 cursor-pointer accent-accent" type="checkbox" id="toggle-kbi">
-          <span>KBI-Bereiche</span>
-        </label>
+        <!-- Karte + Liste -->
+        <div class="d-flex flex-column flex-md-row">
+          <div class="col-md-4 col-xl-3">
+            <div id="fwList" class="overflow-y-auto border-end bg-body"></div>
+          </div>
+          <div class="col-md-8 col-xl-9">
+            <div id="map"></div>
+          </div>
+        </div>
       </div>
-    </div>
-
-    <!-- Karte + Liste -->
-    <div class="flex flex-col gap-0 md:flex-row">
-      <div class="w-full md:w-1/3 xl:w-1/4">
-        <div id="fwList" class="h-[600px] overflow-y-auto border-r border-border bg-card"></div>
-      </div>
-      <div class="w-full md:w-2/3 xl:w-3/4">
-        <div id="map"></div>
-      </div>
-    </div>
-  </div>
+    </f:else>
+  </f:if>
 
   <f:asset.script identifier="turf" src="EXT:feuerwehren/Resources/Public/JavaScript/turf.min.js?v=1759900000" />
   <f:asset.script identifier="maplibre" src="EXT:feuerwehren/Resources/Public/JavaScript/maplibre-gl.js?v=1759900000" />
-  <f:asset.script identifier="feuerwehren-map" src="EXT:feuerwehren/Resources/Public/JavaScript/map-feuerwehren.js?v=1759900002" />
+  <f:asset.script identifier="feuerwehren-map" src="EXT:feuerwehren/Resources/Public/JavaScript/map-feuerwehren.js?v=1785790000" />
   <f:asset.css identifier="maplibre" href="EXT:feuerwehren/Resources/Public/Css/maplibre-gl.css" />
 
 </f:section>

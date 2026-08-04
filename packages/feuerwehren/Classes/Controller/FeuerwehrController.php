@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Schmid\Feuerwehren\Controller;
 
 use Psr\Http\Message\ResponseInterface;
+use Schmid\Feuerwehren\Domain\Model\Feuerwehr;
 use Schmid\Feuerwehren\Domain\Repository\FahrzeugkategorieRepository;
 use TYPO3\CMS\Extbase\Mvc\Controller\ActionController;
 
@@ -35,7 +36,21 @@ final class FeuerwehrController extends ActionController
         $this->view->assignMultiple([
             'fahrzeugkategorien' => $kategorien,
             'mapConfig' => $mapConfig,
+            'compact' => (bool) ($this->settings['compact'] ?? false),
         ]);
+
+        return $this->htmlResponse();
+    }
+
+    /**
+     * Displays details for a single fire department (address, founding year,
+     * vehicle categories, jubilees). Only real, DB-backed fields are shown —
+     * no fabricated membership counts, statistics, contact details or gallery,
+     * since the Feuerwehr model does not carry that data yet.
+     */
+    public function showAction(Feuerwehr $feuerwehr): ResponseInterface
+    {
+        $this->view->assign('feuerwehr', $feuerwehr);
 
         return $this->htmlResponse();
     }

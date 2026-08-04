@@ -51,10 +51,8 @@ fields:
         type: Textarea
         enableRichtext: true
         label: 'Text / Beschreibung'
-      - identifier: icon
-        type: Text
-        label: 'Icon (Bootstrap Icons Name)'
-        placeholder: 'z.B. fire, shield-fill, calendar'
+      - identifier: sitepackage/bootstrap-icon
+        type: Basic
       - identifier: variant
         type: Select
         renderType: selectSingle

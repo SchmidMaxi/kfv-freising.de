@@ -14,10 +14,8 @@ fields:
     appearance:
       collapseAll: true
     fields:
-      - identifier: icon
-        type: Text
-        placeholder: 'Bootstrap Icon Name (z.B. people-fill, shield-fill, award, geo-alt-fill)'
-        default: 'check-circle-fill'
+      - identifier: sitepackage/bootstrap-icon
+        type: Basic
       - identifier: title
         type: Text
       - identifier: description

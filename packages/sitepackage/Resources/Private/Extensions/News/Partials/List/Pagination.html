@@ -1,50 +1,60 @@
 <f:if condition="{pagination.allPageNumbers -> f:count()} > 1">
-  <nav class="my-8 flex justify-center" aria-label="Nachrichten Navigation">
-    <ul class="flex items-center gap-1 text-sm">
+  <nav class="my-4 d-flex justify-content-center" aria-label="Nachrichten Navigation">
+    <ul class="pagination">
 
       <f:if condition="{pagination.previousPageNumber} && {pagination.previousPageNumber} >= {pagination.firstPageNumber}">
-        <li>
-          <a href="{f:uri.action(action:actionName, arguments:{currentPage: pagination.previousPageNumber}, addQueryString:'untrusted')}"
-             title="{f:translate(key:'pagination.previous')}"
-             class="flex h-9 w-9 items-center justify-center rounded border border-border text-foreground transition-colors hover:bg-muted hover:text-accent">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
-          </a>
-        </li>
+        <f:then>
+          <li class="page-item">
+            <a class="page-link" href="{f:uri.action(action:actionName, arguments:{currentPage: pagination.previousPageNumber}, addQueryString:'untrusted')}"
+               title="{f:translate(key:'pagination.previous')}" aria-label="{f:translate(key:'pagination.previous')}">
+              <span aria-hidden="true">&laquo;</span>
+            </a>
+          </li>
+        </f:then>
+        <f:else>
+          <li class="page-item disabled">
+            <span class="page-link" aria-hidden="true">&laquo;</span>
+          </li>
+        </f:else>
       </f:if>
 
       <f:if condition="{pagination.hasLessPages}">
-        <li><span class="flex h-9 w-9 items-center justify-center text-muted-foreground">…</span></li>
+        <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
       </f:if>
 
       <f:for each="{pagination.allPageNumbers}" as="page">
         <f:if condition="{page} == {paginator.currentPageNumber}">
           <f:then>
-            <li>
-              <span class="gradient-fire flex h-9 w-9 items-center justify-center rounded font-semibold text-white"
-                    aria-current="page">{page}</span>
+            <li class="page-item active" aria-current="page">
+              <span class="page-link">{page}</span>
             </li>
           </f:then>
           <f:else>
-            <li>
-              <a class="flex h-9 w-9 items-center justify-center rounded border border-border text-foreground transition-colors hover:bg-muted hover:text-accent"
-                 href="{f:uri.action(action:actionName, arguments:{currentPage: page}, addQueryString:'untrusted')}">{page}</a>
+            <li class="page-item">
+              <a class="page-link" href="{f:uri.action(action:actionName, arguments:{currentPage: page}, addQueryString:'untrusted')}">{page}</a>
             </li>
           </f:else>
         </f:if>
       </f:for>
 
       <f:if condition="{pagination.hasMorePages}">
-        <li><span class="flex h-9 w-9 items-center justify-center text-muted-foreground">…</span></li>
+        <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
       </f:if>
 
       <f:if condition="{pagination.nextPageNumber} && {pagination.nextPageNumber} <= {pagination.lastPageNumber}">
-        <li>
-          <a class="flex h-9 w-9 items-center justify-center rounded border border-border text-foreground transition-colors hover:bg-muted hover:text-accent"
-             href="{f:uri.action(action:actionName, arguments:{currentPage: pagination.nextPageNumber}, addQueryString:'untrusted')}"
-             title="{f:translate(key:'pagination.next')}">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
-          </a>
-        </li>
+        <f:then>
+          <li class="page-item">
+            <a class="page-link" href="{f:uri.action(action:actionName, arguments:{currentPage: pagination.nextPageNumber}, addQueryString:'untrusted')}"
+               title="{f:translate(key:'pagination.next')}" aria-label="{f:translate(key:'pagination.next')}">
+              <span aria-hidden="true">&raquo;</span>
+            </a>
+          </li>
+        </f:then>
+        <f:else>
+          <li class="page-item disabled">
+            <span class="page-link" aria-hidden="true">&raquo;</span>
+          </li>
+        </f:else>
       </f:if>
 
     </ul>

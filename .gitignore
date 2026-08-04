@@ -2,6 +2,9 @@
 .DS_Store
 Thumbs.db
 
+# Scratch: static Lovable-prototype mirror for local E2E comparison (regenerate via `npm run build` in /frontend)
+/public/_e2e-frontend/
+
 # IDEs
 .idea/
 .vscode/

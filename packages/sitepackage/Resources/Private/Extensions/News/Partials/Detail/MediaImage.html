@@ -4,8 +4,8 @@
 <figure class="my-4">
   <f:if condition="{mediaElement.link}">
     <f:then>
-      <f:link.typolink parameter="{mediaElement.link}" target="{n:targetLink(link:mediaElement.link)}" class="block">
-        <f:image image="{mediaElement}" class="max-w-full h-auto rounded"
+      <f:link.typolink parameter="{mediaElement.link}" target="{n:targetLink(link:mediaElement.link)}" class="d-block">
+        <f:image image="{mediaElement}" class="img-fluid rounded"
                  title="{mediaElement.title}" alt="{mediaElement.alternative}"
                  loading="{settings.detail.media.image.lazyLoading}"
                  width="{f:if(condition: settings.media.maxWidth, then: settings.media.maxWidth, else: settings.detail.media.image.maxWidth)}"
@@ -18,9 +18,9 @@
         <f:then>
           <a href="{f:uri.image(image:mediaElement, width:'{settings.detail.media.image.lightbox.width}', height:'{settings.detail.media.image.lightbox.height}')}"
              title="{mediaElement.title}"
-             class="{settings.detail.media.image.lightbox.class} block"
+             class="{settings.detail.media.image.lightbox.class} d-block"
              rel="{settings.detail.media.image.lightbox.rel}">
-            <f:image image="{mediaElement}" class="max-w-full h-auto rounded"
+            <f:image image="{mediaElement}" class="img-fluid rounded"
                      title="{mediaElement.title}" alt="{mediaElement.alternative}"
                      loading="{settings.detail.media.image.lazyLoading}"
                      width="{f:if(condition: settings.media.maxWidth, then: settings.media.maxWidth, else: settings.detail.media.image.maxWidth)}"
@@ -29,7 +29,7 @@
           </a>
         </f:then>
         <f:else>
-          <f:image image="{mediaElement}" class="max-w-full h-auto rounded"
+          <f:image image="{mediaElement}" class="img-fluid rounded"
                    title="{mediaElement.title}" alt="{mediaElement.alternative}"
                    loading="{settings.detail.media.image.lazyLoading}"
                    width="{f:if(condition: settings.media.maxWidth, then: settings.media.maxWidth, else: settings.detail.media.image.maxWidth)}"
@@ -40,7 +40,7 @@
     </f:else>
   </f:if>
   <f:if condition="{mediaElement.description}">
-    <figcaption class="mt-2 text-sm text-muted-foreground">{mediaElement.description}</figcaption>
+    <figcaption class="mt-2 small text-body-secondary">{mediaElement.description}</figcaption>
   </f:if>
 </figure>
 </html>

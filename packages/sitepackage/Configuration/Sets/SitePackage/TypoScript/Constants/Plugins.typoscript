@@ -13,6 +13,13 @@ plugin.tx_news {
     }
 }
 
+plugin.tx_indexedsearch {
+    view {
+        templateRootPath = EXT:sitepackage/Resources/Private/Extensions/IndexedSearch/Templates/
+        partialRootPath = EXT:sitepackage/Resources/Private/Extensions/IndexedSearch/Partials/
+    }
+}
+
 plugin.tx_lux.settings {
     # cat=lux//0010; type=boolean; label= Activate frontend functionality: All frontend functionalities can be toggled for testing or against flooding
     enableFrontendController = 1

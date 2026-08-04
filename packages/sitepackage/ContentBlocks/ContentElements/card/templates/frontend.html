@@ -1,13 +1,24 @@
-<div id="c{data.uid}" class="container my-8">
-  <div class="card-color-{data.color} overflow-hidden rounded-lg border border-border shadow transition-shadow duration-200 hover:shadow-md">
-    <f:if condition="{data.image}">
-      <f:image image="{data.image.0}" class="h-52 w-full object-cover" />
-    </f:if>
-    <div class="p-6">
-      <f:if condition="{data.header}">
-        <h4 class="mb-3 font-heading text-xl font-bold">{data.header}</h4>
+<div id="c{data.uid}" class="frame frame-{data.frame_class} frame-type-{data.CType} frame-layout-{data.layout}{f:if(condition: data.space_before_class, then: ' frame-space-before-{data.space_before_class}')}{f:if(condition: data.space_after_class, then: ' frame-space-after-{data.space_after_class}')}">
+  <div class="container my-5">
+    <div class="card card-color-{data.color} shadow-sm{f:if(condition: data.header_link, then: ' position-relative')}">
+      <f:if condition="{data.image}">
+        <f:image image="{data.image.0}" class="card-img-top" />
       </f:if>
-      <div>{data.bodytext->f:format.html()}</div>
+      <div class="card-body">
+        <f:if condition="{data.header}">
+          <h4 class="card-title">
+            <f:if condition="{data.header_link}">
+              <f:then>
+                <f:link.typolink parameter="{data.header_link}" class="stretched-link text-decoration-none">{data.header}</f:link.typolink>
+              </f:then>
+              <f:else>
+                {data.header}
+              </f:else>
+            </f:if>
+          </h4>
+        </f:if>
+        <div class="card-text">{data.bodytext -> f:format.html()}</div>
+      </div>
     </div>
   </div>
 </div>

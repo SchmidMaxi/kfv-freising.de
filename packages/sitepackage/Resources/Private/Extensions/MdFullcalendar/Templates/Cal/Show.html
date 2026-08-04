@@ -2,27 +2,27 @@
     <f:layout name="Default" />
 
     <f:section name="content">
-        <div class="flex flex-col lg:flex-row gap-6">
+        <div class="d-flex flex-column flex-lg-row gap-4">
             <!-- Kalender -->
             <div id="calendar{contentObject.uid}"
-                 class="{f:if(condition: '{categories}', then: 'lg:w-3/4', else: 'w-full')}">
+                 class="{f:if(condition: '{categories}', then: 'col-lg-9', else: 'w-100')}">
             </div>
 
             <!-- Kategorien-Filter -->
             <f:if condition="{categories}">
-                <div id="categoryFilter{contentObject.uid}" class="lg:w-1/4">
-                    <p class="text-sm font-medium text-foreground mb-3">
+                <div id="categoryFilter{contentObject.uid}" class="col-lg-3">
+                    <p class="small fw-medium mb-3">
                         {f:translate(key: 'filter_calendars', extensionName: 'MdFullcalendar')}
                     </p>
-                    <div class="flex flex-col gap-2">
+                    <div class="d-flex flex-column gap-2">
                         <f:for each="{categories}" as="category">
-                            <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer category{category.uid} px-3 py-2 rounded-lg border border-border hover:bg-secondary transition-colors">
+                            <label class="form-check d-flex align-items-center gap-2 small category{category.uid} px-3 py-2 rounded border">
                                 <input type="checkbox"
                                        value="category{category.uid}"
                                        name="categoryFilter{contentObject.uid}"
                                        id="cf{contentObject.uid}_{category.uid}"
-                                       class="accent-accent w-4 h-4 rounded">
-                                {category.title}
+                                       class="form-check-input mt-0">
+                                <span class="form-check-label">{category.title}</span>
                             </label>
                         </f:for>
                     </div>
@@ -32,16 +32,21 @@
 
         <!-- Dialog (nativer HTML5-Ersatz fuer Bootstrap Modal) -->
         <dialog id="calModal{contentObject.uid}"
-                class="w-full max-w-2xl rounded-xl bg-card border border-border shadow-xl p-0 backdrop:bg-black/50">
-            <div class="modal-content-inner overflow-y-auto max-h-[70vh]"></div>
-            <div class="flex justify-end px-6 py-4 border-t border-border">
+                class="cal-modal rounded shadow p-0 border-0">
+            <div class="modal-content-inner overflow-y-auto" style="max-height: 70vh;"></div>
+            <div class="d-flex justify-content-end px-4 py-3 border-top">
                 <button type="button"
-                        class="cal-modal-close inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-foreground hover:bg-secondary text-sm font-medium transition-colors"
+                        class="cal-modal-close btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-2"
                         data-dialog-id="calModal{contentObject.uid}">
                     {f:translate(key: 'close', extensionName: 'MdFullcalendar')}
                 </button>
             </div>
         </dialog>
+
+        <style>
+            .cal-modal { width: 100%; max-width: 42rem; }
+            .cal-modal::backdrop { background: rgba(0, 0, 0, .5); }
+        </style>
 
         <script type="text/javascript">
             document.addEventListener('DOMContentLoaded', function() {

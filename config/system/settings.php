@@ -98,6 +98,7 @@ return [
             'oidcEndpointUserInfo' => 'https://ids02.sac-cas.ch/oauth2/userinfo',
             'oidcRedirectUri' => 'https://kfv-freising.de/oidc/callback',
             'oidcRevokeAccessTokenAfterLogin' => '0',
+            'oidcUseRequestPathAuthentication' => '0',
             'reEnableFrontendUsers' => '0',
             'undeleteFrontendUsers' => '0',
             'usersDefaultGroup' => '',
@@ -120,7 +121,7 @@ return [
         'vite_asset_collector' => [
             'defaultManifest' => 'EXT:sitepackage/Resources/Public/Vite/.vite/manifest.json',
             'devServerUri' => 'auto',
-            'useDevServer' => '1',
+            'useDevServer' => 'auto',
         ],
     ],
     'FE' => [

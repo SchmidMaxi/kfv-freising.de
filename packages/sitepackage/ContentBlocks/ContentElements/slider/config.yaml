@@ -24,6 +24,20 @@ fields:
       - label: 'Logo-Band (Partner/Sponsoren)'
         value: logo
   -
+    identifier: sitepackage/breakpoints
+    type: Basic
+  -
+    identifier: autoplay
+    type: Checkbox
+    label: 'Automatisch abspielen'
+    default: 0
+  -
+    identifier: autoplay_interval
+    type: Number
+    label: 'Intervall (ms)'
+    default: 5000
+    displayCond: 'FIELD:sitepackage_slider_autoplay:=:1'
+  -
     identifier: items
     type: Collection
     labelField: header

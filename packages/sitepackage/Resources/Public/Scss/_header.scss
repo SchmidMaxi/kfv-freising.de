@@ -41,11 +41,11 @@
 
 [data-bs-theme="light"] {
   .show-dark-mode {
-    display: none;
+    display: none !important;
   }
 }
 [data-bs-theme="dark"] {
   .show-light-mode {
-    display: none;
+    display: none !important;
   }
 }

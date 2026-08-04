@@ -1,0 +1,36 @@
+<html
+    xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+    xmlns:is="http://typo3.org/ns/TYPO3/CMS/IndexedSearch/ViewHelpers"
+    data-namespace-typo3-fluid="true">
+<div class="tx-indexedsearch-res card mb-3 border-0 shadow-sm">
+    <div class="card-body d-flex gap-3">
+        <div class="flex-shrink-0 d-flex align-items-center justify-content-center rounded-circle bg-primary-subtle text-primary" style="width:2.75rem;height:2.75rem;">
+            <i class="bi bi-file-text-fill"></i>
+        </div>
+        <div class="flex-grow-1">
+            <h3 class="h6 fw-bold mb-1">
+                <span class="tx-indexedsearch-title">{row.title -> f:format.raw()}</span>
+            </h3>
+            <f:if condition="{row.headerOnly} == 0">
+                <p class="tx-indexedsearch-description text-body-secondary mb-2">{row.description -> f:format.raw()}</p>
+                <div class="d-flex flex-wrap gap-2 small text-body-secondary">
+                    <span class="badge bg-body-secondary text-body">
+                        <i class="bi bi-signpost-split me-1"></i><f:format.html>{row.path}</f:format.html>
+                    </span>
+                    <span><f:translate key="result.modified" /> <f:format.date>@{row.modified}</f:format.date></span>
+                </div>
+            </f:if>
+            <f:if condition="{row.headerOnly} == 1">
+                <p class="tx-indexedsearch-description text-body-secondary mb-0">{row.description -> f:format.raw()}</p>
+            </f:if>
+            <f:if condition="{row.subresults}">
+                <div class="tx-indexedsearch-list mt-2 ps-3 border-start">
+                    <f:for each="{row.subresults.items}" as="subrow">
+                        <f:render partial="Searchresult" arguments="{row: subrow}" />
+                    </f:for>
+                </div>
+            </f:if>
+        </div>
+    </div>
+</div>
+</html>

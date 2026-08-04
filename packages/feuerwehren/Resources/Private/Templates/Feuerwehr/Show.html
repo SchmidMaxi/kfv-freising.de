@@ -1,0 +1,159 @@
+<f:layout name="Default" />
+<f:section name="main">
+
+  <section class="bg-surface-dark py-5">
+    <div class="container" style="max-width: 42rem;">
+      <f:link.typolink parameter="45" class="d-inline-flex align-items-center gap-2 mb-4 text-decoration-none">
+        <span style="opacity:.8;"><i class="bi bi-arrow-left" aria-hidden="true"></i>Alle Feuerwehren</span>
+      </f:link.typolink>
+      <div class="d-flex align-items-center gap-3">
+        <div class="rounded-3 d-inline-flex align-items-center justify-content-center flex-shrink-0" style="width: 4rem; height: 4rem; background-color: rgba(255,255,255,.1);">
+          <i class="bi bi-shield-fill fs-2" aria-hidden="true"></i>
+        </div>
+        <div>
+          <h1 class="mb-1 fw-bold display-6">{feuerwehr.name}</h1>
+          <p class="mb-0" style="opacity: .8;">
+            {feuerwehr.ort}<f:if condition="{feuerwehr.gruendungsdatum}"> • Gegründet <f:format.date format="Y">{feuerwehr.gruendungsdatum}</f:format.date></f:if>
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="container py-5" style="max-width: 42rem;">
+    <p class="mb-4 text-body-secondary d-flex align-items-center gap-2">
+      <i class="bi bi-geo-alt text-primary" aria-hidden="true"></i>
+      {feuerwehr.strasse}, {feuerwehr.plz} {feuerwehr.ort}
+    </p>
+
+    <div class="card p-4 mb-4">
+      <div class="row g-3">
+        <f:if condition="{feuerwehr.gruendungsdatum}">
+          <div class="col-6 col-sm-4">
+            <div class="small text-body-secondary">Gegründet</div>
+            <div class="fw-semibold"><f:format.date format="Y">{feuerwehr.gruendungsdatum}</f:format.date></div>
+          </div>
+        </f:if>
+      </div>
+    </div>
+
+    <f:if condition="{feuerwehr.fahrzeugkategorien}">
+      <div class="card p-4 mb-4">
+        <h3 class="mb-3 fs-6 fw-semibold">Fahrzeugkategorien</h3>
+        <div class="d-flex flex-wrap gap-2">
+          <f:for each="{feuerwehr.fahrzeugkategorien}" as="kategorie">
+            <span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-2">{kategorie.title}</span>
+          </f:for>
+        </div>
+      </div>
+    </f:if>
+
+    <f:if condition="{feuerwehr.jubilaeen}">
+      <div class="card p-4 mb-4">
+        <h3 class="mb-3 fs-6 fw-semibold">Jubiläen</h3>
+        <ul class="list-unstyled d-flex flex-column gap-2 small mb-0">
+          <f:for each="{feuerwehr.jubilaeen}" as="jubilaeum">
+            <li class="d-flex align-items-center gap-2">
+              <i class="bi bi-award text-primary" aria-hidden="true"></i>
+              <f:if condition="{jubilaeum.datum}">
+                <f:format.date format="d.m.Y">{jubilaeum.datum}</f:format.date> —
+              </f:if>
+              {jubilaeum.titel} Jahre<f:if condition="{jubilaeum.beschreibung}"> · {jubilaeum.beschreibung}</f:if>
+            </li>
+          </f:for>
+        </ul>
+      </div>
+    </f:if>
+
+    <div class="alert alert-light border small mb-4 d-flex align-items-start gap-2">
+      <i class="bi bi-info-circle text-primary mt-1" aria-hidden="true"></i>
+      <div>
+        Die folgenden Abschnitte (Mitglieder, Kontakt, Einsatzstatistik, Bildergalerie) zeigen
+        <strong>nur Beispielwerte</strong>, damit das geplante Layout sichtbar wird. Es handelt sich
+        <strong>nicht</strong> um echte Angaben zu {feuerwehr.name} — diese folgen, sobald die
+        Feuerwehr die Daten bestätigt hat.
+      </div>
+    </div>
+
+    <!-- Platzhalter: Mitglieder -->
+    <div class="placeholder-card p-4 mb-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h3 class="fs-6 fw-semibold mb-0">Mitglieder</h3>
+        <span class="badge text-bg-secondary placeholder-badge">Beispielwert — noch zu bestätigen</span>
+      </div>
+      <div class="row g-3 text-center">
+        <div class="col-4">
+          <div class="fw-bold fs-4 text-body-secondary">–</div>
+          <div class="small text-body-secondary">Aktive</div>
+        </div>
+        <div class="col-4">
+          <div class="fw-bold fs-4 text-body-secondary">–</div>
+          <div class="small text-body-secondary">Jugend</div>
+        </div>
+        <div class="col-4">
+          <div class="fw-bold fs-4 text-body-secondary">–</div>
+          <div class="small text-body-secondary">Passiv/Fördernd</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Platzhalter: Kontakt -->
+    <div class="placeholder-card p-4 mb-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h3 class="fs-6 fw-semibold mb-0">Kontakt</h3>
+        <span class="badge text-bg-secondary placeholder-badge">Beispielwert — noch zu bestätigen</span>
+      </div>
+      <ul class="list-unstyled d-flex flex-column gap-2 small text-body-secondary mb-0">
+        <li class="d-flex align-items-center gap-2"><i class="bi bi-telephone" aria-hidden="true"></i>Telefonnummer folgt</li>
+        <li class="d-flex align-items-center gap-2"><i class="bi bi-envelope" aria-hidden="true"></i>E-Mail-Adresse folgt</li>
+      </ul>
+    </div>
+
+    <!-- Platzhalter: Einsatzstatistik -->
+    <div class="placeholder-card p-4 mb-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h3 class="fs-6 fw-semibold mb-0">Einsatzstatistik</h3>
+        <span class="badge text-bg-secondary placeholder-badge">Beispielwert — noch zu bestätigen</span>
+      </div>
+      <div class="row g-3 text-center">
+        <div class="col-4">
+          <i class="bi bi-fire text-body-secondary fs-5 d-block mb-1" aria-hidden="true"></i>
+          <div class="fw-bold text-body-secondary">–</div>
+          <div class="small text-body-secondary">Brand</div>
+        </div>
+        <div class="col-4">
+          <i class="bi bi-life-preserver text-body-secondary fs-5 d-block mb-1" aria-hidden="true"></i>
+          <div class="fw-bold text-body-secondary">–</div>
+          <div class="small text-body-secondary">Technische Hilfe</div>
+        </div>
+        <div class="col-4">
+          <i class="bi bi-shield text-body-secondary fs-5 d-block mb-1" aria-hidden="true"></i>
+          <div class="fw-bold text-body-secondary">–</div>
+          <div class="small text-body-secondary">Sonstige</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Platzhalter: Bildergalerie -->
+    <div class="placeholder-card p-4 mb-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h3 class="fs-6 fw-semibold mb-0">Bildergalerie</h3>
+        <span class="badge text-bg-secondary placeholder-badge">Platzhalter</span>
+      </div>
+      <div class="row row-cols-2 row-cols-sm-4 g-2">
+        <f:for each="{0: 0, 1: 1, 2: 2, 3: 3}" as="i">
+          <div class="col">
+            <div class="d-flex align-items-center justify-content-center rounded-3 bg-body-secondary text-body-secondary" style="aspect-ratio: 4 / 3;">
+              <i class="bi bi-image fs-3" aria-hidden="true"></i>
+            </div>
+          </div>
+        </f:for>
+      </div>
+    </div>
+
+    <f:link.typolink parameter="45" class="btn btn-primary d-inline-flex align-items-center gap-2">
+      <i class="bi bi-arrow-left" aria-hidden="true"></i>Zurück zur Karte
+    </f:link.typolink>
+  </div>
+
+</f:section>

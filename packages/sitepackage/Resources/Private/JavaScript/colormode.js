@@ -8,13 +8,8 @@
 
     const getTheme = () => getStored() || 'light'
 
-    const applyTheme = theme => {
-        if (theme === 'dark') {
-            document.documentElement.classList.add('dark')
-        } else {
-            document.documentElement.classList.remove('dark')
-        }
-    }
+    // data-bs-theme: Bootstrap 5.3 native dark mode selector
+    const applyTheme = theme => document.documentElement.setAttribute('data-bs-theme', theme)
 
     // Apply immediately before DOMContentLoaded to avoid flash
     applyTheme(getTheme())
@@ -22,7 +17,7 @@
     window.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('[data-theme-toggle]').forEach(btn => {
             btn.addEventListener('click', () => {
-                const next = document.documentElement.classList.contains('dark') ? 'light' : 'dark'
+                const next = document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark'
                 setStored(next)
                 applyTheme(next)
             })

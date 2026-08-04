@@ -1,0 +1,107 @@
+// KFV-Utilities — Bootstrap-Äquivalente der bisherigen Tailwind-Utilities.
+// Nutzt Bootstraps CSS-Custom-Properties (--bs-*), damit Dark Mode
+// (data-bs-theme="dark", s. _variables-dark.scss) automatisch mitgeht.
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// Verhindert Layout-Jump beim Anker-Scroll unter dem Sticky-Header
+body {
+  scroll-padding-top: 80px;
+}
+
+.gradient-fire {
+  background: linear-gradient(135deg, $fire 0%, $fire-light 100%);
+}
+
+.gradient-charcoal {
+  background: linear-gradient(135deg, $gray-900 0%, $gray-800 100%);
+}
+
+.gradient-navy {
+  background: linear-gradient(135deg, $gray-900 0%, shade-color($gray-900, 10%) 100%);
+}
+
+.bg-surface-dark {
+  background-color: $gray-900;
+  color: $white;
+}
+
+.text-surface-dark-foreground {
+  color: $white;
+}
+
+.text-surface-dark-muted {
+  color: rgba($white, 0.7);
+}
+
+.text-shadow {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+// Karten-Farbvarianten (verwendet in card + card-group + card-slider ContentBlocks)
+.card-color-default {
+  background-color: var(--#{$prefix}card-bg, var(--#{$prefix}body-bg));
+  color: var(--#{$prefix}card-color, var(--#{$prefix}body-color));
+}
+.card-color-light {
+  background-color: $gray-100;
+  color: var(--#{$prefix}body-color);
+}
+.card-color-dark {
+  background-color: $gray-900;
+  color: $white;
+}
+
+.backdrop-blur-nav {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+// Platzhalter-Kennzeichnung für Beispieldaten (z. B. Feuerwehr-/Personen-Detailseiten,
+// siehe Tracker-Punkt D7): eindeutig als „nicht echt" erkennbar — gestrichelter Rahmen,
+// gedämpfter Hintergrund. Bewusst *kein* Card-Schatten, damit sich der Block visuell von
+// echten Inhalts-Cards absetzt.
+.placeholder-card {
+  border: 1px dashed var(--#{$prefix}secondary-color);
+  border-radius: var(--#{$prefix}border-radius-lg);
+  background-color: var(--#{$prefix}tertiary-bg);
+}
+
+.placeholder-badge {
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+// Splide-Slider: Arrow-Styling für Slider-ContentBlocks
+.splide-slider .splide__arrow {
+  background: var(--#{$prefix}body-bg);
+  border: 1px solid var(--#{$prefix}border-color);
+  opacity: 1;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.splide-slider .splide__arrow:hover {
+  background: var(--#{$prefix}primary);
+}
+.splide-slider .splide__arrow svg {
+  fill: var(--#{$prefix}body-color);
+  width: 1rem;
+  height: 1rem;
+}
+.splide-slider .splide__arrow:hover svg {
+  fill: var(--#{$prefix}primary-bg-subtle);
+}
+.splide-slider .splide__pagination__page {
+  background: var(--#{$prefix}border-color);
+  opacity: 1;
+}
+.splide-slider .splide__pagination__page.is-active {
+  background: var(--#{$prefix}primary);
+  transform: scale(1.2);
+}

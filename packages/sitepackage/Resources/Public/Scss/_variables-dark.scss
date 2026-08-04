@@ -40,16 +40,19 @@ $light-border-subtle-dark:          $gray-700 !default;
 $dark-border-subtle-dark:           $gray-800 !default;
 // scss-docs-end theme-border-subtle-dark-variables
 
-$body-color-dark:                   $gray-300 !default;
-$body-bg-dark:                      #121821 !default;
+// Dunkle Grau-Skala aus Tailwind-Quelle (Resources/Private/Css/main.css, .dark-Block) —
+// eigene Werte statt der statischen (Light-Mode-)$gray-*-Variablen, da sich die
+// Grau-Skala im Dark Mode invertiert (100 = dunkelste Fläche statt hellste).
+$body-color-dark:                   #f6f5f4 !default; // gray-900 dark = Foreground
+$body-bg-dark:                      #121821 !default; // white dark
 $body-secondary-color-dark:         rgba($body-color-dark, .75) !default;
-$body-secondary-bg-dark:            $gray-300 !default;
+$body-secondary-bg-dark:            #18202a !default; // gray-100 dark — helle Sektionsfläche
 
-$body-tertiary-color-dark:          $gray-300 !default;
-$body-tertiary-bg-dark:             $gray-800 !default;
+$body-tertiary-color-dark:          #929caa !default; // gray-500 dark — Muted Text
+$body-tertiary-bg-dark:             #222c39 !default; // gray-200 dark — abgesetzte Sektionsfläche
 
 $body-emphasis-color-dark:          $white !default;
-$border-color-dark:                 $gray-700 !default;
+$border-color-dark:                 #5f6d81 !default; // gray-300 dark
 $border-color-translucent-dark:     rgba($white, .15) !default;
 $headings-color-dark:               inherit !default;
 $link-color-dark:                   tint-color($primary, 40%) !default;

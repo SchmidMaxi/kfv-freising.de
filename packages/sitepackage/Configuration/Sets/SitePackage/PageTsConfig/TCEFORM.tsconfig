@@ -11,6 +11,10 @@ TCEFORM {
             addItems {
                 container-fluid = Volle Breite
                 primary-card = Primary-Karte
+                bg-white = Hintergrund: Weiß
+                bg-body-secondary = Hintergrund: Sekundär (hellgrau)
+                bg-body-tertiary = Hintergrund: Tertiär (gedämpft)
+                bg-surface-dark = Hintergrund: Dunkel (Marke)
             }
             types {
                 section {

@@ -26,6 +26,14 @@ plugin.tx_mdfullcalendar {
     }
 }
 
+plugin.tx_form {
+    settings {
+        yamlConfigurations {
+            20 = EXT:sitepackage/Configuration/Yaml/FormSetup.yaml
+        }
+    }
+}
+
 plugin.tx_news {
     settings {
         cssFile >

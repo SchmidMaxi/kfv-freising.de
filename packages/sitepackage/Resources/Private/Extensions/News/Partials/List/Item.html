@@ -2,22 +2,22 @@
 	  xmlns:n="http://typo3.org/ns/GeorgRinger/News/ViewHelpers"
 	  data-namespace-typo3-fluid="true">
 
-<article class="overflow-hidden bg-card rounded-lg border border-border shadow hover:shadow-lg transition-shadow"
-         itemscope="itemscope" itemtype="https://schema.org/Article">
+<article class="card shadow-sm" itemscope="itemscope" itemtype="https://schema.org/Article">
     <n:excludeDisplayedNews newsItem="{newsItem}"/>
 
     <n:link newsItem="{newsItem}" settings="{settings}" title="{newsItem.title}"
-            class="group flex flex-col sm:flex-row no-underline"
+            class="row g-0 flex-column flex-sm-row text-decoration-none text-reset"
             additionalAttributes="{itemprop: 'url'}">
 
         <!-- Bild -->
-        <div class="sm:w-48 h-48 sm:h-48 overflow-hidden flex-shrink-0 bg-muted">
+        <div class="col-sm-3 bg-body-secondary">
             <f:if condition="{newsItem.mediaPreviews}">
                 <f:then>
                     <f:alias map="{mediaElement: newsItem.mediaPreviews.0}">
                         <f:if condition="{mediaElement.originalResource.type} == 2 || {mediaElement.originalResource.type} == 5">
                             <f:image image="{mediaElement}"
-                                     class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                     class="w-100 h-100"
+                                     style="object-fit: cover;"
                                      title="{mediaElement.originalResource.title}"
                                      alt="{mediaElement.originalResource.alternative}"
                                      loading="{settings.list.media.image.lazyLoading}"
@@ -28,7 +28,8 @@
                 <f:else>
                     <f:if condition="{settings.displayDummyIfNoMedia}">
                         <f:image src="{settings.list.media.dummyImage}"
-                                 class="w-full h-full object-cover"
+                                 class="w-100 h-100"
+                                 style="object-fit: cover;"
                                  alt="" loading="{settings.list.media.image.lazyLoading}"
                                  width="300" height="300"/>
                     </f:if>
@@ -37,45 +38,45 @@
         </div>
 
         <!-- Inhalt -->
-        <div class="flex-1 p-6">
+        <div class="col-sm-9">
+            <div class="card-body">
 
-            <!-- Kategorie + Datum -->
-            <div class="flex items-center gap-3 mb-3 flex-wrap">
-                <f:if condition="{newsItem.firstCategory}">
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold text-white gradient-fire"
-                          itemprop="keywords">
-                        {newsItem.firstCategory.title}
-                    </span>
-                </f:if>
-                <span class="text-sm text-muted-foreground flex items-center gap-1.5">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
-                    <time itemprop="datePublished"
-                          datetime="{f:format.date(date: newsItem.datetime, format: 'Y-m-d')}">
-                        <f:format.date format="j. F Y">{newsItem.datetime}</f:format.date>
-                    </time>
-                </span>
-            </div>
-
-            <!-- Titel -->
-            <h3 class="font-heading font-semibold text-xl text-card-foreground mb-2 group-hover:text-accent transition-colors"
-                itemprop="headline">
-                {newsItem.title}
-            </h3>
-
-            <!-- Teaser -->
-            <div class="text-muted-foreground text-sm leading-relaxed" itemprop="description">
-                <n:removeMediaTags>
-                    <f:if condition="{newsItem.teaser}">
-                        <f:then>
-                            {newsItem.teaser -> f:format.crop(maxCharacters: '{settings.cropMaxCharacters}', respectWordBoundaries: '1') -> f:format.html()}
-                        </f:then>
-                        <f:else>
-                            {newsItem.bodytext -> f:format.crop(maxCharacters: '{settings.cropMaxCharacters}', respectWordBoundaries: '1') -> f:format.html()}
-                        </f:else>
+                <!-- Kategorie + Datum -->
+                <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
+                    <f:if condition="{newsItem.firstCategory}">
+                        <span class="badge rounded-pill gradient-fire text-white" itemprop="keywords">
+                            {newsItem.firstCategory.title}
+                        </span>
                     </f:if>
-                </n:removeMediaTags>
-            </div>
+                    <span class="small text-body-secondary d-inline-flex align-items-center gap-1">
+                        <i class="bi bi-calendar3" aria-hidden="true"></i>
+                        <time itemprop="datePublished"
+                              datetime="{f:format.date(date: newsItem.datetime, format: 'Y-m-d')}">
+                            <f:format.date format="j. F Y">{newsItem.datetime}</f:format.date>
+                        </time>
+                    </span>
+                </div>
 
+                <!-- Titel -->
+                <h3 class="card-title h5" itemprop="headline">
+                    {newsItem.title}
+                </h3>
+
+                <!-- Teaser -->
+                <div class="card-text small text-body-secondary" itemprop="description">
+                    <n:removeMediaTags>
+                        <f:if condition="{newsItem.teaser}">
+                            <f:then>
+                                {newsItem.teaser -> f:format.crop(maxCharacters: '{settings.cropMaxCharacters}', respectWordBoundaries: '1') -> f:format.html()}
+                            </f:then>
+                            <f:else>
+                                {newsItem.bodytext -> f:format.crop(maxCharacters: '{settings.cropMaxCharacters}', respectWordBoundaries: '1') -> f:format.html()}
+                            </f:else>
+                        </f:if>
+                    </n:removeMediaTags>
+                </div>
+
+            </div>
         </div>
 
     </n:link>

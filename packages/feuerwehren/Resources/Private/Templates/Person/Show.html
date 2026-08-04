@@ -1,30 +1,86 @@
 <f:layout name="Default" />
 <f:section name="main">
 
-  <div class="container py-8 max-w-2xl">
-    <h1 class="mb-2 font-heading text-3xl font-bold text-foreground">
-      <f:if condition="{person.feUser}">{person.feUser.name}<f:else>{person.title}</f:else></f:if>
-    </h1>
-    <p class="mb-6 text-muted-foreground">
-      <span class="font-medium text-foreground">Funktion:</span> {person.title}
-    </p>
+  <section class="bg-surface-dark py-5">
+    <div class="container" style="max-width: 42rem;">
+      <f:link.typolink parameter="12" class="d-inline-flex align-items-center gap-2 mb-4 text-decoration-none">
+        <span style="opacity:.8;"><i class="bi bi-arrow-left" aria-hidden="true"></i>Zurück zum Verband</span>
+      </f:link.typolink>
+      <div class="d-flex align-items-center gap-3">
+        <div class="rounded-3 d-inline-flex align-items-center justify-content-center flex-shrink-0" style="width: 4rem; height: 4rem; background-color: rgba(255,255,255,.1);">
+          <i class="bi bi-people-fill fs-2" aria-hidden="true"></i>
+        </div>
+        <div>
+          <h1 class="mb-1 fw-bold display-6">
+            <f:if condition="{person.feUser}">{person.feUser.name}<f:else>{person.title}</f:else></f:if>
+          </h1>
+          <p class="mb-0" style="opacity: .8;">{person.title}</p>
+        </div>
+      </div>
+    </div>
+  </section>
 
+  <div class="container py-5" style="max-width: 42rem;">
     <f:if condition="{person.gemeinde}">
-      <div class="mb-6 rounded-lg border border-border bg-card p-5">
-        <h3 class="mb-3 font-heading text-base font-semibold text-foreground">Zugeordnete Gemeinden</h3>
-        <ul class="space-y-1 text-sm">
+      <div class="card p-4 mb-4">
+        <h3 class="mb-3 fs-6 fw-semibold">Zugeordnete Gemeinden</h3>
+        <ul class="list-unstyled d-flex flex-column gap-1 small mb-0">
           <f:for each="{person.gemeinde}" as="gemeinde">
-            <li class="flex items-center gap-2 text-foreground">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>{gemeinde.name}
+            <li class="d-flex align-items-center gap-2">
+              <i class="bi bi-geo-alt text-primary" aria-hidden="true"></i>{gemeinde.name}
             </li>
           </f:for>
         </ul>
       </div>
     </f:if>
 
-    <f:link.action action="list"
-                   class="inline-flex items-center gap-2 gradient-fire rounded-lg px-4 py-2 font-medium text-white no-underline transition-opacity hover:opacity-90">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>Zurück zum Organigramm
+    <div class="alert alert-light border small mb-4 d-flex align-items-start gap-2">
+      <i class="bi bi-info-circle text-primary mt-1" aria-hidden="true"></i>
+      <div>
+        Die folgenden Abschnitte (Werdegang, Auszeichnungen, Kontakt) zeigen
+        <strong>nur Beispielwerte</strong>, damit das geplante Layout sichtbar wird. Es handelt sich
+        <strong>nicht</strong> um echte, bestätigte Angaben zu dieser Person.
+      </div>
+    </div>
+
+    <!-- Platzhalter: Werdegang -->
+    <div class="placeholder-card p-4 mb-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h3 class="fs-6 fw-semibold mb-0">Werdegang</h3>
+        <span class="badge text-bg-secondary placeholder-badge">Beispielwert — noch zu bestätigen</span>
+      </div>
+      <p class="small text-body-secondary mb-0">
+        Kurzbiografie / Werdegang folgt, sobald von der Person bestätigt.
+      </p>
+    </div>
+
+    <!-- Platzhalter: Auszeichnungen -->
+    <div class="placeholder-card p-4 mb-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h3 class="fs-6 fw-semibold mb-0">Auszeichnungen</h3>
+        <span class="badge text-bg-secondary placeholder-badge">Beispielwert — noch zu bestätigen</span>
+      </div>
+      <div class="d-flex flex-wrap gap-2">
+        <span class="badge text-bg-light border text-body-secondary d-inline-flex align-items-center gap-2 py-2 px-3">
+          <i class="bi bi-award" aria-hidden="true"></i>Auszeichnung folgt
+        </span>
+      </div>
+    </div>
+
+    <!-- Platzhalter: Kontakt -->
+    <div class="placeholder-card p-4 mb-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h3 class="fs-6 fw-semibold mb-0">Kontakt</h3>
+        <span class="badge text-bg-secondary placeholder-badge">Beispielwert — noch zu bestätigen</span>
+      </div>
+      <ul class="list-unstyled d-flex flex-column gap-2 small text-body-secondary mb-0">
+        <li class="d-flex align-items-center gap-2"><i class="bi bi-telephone" aria-hidden="true"></i>Telefonnummer folgt</li>
+        <li class="d-flex align-items-center gap-2"><i class="bi bi-envelope" aria-hidden="true"></i>E-Mail-Adresse folgt</li>
+      </ul>
+    </div>
+
+    <f:link.action action="list" class="btn btn-primary d-inline-flex align-items-center gap-2">
+      <i class="bi bi-arrow-left" aria-hidden="true"></i>Zurück zum Organigramm
     </f:link.action>
   </div>
 

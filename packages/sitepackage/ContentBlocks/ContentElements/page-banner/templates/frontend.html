@@ -1,0 +1,24 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+
+<style>
+    .page-banner { padding: 4rem 0; }
+    @media (min-width: 768px) { .page-banner { padding: 6rem 0; } }
+</style>
+
+<section id="c{data.uid}" class="page-banner bg-surface-dark frame frame-{data.frame_class} frame-type-{data.CType} frame-layout-{data.layout}{f:if(condition: data.space_before_class, then: ' frame-space-before-{data.space_before_class}')}{f:if(condition: data.space_after_class, then: ' frame-space-after-{data.space_after_class}')}">
+    <div class="container text-center">
+        <h1 class="display-5 fw-bold mb-3">{data.header}</h1>
+
+        <f:if condition="{data.subheadline}">
+            <p class="lead mb-0 mx-auto" style="max-width: 40rem; opacity: .8;">{data.subheadline}</p>
+        </f:if>
+
+        <f:if condition="{data.badge_text}">
+            <div class="mt-4">
+                <span class="badge rounded-pill bg-white text-dark fs-6 px-3 py-2">{data.badge_text}</span>
+            </div>
+        </f:if>
+    </div>
+</section>
+
+</html>

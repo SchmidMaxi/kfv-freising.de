@@ -1,47 +1,47 @@
 <f:layout name="Default" />
 <f:section name="main">
 
-  <div class="container py-8">
-    <h1 class="mb-6 font-heading text-3xl font-bold text-foreground">Jubiläen der Feuerwehren</h1>
+  <div class="container py-5">
+    <h1 class="mb-4 fw-bold display-6">Jubiläen der Feuerwehren</h1>
 
-    <div class="overflow-x-auto rounded-lg border border-border shadow-sm">
-      <table class="w-full text-sm text-foreground" id="jubilaeum-table">
-        <thead class="bg-muted">
+    <div class="table-responsive shadow-sm rounded border">
+      <table class="table table-hover align-middle mb-0" id="jubilaeum-table">
+        <thead class="table-light">
           <tr>
-            <th class="px-4 py-3 text-left">
-              <button data-sort-col="0" class="jubilaeum-sort flex items-center gap-1.5 font-semibold hover:text-accent transition-colors" aria-sort="none">
+            <th>
+              <button data-sort-col="0" class="jubilaeum-sort btn btn-link p-0 text-decoration-none d-inline-flex align-items-center gap-1 fw-semibold" aria-sort="none">
                 Feuerwehr
-                <svg data-icon="both" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
-                <svg data-icon="asc" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 9 5-5 5 5"/></svg>
-                <svg data-icon="desc" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 15 5 5 5-5"/></svg>
+                <i data-icon="both" class="bi bi-arrow-down-up small opacity-50" aria-hidden="true"></i>
+                <i data-icon="asc" class="bi bi-arrow-up small d-none" aria-hidden="true"></i>
+                <i data-icon="desc" class="bi bi-arrow-down small d-none" aria-hidden="true"></i>
               </button>
             </th>
-            <th class="px-4 py-3 text-left">
-              <button data-sort-col="1" class="jubilaeum-sort flex items-center gap-1.5 font-semibold hover:text-accent transition-colors" aria-sort="none">
+            <th>
+              <button data-sort-col="1" class="jubilaeum-sort btn btn-link p-0 text-decoration-none d-inline-flex align-items-center gap-1 fw-semibold" aria-sort="none">
                 Gründungsdatum
-                <svg data-icon="both" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
-                <svg data-icon="asc" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 9 5-5 5 5"/></svg>
-                <svg data-icon="desc" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 15 5 5 5-5"/></svg>
+                <i data-icon="both" class="bi bi-arrow-down-up small opacity-50" aria-hidden="true"></i>
+                <i data-icon="asc" class="bi bi-arrow-up small d-none" aria-hidden="true"></i>
+                <i data-icon="desc" class="bi bi-arrow-down small d-none" aria-hidden="true"></i>
               </button>
             </th>
             <f:for each="{jubilaeumsTitel}" as="titel">
-              <th class="px-4 py-3 text-left font-semibold">{titel} Jahre</th>
+              <th class="fw-semibold">{titel} Jahre</th>
             </f:for>
           </tr>
         </thead>
-        <tbody class="divide-y divide-border">
+        <tbody>
           <f:for each="{feuerwehrenData}" as="data">
-            <tr class="transition-colors hover:bg-muted/50">
-              <td class="px-4 py-3 font-medium">{data.feuerwehr.name}</td>
-              <td class="px-4 py-3 text-muted-foreground">
+            <tr>
+              <td class="fw-medium">{data.feuerwehr.name}</td>
+              <td class="text-body-secondary">
                 <f:if condition="{data.feuerwehr.gruendungsdatum}">
                   <f:format.date format="d.m.Y">{data.feuerwehr.gruendungsdatum}</f:format.date>
                 </f:if>
               </td>
               <f:for each="{jubilaeumsTitel}" as="titel">
-                <td class="px-4 py-3">
+                <td>
                   <f:if condition="{data.jubilaeen.{titel}.datum}">
-                    <span class="inline-block gradient-fire rounded-full px-2 py-0.5 text-xs font-medium text-white">
+                    <span class="badge rounded-pill gradient-fire text-white">
                       <f:format.date format="d.m.Y">{data.jubilaeen.{titel}.datum}</f:format.date>
                     </span>
                   </f:if>
@@ -68,16 +68,16 @@
 
             table.querySelectorAll('.jubilaeum-sort').forEach(b => {
               b.setAttribute('aria-sort', 'none');
-              b.querySelector('[data-icon="both"]').classList.remove('hidden');
+              b.querySelector('[data-icon="both"]').classList.remove('d-none');
               b.querySelector('[data-icon="both"]').classList.add('opacity-50');
-              b.querySelector('[data-icon="asc"]').classList.add('hidden');
-              b.querySelector('[data-icon="desc"]').classList.add('hidden');
+              b.querySelector('[data-icon="asc"]').classList.add('d-none');
+              b.querySelector('[data-icon="desc"]').classList.add('d-none');
             });
 
             btn.setAttribute('aria-sort', dir === 'asc' ? 'ascending' : 'descending');
-            btn.querySelector('[data-icon="both"]').classList.add('hidden');
-            btn.querySelector('[data-icon="asc"]').classList.toggle('hidden', dir !== 'asc');
-            btn.querySelector('[data-icon="desc"]').classList.toggle('hidden', dir !== 'desc');
+            btn.querySelector('[data-icon="both"]').classList.add('d-none');
+            btn.querySelector('[data-icon="asc"]').classList.toggle('d-none', dir !== 'asc');
+            btn.querySelector('[data-icon="desc"]').classList.toggle('d-none', dir !== 'desc');
 
             const rows = Array.from(tbody.querySelectorAll('tr'));
             rows.sort((a, b) => {

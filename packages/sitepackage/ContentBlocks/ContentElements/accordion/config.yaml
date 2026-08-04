@@ -39,10 +39,8 @@ fields:
         type: Textarea
         enableRichtext: true
         label: 'Antwort / Inhalt'
-      - identifier: icon
-        type: Text
-        label: 'Icon (Bootstrap Icons Name)'
-        placeholder: 'z.B. shield-fill, question-circle, file-text'
+      - identifier: sitepackage/bootstrap-icon
+        type: Basic
       - identifier: icon_color
         type: Select
         renderType: selectSingle

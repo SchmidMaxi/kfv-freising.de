@@ -4,33 +4,27 @@
 <f:layout name="General" />
 
 <f:section name="content">
-  <div class="news-search-form max-w-lg">
+  <div class="news-search-form" style="max-width: 32rem;">
     <n:searchForm object="{search}" name="search" pageUid="{settings.listPid}" method="get">
-      <fieldset class="space-y-4">
-        <div>
-          <label for="news-subject" class="mb-1 block text-sm font-medium text-foreground">
-            <f:translate key="search-subject" />
-          </label>
-          <f:form.textfield id="news-subject" property="subject"
-                            class="w-full rounded-lg border border-input bg-card px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-accent" />
-        </div>
-        <div>
-          <label for="news-minimumDate" class="mb-1 block text-sm font-medium text-foreground">
-            <f:translate key="search-minimumDate" />
-          </label>
-          <f:form.textfield id="news-minimumDate" property="minimumDate" type="date"
-                            class="w-full rounded-lg border border-input bg-card px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-accent" />
-        </div>
-        <div>
-          <label for="news-maximumDate" class="mb-1 block text-sm font-medium text-foreground">
-            <f:translate key="search-maximumDate" />
-          </label>
-          <f:form.textfield id="news-maximumDate" property="maximumDate" type="date"
-                            class="w-full rounded-lg border border-input bg-card px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-accent" />
-        </div>
-        <f:form.submit value="{f:translate(key:'search-start')}"
-                       class="gradient-fire cursor-pointer rounded-lg px-5 py-2 font-medium text-white transition-opacity hover:opacity-90" />
-      </fieldset>
+      <div class="mb-3">
+        <label for="news-subject" class="form-label">
+          <f:translate key="search-subject" />
+        </label>
+        <f:form.textfield id="news-subject" property="subject" class="form-control" />
+      </div>
+      <div class="mb-3">
+        <label for="news-minimumDate" class="form-label">
+          <f:translate key="search-minimumDate" />
+        </label>
+        <f:form.textfield id="news-minimumDate" property="minimumDate" type="date" class="form-control" />
+      </div>
+      <div class="mb-3">
+        <label for="news-maximumDate" class="form-label">
+          <f:translate key="search-maximumDate" />
+        </label>
+        <f:form.textfield id="news-maximumDate" property="maximumDate" type="date" class="form-control" />
+      </div>
+      <f:form.submit value="{f:translate(key:'search-start')}" class="btn btn-primary" />
     </n:searchForm>
   </div>
 </f:section>

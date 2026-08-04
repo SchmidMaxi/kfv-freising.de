@@ -1,23 +1,23 @@
 <f:layout name="Default" />
 <f:section name="main">
 
-  <div class="container py-8">
-    <h1 class="mb-8 font-heading text-3xl font-bold text-foreground">Organigramm der Kreisbrandinspektion</h1>
+  <div class="container py-5">
+    <h1 class="mb-5 fw-bold display-6">Organigramm der Kreisbrandinspektion</h1>
 
-    <div class="organigramm-list space-y-8">
+    <div class="organigramm-list d-flex flex-column gap-5">
 
       <f:if condition="{kbr}">
-        <div class="org-level org-level-kbr flex justify-center">
+        <div class="org-level org-level-kbr d-flex justify-content-center">
           <f:render partial="Person/AreaItem" arguments="{area: kbr}" />
         </div>
       </f:if>
 
       <f:if condition="{fachKbms}">
         <div>
-          <h3 class="mb-4 font-heading text-lg font-semibold text-muted-foreground uppercase tracking-wide">
+          <h3 class="mb-3 fs-6 fw-semibold text-body-secondary text-uppercase" style="letter-spacing: .04em;">
             Fach-Kreisbrandmeister
           </h3>
-          <div class="org-level org-level-fach-kbm flex flex-wrap gap-3">
+          <div class="org-level org-level-fach-kbm d-flex flex-wrap gap-3">
             <f:for each="{fachKbms}" as="fachKbm">
               <f:render partial="Person/AreaItem" arguments="{area: fachKbm}" />
             </f:for>
@@ -27,15 +27,15 @@
 
       <f:if condition="{kbisWithChildren}">
         <div>
-          <h3 class="mb-4 font-heading text-lg font-semibold text-muted-foreground uppercase tracking-wide">
+          <h3 class="mb-3 fs-6 fw-semibold text-body-secondary text-uppercase" style="letter-spacing: .04em;">
             Kreisbrandinspektoren
           </h3>
-          <div class="org-level org-level-kbi-list flex flex-wrap gap-6">
+          <div class="org-level org-level-kbi-list d-flex flex-wrap gap-4">
             <f:for each="{kbisWithChildren}" as="kbiItem">
-              <div class="kbi-block rounded-xl border border-border bg-card p-4 shadow-sm">
+              <div class="kbi-block card p-3 shadow-sm">
                 <f:render partial="Person/AreaItem" arguments="{area: kbiItem.kbi}" />
                 <f:if condition="{kbiItem.kbms}">
-                  <div class="org-level-kbm mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
+                  <div class="org-level-kbm mt-3 d-flex flex-wrap gap-2 border-top pt-3">
                     <f:for each="{kbiItem.kbms}" as="kbm">
                       <f:render partial="Person/AreaItem" arguments="{area: kbm}" />
                     </f:for>

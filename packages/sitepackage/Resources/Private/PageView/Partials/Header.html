@@ -1,184 +1,130 @@
 <html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
 
-<header class="sticky top-0 z-50 w-full">
+<header class="sticky-top">
 
     <!-- Preheader: dunkle Top-Bar, nur Desktop -->
-    <div class="bg-surface-dark hidden md:block">
-        <div class="container py-2">
-            <div class="flex justify-between items-center text-sm">
-                <div class="flex items-center gap-6">
-                    <a href="tel:+49816160033170"
-                       class="flex items-center gap-2 text-surface-dark-foreground/80 hover:text-fire-red-light transition-colors no-underline">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12.1a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.8 1.2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.96a16 16 0 0 0 6.29 6.29l1.02-1.04a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                        <span>08161 / 600 33 170</span>
-                    </a>
-                    <f:link.email email="info@kfv-freising.de"
-                                  class="flex items-center gap-2 text-surface-dark-foreground/80 hover:text-fire-red-light transition-colors no-underline">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-                        <span>info@kfv-freising.de</span>
-                    </f:link.email>
-                </div>
-                <div class="flex items-center gap-4">
-                    <span class="text-surface-dark-foreground/70">Notruf:</span>
-                    <span class="font-heading font-bold text-fire-red-light text-lg">112</span>
-                </div>
+    <div id="preheader" class="bg-surface-dark d-none d-md-block py-2">
+        <div class="container d-flex justify-content-between align-items-center small">
+            <div class="d-flex align-items-center gap-4">
+                <a href="tel:+49816160033170" class="d-inline-flex align-items-center gap-2 text-decoration-none">
+                    <i class="bi bi-telephone-fill" aria-hidden="true"></i>
+                    <span>08161 / 600 33 170</span>
+                </a>
+                <f:link.email email="info@kfv-freising.de" class="d-inline-flex align-items-center gap-2 text-decoration-none">
+                    <i class="bi bi-envelope-fill" aria-hidden="true"></i>
+                    <span>info@kfv-freising.de</span>
+                </f:link.email>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-white-50">Notruf:</span>
+                <span class="fw-bold fs-5 text-danger">112</span>
             </div>
         </div>
     </div>
 
     <!-- Hauptnavigation -->
-    <nav class="bg-background/95 backdrop-blur-md border-b border-border shadow-sm">
-        <div class="container flex items-center justify-between h-16 md:h-20">
+    <nav id="nav_main" class="navbar navbar-expand-lg bg-body bg-opacity-95 backdrop-blur-nav border-bottom shadow-sm py-2">
+        <div class="container">
 
             <!-- Logo -->
-            <f:link.typolink parameter="/" class="flex items-center gap-3 no-underline shrink-0">
+            <f:link.typolink parameter="/" class="navbar-brand d-flex align-items-center gap-2 py-1">
                 <img src="{f:uri.image(src: settings.Sitepackage.logo)}"
                      alt="Kreisfeuerwehrverband Freising e.V. Logo"
-                     class="h-12 md:h-14 w-auto dark:hidden" />
+                     class="show-light-mode"
+                     style="height: 3rem; width: auto;" />
                 <img src="{f:uri.image(src: settings.Sitepackage.logoInverse)}"
                      alt="Kreisfeuerwehrverband Freising e.V. Logo"
-                     class="h-12 md:h-14 w-auto hidden dark:block" />
+                     class="show-dark-mode"
+                     style="height: 3rem; width: auto;" />
             </f:link.typolink>
 
-            <!-- Desktop-Navigation (ab lg) -->
-            <ul class="hidden lg:flex items-center gap-1 list-none m-0 p-0">
-                <li>
-                    <a href="/"
-                       class="inline-flex h-9 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors no-underline text-foreground hover:bg-secondary hover:text-foreground">
-                        Startseite
-                    </a>
-                </li>
-                <f:for each="{main}" as="navItem">
-                    <f:if condition="!{navItem.spacer}">
-                        <f:if condition="!{navItem.children}">
-                            <f:then>
-                                <li>
-                                    <a href="{navItem.link}"
-                                       class="inline-flex h-9 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors no-underline {f:if(condition: navItem.active, then: 'text-accent font-semibold', else: 'text-foreground hover:bg-secondary hover:text-foreground')}">
-                                        {navItem.title}
-                                    </a>
-                                </li>
-                            </f:then>
-                            <f:else>
-                                <!-- Dropdown via CSS group-hover -->
-                                <li class="relative group">
-                                    <div class="flex items-center">
-                                        <a href="{navItem.link}"
-                                           class="inline-flex h-9 items-center justify-center rounded-md pl-4 pr-2 py-2 text-sm font-medium transition-colors no-underline {f:if(condition: navItem.active, then: 'text-accent font-semibold', else: 'text-foreground hover:bg-secondary hover:text-foreground')}">
-                                            {navItem.title}
-                                        </a>
-                                        <button type="button"
-                                                class="inline-flex h-9 items-center justify-center rounded-md px-1 py-2 text-foreground focus:outline-none hover:bg-secondary transition-colors">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200 group-hover:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-                                            <span class="sr-only">Untermenü öffnen</span>
-                                        </button>
-                                    </div>
-                                    <!-- Dropdown-Menü -->
-                                    <ul class="hidden group-hover:block absolute top-full left-0 mt-1 min-w-48 bg-card border border-border rounded-lg shadow-md py-1 z-50 list-none p-0 m-0">
-                                        <f:for each="{navItem.children}" as="child">
-                                            <f:if condition="!{child.spacer}">
-                                                <li>
-                                                    <a href="{child.link}"
-                                                       class="block px-4 py-2 text-sm transition-colors no-underline {f:if(condition: child.active, then: 'text-accent bg-secondary', else: 'text-foreground hover:bg-secondary hover:text-accent')}">
-                                                        {child.title}
-                                                    </a>
-                                                </li>
-                                            </f:if>
-                                        </f:for>
-                                    </ul>
-                                </li>
-                            </f:else>
-                        </f:if>
-                    </f:if>
-                </f:for>
-            </ul>
-
-            <!-- Desktop Rechts: Suche + Theme-Toggle -->
-            <div class="hidden lg:flex items-center gap-2">
-                <a href="/suche"
-                   class="inline-flex h-9 w-9 items-center justify-center rounded-md text-foreground hover:bg-secondary transition-colors no-underline"
-                   aria-label="Suche">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-                </a>
-                <!-- Theme-Toggle: Sun/Moon wie im Frontend -->
-                <button data-theme-toggle
-                        class="relative inline-flex h-9 w-9 items-center justify-center rounded-md text-foreground hover:bg-secondary transition-colors overflow-hidden"
-                        aria-label="Theme wechseln">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-all duration-300 rotate-0 scale-100 dark:-rotate-90 dark:scale-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute transition-all duration-300 rotate-90 scale-0 dark:rotate-0 dark:scale-100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
-                    <span class="sr-only">Theme wechseln</span>
-                </button>
-            </div>
-
-            <!-- Mobile: Hamburger-Button -->
-            <button id="mobile-menu-toggle"
-                    class="lg:hidden p-2 text-foreground"
-                    aria-label="Menü öffnen"
-                    aria-expanded="false"
-                    aria-controls="mobile-menu">
-                <svg id="mobile-icon-open" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
-                <svg id="mobile-icon-close" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            <!-- Mobile: Offcanvas-Toggle -->
+            <button class="navbar-toggler" type="button"
+                    data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavbar"
+                    aria-controls="offcanvasNavbar" aria-label="Menü öffnen">
+                <span class="navbar-toggler-icon"></span>
             </button>
-        </div>
 
-        <!-- Mobile-Menü -->
-        <div id="mobile-menu" class="hidden lg:hidden border-t border-border bg-background">
-            <ul class="container py-4 space-y-1 list-none p-4 m-0">
-                <li>
-                    <a href="/"
-                       class="block px-4 py-3 font-medium text-foreground hover:bg-secondary rounded-md transition-colors no-underline">
-                        Startseite
-                    </a>
-                </li>
-                <f:for each="{main}" as="navItem">
-                    <f:if condition="!{navItem.spacer}">
-                        <li>
-                            <f:if condition="!{navItem.children}">
-                                <f:then>
-                                    <a href="{navItem.link}"
-                                       class="block px-4 py-3 font-medium rounded-md transition-colors no-underline {f:if(condition: navItem.active, then: 'text-accent bg-secondary', else: 'text-foreground hover:bg-secondary')}">
-                                        {navItem.title}
-                                    </a>
-                                </f:then>
-                                <f:else>
-                                    <!-- Mobile Sub-Navigation via <details> -->
-                                    <details class="group">
-                                        <summary class="flex items-center justify-between px-4 py-3 rounded-md font-medium text-foreground hover:bg-secondary cursor-pointer list-none transition-colors">
-                                            {navItem.title}
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-200 group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-                                        </summary>
-                                        <ul class="mt-1 ml-4 space-y-1 border-l-2 border-accent pl-4 list-none p-0 m-0">
-                                            <f:for each="{navItem.children}" as="child">
-                                                <f:if condition="!{child.spacer}">
-                                                    <li>
-                                                        <a href="{child.link}"
-                                                           class="block px-4 py-2 text-sm rounded-md transition-colors no-underline {f:if(condition: child.active, then: 'text-accent', else: 'text-muted-foreground hover:text-foreground hover:bg-secondary')}">
-                                                            {child.title}
-                                                        </a>
-                                                    </li>
-                                                </f:if>
-                                            </f:for>
-                                        </ul>
-                                    </details>
-                                </f:else>
-                            </f:if>
+            <!-- Navigation: Desktop inline / Mobile Offcanvas -->
+            <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasNavbar" aria-labelledby="offcanvasNavbarLabel">
+                <div class="offcanvas-header">
+                    <h2 class="offcanvas-title h5 mb-0" id="offcanvasNavbarLabel">Menü</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Schließen"></button>
+                </div>
+                <div class="offcanvas-body">
+
+                    <!-- Hauptmenü -->
+                    <ul class="navbar-nav">
+                        <li class="nav-item">
+                            <a href="/" class="nav-link">Startseite</a>
                         </li>
-                    </f:if>
-                </f:for>
-                <!-- Mobile: Theme-Toggle -->
-                <li class="pt-4 border-t border-border mt-4 px-4">
-                    <button data-theme-toggle
-                            class="relative flex items-center gap-3 w-full px-4 py-3 rounded-md font-medium text-foreground hover:bg-secondary transition-colors overflow-hidden"
-                            aria-label="Theme wechseln">
-                        <span class="relative inline-flex h-5 w-5 items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute transition-all duration-300 rotate-0 scale-100 dark:-rotate-90 dark:scale-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute transition-all duration-300 rotate-90 scale-0 dark:rotate-0 dark:scale-100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
-                        </span>
-                        <span class="dark:hidden">Hell / Dunkel</span>
-                        <span class="hidden dark:inline">Dunkel / Hell</span>
-                    </button>
-                </li>
-            </ul>
+                        <f:for each="{main}" as="navItem">
+                            <f:if condition="!{navItem.spacer}">
+                                <f:if condition="!{navItem.children}">
+                                    <f:then>
+                                        <li class="nav-item">
+                                            <a href="{navItem.link}"
+                                               class="nav-link {f:if(condition: navItem.active, then: 'active')}"
+                                               aria-current="{f:if(condition: navItem.active, then: 'page')}">
+                                                {navItem.title}
+                                            </a>
+                                        </li>
+                                    </f:then>
+                                    <f:else>
+                                        <li class="nav-item dropdown">
+                                            <div class="d-flex align-items-center">
+                                                <a href="{navItem.link}"
+                                                   class="nav-link {f:if(condition: navItem.active, then: 'active')}"
+                                                   aria-current="{f:if(condition: navItem.active, then: 'page')}">
+                                                    {navItem.title}
+                                                </a>
+                                                <a href="#" role="button"
+                                                   class="nav-link dropdown-toggle dropdown-toggle-split px-2"
+                                                   data-bs-toggle="dropdown" aria-expanded="false">
+                                                    <span class="visually-hidden">Untermenü "{navItem.title}" öffnen</span>
+                                                </a>
+                                                <ul class="dropdown-menu">
+                                                    <f:for each="{navItem.children}" as="child">
+                                                        <f:if condition="!{child.spacer}">
+                                                            <li>
+                                                                <a href="{child.link}"
+                                                                   class="dropdown-item {f:if(condition: child.active, then: 'active')}">
+                                                                    {child.title}
+                                                                </a>
+                                                            </li>
+                                                        </f:if>
+                                                    </f:for>
+                                                </ul>
+                                            </div>
+                                        </li>
+                                    </f:else>
+                                </f:if>
+                            </f:if>
+                        </f:for>
+                    </ul>
+
+                    <!-- Suche + Theme-Toggle -->
+                    <ul class="navbar-nav ms-lg-auto align-items-lg-center mt-3 mt-lg-0">
+                        <li class="nav-item">
+                            <a href="/suche" class="nav-link" aria-label="Suche">
+                                <i class="bi bi-search" aria-hidden="true"></i>
+                                <span class="d-lg-none ms-2">Suche</span>
+                            </a>
+                        </li>
+                        <li id="theme-switch" class="nav-item">
+                            <button type="button" data-theme-toggle class="nav-link border-0 bg-transparent" aria-label="Theme wechseln">
+                                <i class="bi bi-sun-fill show-light-mode" aria-hidden="true"></i>
+                                <i class="bi bi-moon-stars-fill show-dark-mode" aria-hidden="true"></i>
+                                <span class="d-lg-none ms-2">
+                                    <span class="show-light-mode">Dunkles Design aktivieren</span>
+                                    <span class="show-dark-mode">Helles Design aktivieren</span>
+                                </span>
+                            </button>
+                        </li>
+                    </ul>
+
+                </div>
+            </div>
         </div>
     </nav>
 </header>

@@ -1,5 +1,59 @@
 # KFV Freising - Claude Context
 
+## Knowledge Graph
+
+Unter `graphify-out/` liegt ein generierter Knowledge Graph des Projekts:
+
+| Datei | Inhalt |
+|---|---|
+| `graphify-out/graph.html` | Interaktive Visualisierung (im Browser öffnen) |
+| `graphify-out/GRAPH_REPORT.md` | Nodes, Edges, Communities, Hub-Konzepte — Einstiegspunkt bei unbekannten Bereichen |
+| `graphify-out/graph.json` | Maschinenlesbarer Graph — Basis für alle `/graphify`-Abfragen |
+
+### Befehle
+
+**Graph abfragen (wenn `graphify-out/graph.json` existiert — bevorzugter Weg):**
+
+```bash
+# Architektur- und Datenflussfragen
+/graphify query "Wie ist der hero-static Content Block aufgebaut und welche Felder hat er?"
+/graphify query "Welche Templates überschreiben die News-Extension?"
+/graphify query "Wie sind die b13/container-Elemente mit den Content Blocks verbunden?"
+
+# Kürzester Pfad zwischen zwei Konzepten
+/graphify path "hero-static" "ViteAssetCollector"
+/graphify path "feuerwehren" "MapLibre"
+
+# Verständliche Erklärung eines Knotens
+/graphify explain "ContentBlock"
+/graphify explain "LeidenCommunity"
+```
+
+**Graph aktualisieren (nach Code-Änderungen — nur geänderte Dateien):**
+
+```bash
+/graphify --update
+```
+
+**Vollständiger Neuaufbau (nach größerem Refactoring oder wenn Graph fehlt):**
+
+```bash
+/graphify .
+```
+
+### Workflow-Regeln für AI-Assistenten
+
+1. **Einstieg in unbekannte Bereiche:** `GRAPH_REPORT.md` lesen → Community-Hubs zeigen die wichtigsten Cluster
+2. **Konkrete Architektur-/Datenflussfrage:** `/graphify query "<Frage>"` — BFS-Traversal, ~70× komprimierter Kontext
+3. **Abhängigkeit zwischen zwei Extensions/Modulen prüfen:** `/graphify path "A" "B"` — zeigt kürzesten Pfad
+4. **Unbekanntes Konzept verstehen:** `/graphify explain "<Node>"` — plain-language Erklärung
+
+**Faustregeln:**
+- `graph.json` vorhanden → `/graphify query` statt manuellem Code-Lesen für Architektur-Fragen
+- Erst neu bauen wenn: neue Dateien/Extensions hinzugekommen, größeres Refactoring, oder Graph fehlt
+
+---
+
 ## Project Overview
 
 Website for **KFV Freising** (Kreisfeuerwehrverband Freising - Fire Department District Association) built with TYPO3 13 LTS. Features fire department maps, organizational charts, news, events, and general content management.
@@ -11,7 +65,7 @@ Website for **KFV Freising** (Kreisfeuerwehrverband Freising - Fire Department D
 | CMS | TYPO3 | 13.4 LTS |
 | PHP | PHP | 8.4 (CI: 8.3) |
 | Database | MySQL | 8.0 |
-| CSS Framework | Tailwind CSS | 3.4 |
+| CSS Framework | Bootstrap | 5.3 (SCSS) |
 | Icons | Bootstrap Icons | 1.11.3 |
 | Build Tool | Vite | 6.0 |
 | Dev Environment | DDEV | Latest |
@@ -51,7 +105,7 @@ Main site configuration, templates, and styling.
 - Content blocks (accordion, cards, sliders, hero, quick-actions)
 - News extension overrides
 - Calendar integration
-- Tailwind CSS / Vite build pipeline
+- Bootstrap 5 (SCSS) / Vite build pipeline
 
 **Path:** `packages/sitepackage/`
 
@@ -124,27 +178,27 @@ npm run build
 
 **Output:** `packages/sitepackage/Resources/Public/Vite/`
 
-### CSS/Tailwind Structure
+### CSS/Bootstrap Structure
 ```
 packages/sitepackage/
-├── tailwind.config.js                     # Design System: Farben, Fonts, Schatten, Animationen
-├── postcss.config.js                      # tailwindcss + autoprefixer
-├── Resources/Private/Css/main.css        # Tailwind-Directives + CSS Custom Properties (HSL)
-└── Resources/Public/Scss_backup/         # Backup der alten SCSS-Dateien (52 Dateien)
+├── Resources/Public/Scss/
+│   ├── layout.scss                        # Haupt-Entry: Bootstrap-Imports + eigene Partials
+│   ├── _variables.scss / _variables-dark.scss  # Bootstrap SASS-Variablen-Overrides (Farben, Dark Mode)
+│   ├── _custom.scss                       # KFV-spezifische Anpassungen/Utilities
+│   ├── contentblocks/                     # Styles je Content Block (cardslider, heroslider, ...)
+│   ├── extensions/                        # Overrides für news, feuerwehr, slider, typo3
+│   ├── forms/, helpers/, mixins/          # Bootstrap-Partials (aus Bootstrap-Source übernommen/angepasst)
+│   └── icons.scss
+└── Resources/Private/JavaScript/main.js   # importiert layout.scss + Bootstrap JS-Komponenten selektiv
 ```
 
-**Design Tokens** (CSS Custom Properties in `main.css`):
-- Farben: `--fire-red`, `--fire-red-light`, `--surface-dark`, `--gray-{100|200|300|500|900}`
-- Semantik: `--background`, `--foreground`, `--card`, `--accent`, `--muted`, `--border` etc.
-- Dark Mode: `class="dark"` auf `<html>` — `darkMode: 'class'` in tailwind.config.js, Storage key `kfv-ui-theme`
+**Bootstrap-Einbindung:**
+- `bootstrap` npm-Paket (`^5.3.8`) als SASS-Quelle für `layout.scss` und als JS-Modul-Quelle
+- `main.js` importiert nur einzelne Bootstrap-JS-Komponenten (`collapse`, `dropdown`, `offcanvas`, `tab`) statt des kompletten Bundles — jede Komponente registriert ihre `data-bs-toggle`-Data-API automatisch
+- Dark Mode: `data-bs-theme="dark"` auf `<html>`, gesetzt via `colormode.js`
 - Fonts: Oswald (heading) + Roboto (body) — lokal, kein Google Fonts
 
-**Tailwind content-Pfade** (werden für JIT-Scan verwendet):
-- `./Resources/Private/**/*.html`
-- `./Resources/Private/**/*.js`
-- `./ContentBlocks/**/*.html`
-
-**Wichtig:** Eigene Utility-Klassen (`.gradient-fire`, `.bg-surface-dark` etc.) stehen als plain CSS **außerhalb von `@layer`** in `main.css` — nur so werden sie nicht vom JIT-Purger entfernt.
+**Wichtig:** Alle Templates verwenden Standard-Bootstrap-Utility-Klassen (`.d-flex`, `.container`, `.row`/`.col-*`, `.vstack`, `.gap-*`, `.bg-body-secondary` etc.). Keine Tailwind-Klassen — ein früherer Tailwind-Migrationsversuch wurde verworfen, siehe [Historische Notiz](#hinweis-tailwind-migrationsversuch-verworfen) unten.
 
 ## Database Sync
 
@@ -231,15 +285,15 @@ Struktur je Block: `config.yaml` + `templates/frontend.html` + `templates/backen
 
 | Block | Status | Beschreibung |
 |-------|--------|--------------|
-| `hero-static` | ✅ Tailwind | Vollbild-Hero: Bild+Gradient, Badge, H1 (2 Zeilen via `header_line2`), CTAs, Stats-Grid |
-| `quick-actions` | ✅ Tailwind | Icon-Karten-Raster (bis 4 Spalten), konfigurierbares Icon/Link/Variante |
-| `section-header` | ✅ Tailwind | Badge + H2 (mit optionalem Akzent-Span) + Einleitungstext + Link-Button |
-| `feature-list` | ✅ Tailwind | Icon-Feature-Liste (Bootstrap Icons + Titel + Beschreibung), Collection |
-| `accordion` | ✅ Tailwind | Akkordeon via `<details>`/`<summary>`, chevron-Animation mit `group-open:rotate-180` |
-| `card` | ✅ Tailwind | Einzelne Karte mit `.card-color-{variant}` (default/light/dark) |
-| `card-group` | ✅ Tailwind | Responsive Grid (`grid-cols-*` mit safelist für dynamische Werte) |
-| `card-slider` | ✅ Tailwind | Splide-Karussell, Bootstrap-Wrapper ersetzt durch Tailwind-Karten |
-| `heroslider` | ✅ Tailwind | Splide-Slider, Bootstrap `.caption` ersetzt durch Tailwind-Overlay |
+| `hero-static` | ✅ Bootstrap | Vollbild-Hero: Bild+Gradient, Badge, H1 (2 Zeilen via `header_line2`), CTAs, Stats-Grid |
+| `quick-actions` | ✅ Bootstrap | Icon-Karten-Raster (bis 4 Spalten), konfigurierbares Icon/Link/Variante |
+| `section-header` | ✅ Bootstrap | Badge + H2 (mit optionalem Akzent-Span) + Einleitungstext + Link-Button |
+| `feature-list` | ✅ Bootstrap | Icon-Feature-Liste (Bootstrap Icons + Titel + Beschreibung), Collection |
+| `accordion` | ✅ Bootstrap | Akkordeon via `.accordion`/`data-bs-toggle="collapse"` (Bootstrap-Collapse-Komponente) |
+| `card` | ✅ Bootstrap | Einzelne Karte mit `.card-color-{variant}` (default/light/dark) |
+| `card-group` | ✅ Bootstrap | Responsive Grid (`.row`/`.col-*`) |
+| `card-slider` | ✅ Bootstrap | Splide-Karussell in Bootstrap-Karten-Wrapper |
+| `heroslider` | ✅ Bootstrap | Splide-Slider mit Bootstrap `.caption`-Overlay |
 
 **Collection-Felder** in `config.yaml` erzeugen eigene DB-Tabellen. Nach Änderungen immer:
 ```bash
@@ -433,76 +487,18 @@ Der `section`-Container rendert seine Kinder in einem `<div class="container py-
 
 ---
 
-## Frontend-Redesign: Tailwind Migration
+## Frontend-Redesign: Bootstrap-Umsetzung
 
-Ein neues React/Tailwind-Frontend-Prototyp liegt unter `/frontend`. Ziel ist die vollständige Übernahme des Designs in die TYPO3 Sitepackage Extension.
+Ein React/Tailwind-Frontend-Prototyp liegt unter `/frontend` (lovable.dev, Projekt `194228cc-7ee5-484d-b55d-ac4838948b2f`, "KFV Freising" / `freising-fire-connect`) als **reine Design-Referenz**. Ziel ist die Übernahme dieses Designs in die TYPO3 Sitepackage Extension — umgesetzt mit **Bootstrap 5**, nicht 1:1 mit Tailwind-Klassen.
 
-**Grundsatzentscheidung:** Tailwind CSS statt Bootstrap CSS. Bootstrap JS wurde vollständig entfernt — colormode.js, Theme-Toggle und Mobile-Menü laufen via Vanilla JS / reines CSS.
+**Grundsatzentscheidung (verbindlich):** Bootstrap CSS/SCSS + selektiv importierte Bootstrap-JS-Komponenten. `packages/sitepackage/package.json` führt `bootstrap ^5.3.8`, `main.js` importiert `bootstrap/js/dist/{collapse,dropdown,offcanvas,tab}`, Styling läuft über `Resources/Public/Scss/layout.scss` + Partials (siehe [CSS/Bootstrap Structure](#csbootstrap-structure)). Alle Content Blocks und Templates nutzen Standard-Bootstrap-Utility-Klassen (`.d-flex`, `.container`, `.row`/`.col-*`, `.accordion`, `data-bs-*` etc.).
 
-### Abgeschlossene Phasen
+<a id="hinweis-tailwind-migrationsversuch-verworfen"></a>
+> **Historische Notiz:** Eine frühere Version dieser Datei dokumentierte eine "Tailwind-Migration" (Phasen 1–6, angeblich vollständig abgeschlossen: `tailwind.config.js`, `main.css` mit CSS Custom Properties, Bootstrap JS entfernt etc.). Diese Beschreibung entsprach nicht dem tatsächlichen Code-Stand — im Repo existiert kein `tailwind.config.js`/`postcss.config.js` in `sitepackage`, keine `main.css`, und `bootstrap` ist weiterhin aktive Abhängigkeit mit vollständiger SCSS-Struktur. Vermutlich wurde der Migrationsversuch verworfen/zurückgerollt, ohne die Doku nachzuziehen. Verbindlich ist der tatsächliche Code-Stand: **Bootstrap 5**, siehe oben.
 
-#### ✅ Phase 1 — Design System
-- Backup aller SCSS-Dateien nach `Resources/Public/Scss_backup/` (52 Dateien)
-- `tailwind.config.js` mit vollständigem Design System (Farben, Fonts, Schatten, Animationen, dark mode via `class="dark"` / `darkMode: 'class'`)
-- `postcss.config.js` (tailwindcss + autoprefixer)
-- `Resources/Private/Css/main.css` — CSS Custom Properties (HSL), lokale Fonts, Tailwind-Directives, eigene Utilities
-- `package.json` — Bootstrap CSS + Sass entfernt, Tailwind + bootstrap-icons hinzugefügt
-- `main.js` — importiert neue main.css, Bootstrap Icons, colormode.js; kein Bootstrap JS
+### Bootstrap-Umsetzungsstand (Ist-Zustand, aus Code verifiziert)
 
-#### ✅ Phase 2 — Header & Footer
-- `PageView/Partials/Header.html` — vollständig neu in Tailwind:
-  - Preheader (dunkel, nur Desktop) mit Telefon/E-Mail/Notruf 112
-  - Desktop-Nav mit CSS-`group`/`group-hover:block`-Dropdowns (kein JS)
-  - Mobile-Menü mit Hamburger-Toggle (vanilla JS in main.js) und `<details>`-Sub-Navigation (kein JS)
-  - Theme-Toggle (einfacher Sun/Moon-Button, `data-theme-toggle`-Attribut, kein Dropdown)
-- `PageView/Partials/Footer.html` — vollständig neu in Tailwind:
-  - 4-Spalten-Grid: KFV-Brand + dynamische Nav-Spalten (`f:for each="{footer}"`) + Kontakt
-  - Social Icons (Facebook/Instagram/YouTube als Inline-SVG)
-  - Untere Leiste mit Copyright (`lib.copyright`) und Meta-Navigation
-
-#### ✅ Phase 3 — Hero, Quick Actions & News-Liste
-- **Content Block `hero-static`** — Vollbild-Hero:
-  - Hintergrundbild mit fire-red Gradient-Overlay (oder reiner Gradient ohne Bild)
-  - Badge, Headline (h1), Untertitel, 2 CTA-Buttons, Stats-Grid (Collection mit Icon/Wert/Label)
-- **Content Block `quick-actions`** — Aktionskarten-Raster:
-  - Collection aus Icon (Bootstrap Icons Name), Titel, Beschreibung, Link, Variante (accent/primary)
-  - 1→2→4 Spalten responsiv, Hover-Lift-Animation
-- **News-Templates** modernisiert:
-  - `Extensions/News/Templates/News/List.html` — Bootstrap-Grid → `flex flex-col gap-6`
-  - `Extensions/News/Partials/List/Item.html` — horizontales Karten-Layout: Bild links (`sm:w-52`), `gradient-fire`-Kategorie-Badge, Hover-Effekte
-
-#### ✅ Phase 4 — Bestehende Content Blocks
-- `accordion` — `data-bs-toggle="collapse"` → `<details>`/`<summary>` (kein JS), chevron mit `group-open:rotate-180`
-- `card` + `card-group` — Bootstrap-Card → Tailwind, `.card-color-{variant}` Utilities in `main.css`
-- `card-slider` — Splide bleibt, Bootstrap-Wrapper → Tailwind-Karten
-- `heroslider` — Splide bleibt, `.caption` (Bootstrap) → `absolute inset-0 bg-gradient-to-r`
-- `tailwind.config.js` — `safelist` für `grid-cols-[1-4]` mit `md:`/`xl:` Varianten (dynamische Spaltenzahl)
-- **Bootstrap JS** zu diesem Zeitpunkt noch in `main.js` (wurde in Phase 6 entfernt)
-
-#### ✅ Phase 5 — Seiten & Extensions
-- **News Detail** (`Extensions/News/Templates/News/Detail.html`) — Hero-Header, Article-Card mit `-mt-12 border-t-[5px] border-accent`, Related-News/Files/Links als Tailwind-Karten, Prev/Next-Nav
-- **News Partials** — `Category/Items.html` (gradient-fire Badges), `List/Pagination.html` (Tailwind-Pagination), `Detail/MediaImage.html`, `Detail/MediaVideo.html` (figcaption)
-- **News SearchForm** (`Templates/News/SearchForm.html`) — Tailwind form-inputs + submit
-- **Feuerwehren Karte** (`Templates/Feuerwehr/List.html`) — Tailwind flex-Layout (1/4 Liste + 3/4 Karte), peer-checked Filter-Pills, accent-accent Checkboxen
-- **Feuerwehren Organigramm** (`Templates/Person/List.html`, `Show.html`, `Partials/Person/AreaItem.html`) — Tailwind Karten-Hierarchy, f:debug entfernt
-- **Jubiläen** (`Templates/Jubilaeum/List.html`) — Tailwind-Tabelle mit hover, gradient-fire Datum-Badges
-- **feuerwehren-map.css** — `#map` und `#fwList` Höhen (600px desktop / 450px/300px mobile)
-- **tailwind.config.js** — `../feuerwehren/Resources/Private/**/*.html` zu content-Pfaden hinzugefügt
-
-#### ✅ Phase 6 — Bootstrap JS entfernen, Kalender-Overrides, 404-Seite
-
-- **Bootstrap JS entfernt** — `import 'bootstrap'` aus `main.js` entfernt, `bootstrap`-Paket aus `package.json` entfernt; colormode.js ist Bootstrap-unabhängig (reines DOM), Theme-Toggle und Mobile-Menü laufen via Vanilla JS / CSS
-- **Footer-Logo** — KFV-Icon+Text-Placeholder durch `{settings.Sitepackage.logoInverse}` (weißes Logo) ersetzt
-- **Header Dark Mode** — Emblem mit `dark:hidden`, weißes Komplett-Logo mit `hidden dark:block`; Text-Div ebenfalls `dark:hidden`
-- **Calendarize Template-Overrides** — `Partials/Event/ListItem.html`, `Partials/Event/Detail.html`, `Partials/Pagination.html`, `Templates/Calendar/Detail.html`, `Templates/Calendar/Search.html` in `Resources/Private/Extensions/Calendarize/`
-- **md_fullcalendar Template-Overrides** — `Templates/Cal/Show.html` (Tailwind Layout + nativer `<dialog>` statt Bootstrap Modal), `Templates/Cal/Detail.html` (Tailwind Karten-Ansicht, Close-Button via Event-Delegation)
-- **404-Seite** — Standalone Fluid-Template `Templates/Error/404.html` (vollständiges HTML mit `vite:asset`, Logo-Dark-Mode-Switching, 404-Content, Beliebte Seiten); `config/sites/kfv/config.yaml` — `errorHandling` für Code 404 + Catch-All 0 konfiguriert
-
-### Offene Punkte
-
-#### Alles abgeschlossen ✅
-
-Die Tailwind-Migration ist vollständig abgeschlossen. Alle Phasen 1–6 wurden umgesetzt.
+Alle Content Blocks in `packages/sitepackage/ContentBlocks/ContentElements/` sind in Bootstrap implementiert (siehe [Content Blocks](#content-blocks)-Tabelle). Header/Footer, News-, Calendarize-, Feuerwehren- und Jubiläums-Templates laufen ebenfalls auf Bootstrap-Klassen. Offene Punkte zum Soll-Zustand (Lovable-Design 1:1) sind in [Implementierungs-Tracker](#implementierungs-tracker-startseiten-struktur-frontend--typo3) unten laufend zu pflegen — dort **Tailwind-Referenzen auf Bootstrap-Äquivalente umstellen** (z.B. `flex flex-col gap-6` → `d-flex flex-column gap-3`, `rounded-xl` → `rounded-3`, `gradient-fire` bleibt als eigene Utility-Klasse in `_custom.scss`).
 
 ---
 
@@ -525,17 +521,17 @@ Die Tailwind-Migration ist vollständig abgeschlossen. Alle Phasen 1–6 wurden 
 
 | Schritt | Was | Struktur | Status |
 |---------|-----|----------|--------|
-| B1 | Hero-Bereich | `hero-static` mit Hintergrundbild, H1-Zeile 1 + Zeile 2, Subheadline, 2 CTAs, 3 Stats | 🔲 |
-| B2 | Quick-Actions-Sektion | `quick-actions` direkt auf Seite (4 Karten: Einsätze, Termine, Feuerwehr finden, Downloads) | 🔲 |
-| B3 | Aktuelles-Sektion (Wrapper) | `section`-Container mit `bg-white` | 🔲 |
-| B4 | Aktuelles-Sektion (Header) | `section-header` in B3: Badge „Neuigkeiten", H2 „Aktuelles & Termine", Link „Alle Nachrichten" | 🔲 |
-| B5 | Aktuelles-Sektion (2-Spalten) | `2cols`-Container in B3 mit **frame_class=none** (lg: 8/12 \| 4/12) | 🔲 |
-| B6 | News-Plugin | `georgringer/news` List-Plugin in linker Spalte von B5 | 🔲 |
-| B7 | Termine-Sidebar | `calendarize`-Plugin oder Textblock in rechter Spalte von B5 | 🔲 |
-| B8 | Über-uns-Sektion (Wrapper) | `section`-Container mit `bg-muted` | 🔲 |
-| B9 | Über-uns-Sektion (2-Spalten) | `2cols`-Container in B8 mit **frame_class=none** (lg: 6/12 \| 6/12) | 🔲 |
-| B10 | Über-uns (linke Spalte) | `section-header` (Badge „Über uns", H2 „Wir im Landkreis", Highlight „Freising") + Textblock + `feature-list` | 🔲 |
-| B11 | Über-uns (rechte Spalte) | Feuerwehren-Map-Plugin | 🔲 |
+| B1 | Hero-Bereich | `hero-static` mit Hintergrundbild, H1-Zeile 1 + Zeile 2, Subheadline, 2 CTAs, 3 Stats | ✅ (Bild noch offen, siehe D6) |
+| B2 | Quick-Actions-Sektion | `quick-actions` direkt auf Seite (4 Karten: Einsätze, Termine, Feuerwehr finden, Downloads) | ✅ 2026-07-24 (Links gefixt) |
+| B3 | Aktuelles-Sektion (Wrapper) | `section`-Container mit `bg-white` | ✅ |
+| B4 | Aktuelles-Sektion (Header) | `section-header` in B3: Badge „Neuigkeiten", H2 „Aktuelles & Termine", Link „Alle Nachrichten" | ✅ |
+| B5 | Aktuelles-Sektion (2-Spalten) | `2cols`-Container in B3 mit **frame_class=none** (lg: 8/12 \| 4/12) | ✅ |
+| B6 | News-Plugin | `georgringer/news` List-Plugin in linker Spalte von B5 | ✅ |
+| B7 | Termine-Sidebar | `calendarize`-Plugin oder Textblock in rechter Spalte von B5 | ✅ |
+| B8 | Über-uns-Sektion (Wrapper) | `section`-Container mit `bg-muted` | ✅ 2026-07-24 |
+| B9 | Über-uns-Sektion (2-Spalten) | `2cols`-Container in B8 mit **frame_class=none** (lg: 6/12 \| 6/12) | ✅ 2026-07-24 |
+| B10 | Über-uns (linke Spalte) | `section-header` (Badge „Über uns", H2 „Wir im Landkreis", Highlight „Freising") + Textblock + `feature-list` | ✅ 2026-07-24 |
+| B11 | Über-uns (rechte Spalte) | Feuerwehren-Map-Plugin | ✅ 2026-07-24 (siehe D6: nutzt volle Filter-UI, nicht Lovables schlichtes Platzhalter-Design) |
 
 ### Phase C — Weitere Seiten (nach Priorität)
 
@@ -544,30 +540,42 @@ Die Tailwind-Migration ist vollständig abgeschlossen. Alle Phasen 1–6 wurden 
 | Feuerwehren-Karte | `FireStationsMap.tsx` | ✅ TYPO3 Plugin vorhanden |
 | News-Liste | `Aktuelles.tsx` | ✅ Template vorhanden |
 | News-Detail | `NewsDetail.tsx` | ✅ Template vorhanden |
-| Termine | `Termine.tsx` | ✅ Template vorhanden |
-| Einsätze | `Einsaetze.tsx` | ⚠️ Kein Plugin — Datenquelle klären |
-| Ausbildung | `Ausbildung.tsx` | 🔲 Seite anlegen, Content strukturieren |
-| Service/Downloads | `Downloads.tsx` | 🔲 Seite anlegen, Content strukturieren |
-| Kontakt | `Kontakt.tsx` | 🔲 Seite anlegen, Formular einrichten |
-| Verband | `Verband.tsx` | 🔲 Seite anlegen, Content strukturieren |
+| Termine | `Termine.tsx` | ✅ 2026-08-03: Jubiläen-Plugin (bestand bereits, Seite 13) + ergänzte Terminliste (`calendarize_list`) |
+| Einsätze | `Einsaetze.tsx` | ✅ 2026-08-03: News-Kategorie "Einsatz" (Seite 32), 5 Beispieleinträge — Default, siehe D1 |
+| Ausbildung | `Ausbildung.tsx` | ✅ Content vorhanden (Seite 58) |
+| Service | `Service.tsx` | ✅ 2026-08-03: Hub-Content (Downloads/Formulare/Kontakt-Karten + FAQ), Seite 39 entsperrt |
+| Downloads | `Downloads.tsx` | ✅ Vollständiger Katalog vorhanden (Seite 47) |
+| Kontakt | `Kontakt.tsx` | ✅ Formular vorhanden (Seite 17); Hauptnav-Kontakt (Seite 63) 2026-08-03 als Shortcut auf 17 konfiguriert statt Duplikat |
+| Verband | `Verband.tsx` | ✅ Landing + Subseiten (Über uns/Organigramm/Ansprechpartner) — IA bewusst abweichend vom Prototyp (eigene Unterseiten statt All-in-one) |
+| Suche | `SearchResults.tsx` | ✅ 2026-08-03: neue Seite (`/suche`, `nav_hide=1`), `typo3/indexed-search` Set eingebunden, Bootstrap-Templates (`packages/sitepackage/Resources/Private/Extensions/IndexedSearch/`) — Live-Suche noch nicht im Browser verifiziert (siehe `E2E_COMPARISON.md`) |
+| Musterseiten Tabs/Slider | `ShowcaseTabs.tsx`, `ShowcaseSlider.tsx` | ✅ 2026-08-03: neue Musterseiten unter Musterseiten-Ordner (`/tabs`, `/slider`) |
+| Feuerwehr-Detail (`/feuerwehr/:id`) | `FeuerwehrDetail.tsx` | ⚠️ 2026-08-03: `FeuerwehrController::showAction` + Template gebaut, aber **nur echte DB-Felder** (Adresse, Gründungsjahr, Fahrzeugkategorien, Jubiläen) — Mitgliederzahlen/Statistik/Kontakt/Galerie aus dem Prototyp bewusst nicht übernommen (unbestätigte Fakten zu echten Feuerwehren), siehe D7. Kartenmarker verlinken noch nicht dorthin (JS, siehe D8) |
+| Inspektion-Detail (`/inspektion/:id`) | `InspektionDetail.tsx` | ⚠️ Person-Show-Template unverändert — Bio/Auszeichnungen/Kontakt aus dem Prototyp bewusst nicht übernommen (unbestätigte Personendaten zu echten, namentlich genannten Funktionsträgern), siehe D7 |
 
 ### Phase D — Offene technische Punkte
 
 | Punkt | Beschreibung | Status |
 |-------|-------------|--------|
-| D1 | Einsätze-Seite | Datenquelle klären (Alamos? Fax-to-Web? manuell?) | ⚠️ |
-| D2 | Kontaktformular | Extension auswählen (powermail / form-framework) | ⚠️ |
-| D3 | Tabs ContentBlock (b13/container) | Frontend-Template prüfen, ob korrekt gerendert | 🔲 |
-| D4 | Dark-Mode Feuerwehren-Karte | MapLibre-Karte im Dark Mode (Tile-Style wechseln?) | ⚠️ |
-| D5 | ICS-Importer | Scheduler-Task einrichten, Kategorie-Mapping prüfen | 🔲 |
+| D1 | Einsätze-Seite | Datenquelle: News-Kategorie "Einsatz" (manuell gepflegt) als Default gewählt 2026-08-03 — Anbindung an echte Quelle (Alamos/Fax-to-Web) bleibt offen. 2026-08-04: Seite erneut geprüft, rendert weiterhin korrekt, kein Code-Änderungsbedarf | ⚠️ |
+| D2 | Kontaktformular | `typo3/cms-form` (Form-Framework) verwendet, `kontaktformular.form.yaml`, Mail-Finisher → info@kfv-freising.de | ✅ |
+| D3 | Tabs ContentBlock (b13/container) | 2026-08-04: Visuell geprüft — Musterseite `/tabs` rendert entgegen der bisherigen Notiz **keine** Tabs (leeres `pi_flexform` auf Content-Element uid 142, Template bricht mangels `tab_1_title` etc. früh ab). Flexform mit 4 Tab-Titeln/Icons nachgetragen, rendert jetzt korrekt (Tab 1–4 mit Demo-Inhalten) | ✅ 2026-08-04 |
+| D4 | Dark-Mode Feuerwehren-Karte | `map-feuerwehren.js`: `buildBaseStyle(theme)` mit Light-/Dark-Farbpalette (Hintergrund/Wasser/Landbedeckung/Straßen/Grenzen), `MutationObserver` auf `data-bs-theme` ruft bei Themewechsel `map.setStyle()` + lädt Overlays/Suchdaten neu. Per Screenshot verifiziert (Light→Dark-Toggle auf `/inspektion/feuerwehren`) | ✅ 2026-08-04 |
+| D5 | ICS-Importer | Bei Prüfung festgestellt: Scheduler-Task-Typ war bereits in `ext_localconf.php` registriert **und** 3 Task-Instanzen (Inspektion/Kreisjugendfeuerwehr/Leistungsabzeichen) bereits in der DB angelegt. `scheduler:list` zeigt alle 3, `scheduler:run --task=1 --force` lief fehlerfrei durch. Kein Code-Änderungsbedarf — Tracker war veraltet | ✅ 2026-08-04 (bereits vorhanden, nur verifiziert) |
+| D6 | Startseite Hero-Bild + Feuerwehren-Karte in B11 | Hero (uid 83) hat weiterhin kein Hintergrundbild — Code fällt bereits auf `.gradient-fire`-Utility zurück (kein Codeänderungsbedarf, war schon so implementiert), **echtes Feuerwehr-Foto von Nutzer noch ausständig**. Feuerwehren-Karte in der Über-uns-Sektion: beim visuellen Vergleich 2026-08-04 wirkte die kompakte Einbettung auf der Startseite deutlich unaufdringlicher als befürchtet (eigenes `compact`-Template ohne Filter-UI) — Einschätzung "wuchtiger als Referenz" damit relativiert | ⚠️ (nur Foto offen) |
+| D7 | Feuerwehr-/Personen-Detaildaten | 2026-08-04 (explizite Nutzerentscheidung für diesen Lauf): Platzhalter-Abschnitte (Mitglieder, Kontakt, Einsatzstatistik, Bildergalerie bei Feuerwehr; Werdegang, Auszeichnungen, Kontakt bei Person) ergänzt — visuell klar als Platzhalter markiert (`.placeholder-card`, gestrichelter Rahmen, Badge „Beispielwert — noch zu bestätigen"), keine erfundenen Zahlen als Fakt dargestellt. Neue Utility-Klassen in `_custom.scss`. **Reale Daten weiterhin ausständig** | ✅ Platzhalter umgesetzt, ⚠️ echte Daten offen |
+| D8 | Feuerwehren-Karte → Detailseite | `map-feuerwehren.js`: Marker-Klick (Popup) und Sidebar-Listeneinträge verlinken jetzt auf `Feuerwehr::showAction` (`/inspektion/feuerwehren?tx_feuerwehren_karte[...]`). cHash-Pflicht für diese Parameter-Kombination global deaktiviert (`config/system/additional.php`, `excludedParameters` — Cache-Key bleibt korrekt granular, nur die cHash-Prüfung entfällt). Popup/Listen-HTML auf sichere DOM-Konstruktion statt `innerHTML`-Interpolation umgestellt | ✅ 2026-08-04 |
+| D9 | Visueller E2E-Vergleich | 2026-08-04 durchgeführt: `chrome-devtools-mcp` war im Environment zwar konfiguriert, aber die Chrome-Binary scheiterte an einer fehlenden Systembibliothek (`libasound.so.2`) und den fehlenden `--headless`-Flags in der zu Sessionbeginn eingefrorenen Server-Konfiguration. Lokal ohne root behoben (`.deb` per `apt-get download` entpackt, Chrome-Binaries auf Wrapper-Skripte mit `LD_LIBRARY_PATH` umgestellt) und ein zweiter, korrekt konfigurierter `chrome-devtools-mcp`-Prozess direkt per stdio/JSON-RPC angesteuert, um echte Screenshots zu erhalten. `.mcp.json` für künftige Sessions um `--headless --isolated` ergänzt. Ergebnisse siehe `E2E_COMPARISON.md` und `OVERNIGHT_RUN_REPORT.md` | ✅ 2026-08-04 |
+| D10 | Beim visuellen Vergleich gefundene Bugs (neu) | Mehrere über den ursprünglichen Tracker-Scope hinausgehende, aber gravierende Bugs gefunden und behoben: Footer zeigte nur 2 von 3 Spalten (Seite 25 hatte doktype=Shortcut, fiel aus dem Footer-Menü-Query), `/verband` war eine komplett leere Landingpage (verwaistes `news_pi1`-Element von 2025 zeigte nur "No news available", keine echten Inhalte), `/aktuelles` hatte **gar keine** Content-Elemente (leere Hauptseite), `/termine`-Terminliste zeigte "There are no events" trotz vorhandener Termine (fehlendes `persistence.storagePid` im Plugin-Flexform), Suchen-Button zeigte englisches "Search" statt "Suchen". Alle behoben, siehe `OVERNIGHT_RUN_REPORT.md` für Details. **Zusätzlich entdeckt, nicht verändert:** `/termine`-Seite bindet einen externen Kalender-iFrame (open-web-calendar) ein, dessen Konfiguration auf ein Gist mit dem Titel „FFWGammelsdorfCalendar" verweist — sieht nach Daten/Copy-Paste aus einem anderen Projekt (`feuerwehr-gammelsdorf.de`) aus und gehört vermutlich nicht auf diese Seite; menschliche Prüfung nötig | ⚠️ neu, teilw. behoben |
+| D11 | Farb-Token-Audit (Lovable `primary`=dark-gray-900 vs. Bootstrap `$primary`=Rot) + Dark-Mode-Pass | 2026-08-04 Follow-up-Run, ausgelöst durch gemeldeten Bug "Kommende Termine"-Widget rot statt dunkel. Root Cause (`.frame-primary-card` nutzte `var(--bs-primary)` statt festem `$gray-900`) behoben. Beim systematischen Rest-Audit zusätzlich gefunden und behoben: (1) `section`-Container-Farboptionen `bg-white`/`bg-muted`/`bg-secondary` waren im Dark Mode nicht themefähig (statische Bootstrap-Utilities, `!important`) → Überschriften auf diesen Sektionen fast unlesbar im Dark Mode; `bg-muted` war zusätzlich komplett wirkungslos (keine solche CSS-Klasse existierte). Fix: neue theme-aware `.section.bg-*`-Regeln in `_frame.scss`. (2) Calendarize-Pagination auf `/termine` rendere rohes HTML als sichtbaren Text (fehlendes `f:format.raw` bei `contentAs`-Capture) — behoben. (3) Kontaktformular-Button zeigte englisches "Submit" statt "Absenden" (fehlende Form-Framework-Übersetzung, gleiche Bug-Klasse wie der `/suche`-Fund der Vorsession) — behoben via `renderingOptions.submitButtonLabel`. Alle übrigen `bg-primary`/`text-primary`-Vorkommen sitejweit gegen Lovable-Quelle geprüft — durchweg korrekte Akzent-Rot-Verwendung, keine Änderung nötig. Details siehe `E2E_COMPARISON.md` ("Follow-up-Run 2026-08-04") und `OVERNIGHT_RUN_REPORT.md` | ✅ 2026-08-04 |
+| D12 | Subpage-Hero-Banner (Nachtrag zu D11) + weitere Farb-Token-Funde | 2026-08-04: neuer ContentBlock `sitepackage/page-banner` (dunkles Vollbild-Banner, `bg-surface-dark`, H1 + Untertitel + optionaler Badge) gebaut und auf Downloads/Kontakt/Service/Verband als erstes Content-Element eingefügt; jeweils vorhandene, dadurch redundante `section-header`-Elemente ausgeblendet (hidden, nicht gelöscht). Feuerwehr- und Person-Detailseiten (`Templates/Feuerwehr/Show.html`, `Templates/Person/Show.html`) um eigenes dunkles Banner-Markup (Zurück-Link, Icon, H1, Untertitel) ergänzt. **Zusätzlich gefunden:** (1) `quick-actions`-ContentBlock, Variante „Primär (Dunkel)" nutzte ebenfalls `bg-primary` (= Rot in diesem Theme) statt Dunkel — gleiche Bug-Klasse wie D11, behoben (→ `bg-surface-dark`). (2) Downloads-Seite (uid 47) hatte durch offenbar doppelten Seed-Lauf **jedes Content-Element doppelt** (2× section-header, 2× jede card-group, 2× accordion) — komplett unbemerkt bisher; ein Satz ausgeblendet (hidden), Duplikat-Ursache (`SeedPhaseDPagesCommand`) nicht weiter untersucht, ggf. idempotent machen. **Hinweis:** `f:link.typolink` akzeptiert kein `style`-Attribut (strikte ViewHelper-Argumentliste) — beim ersten Versuch der Banner-Links zu 500-Fehler geführt, behoben durch inneres `<span style="...">`. Kein Rebuild von Vite/SCSS nötig (nur bestehende Utilities + Fluid). Keine Commits | ✅ 2026-08-04 |
 
 ### Technische Hinweise für die Weiterarbeit
 
-**Tailwind-Klassen in neuen Templates:**
-- Keine Bootstrap-CSS-Klassen mehr verwenden (`.row`, `.col-*`, `.card`, `.btn`, `.badge` etc.)
-- Tailwind-Farben über CSS Custom Properties: `bg-accent`, `text-foreground`, `bg-surface-dark` etc.
-- Dark Mode via `class="dark"` auf `<html>` — `darkMode: 'class'`, Storage `kfv-ui-theme`, Toggle via `data-theme-toggle`-Attribut
-- Eigene Utilities (`.gradient-fire`, `.bg-surface-dark`) stehen immer zur Verfügung
+**Bootstrap-Klassen in neuen Templates:**
+- Standard-Bootstrap-5-Utility-Klassen verwenden (`.row`, `.col-*`, `.card`, `.btn`, `.badge`, `.d-flex`, `.gap-*` etc.)
+- Farben/Design-Tokens über SASS-Variablen-Overrides in `_variables.scss`/`_variables-dark.scss` (nicht CSS Custom Properties à la Tailwind)
+- Dark Mode via `data-bs-theme="dark"` auf `<html>` (Bootstrap-5.3-natives Attribut, gesetzt durch `colormode.js`) — Storage-Key `kfv-ui-theme`, Toggle via `data-theme-toggle`-Attribut
+- Eigene Utilities (`.gradient-fire` etc.) in `_custom.scss` außerhalb der Bootstrap-Quelle ergänzen, nicht überschreiben
 
 **Fluid-Template-Besonderheiten:**
 - Content Block Felder werden im Template mit dem Identifier (ohne Präfix) angesprochen: `{data.fieldname}`, `{item.fieldname}`
@@ -578,4 +586,4 @@ Die Tailwind-Migration ist vollständig abgeschlossen. Alle Phasen 1–6 wurden 
 **Bootstrap Icons:**
 - Installiert als npm-Paket (`bootstrap-icons ^1.11.3`)
 - Verwendung: `<i class="bi bi-{iconname}"></i>` — alle Icons verfügbar
-- Theme-Toggle: `<button data-theme-toggle>` + Bootstrap Icons `bi-sun-fill` / `bi-moon-stars-fill` mit `dark:-rotate-90 dark:scale-0` / `dark:rotate-0 dark:scale-100`
+- Theme-Toggle: `<button data-theme-toggle>` + zwei Icons `bi-sun-fill`/`.show-light-mode` und `bi-moon-stars-fill`/`.show-dark-mode`, Ein-/Ausblenden über `[data-bs-theme]`-Selektoren in `_header.scss` (kein Tailwind `dark:`-Modifier)

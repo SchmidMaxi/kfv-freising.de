@@ -7,7 +7,7 @@
 		<columns_xs>
 			<ROOT>
 				<TCEforms>
-					<sheetTitle>Spalte (&lt; md)</sheetTitle>
+					<sheetTitle>Spalte (Sehr Klein - col)</sheetTitle>
 				</TCEforms>
 				<el>
 					<width_column_xs_1 type="array">
@@ -17,20 +17,20 @@
 							<renderType>selectSingle</renderType>
 							<items>
 								<numIndex index="0" type="array"><label>Nicht definiert</label><value></value></numIndex>
-								<numIndex index="1" type="array"><label>1/12</label><value>w-1/12</value></numIndex>
-								<numIndex index="2" type="array"><label>2/12</label><value>w-2/12</value></numIndex>
-								<numIndex index="3" type="array"><label>3/12</label><value>w-3/12</value></numIndex>
-								<numIndex index="4" type="array"><label>4/12</label><value>w-4/12</value></numIndex>
-								<numIndex index="5" type="array"><label>5/12</label><value>w-5/12</value></numIndex>
-								<numIndex index="6" type="array"><label>6/12</label><value>w-6/12</value></numIndex>
-								<numIndex index="7" type="array"><label>7/12</label><value>w-7/12</value></numIndex>
-								<numIndex index="8" type="array"><label>8/12</label><value>w-8/12</value></numIndex>
-								<numIndex index="9" type="array"><label>9/12</label><value>w-9/12</value></numIndex>
-								<numIndex index="10" type="array"><label>10/12</label><value>w-10/12</value></numIndex>
-								<numIndex index="11" type="array"><label>11/12</label><value>w-11/12</value></numIndex>
-								<numIndex index="12" type="array"><label>12/12</label><value>w-full</value></numIndex>
+								<numIndex index="1" type="array"><label>1/12</label><value>col-1</value></numIndex>
+								<numIndex index="2" type="array"><label>2/12</label><value>col-2</value></numIndex>
+								<numIndex index="3" type="array"><label>3/12</label><value>col-3</value></numIndex>
+								<numIndex index="4" type="array"><label>4/12</label><value>col-4</value></numIndex>
+								<numIndex index="5" type="array"><label>5/12</label><value>col-5</value></numIndex>
+								<numIndex index="6" type="array"><label>6/12</label><value>col-6</value></numIndex>
+								<numIndex index="7" type="array"><label>7/12</label><value>col-7</value></numIndex>
+								<numIndex index="8" type="array"><label>8/12</label><value>col-8</value></numIndex>
+								<numIndex index="9" type="array"><label>9/12</label><value>col-9</value></numIndex>
+								<numIndex index="10" type="array"><label>10/12</label><value>col-10</value></numIndex>
+								<numIndex index="11" type="array"><label>11/12</label><value>col-11</value></numIndex>
+								<numIndex index="12" type="array"><label>12/12</label><value>col-12</value></numIndex>
 							</items>
-							<default>w-full</default>
+							<default>col-12</default>
 						</config>
 					</width_column_xs_1>
 					<width_column_xs_2 type="array">
@@ -40,20 +40,20 @@
 							<renderType>selectSingle</renderType>
 							<items>
 								<numIndex index="0" type="array"><numIndex index="0">Nicht definiert</numIndex><numIndex index="1"></numIndex></numIndex>
-								<numIndex index="1" type="array"><numIndex index="0">1/12</numIndex><numIndex index="1">w-1/12</numIndex></numIndex>
-								<numIndex index="2" type="array"><numIndex index="0">2/12</numIndex><numIndex index="1">w-2/12</numIndex></numIndex>
-								<numIndex index="3" type="array"><numIndex index="0">3/12</numIndex><numIndex index="1">w-3/12</numIndex></numIndex>
-								<numIndex index="4" type="array"><numIndex index="0">4/12</numIndex><numIndex index="1">w-4/12</numIndex></numIndex>
-								<numIndex index="5" type="array"><numIndex index="0">5/12</numIndex><numIndex index="1">w-5/12</numIndex></numIndex>
-								<numIndex index="6" type="array"><numIndex index="0">6/12</numIndex><numIndex index="1">w-6/12</numIndex></numIndex>
-								<numIndex index="7" type="array"><numIndex index="0">7/12</numIndex><numIndex index="1">w-7/12</numIndex></numIndex>
-								<numIndex index="8" type="array"><numIndex index="0">8/12</numIndex><numIndex index="1">w-8/12</numIndex></numIndex>
-								<numIndex index="9" type="array"><numIndex index="0">9/12</numIndex><numIndex index="1">w-9/12</numIndex></numIndex>
-								<numIndex index="10" type="array"><numIndex index="0">10/12</numIndex><numIndex index="1">w-10/12</numIndex></numIndex>
-								<numIndex index="11" type="array"><numIndex index="0">11/12</numIndex><numIndex index="1">w-11/12</numIndex></numIndex>
-								<numIndex index="12" type="array"><numIndex index="0">12/12</numIndex><numIndex index="1">w-full</numIndex></numIndex>
+								<numIndex index="1" type="array"><numIndex index="0">1/12</numIndex><numIndex index="1">col-1</numIndex></numIndex>
+								<numIndex index="2" type="array"><numIndex index="0">2/12</numIndex><numIndex index="1">col-2</numIndex></numIndex>
+								<numIndex index="3" type="array"><numIndex index="0">3/12</numIndex><numIndex index="1">col-3</numIndex></numIndex>
+								<numIndex index="4" type="array"><numIndex index="0">4/12</numIndex><numIndex index="1">col-4</numIndex></numIndex>
+								<numIndex index="5" type="array"><numIndex index="0">5/12</numIndex><numIndex index="1">col-5</numIndex></numIndex>
+								<numIndex index="6" type="array"><numIndex index="0">6/12</numIndex><numIndex index="1">col-6</numIndex></numIndex>
+								<numIndex index="7" type="array"><numIndex index="0">7/12</numIndex><numIndex index="1">col-7</numIndex></numIndex>
+								<numIndex index="8" type="array"><numIndex index="0">8/12</numIndex><numIndex index="1">col-8</numIndex></numIndex>
+								<numIndex index="9" type="array"><numIndex index="0">9/12</numIndex><numIndex index="1">col-9</numIndex></numIndex>
+								<numIndex index="10" type="array"><numIndex index="0">10/12</numIndex><numIndex index="1">col-10</numIndex></numIndex>
+								<numIndex index="11" type="array"><numIndex index="0">11/12</numIndex><numIndex index="1">col-11</numIndex></numIndex>
+								<numIndex index="12" type="array"><numIndex index="0">12/12</numIndex><numIndex index="1">col-12</numIndex></numIndex>
 							</items>
-							<default>w-full</default>
+							<default>col-12</default>
 						</config>
 					</width_column_xs_2>
 					<width_column_xs_3 type="array">
@@ -63,20 +63,20 @@
 							<renderType>selectSingle</renderType>
 							<items>
 								<numIndex index="0" type="array"><numIndex index="0">Nicht definiert</numIndex><numIndex index="1"></numIndex></numIndex>
-								<numIndex index="1" type="array"><numIndex index="0">1/12</numIndex><numIndex index="1">w-1/12</numIndex></numIndex>
-								<numIndex index="2" type="array"><numIndex index="0">2/12</numIndex><numIndex index="1">w-2/12</numIndex></numIndex>
-								<numIndex index="3" type="array"><numIndex index="0">3/12</numIndex><numIndex index="1">w-3/12</numIndex></numIndex>
-								<numIndex index="4" type="array"><numIndex index="0">4/12</numIndex><numIndex index="1">w-4/12</numIndex></numIndex>
-								<numIndex index="5" type="array"><numIndex index="0">5/12</numIndex><numIndex index="1">w-5/12</numIndex></numIndex>
-								<numIndex index="6" type="array"><numIndex index="0">6/12</numIndex><numIndex index="1">w-6/12</numIndex></numIndex>
-								<numIndex index="7" type="array"><numIndex index="0">7/12</numIndex><numIndex index="1">w-7/12</numIndex></numIndex>
-								<numIndex index="8" type="array"><numIndex index="0">8/12</numIndex><numIndex index="1">w-8/12</numIndex></numIndex>
-								<numIndex index="9" type="array"><numIndex index="0">9/12</numIndex><numIndex index="1">w-9/12</numIndex></numIndex>
-								<numIndex index="10" type="array"><numIndex index="0">10/12</numIndex><numIndex index="1">w-10/12</numIndex></numIndex>
-								<numIndex index="11" type="array"><numIndex index="0">11/12</numIndex><numIndex index="1">w-11/12</numIndex></numIndex>
-								<numIndex index="12" type="array"><numIndex index="0">12/12</numIndex><numIndex index="1">w-full</numIndex></numIndex>
+								<numIndex index="1" type="array"><numIndex index="0">1/12</numIndex><numIndex index="1">col-1</numIndex></numIndex>
+								<numIndex index="2" type="array"><numIndex index="0">2/12</numIndex><numIndex index="1">col-2</numIndex></numIndex>
+								<numIndex index="3" type="array"><numIndex index="0">3/12</numIndex><numIndex index="1">col-3</numIndex></numIndex>
+								<numIndex index="4" type="array"><numIndex index="0">4/12</numIndex><numIndex index="1">col-4</numIndex></numIndex>
+								<numIndex index="5" type="array"><numIndex index="0">5/12</numIndex><numIndex index="1">col-5</numIndex></numIndex>
+								<numIndex index="6" type="array"><numIndex index="0">6/12</numIndex><numIndex index="1">col-6</numIndex></numIndex>
+								<numIndex index="7" type="array"><numIndex index="0">7/12</numIndex><numIndex index="1">col-7</numIndex></numIndex>
+								<numIndex index="8" type="array"><numIndex index="0">8/12</numIndex><numIndex index="1">col-8</numIndex></numIndex>
+								<numIndex index="9" type="array"><numIndex index="0">9/12</numIndex><numIndex index="1">col-9</numIndex></numIndex>
+								<numIndex index="10" type="array"><numIndex index="0">10/12</numIndex><numIndex index="1">col-10</numIndex></numIndex>
+								<numIndex index="11" type="array"><numIndex index="0">11/12</numIndex><numIndex index="1">col-11</numIndex></numIndex>
+								<numIndex index="12" type="array"><numIndex index="0">12/12</numIndex><numIndex index="1">col-12</numIndex></numIndex>
 							</items>
-							<default>w-full</default>
+							<default>col-12</default>
 						</config>
 					</width_column_xs_3>
 				</el>
@@ -85,7 +85,7 @@
 		<columns_md>
 			<ROOT>
 				<TCEforms>
-					<sheetTitle>Spalte (md:)</sheetTitle>
+					<sheetTitle>Spalte (Mittel - col-md)</sheetTitle>
 				</TCEforms>
 				<el>
 					<width_column_md_1 type="array">
@@ -95,18 +95,18 @@
 							<renderType>selectSingle</renderType>
 							<items>
 								<numIndex index="0" type="array"><label>Nicht definiert</label><value></value></numIndex>
-								<numIndex index="1" type="array"><label>1/12</label><value>md:w-1/12</value></numIndex>
-								<numIndex index="2" type="array"><label>2/12</label><value>md:w-2/12</value></numIndex>
-								<numIndex index="3" type="array"><label>3/12</label><value>md:w-3/12</value></numIndex>
-								<numIndex index="4" type="array"><label>4/12</label><value>md:w-4/12</value></numIndex>
-								<numIndex index="5" type="array"><label>5/12</label><value>md:w-5/12</value></numIndex>
-								<numIndex index="6" type="array"><label>6/12</label><value>md:w-6/12</value></numIndex>
-								<numIndex index="7" type="array"><label>7/12</label><value>md:w-7/12</value></numIndex>
-								<numIndex index="8" type="array"><label>8/12</label><value>md:w-8/12</value></numIndex>
-								<numIndex index="9" type="array"><label>9/12</label><value>md:w-9/12</value></numIndex>
-								<numIndex index="10" type="array"><label>10/12</label><value>md:w-10/12</value></numIndex>
-								<numIndex index="11" type="array"><label>11/12</label><value>md:w-11/12</value></numIndex>
-								<numIndex index="12" type="array"><label>12/12</label><value>md:w-full</value></numIndex>
+								<numIndex index="1" type="array"><label>1/12</label><value>col-md-1</value></numIndex>
+								<numIndex index="2" type="array"><label>2/12</label><value>col-md-2</value></numIndex>
+								<numIndex index="3" type="array"><label>3/12</label><value>col-md-3</value></numIndex>
+								<numIndex index="4" type="array"><label>4/12</label><value>col-md-4</value></numIndex>
+								<numIndex index="5" type="array"><label>5/12</label><value>col-md-5</value></numIndex>
+								<numIndex index="6" type="array"><label>6/12</label><value>col-md-6</value></numIndex>
+								<numIndex index="7" type="array"><label>7/12</label><value>col-md-7</value></numIndex>
+								<numIndex index="8" type="array"><label>8/12</label><value>col-md-8</value></numIndex>
+								<numIndex index="9" type="array"><label>9/12</label><value>col-md-9</value></numIndex>
+								<numIndex index="10" type="array"><label>10/12</label><value>col-md-10</value></numIndex>
+								<numIndex index="11" type="array"><label>11/12</label><value>col-md-11</value></numIndex>
+								<numIndex index="12" type="array"><label>12/12</label><value>col-md-12</value></numIndex>
 							</items>
 						</config>
 					</width_column_md_1>
@@ -117,18 +117,18 @@
 							<renderType>selectSingle</renderType>
 							<items>
 								<numIndex index="0" type="array"><label>Nicht definiert</label><value></value></numIndex>
-								<numIndex index="1" type="array"><label>1/12</label><value>md:w-1/12</value></numIndex>
-								<numIndex index="2" type="array"><label>2/12</label><value>md:w-2/12</value></numIndex>
-								<numIndex index="3" type="array"><label>3/12</label><value>md:w-3/12</value></numIndex>
-								<numIndex index="4" type="array"><label>4/12</label><value>md:w-4/12</value></numIndex>
-								<numIndex index="5" type="array"><label>5/12</label><value>md:w-5/12</value></numIndex>
-								<numIndex index="6" type="array"><label>6/12</label><value>md:w-6/12</value></numIndex>
-								<numIndex index="7" type="array"><label>7/12</label><value>md:w-7/12</value></numIndex>
-								<numIndex index="8" type="array"><label>8/12</label><value>md:w-8/12</value></numIndex>
-								<numIndex index="9" type="array"><label>9/12</label><value>md:w-9/12</value></numIndex>
-								<numIndex index="10" type="array"><label>10/12</label><value>md:w-10/12</value></numIndex>
-								<numIndex index="11" type="array"><label>11/12</label><value>md:w-11/12</value></numIndex>
-								<numIndex index="12" type="array"><label>12/12</label><value>md:w-full</value></numIndex>
+								<numIndex index="1" type="array"><label>1/12</label><value>col-md-1</value></numIndex>
+								<numIndex index="2" type="array"><label>2/12</label><value>col-md-2</value></numIndex>
+								<numIndex index="3" type="array"><label>3/12</label><value>col-md-3</value></numIndex>
+								<numIndex index="4" type="array"><label>4/12</label><value>col-md-4</value></numIndex>
+								<numIndex index="5" type="array"><label>5/12</label><value>col-md-5</value></numIndex>
+								<numIndex index="6" type="array"><label>6/12</label><value>col-md-6</value></numIndex>
+								<numIndex index="7" type="array"><label>7/12</label><value>col-md-7</value></numIndex>
+								<numIndex index="8" type="array"><label>8/12</label><value>col-md-8</value></numIndex>
+								<numIndex index="9" type="array"><label>9/12</label><value>col-md-9</value></numIndex>
+								<numIndex index="10" type="array"><label>10/12</label><value>col-md-10</value></numIndex>
+								<numIndex index="11" type="array"><label>11/12</label><value>col-md-11</value></numIndex>
+								<numIndex index="12" type="array"><label>12/12</label><value>col-md-12</value></numIndex>
 							</items>
 						</config>
 					</width_column_md_2>
@@ -139,18 +139,18 @@
 							<renderType>selectSingle</renderType>
 							<items>
 								<numIndex index="0" type="array"><label>Nicht definiert</label><value></value></numIndex>
-								<numIndex index="1" type="array"><label>1/12</label><value>md:w-1/12</value></numIndex>
-								<numIndex index="2" type="array"><label>2/12</label><value>md:w-2/12</value></numIndex>
-								<numIndex index="3" type="array"><label>3/12</label><value>md:w-3/12</value></numIndex>
-								<numIndex index="4" type="array"><label>4/12</label><value>md:w-4/12</value></numIndex>
-								<numIndex index="5" type="array"><label>5/12</label><value>md:w-5/12</value></numIndex>
-								<numIndex index="6" type="array"><label>6/12</label><value>md:w-6/12</value></numIndex>
-								<numIndex index="7" type="array"><label>7/12</label><value>md:w-7/12</value></numIndex>
-								<numIndex index="8" type="array"><label>8/12</label><value>md:w-8/12</value></numIndex>
-								<numIndex index="9" type="array"><label>9/12</label><value>md:w-9/12</value></numIndex>
-								<numIndex index="10" type="array"><label>10/12</label><value>md:w-10/12</value></numIndex>
-								<numIndex index="11" type="array"><label>11/12</label><value>md:w-11/12</value></numIndex>
-								<numIndex index="12" type="array"><label>12/12</label><value>md:w-full</value></numIndex>
+								<numIndex index="1" type="array"><label>1/12</label><value>col-md-1</value></numIndex>
+								<numIndex index="2" type="array"><label>2/12</label><value>col-md-2</value></numIndex>
+								<numIndex index="3" type="array"><label>3/12</label><value>col-md-3</value></numIndex>
+								<numIndex index="4" type="array"><label>4/12</label><value>col-md-4</value></numIndex>
+								<numIndex index="5" type="array"><label>5/12</label><value>col-md-5</value></numIndex>
+								<numIndex index="6" type="array"><label>6/12</label><value>col-md-6</value></numIndex>
+								<numIndex index="7" type="array"><label>7/12</label><value>col-md-7</value></numIndex>
+								<numIndex index="8" type="array"><label>8/12</label><value>col-md-8</value></numIndex>
+								<numIndex index="9" type="array"><label>9/12</label><value>col-md-9</value></numIndex>
+								<numIndex index="10" type="array"><label>10/12</label><value>col-md-10</value></numIndex>
+								<numIndex index="11" type="array"><label>11/12</label><value>col-md-11</value></numIndex>
+								<numIndex index="12" type="array"><label>12/12</label><value>col-md-12</value></numIndex>
 							</items>
 						</config>
 					</width_column_md_3>
@@ -160,7 +160,7 @@
 		<columns_lg>
 			<ROOT>
 				<TCEforms>
-					<sheetTitle>Spalte (lg:)</sheetTitle>
+					<sheetTitle>Spalte (Normal - col-lg)</sheetTitle>
 				</TCEforms>
 				<el>
 					<width_column_lg_1>
@@ -169,20 +169,20 @@
 							<type>select</type>
 							<renderType>selectSingle</renderType>
 							<items>
-								<numIndex index="0" type="array"><label>1/12</label><value>lg:w-1/12</value></numIndex>
-								<numIndex index="1" type="array"><label>2/12</label><value>lg:w-2/12</value></numIndex>
-								<numIndex index="2" type="array"><label>3/12</label><value>lg:w-3/12</value></numIndex>
-								<numIndex index="3" type="array"><label>4/12</label><value>lg:w-4/12</value></numIndex>
-								<numIndex index="4" type="array"><label>5/12</label><value>lg:w-5/12</value></numIndex>
-								<numIndex index="5" type="array"><label>6/12</label><value>lg:w-6/12</value></numIndex>
-								<numIndex index="6" type="array"><label>7/12</label><value>lg:w-7/12</value></numIndex>
-								<numIndex index="7" type="array"><label>8/12</label><value>lg:w-8/12</value></numIndex>
-								<numIndex index="8" type="array"><label>9/12</label><value>lg:w-9/12</value></numIndex>
-								<numIndex index="9" type="array"><label>10/12</label><value>lg:w-10/12</value></numIndex>
-								<numIndex index="10" type="array"><label>11/12</label><value>lg:w-11/12</value></numIndex>
-								<numIndex index="11" type="array"><label>12/12</label><value>lg:w-full</value></numIndex>
+								<numIndex index="0" type="array"><label>1/12</label><value>col-lg-1</value></numIndex>
+								<numIndex index="1" type="array"><label>2/12</label><value>col-lg-2</value></numIndex>
+								<numIndex index="2" type="array"><label>3/12</label><value>col-lg-3</value></numIndex>
+								<numIndex index="3" type="array"><label>4/12</label><value>col-lg-4</value></numIndex>
+								<numIndex index="4" type="array"><label>5/12</label><value>col-lg-5</value></numIndex>
+								<numIndex index="5" type="array"><label>6/12</label><value>col-lg-6</value></numIndex>
+								<numIndex index="6" type="array"><label>7/12</label><value>col-lg-7</value></numIndex>
+								<numIndex index="7" type="array"><label>8/12</label><value>col-lg-8</value></numIndex>
+								<numIndex index="8" type="array"><label>9/12</label><value>col-lg-9</value></numIndex>
+								<numIndex index="9" type="array"><label>10/12</label><value>col-lg-10</value></numIndex>
+								<numIndex index="10" type="array"><label>11/12</label><value>col-lg-11</value></numIndex>
+								<numIndex index="11" type="array"><label>12/12</label><value>col-lg-12</value></numIndex>
 							</items>
-							<default>lg:w-4/12</default>
+							<default>col-lg-4</default>
 						</config>
 					</width_column_lg_1>
 					<width_column_lg_2 type="array">
@@ -191,20 +191,20 @@
 							<type>select</type>
 							<renderType>selectSingle</renderType>
 							<items>
-								<numIndex index="0" type="array"><label>1/12</label><value>lg:w-1/12</value></numIndex>
-								<numIndex index="1" type="array"><label>2/12</label><value>lg:w-2/12</value></numIndex>
-								<numIndex index="2" type="array"><label>3/12</label><value>lg:w-3/12</value></numIndex>
-								<numIndex index="3" type="array"><label>4/12</label><value>lg:w-4/12</value></numIndex>
-								<numIndex index="4" type="array"><label>5/12</label><value>lg:w-5/12</value></numIndex>
-								<numIndex index="5" type="array"><label>6/12</label><value>lg:w-6/12</value></numIndex>
-								<numIndex index="6" type="array"><label>7/12</label><value>lg:w-7/12</value></numIndex>
-								<numIndex index="7" type="array"><label>8/12</label><value>lg:w-8/12</value></numIndex>
-								<numIndex index="8" type="array"><label>9/12</label><value>lg:w-9/12</value></numIndex>
-								<numIndex index="9" type="array"><label>10/12</label><value>lg:w-10/12</value></numIndex>
-								<numIndex index="10" type="array"><label>11/12</label><value>lg:w-11/12</value></numIndex>
-								<numIndex index="11" type="array"><label>12/12</label><value>lg:w-full</value></numIndex>
+								<numIndex index="0" type="array"><label>1/12</label><value>col-lg-1</value></numIndex>
+								<numIndex index="1" type="array"><label>2/12</label><value>col-lg-2</value></numIndex>
+								<numIndex index="2" type="array"><label>3/12</label><value>col-lg-3</value></numIndex>
+								<numIndex index="3" type="array"><label>4/12</label><value>col-lg-4</value></numIndex>
+								<numIndex index="4" type="array"><label>5/12</label><value>col-lg-5</value></numIndex>
+								<numIndex index="5" type="array"><label>6/12</label><value>col-lg-6</value></numIndex>
+								<numIndex index="6" type="array"><label>7/12</label><value>col-lg-7</value></numIndex>
+								<numIndex index="7" type="array"><label>8/12</label><value>col-lg-8</value></numIndex>
+								<numIndex index="8" type="array"><label>9/12</label><value>col-lg-9</value></numIndex>
+								<numIndex index="9" type="array"><label>10/12</label><value>col-lg-10</value></numIndex>
+								<numIndex index="10" type="array"><label>11/12</label><value>col-lg-11</value></numIndex>
+								<numIndex index="11" type="array"><label>12/12</label><value>col-lg-12</value></numIndex>
 							</items>
-							<default>lg:w-4/12</default>
+							<default>col-lg-4</default>
 						</config>
 					</width_column_lg_2>
 					<width_column_lg_3 type="array">
@@ -213,20 +213,20 @@
 							<type>select</type>
 							<renderType>selectSingle</renderType>
 							<items>
-								<numIndex index="0" type="array"><label>1/12</label><value>lg:w-1/12</value></numIndex>
-								<numIndex index="1" type="array"><label>2/12</label><value>lg:w-2/12</value></numIndex>
-								<numIndex index="2" type="array"><label>3/12</label><value>lg:w-3/12</value></numIndex>
-								<numIndex index="3" type="array"><label>4/12</label><value>lg:w-4/12</value></numIndex>
-								<numIndex index="4" type="array"><label>5/12</label><value>lg:w-5/12</value></numIndex>
-								<numIndex index="5" type="array"><label>6/12</label><value>lg:w-6/12</value></numIndex>
-								<numIndex index="6" type="array"><label>7/12</label><value>lg:w-7/12</value></numIndex>
-								<numIndex index="7" type="array"><label>8/12</label><value>lg:w-8/12</value></numIndex>
-								<numIndex index="8" type="array"><label>9/12</label><value>lg:w-9/12</value></numIndex>
-								<numIndex index="9" type="array"><label>10/12</label><value>lg:w-10/12</value></numIndex>
-								<numIndex index="10" type="array"><label>11/12</label><value>lg:w-11/12</value></numIndex>
-								<numIndex index="11" type="array"><label>12/12</label><value>lg:w-full</value></numIndex>
+								<numIndex index="0" type="array"><label>1/12</label><value>col-lg-1</value></numIndex>
+								<numIndex index="1" type="array"><label>2/12</label><value>col-lg-2</value></numIndex>
+								<numIndex index="2" type="array"><label>3/12</label><value>col-lg-3</value></numIndex>
+								<numIndex index="3" type="array"><label>4/12</label><value>col-lg-4</value></numIndex>
+								<numIndex index="4" type="array"><label>5/12</label><value>col-lg-5</value></numIndex>
+								<numIndex index="5" type="array"><label>6/12</label><value>col-lg-6</value></numIndex>
+								<numIndex index="6" type="array"><label>7/12</label><value>col-lg-7</value></numIndex>
+								<numIndex index="7" type="array"><label>8/12</label><value>col-lg-8</value></numIndex>
+								<numIndex index="8" type="array"><label>9/12</label><value>col-lg-9</value></numIndex>
+								<numIndex index="9" type="array"><label>10/12</label><value>col-lg-10</value></numIndex>
+								<numIndex index="10" type="array"><label>11/12</label><value>col-lg-11</value></numIndex>
+								<numIndex index="11" type="array"><label>12/12</label><value>col-lg-12</value></numIndex>
 							</items>
-							<default>lg:w-4/12</default>
+							<default>col-lg-4</default>
 						</config>
 					</width_column_lg_3>
 				</el>
@@ -235,7 +235,7 @@
 		<columns_xl>
 			<ROOT>
 				<TCEforms>
-					<sheetTitle>Spalte (xl:)</sheetTitle>
+					<sheetTitle>Spalte (Extra Groß - col-xl)</sheetTitle>
 				</TCEforms>
 				<el>
 					<width_column_xl_1>
@@ -245,18 +245,18 @@
 							<renderType>selectSingle</renderType>
 							<items>
 								<numIndex index="0" type="array"><label>Nicht definiert</label><value></value></numIndex>
-								<numIndex index="1" type="array"><label>1/12</label><value>xl:w-1/12</value></numIndex>
-								<numIndex index="2" type="array"><label>2/12</label><value>xl:w-2/12</value></numIndex>
-								<numIndex index="3" type="array"><label>3/12</label><value>xl:w-3/12</value></numIndex>
-								<numIndex index="4" type="array"><label>4/12</label><value>xl:w-4/12</value></numIndex>
-								<numIndex index="5" type="array"><label>5/12</label><value>xl:w-5/12</value></numIndex>
-								<numIndex index="6" type="array"><label>6/12</label><value>xl:w-6/12</value></numIndex>
-								<numIndex index="7" type="array"><label>7/12</label><value>xl:w-7/12</value></numIndex>
-								<numIndex index="8" type="array"><label>8/12</label><value>xl:w-8/12</value></numIndex>
-								<numIndex index="9" type="array"><label>9/12</label><value>xl:w-9/12</value></numIndex>
-								<numIndex index="10" type="array"><label>10/12</label><value>xl:w-10/12</value></numIndex>
-								<numIndex index="11" type="array"><label>11/12</label><value>xl:w-11/12</value></numIndex>
-								<numIndex index="12" type="array"><label>12/12</label><value>xl:w-full</value></numIndex>
+								<numIndex index="1" type="array"><label>1/12</label><value>col-xl-1</value></numIndex>
+								<numIndex index="2" type="array"><label>2/12</label><value>col-xl-2</value></numIndex>
+								<numIndex index="3" type="array"><label>3/12</label><value>col-xl-3</value></numIndex>
+								<numIndex index="4" type="array"><label>4/12</label><value>col-xl-4</value></numIndex>
+								<numIndex index="5" type="array"><label>5/12</label><value>col-xl-5</value></numIndex>
+								<numIndex index="6" type="array"><label>6/12</label><value>col-xl-6</value></numIndex>
+								<numIndex index="7" type="array"><label>7/12</label><value>col-xl-7</value></numIndex>
+								<numIndex index="8" type="array"><label>8/12</label><value>col-xl-8</value></numIndex>
+								<numIndex index="9" type="array"><label>9/12</label><value>col-xl-9</value></numIndex>
+								<numIndex index="10" type="array"><label>10/12</label><value>col-xl-10</value></numIndex>
+								<numIndex index="11" type="array"><label>11/12</label><value>col-xl-11</value></numIndex>
+								<numIndex index="12" type="array"><label>12/12</label><value>col-xl-12</value></numIndex>
 							</items>
 						</config>
 					</width_column_xl_1>
@@ -267,18 +267,18 @@
 							<renderType>selectSingle</renderType>
 							<items>
 								<numIndex index="0" type="array"><label>Nicht definiert</label><value></value></numIndex>
-								<numIndex index="1" type="array"><label>1/12</label><value>xl:w-1/12</value></numIndex>
-								<numIndex index="2" type="array"><label>2/12</label><value>xl:w-2/12</value></numIndex>
-								<numIndex index="3" type="array"><label>3/12</label><value>xl:w-3/12</value></numIndex>
-								<numIndex index="4" type="array"><label>4/12</label><value>xl:w-4/12</value></numIndex>
-								<numIndex index="5" type="array"><label>5/12</label><value>xl:w-5/12</value></numIndex>
-								<numIndex index="6" type="array"><label>6/12</label><value>xl:w-6/12</value></numIndex>
-								<numIndex index="7" type="array"><label>7/12</label><value>xl:w-7/12</value></numIndex>
-								<numIndex index="8" type="array"><label>8/12</label><value>xl:w-8/12</value></numIndex>
-								<numIndex index="9" type="array"><label>9/12</label><value>xl:w-9/12</value></numIndex>
-								<numIndex index="10" type="array"><label>10/12</label><value>xl:w-10/12</value></numIndex>
-								<numIndex index="11" type="array"><label>11/12</label><value>xl:w-11/12</value></numIndex>
-								<numIndex index="12" type="array"><label>12/12</label><value>xl:w-full</value></numIndex>
+								<numIndex index="1" type="array"><label>1/12</label><value>col-xl-1</value></numIndex>
+								<numIndex index="2" type="array"><label>2/12</label><value>col-xl-2</value></numIndex>
+								<numIndex index="3" type="array"><label>3/12</label><value>col-xl-3</value></numIndex>
+								<numIndex index="4" type="array"><label>4/12</label><value>col-xl-4</value></numIndex>
+								<numIndex index="5" type="array"><label>5/12</label><value>col-xl-5</value></numIndex>
+								<numIndex index="6" type="array"><label>6/12</label><value>col-xl-6</value></numIndex>
+								<numIndex index="7" type="array"><label>7/12</label><value>col-xl-7</value></numIndex>
+								<numIndex index="8" type="array"><label>8/12</label><value>col-xl-8</value></numIndex>
+								<numIndex index="9" type="array"><label>9/12</label><value>col-xl-9</value></numIndex>
+								<numIndex index="10" type="array"><label>10/12</label><value>col-xl-10</value></numIndex>
+								<numIndex index="11" type="array"><label>11/12</label><value>col-xl-11</value></numIndex>
+								<numIndex index="12" type="array"><label>12/12</label><value>col-xl-12</value></numIndex>
 							</items>
 						</config>
 					</width_column_xl_2>
@@ -289,18 +289,18 @@
 							<renderType>selectSingle</renderType>
 							<items>
 								<numIndex index="0" type="array"><label>Nicht definiert</label><value></value></numIndex>
-								<numIndex index="1" type="array"><label>1/12</label><value>xl:w-1/12</value></numIndex>
-								<numIndex index="2" type="array"><label>2/12</label><value>xl:w-2/12</value></numIndex>
-								<numIndex index="3" type="array"><label>3/12</label><value>xl:w-3/12</value></numIndex>
-								<numIndex index="4" type="array"><label>4/12</label><value>xl:w-4/12</value></numIndex>
-								<numIndex index="5" type="array"><label>5/12</label><value>xl:w-5/12</value></numIndex>
-								<numIndex index="6" type="array"><label>6/12</label><value>xl:w-6/12</value></numIndex>
-								<numIndex index="7" type="array"><label>7/12</label><value>xl:w-7/12</value></numIndex>
-								<numIndex index="8" type="array"><label>8/12</label><value>xl:w-8/12</value></numIndex>
-								<numIndex index="9" type="array"><label>9/12</label><value>xl:w-9/12</value></numIndex>
-								<numIndex index="10" type="array"><label>10/12</label><value>xl:w-10/12</value></numIndex>
-								<numIndex index="11" type="array"><label>11/12</label><value>xl:w-11/12</value></numIndex>
-								<numIndex index="12" type="array"><label>12/12</label><value>xl:w-full</value></numIndex>
+								<numIndex index="1" type="array"><label>1/12</label><value>col-xl-1</value></numIndex>
+								<numIndex index="2" type="array"><label>2/12</label><value>col-xl-2</value></numIndex>
+								<numIndex index="3" type="array"><label>3/12</label><value>col-xl-3</value></numIndex>
+								<numIndex index="4" type="array"><label>4/12</label><value>col-xl-4</value></numIndex>
+								<numIndex index="5" type="array"><label>5/12</label><value>col-xl-5</value></numIndex>
+								<numIndex index="6" type="array"><label>6/12</label><value>col-xl-6</value></numIndex>
+								<numIndex index="7" type="array"><label>7/12</label><value>col-xl-7</value></numIndex>
+								<numIndex index="8" type="array"><label>8/12</label><value>col-xl-8</value></numIndex>
+								<numIndex index="9" type="array"><label>9/12</label><value>col-xl-9</value></numIndex>
+								<numIndex index="10" type="array"><label>10/12</label><value>col-xl-10</value></numIndex>
+								<numIndex index="11" type="array"><label>11/12</label><value>col-xl-11</value></numIndex>
+								<numIndex index="12" type="array"><label>12/12</label><value>col-xl-12</value></numIndex>
 							</items>
 						</config>
 					</width_column_xl_3>
@@ -320,9 +320,9 @@
 							<renderType>selectSingle</renderType>
 							<items>
 								<numIndex index="0" type="array"><label>Nicht definiert</label><value></value></numIndex>
-								<numIndex index="1" type="array"><label>Bündig oben</label><value>items-start</value></numIndex>
-								<numIndex index="2" type="array"><label>Zentriert</label><value>items-center</value></numIndex>
-								<numIndex index="3" type="array"><label>Bündig unten</label><value>items-end</value></numIndex>
+								<numIndex index="1" type="array"><label>Bündig oben</label><value>align-items-start</value></numIndex>
+								<numIndex index="2" type="array"><label>Zentriert</label><value>align-items-center</value></numIndex>
+								<numIndex index="3" type="array"><label>Bündig unten</label><value>align-items-end</value></numIndex>
 							</items>
 						</config>
 					</align_items>
@@ -333,12 +333,12 @@
 							<renderType>selectSingle</renderType>
 							<items>
 								<numIndex index="0"><label>Standard</label><value></value></numIndex>
-								<numIndex index="1"><label>XS</label><value>gap-x-2</value></numIndex>
-								<numIndex index="2"><label>S</label><value>gap-x-4</value></numIndex>
-								<numIndex index="3"><label>M</label><value>gap-x-6</value></numIndex>
-								<numIndex index="4"><label>L</label><value>gap-x-8</value></numIndex>
-								<numIndex index="5"><label>XL</label><value>gap-x-10</value></numIndex>
-								<numIndex index="6"><label>XXL</label><value>gap-x-12</value></numIndex>
+								<numIndex index="1"><label>XS</label><value>gx-1</value></numIndex>
+								<numIndex index="2"><label>S</label><value>gx-2</value></numIndex>
+								<numIndex index="3"><label>M</label><value>gx-3</value></numIndex>
+								<numIndex index="4"><label>L</label><value>gx-4</value></numIndex>
+								<numIndex index="5"><label>XL</label><value>gx-5</value></numIndex>
+								<numIndex index="6"><label>XXL</label><value>gx-6</value></numIndex>
 							</items>
 						</config>
 					</gutter_x>
@@ -349,12 +349,12 @@
 							<renderType>selectSingle</renderType>
 							<items>
 								<numIndex index="0"><label>Standard</label><value></value></numIndex>
-								<numIndex index="1"><label>XS</label><value>gap-y-2</value></numIndex>
-								<numIndex index="2"><label>S</label><value>gap-y-4</value></numIndex>
-								<numIndex index="3"><label>M</label><value>gap-y-6</value></numIndex>
-								<numIndex index="4"><label>L</label><value>gap-y-8</value></numIndex>
-								<numIndex index="5"><label>XL</label><value>gap-y-10</value></numIndex>
-								<numIndex index="6"><label>XXL</label><value>gap-y-12</value></numIndex>
+								<numIndex index="1"><label>XS</label><value>gy-1</value></numIndex>
+								<numIndex index="2"><label>S</label><value>gy-2</value></numIndex>
+								<numIndex index="3"><label>M</label><value>gy-3</value></numIndex>
+								<numIndex index="4"><label>L</label><value>gy-4</value></numIndex>
+								<numIndex index="5"><label>XL</label><value>gy-5</value></numIndex>
+								<numIndex index="6"><label>XXL</label><value>gy-6</value></numIndex>
 							</items>
 						</config>
 					</gutter_y>
