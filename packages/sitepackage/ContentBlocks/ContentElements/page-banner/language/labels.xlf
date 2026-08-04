@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+	<file datatype="plaintext" original="labels.xlf" source-language="de" date="2026-08-04T00:00:00+00:00" product-name="sitepackage/page-banner">
+		<header/>
+		<body>
+			<trans-unit id="title" resname="title">
+				<source>Dunkles Seiten-Banner</source>
+			</trans-unit>
+			<trans-unit id="description" resname="description">
+				<source>Vollflächiges dunkles Banner mit Icon, H1-Titel, Untertitel und optionalem Badge — für Unterseiten-Header (Downloads, Kontakt, Service, Verband)</source>
+			</trans-unit>
+			<trans-unit id="subheadline.label" resname="subheadline.label">
+				<source>Untertitel</source>
+			</trans-unit>
+			<trans-unit id="badge_text.label" resname="badge_text.label">
+				<source>Badge-Text (optional)</source>
+			</trans-unit>
+		</body>
+	</file>
+</xliff>
