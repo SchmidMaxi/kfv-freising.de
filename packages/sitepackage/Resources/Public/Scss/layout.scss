@@ -60,3 +60,14 @@
 
 // frame_class Background-System (.frame-bg-*, s. TCEFORM.tsconfig frame_class.addItems)
 @import "frame";
+
+// Content Block Styles
+@import "contentblocks/cardslider";
+@import "contentblocks/heroslider";
+
+// Extension Overrides (news, feuerwehr, slider, typo3)
+@import "extensions/feuerwehr";
+@import "extensions/news";
+@import "extensions/slider";
+@import "extensions/typo3";
+@import "extensions/termine";

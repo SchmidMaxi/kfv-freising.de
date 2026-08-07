@@ -12,7 +12,9 @@
         "georgringer/news": "^12.3",
         "georgringer/numbered-pagination": "^2.1",
         "b13/container": "^3.2",
-        "friendsoftypo3/content-blocks": "^1.1"
+        "friendsoftypo3/content-blocks": "^1.1",
+        "lochmueller/calendarize": "^14.0",
+        "schmid/feuerwehren": "@dev"
     },
     "autoload": {
         "psr-4": {

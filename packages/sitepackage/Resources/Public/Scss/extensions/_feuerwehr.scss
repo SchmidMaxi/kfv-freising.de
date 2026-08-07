@@ -1,32 +1,31 @@
 .org-level {
   display: flex;
-  gap: 2rem;
+  gap: 1rem;
   justify-content: center;
-  @include media-breakpoint-up(lg) {
-
-  }
 }
 
 .org-item {
-  padding: 8px;
-  border: 1px solid #ccc;
+  padding: .75rem 1rem;
   width: 100%;
+  border-top-width: 4px;
+  border-top-style: solid;
   @include media-breakpoint-up(lg) {
     max-width: 200px;
   }
 }
 
 .org-item--kbr {
-  background-color: red;
-}
-.org-item--fach-kbm {
-  background-color: green;
+  border-top-color: shade-color($fire, 15%);
+  max-width: 260px !important;
 }
 .org-item--kbi {
-  background-color: blue;
+  border-top-color: shade-color($fire, 30%);
 }
 .org-item--kbm {
-  background-color: cadetblue;
+  border-top-color: $fire;
+}
+.org-item--fach-kbm {
+  border-top-color: var(--#{$prefix}warning);
 }
 
 .feuerwehren-karte-wrap {

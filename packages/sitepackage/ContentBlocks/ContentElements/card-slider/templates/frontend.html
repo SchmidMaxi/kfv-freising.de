@@ -7,13 +7,13 @@
     <f:if condition="{data.header}">
       <h2 class="mb-4">{data.header}</h2>
     </f:if>
-    <div class="splide" role="group" aria-label="{data.header}" data-splide='{"type":"loop","perPage":<f:format.raw>{data.breakpoint_desktop}</f:format.raw>,"perMove":1,"gap":"1.5rem","breakpoints":{"1024":{"perPage":<f:format.raw>{data.breakpoint_tablet}</f:format.raw>},"640":{"perPage":<f:format.raw>{data.breakpoint_mobile}</f:format.raw>}}}'>
+    <div class="splide splide-color-{data.color}" role="group" aria-label="{data.header}" data-splide='{"type":"loop","perPage":<f:format.raw>{data.breakpoint_desktop}</f:format.raw>,"perMove":1,"gap":"1.5rem","breakpoints":{"1024":{"perPage":<f:format.raw>{data.breakpoint_tablet}</f:format.raw>},"640":{"perPage":<f:format.raw>{data.breakpoint_mobile}</f:format.raw>}}}'>
       <div class="splide__arrows">
         <button class="splide__arrow splide__arrow--prev">
-          <f:image src="{cb:assetPath()}/slider_arrow.svg" />
+          <i class="bi bi-chevron-left"></i>
         </button>
         <button class="splide__arrow splide__arrow--next">
-          <f:image src="{cb:assetPath()}/slider_arrow.svg" />
+          <i class="bi bi-chevron-right"></i>
         </button>
       </div>
       <div class="splide__track">

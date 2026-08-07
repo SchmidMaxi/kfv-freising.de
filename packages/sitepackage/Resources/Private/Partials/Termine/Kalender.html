@@ -1,0 +1,228 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+
+<div class="row g-4" id="termine-kalender-root" data-events="{eventsJson}">
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm overflow-hidden">
+            <div class="d-flex align-items-center justify-content-between p-3 border-bottom bg-body-secondary">
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="termine-cal-prev" aria-label="Vorheriger Monat">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+                <h2 class="h5 fw-bold mb-0" id="termine-cal-label">&nbsp;</h2>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="termine-cal-next" aria-label="Nächster Monat">
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
+            <div class="p-3">
+                <div class="d-grid gap-1 mb-1" style="grid-template-columns:repeat(7,1fr)">
+                    <f:for each="{0:'Mo',1:'Di',2:'Mi',3:'Do',4:'Fr',5:'Sa',6:'So'}" as="day">
+                        <div class="text-center small text-body-secondary fw-medium">{day}</div>
+                    </f:for>
+                </div>
+                <div class="d-grid gap-1" id="termine-cal-grid" style="grid-template-columns:repeat(7,1fr)"></div>
+            </div>
+            <div class="border-top p-3 bg-body-secondary">
+                <h3 class="h6 fw-semibold mb-2" id="termine-cal-month-count">&nbsp;</h3>
+                <div class="vstack gap-1" id="termine-cal-month-list" style="max-height:12rem;overflow-y:auto"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div id="termine-cal-selected">
+            <div class="card border-0 bg-body-secondary">
+                <div class="card-body p-4 text-center text-body-secondary">
+                    <i class="bi bi-calendar3 fs-1 d-block mb-3"></i>
+                    Wählen Sie ein Datum im Kalender, um die Details zu sehen.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<f:asset.script identifier="termine-kalender">
+document.addEventListener('DOMContentLoaded', () => {
+    const root = document.getElementById('termine-kalender-root');
+    if (!root) return;
+
+    let events = [];
+    try {
+        events = JSON.parse(root.dataset.events || '[]');
+    } catch (e) {
+        events = [];
+    }
+
+    const grid = document.getElementById('termine-cal-grid');
+    const label = document.getElementById('termine-cal-label');
+    const monthCount = document.getElementById('termine-cal-month-count');
+    const monthList = document.getElementById('termine-cal-month-list');
+    const selectedBox = document.getElementById('termine-cal-selected');
+
+    const monthNames = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+
+    const parseDate = (s) => {
+        const [y, m, d] = s.split('-').map(Number);
+        return new Date(y, m - 1, d);
+    };
+    const isoDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const fmtDate = (d) => d.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+
+    const eventsByDate = {};
+    events.forEach((e) => {
+        (eventsByDate[e.date] = eventsByDate[e.date] || []).push(e);
+    });
+
+    let current = events.length > 0 ? parseDate(events[0].date) : new Date();
+    current = new Date(current.getFullYear(), current.getMonth(), 1);
+    let selected = null;
+
+    function eventCard(e) {
+        const div = document.createElement('div');
+        div.className = 'card border-0 shadow-sm mb-2';
+        const body = document.createElement('div');
+        body.className = 'card-body p-3';
+
+        if (e.category) {
+            const badge = document.createElement('span');
+            badge.className = 'badge badge-kat mb-2 d-inline-block';
+            badge.dataset.kat = e.categorySlug || 'termin';
+            badge.textContent = e.category;
+            body.appendChild(badge);
+        }
+
+        const title = document.createElement('div');
+        title.className = 'fw-semibold mb-1';
+        title.textContent = e.title;
+        body.appendChild(title);
+
+        if (e.time) {
+            const time = document.createElement('div');
+            time.className = 'small text-body-secondary';
+            time.innerHTML = '<i class="bi bi-clock me-1"></i>';
+            time.append(`${e.time} Uhr`);
+            body.appendChild(time);
+        }
+
+        if (e.location) {
+            const location = document.createElement('div');
+            location.className = 'small text-body-secondary';
+            location.innerHTML = '<i class="bi bi-geo-alt me-1"></i>';
+            location.append(e.location);
+            body.appendChild(location);
+        }
+
+        div.appendChild(body);
+        return div;
+    }
+
+    function renderSelected() {
+        selectedBox.innerHTML = '';
+        if (!selected) {
+            selectedBox.innerHTML = `<div class="card border-0 bg-body-secondary"><div class="card-body p-4 text-center text-body-secondary"><i class="bi bi-calendar3 fs-1 d-block mb-3"></i>Wählen Sie ein Datum im Kalender, um die Details zu sehen.</div></div>`;
+            return;
+        }
+        const dayEvents = eventsByDate[selected] || [];
+        const header = document.createElement('div');
+        header.className = 'gradient-fire rounded-3 p-3 text-white mb-3';
+        header.innerHTML = `<div class="small opacity-75">Ausgewähltes Datum</div><div class="fw-bold fs-5">${fmtDate(parseDate(selected))}</div><div class="small opacity-75 mt-1">${dayEvents.length} Termin(e)</div>`;
+        selectedBox.appendChild(header);
+        if (dayEvents.length === 0) {
+            const p = document.createElement('div');
+            p.className = 'card border-0'; p.innerHTML = '<div class="card-body text-center text-body-secondary p-4">Keine Termine an diesem Tag.</div>';
+            selectedBox.appendChild(p);
+        } else {
+            dayEvents.forEach((e) => selectedBox.appendChild(eventCard(e)));
+        }
+    }
+
+    function renderMonthList() {
+        const y = current.getFullYear();
+        const m = current.getMonth();
+        const inMonth = events.filter((e) => {
+            const d = parseDate(e.date);
+            return d.getFullYear() === y && d.getMonth() === m;
+        });
+        monthCount.textContent = `${inMonth.length} Termine im ${monthNames[m]}`;
+        monthList.innerHTML = '';
+        if (inMonth.length === 0) {
+            monthList.innerHTML = '<p class="small text-body-secondary mb-0">Keine Termine in diesem Monat.</p>';
+            return;
+        }
+        inMonth.forEach((e) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-sm btn-light text-start d-flex align-items-center gap-2 w-100';
+            const d = parseDate(e.date);
+            const dateSpan = document.createElement('span');
+            dateSpan.className = 'text-body-secondary small';
+            dateSpan.textContent = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.`;
+            const titleSpan = document.createElement('span');
+            titleSpan.className = 'text-truncate';
+            titleSpan.textContent = e.title;
+            btn.append(dateSpan, titleSpan);
+            btn.addEventListener('click', () => { selected = e.date; renderSelected(); });
+            monthList.appendChild(btn);
+        });
+    }
+
+    function renderGrid() {
+        grid.innerHTML = '';
+        label.textContent = `${monthNames[current.getMonth()]} ${current.getFullYear()}`;
+
+        const firstOfMonth = new Date(current.getFullYear(), current.getMonth(), 1);
+        const startOffset = (firstOfMonth.getDay() + 6) % 7;
+        const daysInMonth = new Date(current.getFullYear(), current.getMonth() + 1, 0).getDate();
+
+        for (let i = 0; i < startOffset; i++) {
+            const empty = document.createElement('div');
+            grid.appendChild(empty);
+        }
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateObj = new Date(current.getFullYear(), current.getMonth(), day);
+            const iso = isoDate(dateObj);
+            const hasEvent = !!eventsByDate[iso];
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-sm rounded-circle p-0 d-flex align-items-center justify-content-center position-relative';
+            btn.style.aspectRatio = '1';
+            btn.style.width = '100%';
+            btn.classList.add(iso === selected ? 'btn-primary' : 'btn-light');
+            if (hasEvent) {
+                btn.classList.add('fw-bold');
+            }
+            btn.textContent = String(day);
+            if (hasEvent && iso !== selected) {
+                const slugs = [...new Set((eventsByDate[iso] || []).map((e) => e.categorySlug || 'termin'))].slice(0, 3);
+                const dots = document.createElement('span');
+                dots.className = 'position-absolute bottom-0 start-50 translate-middle-x d-flex gap-1';
+                dots.style.marginBottom = '3px';
+                slugs.forEach((slug) => {
+                    const dot = document.createElement('span');
+                    dot.className = 'rounded-circle dot-kat';
+                    dot.dataset.kat = slug;
+                    dot.style.width = '6px'; dot.style.height = '6px';
+                    dots.appendChild(dot);
+                });
+                btn.appendChild(dots);
+            }
+            btn.addEventListener('click', () => { selected = iso; renderGrid(); renderSelected(); });
+            grid.appendChild(btn);
+        }
+    }
+
+    document.getElementById('termine-cal-prev').addEventListener('click', () => {
+        current = new Date(current.getFullYear(), current.getMonth() - 1, 1);
+        renderGrid(); renderMonthList();
+    });
+    document.getElementById('termine-cal-next').addEventListener('click', () => {
+        current = new Date(current.getFullYear(), current.getMonth() + 1, 1);
+        renderGrid(); renderMonthList();
+    });
+
+    renderGrid();
+    renderMonthList();
+    renderSelected();
+});
+</f:asset.script>
+
+</html>

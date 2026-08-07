@@ -13,7 +13,7 @@
       <!-- Variante 1: News-Slider -->
       <f:case value="news">
         <div class="container">
-          <div class="splide splide-slider px-5"
+          <div class="splide splide-slider splide-layout-news px-5"
                data-splide='{"type":"loop","perPage":<f:format.raw>{data.breakpoint_desktop}</f:format.raw>,"perMove":1,"gap":"1.5rem","breakpoints":{"1024":{"perPage":<f:format.raw>{data.breakpoint_tablet}</f:format.raw>},"640":{"perPage":<f:format.raw>{data.breakpoint_mobile}</f:format.raw>}}<f:if condition="{data.autoplay}">,"autoplay":true,"interval":<f:format.raw>{data.autoplay_interval}</f:format.raw>,"pauseOnHover":true</f:if>}'>
             <div class="splide__track">
               <ul class="splide__list">
@@ -44,7 +44,7 @@
 
       <!-- Variante 2: Hero-Slider -->
       <f:case value="hero">
-        <div class="splide splide-slider"
+        <div class="splide splide-slider splide-layout-hero"
              data-splide='{"type":"loop","perPage":1,"perMove":1<f:if condition="{data.autoplay}">,"autoplay":true,"interval":<f:format.raw>{data.autoplay_interval}</f:format.raw>,"pauseOnHover":true</f:if>}'>
           <div class="splide__track">
             <ul class="splide__list">
@@ -77,7 +77,7 @@
       <!-- Variante 3: Zitate-Slider -->
       <f:case value="quote">
         <div class="container">
-          <div class="splide splide-slider mx-auto px-5" style="max-width: 42rem;"
+          <div class="splide splide-slider splide-layout-quote mx-auto px-5" style="max-width: 42rem;"
                data-splide='{"type":"loop","perPage":1,"perMove":1<f:if condition="{data.autoplay}">,"autoplay":true,"interval":<f:format.raw>{data.autoplay_interval}</f:format.raw>,"pauseOnHover":true</f:if>}'>
             <div class="splide__track">
               <ul class="splide__list">
@@ -103,7 +103,7 @@
       <!-- Variante 4: Logo-Band -->
       <f:case value="logo">
         <div class="container">
-          <div class="splide splide-slider px-5"
+          <div class="splide splide-slider splide-layout-logo px-5"
                data-splide='{"type":"slide","perPage":<f:format.raw>{data.breakpoint_desktop}</f:format.raw>,"perMove":1,"gap":"1rem","rewind":true,"breakpoints":{"1024":{"perPage":<f:format.raw>{data.breakpoint_tablet}</f:format.raw>},"640":{"perPage":<f:format.raw>{data.breakpoint_mobile}</f:format.raw>}}<f:if condition="{data.autoplay}">,"autoplay":true,"interval":<f:format.raw>{data.autoplay_interval}</f:format.raw>,"pauseOnHover":true</f:if>}'>
             <div class="splide__track">
               <ul class="splide__list">

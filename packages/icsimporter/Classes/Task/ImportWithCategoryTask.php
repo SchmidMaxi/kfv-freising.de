@@ -96,14 +96,21 @@ final class ImportWithCategoryTask extends AbstractTask
 
     private function getEventUid(ICalEvent $event): ?string
     {
+        $uid = null;
+
         if (method_exists($event, 'getUid')) {
-            return (string)$event->getUid();
-        }
-        if (method_exists($event, 'getId')) {
-            return (string)$event->getId();
+            $uid = (string)$event->getUid();
+        } elseif (method_exists($event, 'getId')) {
+            $uid = (string)$event->getId();
         }
 
-        return null;
+        if ($uid === null || $uid === '') {
+            return null;
+        }
+
+        // Must match HDNET\Calendarize\EventListener\ImportSingleIcalEventListener::__invoke(),
+        // which hashes UIDs over 100 chars (e.g. long Outlook UIDs) before storing as import_id.
+        return \strlen($uid) <= 100 ? $uid : md5($uid);
     }
 
     /**

@@ -1,4 +1,4 @@
-<div class="org-item org-item--{area.type} card p-3 shadow-sm" style="min-width: 150px;">
+<div class="org-item org-item--{area.type} card p-3 shadow-sm{f:if(condition: '!{area.person}', then: ' placeholder-card')}" style="min-width: 150px;">
   <div class="mb-1 small fw-semibold text-uppercase text-body-secondary" style="letter-spacing: .03em;">{area.title}</div>
   <div class="small fw-medium">
     <f:if condition="{area.person}">
@@ -6,11 +6,15 @@
         <f:link.action action="show" controller="Person" pluginName="Organigramm"
                        arguments="{person: area.person}"
                        class="link-primary text-decoration-none">
-          {area.person.title}
+          <f:if condition="{area.person.feUser.lastName}">
+            <f:then>{area.person.feUser.firstName} {area.person.feUser.lastName}</f:then>
+            <f:else>{area.person.title}</f:else>
+          </f:if>
         </f:link.action>
       </f:then>
       <f:else>
         <span class="fst-italic text-body-secondary">Nicht besetzt</span>
+        <span class="badge placeholder-badge bg-secondary-subtle text-secondary-emphasis ms-1">offen</span>
       </f:else>
     </f:if>
   </div>

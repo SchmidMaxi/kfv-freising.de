@@ -1,0 +1,63 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+
+<f:if condition="{layout} == 'compact'">
+    <f:then>
+        <f:render partial="Termine/Jubilaeen" arguments="{jubilaeen: jubilaeen, compact: 1}" />
+        <f:if condition="{showCalendarizeEvents}">
+            <f:render partial="Termine/Calendarize" arguments="{events: calendarizeEvents, compact: 1}" />
+        </f:if>
+    </f:then>
+    <f:else>
+        <div class="container py-5">
+            <div class="d-flex align-items-center gap-3 mb-4">
+                <div class="gradient-fire rounded-3 d-flex align-items-center justify-content-center flex-shrink-0" style="width:3rem;height:3rem">
+                    <i class="bi bi-calendar-event text-white fs-4"></i>
+                </div>
+                <h1 class="fw-bold h2 mb-0">Termine &amp; Events</h1>
+            </div>
+            <p class="text-body-secondary mb-4" style="max-width:40rem">
+                Alle wichtigen Termine, Veranstaltungen und Jubiläen im Überblick.
+            </p>
+
+            <f:if condition="{showCalendarizeEvents}">
+                <f:then>
+                    <ul class="nav nav-pills gap-2 mb-4" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active d-flex align-items-center gap-2" id="termine-tab-kalender" data-bs-toggle="pill" data-bs-target="#termine-pane-kalender" type="button" role="tab">
+                                <i class="bi bi-calendar3"></i> Kalender
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link d-flex align-items-center gap-2" id="termine-tab-liste" data-bs-toggle="pill" data-bs-target="#termine-pane-liste" type="button" role="tab">
+                                <i class="bi bi-list-ul"></i> Liste
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link d-flex align-items-center gap-2" id="termine-tab-jubilaeen" data-bs-toggle="pill" data-bs-target="#termine-pane-jubilaeen" type="button" role="tab">
+                                <i class="bi bi-award"></i> Jubiläen
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="termine-pane-kalender" role="tabpanel">
+                            <f:render partial="Termine/Kalender" arguments="{events: calendarizeEventsFull, eventsJson: calendarizeEventsJson}" />
+                        </div>
+                        <div class="tab-pane fade" id="termine-pane-liste" role="tabpanel">
+                            <f:render partial="Termine/CalendarizeListe" arguments="{events: calendarizeEventsFull, categories: calendarizeCategories}" />
+                        </div>
+                        <div class="tab-pane fade" id="termine-pane-jubilaeen" role="tabpanel">
+                            <f:render partial="Termine/Jubilaeen" arguments="{jubilaeen: jubilaeen, years: jubilaeumYears, arten: jubilaeumArten, compact: 0}" />
+                        </div>
+                    </div>
+                </f:then>
+                <f:else>
+                    <h2 class="fw-bold h4 mb-3">Jubiläen der Feuerwehren</h2>
+                    <f:render partial="Termine/Jubilaeen" arguments="{jubilaeen: jubilaeen, years: jubilaeumYears, arten: jubilaeumArten, compact: 0}" />
+                </f:else>
+            </f:if>
+        </div>
+    </f:else>
+</f:if>
+
+</html>

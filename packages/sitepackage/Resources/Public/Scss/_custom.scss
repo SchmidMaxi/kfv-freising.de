@@ -76,32 +76,52 @@ body {
   text-transform: uppercase;
 }
 
-// Splide-Slider: Arrow-Styling für Slider-ContentBlocks
-.splide-slider .splide__arrow {
+// Splide-Slider: Arrow-Styling für alle Slider-ContentBlocks (card-slider, heroslider,
+// generischer "slider"-Block) — einheitlicher Kreis-Button, immer sichtbar (nicht nur
+// bei Hover, sonst ohne Affordance auf hellem Kartenhintergrund erkennbar).
+.splide .splide__arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: 50%;
+  translate: 0 -50%;
+  z-index: 1;
   background: var(--#{$prefix}body-bg);
   border: 1px solid var(--#{$prefix}border-color);
+  color: var(--#{$prefix}body-color);
   opacity: 1;
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 9999px;
-  transition: background 0.2s, box-shadow 0.2s;
+  font-size: 1.1rem;
+  transition: background 0.2s, color 0.2s;
+
+  &.splide__arrow--prev {
+    left: .75rem;
+  }
+  &.splide__arrow--next {
+    right: .75rem;
+  }
+  &:disabled {
+    display: none;
+  }
 }
-.splide-slider .splide__arrow:hover {
+.splide .splide__arrow:hover,
+.splide .splide__arrow:focus-visible {
   background: var(--#{$prefix}primary);
+  color: var(--#{$prefix}primary-bg-subtle);
 }
-.splide-slider .splide__arrow svg {
-  fill: var(--#{$prefix}body-color);
+.splide .splide__arrow svg {
+  fill: currentColor;
   width: 1rem;
   height: 1rem;
 }
-.splide-slider .splide__arrow:hover svg {
-  fill: var(--#{$prefix}primary-bg-subtle);
-}
-.splide-slider .splide__pagination__page {
+.splide .splide__pagination__page {
   background: var(--#{$prefix}border-color);
   opacity: 1;
 }
-.splide-slider .splide__pagination__page.is-active {
+.splide .splide__pagination__page.is-active {
   background: var(--#{$prefix}primary);
   transform: scale(1.2);
 }

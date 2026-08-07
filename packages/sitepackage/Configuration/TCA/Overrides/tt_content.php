@@ -19,3 +19,16 @@ defined('TYPO3') or die('Access denied.');
     'badge',
     'before:header'
 );
+
+// Termine (Jubiläen + optional Calendarize-Termine)
+\TYPO3\CMS\Extbase\Utility\ExtensionUtility::registerPlugin(
+    'Sitepackage',
+    'Termine',
+    'Termine (Jubiläen + Calendarize)',
+    'EXT:sitepackage/Resources/Public/Icons/Extension.svg'
+);
+$GLOBALS['TCA']['tt_content']['types']['list']['subtypes_addlist']['sitepackage_termine'] = 'pi_flexform';
+\TYPO3\CMS\Core\Utility\ExtensionManagementUtility::addPiFlexFormValue(
+    'sitepackage_termine',
+    'FILE:EXT:sitepackage/Configuration/FlexForms/Termine.xml'
+);
