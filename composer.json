@@ -2,7 +2,7 @@
     "require": {
         "lochmueller/calendarize": "^14.0",
         "mediadreams/md_fullcalendar": "^5.0",
-        "reelworx/rx-shariff": "^15.2",
+        "reelworx/rx-shariff": "^16.1",
         "schmid/sitepackage": "@dev",
         "typo3/cms-adminpanel": "^13.0",
         "typo3/cms-backend": "^13.0",
