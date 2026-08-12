@@ -11,6 +11,12 @@ styles:
         width: 1900m
         height: 1000m
 
+news:
+  view:
+    templateRootPath: 'EXT:sitepackage/Resources/Private/Extensions/News/Templates/'
+    partialRootPath: 'EXT:sitepackage/Resources/Private/Extensions/News/Partials/'
+    layoutRootPath: 'EXT:sitepackage/Resources/Private/Extensions/News/Layouts/'
+
 page:
   pageview:
     paths: 'EXT:sitepackage/Resources/Private/PageView/'
