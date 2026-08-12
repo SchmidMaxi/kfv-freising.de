@@ -69,3 +69,48 @@ plugin.tx_news {
 
     }
 }
+
+# georgringer/news splits each list_type into its own top-level plugin
+# (tx_news_newsliststicky, tx_news_newsdetail, ...) instead of the shared
+# tx_news plugin. Without this, they fall back to the extension's default
+# templates (wrong markup/classes, dummy image config lost).
+plugin.tx_news_newsliststicky {
+    settings =< plugin.tx_news.settings
+    persistence =< plugin.tx_news.persistence
+    view =< plugin.tx_news.view
+}
+plugin.tx_news_newsdetail {
+    settings =< plugin.tx_news.settings
+    persistence =< plugin.tx_news.persistence
+    view =< plugin.tx_news.view
+}
+plugin.tx_news_newsselectedlist {
+    settings =< plugin.tx_news.settings
+    persistence =< plugin.tx_news.persistence
+    view =< plugin.tx_news.view
+}
+plugin.tx_news_newsdatemenu {
+    settings =< plugin.tx_news.settings
+    persistence =< plugin.tx_news.persistence
+    view =< plugin.tx_news.view
+}
+plugin.tx_news_categorylist {
+    settings =< plugin.tx_news.settings
+    persistence =< plugin.tx_news.persistence
+    view =< plugin.tx_news.view
+}
+plugin.tx_news_newssearchform {
+    settings =< plugin.tx_news.settings
+    persistence =< plugin.tx_news.persistence
+    view =< plugin.tx_news.view
+}
+plugin.tx_news_newssearchresult {
+    settings =< plugin.tx_news.settings
+    persistence =< plugin.tx_news.persistence
+    view =< plugin.tx_news.view
+}
+plugin.tx_news_taglist {
+    settings =< plugin.tx_news.settings
+    persistence =< plugin.tx_news.persistence
+    view =< plugin.tx_news.view
+}
