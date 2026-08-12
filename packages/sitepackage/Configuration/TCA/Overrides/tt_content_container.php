@@ -11,15 +11,19 @@ $additionalColumns = [
             'items' => [
                 [
                     'label' => 'Weiß',
-                    'value' => 'white',
+                    'value' => 'bg-white',
                 ],
                 [
                     'label' => 'Dunkelgrau',
-                    'value' => 'dark',
+                    'value' => 'bg-surface-dark',
                 ],
                 [
-                    'label' => 'Hellgrau',
-                    'value' => 'light',
+                    'label' => 'Hellgrau (Muted)',
+                    'value' => 'bg-muted',
+                ],
+                [
+                    'label' => 'Hellgrau (Secondary)',
+                    'value' => 'bg-secondary',
                 ],
             ]
         ],
@@ -249,6 +253,47 @@ $GLOBALS['TCA']['tt_content']['types']['3cols']['showitem'] = '
    --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:extended,
 ';
 
+
+// Tabs Container
+\TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(\B13\Container\Tca\Registry::class)->configureContainer(
+  (
+    new \B13\Container\Tca\ContainerConfiguration(
+      'tabs', // CType
+      'Tabs', // label
+      'Tab-Navigation mit bis zu 4 Tabs (beliebige Inhalte pro Tab)', // description
+      [
+        [
+          ['name' => 'Tab 1', 'colPos' => 210],
+          ['name' => 'Tab 2', 'colPos' => 211],
+          ['name' => 'Tab 3', 'colPos' => 212],
+          ['name' => 'Tab 4', 'colPos' => 213],
+        ]
+      ] // grid configuration
+    )
+  )
+  ->setSaveAndCloseInNewContentElementWizard(false)
+  ->setIcon('EXT:container/Resources/Public/Icons/container-4col.svg')
+);
+\TYPO3\CMS\Core\Utility\ExtensionManagementUtility::addPiFlexFormValue(
+  '*',
+  'FILE:EXT:sitepackage/Configuration/FlexForms/tabs.xml',
+  'tabs'
+);
+$GLOBALS['TCA']['tt_content']['types']['tabs']['showitem'] = '
+   --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:general,
+       --palette--;;general,
+       --palette--;;headers,pi_flexform;Tab-Einstellungen,
+   --div--;LLL:EXT:frontend/Resources/Private/Language/locallang_ttc.xlf:tabs.appearance,
+       --palette--;;frames,
+       --palette--;;appearanceLinks,
+   --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:language,
+       --palette--;;language,
+   --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:access,
+       --palette--;;hidden,
+       --palette--;;access,
+   --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:notes,
+       rowDescription,
+';
 
 // Four Column Container
 \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(\B13\Container\Tca\Registry::class)->configureContainer(

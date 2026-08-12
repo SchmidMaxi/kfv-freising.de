@@ -1,0 +1,6 @@
+TYPO3:
+  CMS:
+    Form:
+      persistenceManager:
+        allowedExtensionPaths:
+          10: 'EXT:sitepackage/Resources/Private/Form/Definitions/'

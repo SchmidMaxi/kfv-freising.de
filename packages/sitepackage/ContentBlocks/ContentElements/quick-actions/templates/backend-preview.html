@@ -1,0 +1,19 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+      xmlns:cb="http://typo3.org/ns/T3docs/ContentBlocks/ViewHelpers"
+      data-namespace-typo3-fluid="true">
+
+<div style="background: hsl(40 20% 98%); border: 1px solid hsl(30 10% 82%); padding: 1rem 1.25rem; border-radius: 4px; font-family: sans-serif;">
+    <strong style="display: block; font-size: 0.7rem; letter-spacing: 0.1em; color: hsl(215 20% 45%); text-transform: uppercase; margin-bottom: 0.5rem;">Quick Actions</strong>
+    <f:if condition="{data.header}">
+        <span style="font-size: 1rem; font-weight: bold; color: hsl(215 28% 20%);">{data.header}</span>
+    </f:if>
+    <f:if condition="{data.items}">
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;">
+            <f:for each="{data.items}" as="item">
+                <span style="padding: 0.25rem 0.75rem; background: hsl(0 100% 40%); color: white; border-radius: 4px; font-size: 0.8rem;">{item.title}</span>
+            </f:for>
+        </div>
+    </f:if>
+</div>
+
+</html>

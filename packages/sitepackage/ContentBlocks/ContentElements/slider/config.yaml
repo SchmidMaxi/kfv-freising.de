@@ -1,0 +1,72 @@
+name: sitepackage/slider
+typeName: slider
+group: default
+prefixFields: true
+prefixType: full
+basics:
+  - TYPO3/Appearance
+fields:
+  -
+    identifier: header
+    useExistingField: true
+  -
+    identifier: slider_layout
+    type: Select
+    renderType: selectSingle
+    default: 'news'
+    items:
+      - label: 'News-Slider (Karten-Carousel)'
+        value: news
+      - label: 'Hero-Slider (Fullwidth mit Overlay)'
+        value: hero
+      - label: 'Zitate-Slider'
+        value: quote
+      - label: 'Logo-Band (Partner/Sponsoren)'
+        value: logo
+  -
+    identifier: sitepackage/breakpoints
+    type: Basic
+  -
+    identifier: autoplay
+    type: Checkbox
+    label: 'Automatisch abspielen'
+    default: 0
+  -
+    identifier: autoplay_interval
+    type: Number
+    label: 'Intervall (ms)'
+    default: 5000
+    displayCond: 'FIELD:sitepackage_slider_autoplay:=:1'
+  -
+    identifier: items
+    type: Collection
+    labelField: header
+    minitems: 1
+    appearance:
+      collapseAll: true
+      levelLinksPosition: bottom
+    fields:
+      - identifier: header
+        type: Text
+        label: 'Titel'
+      - identifier: image
+        type: File
+        label: 'Bild'
+        maxitems: 1
+      - identifier: category
+        type: Text
+        label: 'Kategorie-Badge (News/Hero)'
+        placeholder: 'z.B. Übung, Fahrzeuge'
+      - identifier: link
+        type: Link
+        label: 'Link (News/Hero)'
+      - identifier: button_label
+        type: Text
+        label: 'Button-Text (Hero)'
+        placeholder: 'z.B. Mehr erfahren'
+      - identifier: quote_text
+        type: Textarea
+        label: 'Zitat-Text (Quote)'
+      - identifier: author
+        type: Text
+        label: 'Autor / Quelle (Quote/Logo)'

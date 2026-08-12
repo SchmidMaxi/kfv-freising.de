@@ -1,0 +1,30 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+
+<div id="c{data.uid}" class="mb-5 frame frame-{data.frame_class} frame-type-{data.CType} frame-layout-{data.layout}{f:if(condition: data.space_before_class, then: ' frame-space-before-{data.space_before_class}')}{f:if(condition: data.space_after_class, then: ' frame-space-after-{data.space_after_class}')}">
+    <div class="d-flex flex-column {f:if(condition: '{data.alignment} == center', then: 'align-items-center text-center', else: 'flex-md-row align-items-md-end justify-content-md-between')}">
+        <div>
+            <f:if condition="{data.badge_text}">
+                <span class="badge rounded-pill border border-primary text-primary bg-transparent mb-3">{data.badge_text}</span>
+            </f:if>
+
+            <f:if condition="{data.header}">
+                <h2 class="display-6 fw-bold">
+                    {data.header}<f:if condition="{data.header_highlight}"> <span class="text-primary">{data.header_highlight}</span></f:if>
+                </h2>
+            </f:if>
+
+            <f:if condition="{data.subheadline}">
+                <p class="lead text-muted mt-3 mb-0" style="max-width: 40rem;">{data.subheadline}</p>
+            </f:if>
+        </div>
+
+        <f:if condition="{data.link_text}">
+            <f:link.typolink parameter="{data.link_url}"
+                             class="btn btn-link text-decoration-none px-0 mt-3 mt-md-0 flex-shrink-0">
+                {data.link_text} <i class="bi bi-arrow-right"></i>
+            </f:link.typolink>
+        </f:if>
+    </div>
+</div>
+
+</html>

@@ -1,0 +1,63 @@
+name: sitepackage/hero-static
+typeName: hero-static
+group: default
+prefixFields: true
+prefixType: full
+basics:
+  - TYPO3/Appearance
+fields:
+  - identifier: header
+    useExistingField: true
+  - identifier: header_line2
+    type: Text
+    label: 'Überschrift Zeile 2 (optional, erscheint leicht abgedunkelt)'
+  - identifier: subheadline
+    type: Textarea
+  - identifier: badge_text
+    type: Text
+    label: 'Badge-Text (erscheint über der Überschrift)'
+    default: 'Retten • Löschen • Bergen • Schützen'
+  - identifier: image
+    useExistingField: true
+    label: Hintergrundbild
+    maxitems: 1
+  - identifier: buttons
+    type: Collection
+    label: Buttons
+    labelField: button_text
+    minitems: 0
+    maxitems: 4
+    appearance:
+      collapseAll: true
+    fields:
+      - identifier: button_text
+        type: Text
+        label: 'Beschriftung'
+        default: 'Mehr erfahren'
+      - identifier: button_link
+        type: Link
+        label: 'Ziel-Link'
+      - identifier: button_style
+        type: Select
+        renderType: selectSingle
+        default: 'primary'
+        label: 'Style'
+        items:
+          - label: 'Primary (Hell, prominent)'
+            value: 'primary'
+          - label: 'Secondary (Transparent, Outline)'
+            value: 'secondary'
+  - identifier: stats
+    type: Collection
+    labelField: stat_label
+    minitems: 0
+    maxitems: 4
+    appearance:
+      collapseAll: true
+    fields:
+      - identifier: stat_value
+        type: Text
+      - identifier: stat_label
+        type: Text
+      - identifier: sitepackage/icons
+        type: Basic

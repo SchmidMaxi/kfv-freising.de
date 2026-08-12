@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+    <file source-language="en" datatype="plaintext" original="EXT:icsimporter/Resources/Private/Language/locallang.xlf">
+        <body>
+            <trans-unit id="task.title" resname="task.title">
+                <source>ICS Import (Calendarize) with Category</source>
+            </trans-unit>
+            <trans-unit id="task.description" resname="task.description">
+                <source>Imports an ICS feed into Calendarize and assigns a sys_category to the events.</source>
+            </trans-unit>
+            <trans-unit id="task.field.icsUrl" resname="task.field.icsUrl">
+                <source>ICS URL (https://… or t3://file?uid=…)</source>
+            </trans-unit>
+            <trans-unit id="task.field.pid" resname="task.field.pid">
+                <source>Target Page ID</source>
+            </trans-unit>
+            <trans-unit id="task.field.categoryUid" resname="task.field.categoryUid">
+                <source>Category UID (sys_category)</source>
+            </trans-unit>
+            <trans-unit id="task.field.since" resname="task.field.since">
+                <source>Since (optional)</source>
+            </trans-unit>
+            <trans-unit id="task.field.since.placeholder" resname="task.field.since.placeholder">
+                <source>e.g. -14 days or 2024-01-01</source>
+            </trans-unit>
+            <trans-unit id="task.error.icsUrl" resname="task.error.icsUrl">
+                <source>Please provide an ICS URL.</source>
+            </trans-unit>
+            <trans-unit id="task.error.pid" resname="task.error.pid">
+                <source>Please provide a valid Page ID.</source>
+            </trans-unit>
+            <trans-unit id="task.error.categoryUid" resname="task.error.categoryUid">
+                <source>Please provide a valid Category UID.</source>
+            </trans-unit>
+        </body>
+    </file>
+</xliff>

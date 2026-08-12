@@ -1,0 +1,151 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+    <f:layout name="Default" />
+
+    <f:section name="content">
+        <div class="d-flex flex-column flex-lg-row gap-4">
+            <!-- Kalender -->
+            <div id="calendar{contentObject.uid}"
+                 class="{f:if(condition: '{categories}', then: 'col-lg-9', else: 'w-100')}">
+            </div>
+
+            <!-- Kategorien-Filter -->
+            <f:if condition="{categories}">
+                <div id="categoryFilter{contentObject.uid}" class="col-lg-3">
+                    <p class="small fw-medium mb-3">
+                        {f:translate(key: 'filter_calendars', extensionName: 'MdFullcalendar')}
+                    </p>
+                    <div class="d-flex flex-column gap-2">
+                        <f:for each="{categories}" as="category">
+                            <label class="form-check d-flex align-items-center gap-2 small category{category.uid} px-3 py-2 rounded border">
+                                <input type="checkbox"
+                                       value="category{category.uid}"
+                                       name="categoryFilter{contentObject.uid}"
+                                       id="cf{contentObject.uid}_{category.uid}"
+                                       class="form-check-input mt-0">
+                                <span class="form-check-label">{category.title}</span>
+                            </label>
+                        </f:for>
+                    </div>
+                </div>
+            </f:if>
+        </div>
+
+        <!-- Dialog (nativer HTML5-Ersatz fuer Bootstrap Modal) -->
+        <dialog id="calModal{contentObject.uid}"
+                class="cal-modal rounded shadow p-0 border-0">
+            <div class="modal-content-inner overflow-y-auto" style="max-height: 70vh;"></div>
+            <div class="d-flex justify-content-end px-4 py-3 border-top">
+                <button type="button"
+                        class="cal-modal-close btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-2"
+                        data-dialog-id="calModal{contentObject.uid}">
+                    {f:translate(key: 'close', extensionName: 'MdFullcalendar')}
+                </button>
+            </div>
+        </dialog>
+
+        <style>
+            .cal-modal { width: 100%; max-width: 42rem; }
+            .cal-modal::backdrop { background: rgba(0, 0, 0, .5); }
+        </style>
+
+        <script type="text/javascript">
+            document.addEventListener('DOMContentLoaded', function() {
+                if ('undefined' === typeof window.jQuery) {
+                    document.getElementById('calendar{contentObject.uid}').innerHTML = "Missing jQuery.";
+                    return;
+                }
+
+                var calendarEl = document.getElementById('calendar{contentObject.uid}'),
+                    calModal = document.getElementById('calModal{contentObject.uid}'),
+                    filtersActive = document.getElementById('categoryFilter{contentObject.uid}');
+
+                document.querySelectorAll('.cal-modal-close[data-dialog-id="calModal{contentObject.uid}"]').forEach(function(btn) {
+                    btn.addEventListener('click', function() { calModal.close(); });
+                });
+                calModal.addEventListener('click', function(e) {
+                    if (e.target === calModal) { calModal.close(); }
+                    if (e.target.closest && e.target.closest('.cal-modal-close')) { calModal.close(); }
+                });
+
+                var calendar = new FullCalendar.Calendar(calendarEl, {
+                    firstDay: 1,
+                    {f:if(condition: '{settings.language}', then: 'locale: \'{settings.language}\',')}
+                    initialView: '{settings.view}',
+                    headerToolbar: {
+                        left: 'prev,next today',
+                        center: 'title',
+                        right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                    },
+                    dayMaxEventRows: 4,
+                    navLinks: true,
+                    fixedWeekCount: false,
+                    events: function(info, successCallback, failureCallback) {
+                        getEvents(info, successCallback, failureCallback);
+                    },
+                    eventDidMount: function(item) {
+                        $(item.el).prop('title', item.event.extendedProps.abstract);
+
+                        if (filtersActive) {
+                            var selected = $('#categoryFilter{contentObject.uid} input:checked').map(function() {
+                                return $(this).val();
+                            }).get();
+                            if (selected.length > 0) {
+                                $(item.el).addClass('d-none');
+                                selected.forEach(function(val) {
+                                    if ($(item.el).hasClass(val)) { $(item.el).removeClass('d-none'); }
+                                });
+                            }
+                        }
+
+                        $(item.el).on('click', function(e) {
+                            e.preventDefault();
+                            document.body.style.cursor = 'wait';
+                            $.ajax({
+                                url: item.event.extendedProps.uriAjax,
+                                success: function(result) {
+                                    /* result is TYPO3-rendered HTML (server-controlled, not user input) */
+                                    calModal.querySelector('.modal-content-inner').innerHTML = result;
+                                    calModal.showModal();
+                                },
+                                error: function() { alert('An error occurred. Please try again.'); },
+                                complete: function() { document.body.style.cursor = ''; }
+                            });
+                        });
+                    },
+                });
+
+                function getEvents(info, successCallback, failureCallback) {
+                    let eventsUrl = '<f:uri.page pageUid="{contentObject.pid}" pageType="1573738558" additionalParams="{storage: \'{storagePid}\'}" />';
+                    $.ajax({
+                        url: eventsUrl,
+                        method: 'POST',
+                        data: { start: info.startStr, end: info.endStr },
+                        success: function(result) {
+                            successCallback(result.map(function(e) {
+                                return { id: e.id, title: e.title, description: e.description, start: e.start, end: e.end, allDay: e.allDay, className: e.className, url: e.url, uriAjax: e.uriAjax };
+                            }));
+                        },
+                        error: function() { alert('There was an error while fetching events!'); }
+                    });
+                }
+
+                calendar.render();
+
+                if (filtersActive) {
+                    $('#categoryFilter{contentObject.uid} [type=checkbox]').on('change', function() {
+                        var selected = $('#categoryFilter{contentObject.uid} input:checked').map(function() {
+                            return $(this).val();
+                        }).get();
+                        if (selected.length > 0) {
+                            $('#calendar{contentObject.uid} .cal-item').addClass('d-none');
+                            selected.forEach(function(val) { $('#calendar{contentObject.uid} .' + val).removeClass('d-none'); });
+                        } else {
+                            $('#calendar{contentObject.uid} .cal-item').removeClass('d-none');
+                        }
+                        calendar.refetchEvents();
+                    });
+                }
+            });
+        </script>
+    </f:section>
+</html>

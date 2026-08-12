@@ -1,0 +1,104 @@
+{namespace c=HDNET\Calendarize\ViewHelpers}
+
+<f:alias map="{event: index.originalObject}">
+    <div class="state-{index.state}">
+        <h1 class="fw-bold fs-2 fs-md-1 mb-2">
+            <f:render partial="{index.configuration.partialIdentifier}/Title" arguments="{index: index}"/>
+            <c:titleTag><f:render partial="{index.configuration.partialIdentifier}/Title" arguments="{index: index}"/></c:titleTag>
+        </h1>
+
+        <p class="text-body-secondary mb-4">
+            <f:if condition="{index.state}=='canceled'">
+                <f:then>
+                    <span class="d-inline-flex align-items-center gap-1 text-danger fw-medium">
+                        <i class="bi bi-x-circle" aria-hidden="true"></i>
+                        <f:translate key="canceled" />
+                    </span>
+                </f:then>
+                <f:else>
+                    <i class="bi bi-calendar3 me-1" aria-hidden="true"></i>
+                    <f:render partial="DateInformation" arguments="{index: index}"/>
+                </f:else>
+            </f:if>
+        </p>
+
+        <f:if condition="{event.images}">
+            <div class="d-flex flex-wrap gap-3 mb-4">
+                <f:for each="{event.images}" as="image">
+                    <f:if condition="{image.originalResource.type}==4">
+                        <f:then>
+                            <f:media file="{image}" class="rounded" />
+                        </f:then>
+                        <f:else>
+                            <f:image image="{image}" alt="" maxWidth="600" class="rounded img-fluid" style="max-width: 36rem;" />
+                        </f:else>
+                    </f:if>
+                </f:for>
+            </div>
+        </f:if>
+
+        <div class="mb-4">
+            <f:format.html>{event.description}</f:format.html>
+        </div>
+
+        <f:if condition="{event.location}">
+            <dl class="row small mb-3">
+                <dt class="col-auto fw-medium">
+                    <i class="bi bi-geo-alt me-1" aria-hidden="true"></i>
+                    <f:translate key="tx_calendarize_domain_model_event.location" />
+                </dt>
+                <dd class="col text-body-secondary">
+                    <f:if condition="{event.locationLink}">
+                        <f:then>
+                            <f:link.typolink parameter="{event.locationLink}" class="link-primary text-decoration-none">{event.location}</f:link.typolink>
+                        </f:then>
+                        <f:else>
+                            {event.location}
+                        </f:else>
+                    </f:if>
+                </dd>
+                <f:if condition="{event.organizer}">
+                    <dt class="col-auto fw-medium">
+                        <i class="bi bi-people me-1" aria-hidden="true"></i>
+                        <f:translate key="tx_calendarize_domain_model_event.organizer" />
+                    </dt>
+                    <dd class="col text-body-secondary">
+                        <f:if condition="{event.organizerLink}">
+                            <f:then>
+                                <f:link.typolink parameter="{event.organizerLink}" class="link-primary text-decoration-none">{event.organizer}</f:link.typolink>
+                            </f:then>
+                            <f:else>
+                                {event.organizer}
+                            </f:else>
+                        </f:if>
+                    </dd>
+                </f:if>
+            </dl>
+        </f:if>
+
+        <f:if condition="{event.downloads}">
+            <div class="d-flex flex-column gap-2 mb-4">
+                <f:for each="{event.downloads}" as="download">
+                    <a href="{download.originalResource.publicUrl}"
+                       class="d-inline-flex align-items-center gap-2 small link-primary text-decoration-none">
+                        <i class="bi bi-download" aria-hidden="true"></i>
+                        {download.originalResource.name}
+                    </a>
+                </f:for>
+            </div>
+        </f:if>
+
+        <f:if condition="{settings.bookingPid}">
+            <f:if condition="{event.bookable}">
+                <c:link.booking index="{index}" class="btn btn-primary d-inline-flex align-items-center gap-2">
+                    <f:translate key="booking"/>
+                    <i class="bi bi-arrow-right" aria-hidden="true"></i>
+                </c:link.booking>
+            </f:if>
+        </f:if>
+    </div>
+</f:alias>
+
+<c:ifExtensionLoaded extensionKey="schema">
+    <f:render partial="{index.configuration.partialIdentifier}/StructuredData/Detail" arguments="{index: index}"/>
+</c:ifExtensionLoaded>

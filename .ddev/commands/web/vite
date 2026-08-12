@@ -1,0 +1,34 @@
+#!/bin/bash
+
+## Description: Start Vite dev server for HMR
+## Usage: vite [start|build|install]
+## Example: ddev vite start
+## Example: ddev vite build
+
+cd /var/www/html/packages/sitepackage
+
+case "$1" in
+    build)
+        echo "Building Vite assets..."
+        npm run build
+        ;;
+    install)
+        echo "Installing npm dependencies..."
+        npm install
+        ;;
+    start|"")
+        echo "Starting Vite dev server..."
+        echo "HMR available at: https://kfv-freising.ddev.site:5173"
+        echo ""
+        npm run dev
+        ;;
+    *)
+        echo "Usage: ddev vite [start|build|install]"
+        echo ""
+        echo "Commands:"
+        echo "  start   - Start Vite dev server with HMR (default)"
+        echo "  build   - Build production assets"
+        echo "  install - Install npm dependencies"
+        exit 1
+        ;;
+esac

@@ -12,10 +12,37 @@
     const layerKbmId = 'toggle-kbm';
     const layerKbiId = 'toggle-kbi';
 
+    // Kanonische Seite mit dem Karten-Plugin (Feuerwehr::showAction lebt auf derselben
+    // Plugin-Instanz). Siehe Tracker D8: Marker-/Listen-Klick verlinkt hierher, damit auch
+    // die kompakte Karten-Einbettung (Startseite) zur vollen Detailseite führt.
+    const DETAIL_BASE_PATH = '/inspektion/feuerwehren';
+
     let map;
 
-    // --- 2. KARTEN-STIL DEFINITION (unverändert) ---
-    function buildBaseStyle() {
+    // --- Detail-Link-Helfer (D8) ---
+    function detailUrl(uid) {
+        const params = new URLSearchParams();
+        params.set('tx_feuerwehren_karte[controller]', 'Feuerwehr');
+        params.set('tx_feuerwehren_karte[action]', 'show');
+        params.set('tx_feuerwehren_karte[feuerwehr]', String(uid));
+        return `${DETAIL_BASE_PATH}?${params.toString()}`;
+    }
+
+    // --- 2. KARTEN-STIL DEFINITION ---
+    // Farbpalette je Theme (D4: Dark-Mode-Unterstützung). Nur die Basiskarten-Töne
+    // (Hintergrund/Wasser/Landbedeckung/Straßen/Grenzen) wechseln — Gemeinden-/KBM-/KBI-/
+    // Feuerwehr-Layer bleiben farblich gleich, da sie auf beiden Hintergründen gut lesbar sind.
+    const MAP_THEME_COLORS = {
+        light: { background: '#f2f2f2', water: '#a0c8f0', landcover: '#e8e8e8', landcoverOpacity: 0.5, roads: '#bdbdbd', boundary: '#888888' },
+        dark: { background: '#1a1d21', water: '#16324a', landcover: '#2a2e33', landcoverOpacity: 0.6, roads: '#4a4f57', boundary: '#6b7280' },
+    };
+
+    function getTheme() {
+        return document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'dark' : 'light';
+    }
+
+    function buildBaseStyle(theme) {
+        const c = MAP_THEME_COLORS[theme] || MAP_THEME_COLORS.light;
         return {
             "version": 8,
             "sources": {
@@ -26,10 +53,11 @@
                 "feuerwehren": { "type": "geojson", "data": { "type": "FeatureCollection", "features": [] } }
             },
             "layers": [
-                { "id": "water", "type": "fill", "source": "basemap", "source-layer": "water", "paint": { "fill-color": "#a0c8f0" } },
-                { "id": "landcover", "type": "fill", "source": "basemap", "source-layer": "landcover", "paint": { "fill-color": "#e8e8e8", "fill-opacity": 0.5 } },
-                { "id": "roads", "type": "line", "source": "basemap", "source-layer": "transportation", "paint": { "line-color": "#bdbdbd", "line-width": ["interpolate", ["linear"], ["zoom"], 6, 0.2, 14, 2] } },
-                { "id": "boundary", "type": "line", "source": "basemap", "source-layer": "boundary", "paint": { "line-color": "#888", "line-dasharray": [3, 2], "line-width": 1 } },
+                { "id": "background", "type": "background", "paint": { "background-color": c.background } },
+                { "id": "water", "type": "fill", "source": "basemap", "source-layer": "water", "paint": { "fill-color": c.water } },
+                { "id": "landcover", "type": "fill", "source": "basemap", "source-layer": "landcover", "paint": { "fill-color": c.landcover, "fill-opacity": c.landcoverOpacity } },
+                { "id": "roads", "type": "line", "source": "basemap", "source-layer": "transportation", "paint": { "line-color": c.roads, "line-width": ["interpolate", ["linear"], ["zoom"], 6, 0.2, 14, 2] } },
+                { "id": "boundary", "type": "line", "source": "basemap", "source-layer": "boundary", "paint": { "line-color": c.boundary, "line-dasharray": [3, 2], "line-width": 1 } },
                 { "id": "gemeinden-fill", "type": "fill", "source": "gemeinden", "paint": { "fill-color": "#66bb6a", "fill-opacity": 0.10 } },
                 { "id": "gemeinden-outline", "type": "line", "source": "gemeinden", "paint": { "line-color": "#2e7d32", "line-width": 1 } },
                 { "id": "kbm-fill", "type": "fill", "source": "kbm", "layout": { "visibility": "none" }, "paint": { "fill-color": "#42a5f5", "fill-opacity": 0.08 } },
@@ -126,12 +154,29 @@
             const div = document.createElement('div');
             div.className = 'fw-item';
             div.dataset.id = String(it.uid);
-            div.innerHTML = `<strong>${it.name}</strong><br><span class="legend">${it.strasse || ''}, ${it.plz || ''} ${it.ort || ''}</span><br><em>${(it.fahrzeuge || []).join(', ')}</em>`;
+
+            // DOM-Aufbau statt innerHTML-Stringinterpolation, damit Feuerwehr-Daten
+            // (Name/Adresse aus der API) nicht ungefiltert als HTML interpretiert werden.
+            const strong = document.createElement('strong');
+            strong.textContent = it.name || '';
+            const legend = document.createElement('span');
+            legend.className = 'legend';
+            legend.textContent = `${it.strasse || ''}, ${it.plz || ''} ${it.ort || ''}`;
+            const em = document.createElement('em');
+            em.textContent = (it.fahrzeuge || []).join(', ');
+            const detailsLink = document.createElement('a');
+            detailsLink.href = detailUrl(it.uid);
+            detailsLink.className = 'fw-item-details-link';
+            detailsLink.textContent = 'Details ansehen →';
+
+            div.append(strong, document.createElement('br'), legend, document.createElement('br'), em, document.createElement('br'), detailsLink);
 
             div.addEventListener('mouseenter', () => setHighlight(it.uid));
             div.addEventListener('mouseleave', () => setHighlight(null));
 
-            div.addEventListener('click', () => {
+            div.addEventListener('click', (evt) => {
+                // Klick auf den "Details ansehen"-Link soll normal navigieren, nicht die Karte schwenken.
+                if (evt.target && evt.target.closest('.fw-item-details-link')) return;
                 if (typeof it.lon === 'number' && typeof it.lat === 'number') {
                     map.easeTo({ center: [it.lon, it.lat], zoom: Math.max(map.getZoom(), 12) });
                 }
@@ -165,15 +210,27 @@
     }
 
     // --- 5. EVENT-HANDLER ---
+    function setVis(layerId, visible) {
+        if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none');
+    }
+
+    // Wendet die aktuellen Checkbox-Zustände (Gemeinden/KBM/KBI) auf die Kartenlayer an.
+    // Wird initial in wireEvents() und erneut nach einem Theme-bedingten setStyle() aufgerufen,
+    // da setStyle() alle Layer (inkl. layout.visibility) auf den Style-Default zurücksetzt.
+    function syncLayerVisibilityFromControls() {
+        const gEl = document.getElementById(layerGemeindenId);
+        const kbmEl = document.getElementById(layerKbmId);
+        const kbiEl = document.getElementById(layerKbiId);
+        if (gEl) { setVis('gemeinden-fill', gEl.checked); setVis('gemeinden-outline', gEl.checked); }
+        if (kbmEl) { ['kbm-fill', 'kbm-outline'].forEach(l => setVis(l, kbmEl.checked)); }
+        if (kbiEl) { ['kbi-fill', 'kbi-outline'].forEach(l => setVis(l, kbiEl.checked)); }
+    }
+
     function wireEvents() {
         // Layer-Sichtbarkeit
         const gEl = document.getElementById(layerGemeindenId);
         const kbmEl = document.getElementById(layerKbmId);
         const kbiEl = document.getElementById(layerKbiId);
-
-        const setVis = (layerId, visible) => {
-            if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none');
-        };
 
         if (gEl) {
             const handler = () => { setVis('gemeinden-fill', gEl.checked); setVis('gemeinden-outline', gEl.checked); };
@@ -208,9 +265,25 @@
             const feature = e.features && e.features[0];
             if (!feature) return;
             const props = feature.properties;
-            let html = `<strong>${props.name || props.title || 'Info'}</strong>`;
-            if (props.fahrzeuge) html += `<br>Fahrzeuge: ${props.fahrzeuge}`;
-            new maplibregl.Popup().setLngLat(e.lngLat).setHTML(html).addTo(map);
+
+            // DOM-Aufbau statt setHTML(), damit Namen/Feature-Properties nicht als HTML interpretiert werden.
+            const container = document.createElement('div');
+            const strong = document.createElement('strong');
+            strong.textContent = props.name || props.title || 'Info';
+            container.appendChild(strong);
+            if (props.fahrzeuge) {
+                container.appendChild(document.createElement('br'));
+                container.appendChild(document.createTextNode(`Fahrzeuge: ${props.fahrzeuge}`));
+            }
+            // Detail-Link nur für Feuerwehr-Marker (D8), nicht für Gemeinden/KBM/KBI-Flächen.
+            if (feature.layer && feature.layer.id === 'feuerwehren' && props.uid) {
+                container.appendChild(document.createElement('br'));
+                const link = document.createElement('a');
+                link.href = detailUrl(props.uid);
+                link.textContent = 'Details ansehen →';
+                container.appendChild(link);
+            }
+            new maplibregl.Popup().setLngLat(e.lngLat).setDOMContent(container).addTo(map);
         };
         ['gemeinden-fill', 'kbm-fill', 'kbi-fill', 'feuerwehren'].forEach(layerId => {
             map.on('click', layerId, createPopup);
@@ -236,6 +309,25 @@
         map.on('zoomend', loadData);
     }
 
+    // Reagiert auf Theme-Wechsel (data-bs-theme, siehe colormode.js) durch Umschalten der
+    // Kartenfarben (D4). setStyle() ersetzt Layer/Sources komplett, daher müssen Overlay-/
+    // Suchdaten sowie die Toggle-Zustände danach neu angewendet werden.
+    function watchThemeChanges() {
+        let currentTheme = getTheme();
+        const observer = new MutationObserver(() => {
+            const nextTheme = getTheme();
+            if (nextTheme === currentTheme) return;
+            currentTheme = nextTheme;
+            map.setStyle(buildBaseStyle(nextTheme));
+            map.once('style.load', async () => {
+                await loadOverlays();
+                await loadData();
+                syncLayerVisibilityFromControls();
+            });
+        });
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-bs-theme'] });
+    }
+
     // --- 6. INITIALISIERUNG ---
     function init() {
         if (!document.getElementById(mapContainerId)) return;
@@ -243,7 +335,7 @@
             container: mapContainerId,
             center: [11.75, 48.46],
             zoom: 9,
-            style: buildBaseStyle()
+            style: buildBaseStyle(getTheme())
         });
         map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 
@@ -251,6 +343,7 @@
             await loadOverlays();
             await loadData();
             wireEvents();
+            watchThemeChanges();
         });
     }
 

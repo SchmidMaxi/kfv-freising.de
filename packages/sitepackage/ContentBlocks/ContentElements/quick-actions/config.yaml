@@ -1,0 +1,36 @@
+name: sitepackage/quick-actions
+typeName: quick-actions
+group: default
+prefixFields: true
+prefixType: full
+basics:
+  - TYPO3/Appearance
+fields:
+  - identifier: header
+    useExistingField: true
+    label: Überschrift (optional)
+  - identifier: items
+    type: Collection
+    labelField: title
+    minitems: 1
+    maxitems: 8
+    appearance:
+      collapseAll: true
+    fields:
+      - identifier: title
+        type: Text
+      - identifier: description
+        type: Textarea
+      - identifier: link
+        type: Link
+      - identifier: sitepackage/icons
+        type: Basic
+      - identifier: variant
+        type: Select
+        renderType: selectSingle
+        default: 'accent'
+        items:
+          - label: 'Akzent (Feuerwehr-Rot)'
+            value: 'accent'
+          - label: 'Primär (Dunkel)'
+            value: 'primary'

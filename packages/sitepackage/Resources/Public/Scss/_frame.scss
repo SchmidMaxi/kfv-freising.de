@@ -1,0 +1,144 @@
+// frame_class Background-System
+//
+// Generische Hintergrund-Optionen für tt_content.frame_class, wählbar von
+// Redakteuren im Backend (siehe TCEFORM.tsconfig, tt_content.frame_class.addItems).
+// Gerendert wird die Klasse als `frame-{data.frame_class}` durch den gemeinsamen
+// Wrapper-Klassen-Pattern `frame frame-{data.frame_class} frame-type-{data.CType} …`,
+// den ContentBlocks selbst rendern (siehe hero-static/templates/frontend.html) und
+// den TYPO3s fluid_styled_content-Frame.html-Partial für alle übrigen tt_content-
+// Elemente (inkl. Plugins wie News/Calendarize) automatisch übernimmt.
+//
+// Zweck: Jedes Content-Element (ContentBlock ODER Plugin-Ausgabe) bekommt allein
+// durch die Wahl des passenden frame_class-Werts im Backend ein gepolstertes,
+// abgerundetes Karten-Hintergrund-Layout — ohne dass einzelne Templates eigene
+// Padding-/Background-/Border-radius-Regeln hardcoden müssen (Beispiel: der bisher
+// hardcodierte Calendarize-Homepage-Wrapper wird dadurch ersetzbar).
+//
+// Nutzt Bootstraps CSS-Custom-Properties (--bs-body-bg / --bs-secondary-bg /
+// --bs-tertiary-bg), damit Dark Mode (data-bs-theme="dark", s. _variables-dark.scss)
+// automatisch mitgeht. Für die Marken-Dunkel-Variante (bg-surface-dark) werden bewusst
+// feste SCSS-Variablen ($gray-900/$white) verwendet, analog zur bestehenden
+// .bg-surface-dark-Utility in _custom.scss — diese Fläche bleibt in Light- und
+// Dark-Mode konstant dunkel (Marken-Fläche, kein Body-Farbton).
+
+$frame-bg-padding-y: 1.5rem !default;
+$frame-bg-padding-x: 1.5rem !default;
+$frame-bg-padding-y-lg: 2rem !default;
+$frame-bg-padding-x-lg: 2rem !default;
+
+.frame-bg-white,
+.frame-bg-body-secondary,
+.frame-bg-body-tertiary,
+.frame-bg-surface-dark {
+  padding: $frame-bg-padding-y $frame-bg-padding-x;
+  border-radius: var(--#{$prefix}border-radius-lg);
+
+  @include media-breakpoint-up(md) {
+    padding: $frame-bg-padding-y-lg $frame-bg-padding-x-lg;
+  }
+}
+
+// frame_class="bg-white" — neutraler, heller Karten-Hintergrund (Body-Hintergrundfarbe)
+.frame-bg-white {
+  background-color: var(--#{$prefix}body-bg);
+  color: var(--#{$prefix}body-color);
+}
+
+// frame_class="bg-body-secondary" — Bootstrap Secondary-Surface-Ton
+.frame-bg-body-secondary {
+  background-color: var(--#{$prefix}secondary-bg);
+  color: var(--#{$prefix}body-color);
+}
+
+// frame_class="bg-body-tertiary" — Bootstrap Tertiary-Surface-Ton (leicht abgesetzt)
+.frame-bg-body-tertiary {
+  background-color: var(--#{$prefix}tertiary-bg);
+  color: var(--#{$prefix}body-color);
+}
+
+// frame_class="bg-surface-dark" — Marken-Dunkelfläche (identisch zu .bg-surface-dark)
+.frame-bg-surface-dark {
+  background-color: $gray-900;
+  color: $white;
+}
+
+// frame_class="primary-card" — Dunkle Marken-Karte (z.B. "Kommende Termine"-Sidebar
+// auf der Startseite), analog zur Lovable-Referenz (dort ist "primary" gray-900, nicht
+// die Akzentfarbe). Bootstraps $primary ist in diesem Theme bewusst auf Fire-Rot gemappt
+// (Akzent-/CTA-Farbe) — für diese dunkle Kartenfläche daher fixes $gray-900 wie bei
+// .frame-bg-surface-dark verwenden, nicht var(--bs-primary). Header/Text werden weiß,
+// List-Group-Items transluzent auf der Dunkelfläche statt weißem Standard-Listenhintergrund.
+.frame-primary-card {
+  padding: $frame-bg-padding-y $frame-bg-padding-x;
+  border-radius: var(--#{$prefix}border-radius-lg);
+  background-color: $gray-900;
+  color: $white;
+
+  @include media-breakpoint-up(md) {
+    padding: $frame-bg-padding-y-lg $frame-bg-padding-x-lg;
+  }
+
+  header,
+  h2,
+  h3 {
+    color: $white;
+  }
+
+  .list-group {
+    gap: 0.5rem;
+  }
+
+  .list-group-item {
+    background-color: rgba($white, 0.1);
+    border: 0;
+    border-radius: var(--#{$prefix}border-radius);
+    color: $white;
+
+    .text-body-secondary {
+      color: rgba($white, 0.7) !important;
+    }
+  }
+
+  .list-group-item-action:hover,
+  .list-group-item-action:focus {
+    background-color: rgba($white, 0.15);
+    color: $white;
+  }
+}
+
+// b13/container "section" — Hintergrundfarben-Select (tt_content.color, s.
+// tt_content_container.php, Werte: bg-white/bg-surface-dark/bg-muted/bg-secondary,
+// gerendert 1:1 als Bootstrap-Utility-Klasse durch ContentElements/Templates/Section.html).
+//
+// Bug (2026-08-04 Color-Token-Audit): Bootstraps `.bg-white`/`.bg-secondary`-Utilities
+// sind STATISCHE Farben (var(--bs-white-rgb) bzw. var(--bs-secondary-rgb)), die sich im
+// Dark Mode NICHT ändern — im Gegensatz zum Section-Überschriftentext, der über
+// `--bs-body-color` themed wird. Ergebnis: "Weiß"-Sektionen blieben im Dark Mode weiß,
+// während ihre Überschrift auf helle Dark-Mode-Textfarbe wechselte → nahezu unlesbar
+// (z.B. Startseiten-Sektion "Aktuelles & Termine"). `.bg-muted` existierte als Klasse gar
+// nicht (No-op, komplett transparent) — sichtbar zufällig "richtig", weil dadurch einfach
+// die Body-Hintergrundfarbe durchscheint, aber ohne den beabsichtigten Grauton.
+//
+// Fix: Innerhalb von `.section` (b13/container-Wrapper) die Bootstrap-Utilities durch
+// themefähige Bootstrap-CSS-Custom-Properties ersetzen — dieselbe Technik wie oben bei
+// `.frame-bg-*`. Nur auf `.section.bg-*` beschränkt (Compound-Selektor), damit die
+// GLEICHNAMIGEN globalen Bootstrap-Utilities `.bg-white`/`.bg-secondary` an anderer
+// Stelle (z.B. halbtransparente weiße Badges im hero-static-ContentBlock, Such-Icon-Feld)
+// unverändert ihre statische Bedeutung behalten.
+// !important nötig: Bootstraps `.bg-white`/`.bg-secondary`-Utilities selbst sind
+// bereits mit !important deklariert (Utilities-API-Standardverhalten), gleiche
+// Selektor-Spezifität allein würde also nicht gewinnen.
+.section.bg-white {
+  background-color: var(--#{$prefix}body-bg) !important;
+  color: var(--#{$prefix}body-color);
+}
+
+.section.bg-muted {
+  background-color: var(--#{$prefix}tertiary-bg) !important;
+  color: var(--#{$prefix}body-color);
+}
+
+.section.bg-secondary {
+  background-color: var(--#{$prefix}secondary-bg) !important;
+  color: var(--#{$prefix}body-color);
+}

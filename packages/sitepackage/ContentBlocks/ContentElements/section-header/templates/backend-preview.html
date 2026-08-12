@@ -1,0 +1,18 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+
+<div style="padding: 0.75rem 1rem; border-left: 3px solid hsl(0 100% 35%); background: hsl(0 0% 97%); font-family: sans-serif;">
+    <strong style="display: block; font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; color: hsl(0 100% 35%); margin-bottom: 0.35rem;">Abschnitts-Kopfzeile</strong>
+    <f:if condition="{data.badge_text}">
+        <span style="display: inline-block; font-size: 0.7rem; border: 1px solid hsl(0 100% 35%); color: hsl(0 100% 35%); border-radius: 999px; padding: 0.1rem 0.5rem; margin-bottom: 0.35rem;">{data.badge_text}</span>
+    </f:if>
+    <f:if condition="{data.header}">
+        <span style="display: block; font-size: 1rem; font-weight: bold; color: #111;">
+            {data.header}<f:if condition="{data.header_highlight}"> <span style="color: hsl(0 100% 35%);">{data.header_highlight}</span></f:if>
+        </span>
+    </f:if>
+    <f:if condition="{data.subheadline}">
+        <span style="display: block; font-size: 0.8rem; color: #666; margin-top: 0.25rem;">{data.subheadline -> f:format.crop(maxCharacters: 100)}</span>
+    </f:if>
+</div>
+
+</html>

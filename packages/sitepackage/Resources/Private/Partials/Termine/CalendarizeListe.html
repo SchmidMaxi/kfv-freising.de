@@ -1,0 +1,71 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+
+<div id="termine-liste-root">
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        <span class="badge rounded-pill filter-pill-kat active termine-liste-filter" data-kat="termin" data-kategorie="" role="button">Alle</span>
+        <f:for each="{categories}" as="kat">
+            <span class="badge rounded-pill filter-pill-kat termine-liste-filter" data-kat="{kat.slug}" data-kategorie="{kat.name}" role="button">{kat.name}</span>
+        </f:for>
+    </div>
+
+    <f:if condition="{events -> f:count()} == 0">
+        <p class="text-body-secondary">Keine anstehenden Termine.</p>
+    </f:if>
+
+    <div class="row g-4">
+        <f:for each="{events}" as="event">
+            <div class="col-md-6 col-lg-4 termine-liste-card" data-kategorie="{event.category}">
+                <div class="card border-0 shadow-sm h-100 overflow-hidden">
+                    <div class="card-kat-bar" data-kat="{event.categorySlug}" style="height:4px"></div>
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-start justify-content-between mb-3">
+                            <div class="bg-body-secondary rounded-3 d-flex flex-column align-items-center justify-content-center flex-shrink-0" style="width:3.5rem;height:3.5rem">
+                                <span class="small text-uppercase text-body-secondary">
+                                    <f:format.date format="M">{event.date}</f:format.date>
+                                </span>
+                                <span class="fs-5 fw-bold">
+                                    <f:format.date format="d">{event.date}</f:format.date>
+                                </span>
+                            </div>
+                            <span class="badge badge-kat" data-kat="{event.categorySlug}">{event.category}</span>
+                        </div>
+                        <h3 class="h6 fw-semibold mb-3">{event.title}</h3>
+                        <div class="small text-body-secondary vstack gap-1">
+                            <f:if condition="{event.time}">
+                                <span><i class="bi bi-clock me-1"></i>{event.time} Uhr</span>
+                            </f:if>
+                            <f:if condition="{event.location}">
+                                <span><i class="bi bi-geo-alt me-1"></i>{event.location}</span>
+                            </f:if>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </f:for>
+    </div>
+</div>
+
+<f:asset.script identifier="termine-liste-filter">
+document.addEventListener('DOMContentLoaded', () => {
+    const root = document.getElementById('termine-liste-root');
+    if (!root) return;
+
+    const badges = root.querySelectorAll('.termine-liste-filter');
+    const cards = root.querySelectorAll('.termine-liste-card');
+
+    badges.forEach((badge) => {
+        badge.addEventListener('click', () => {
+            const kat = badge.dataset.kategorie;
+            badges.forEach((b) => b.classList.remove('active'));
+            badge.classList.add('active');
+
+            cards.forEach((card) => {
+                const show = kat === '' || card.dataset.kategorie === kat;
+                card.style.display = show ? '' : 'none';
+            });
+        });
+    });
+});
+</f:asset.script>
+
+</html>

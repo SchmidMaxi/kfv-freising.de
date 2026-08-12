@@ -1,40 +1,17 @@
-.splide__arrows  {
-
-  .splide__arrow {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    z-index: 1;
-    border: 0;
-    padding: 1rem;
-    background: none;
-    opacity: 0;
-    transition: opacity 0.2s;
-    svg {
-      fill: currentColor;
-    }
-    &:hover {
-      opacity: 1;
-    }
-    &:disabled {
-      display: none;
-    }
-    &.splide__arrow--prev {
-      left: 0;
-      &:hover {
-        background: linear-gradient(90deg, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 100%);
-      }
-      svg {
-        transform: scaleX(-1);
-      }
-    }
-    &.splide__arrow--next {
-      right: 0;
-      &:hover {
-        background: linear-gradient(270deg, rgba(255,255,255,.25) 0%, rgba(255,255,255,0) 100%);
-      }
-    }
-  }
+// Dunkler Slider-Kontext (Hero-Slider auf Foto, card-slider Variante "Dunkel") -> heller Pfeil statt dunklem
+// (Basis-Styling für .splide__arrow s. _custom.scss)
+.frame-type-heroslider .splide .splide__arrow,
+.splide-layout-hero .splide__arrow,
+.splide-color-dark .splide__arrow {
+  background: rgba(255, 255, 255, .15);
+  border-color: rgba(255, 255, 255, .4);
+  color: #fff;
+}
+.frame-type-heroslider .splide .splide__arrow:hover,
+.splide-layout-hero .splide__arrow:hover,
+.splide-color-dark .splide__arrow:hover {
+  background: var(--#{$prefix}primary);
+  border-color: var(--#{$prefix}primary);
 }
 
 .splide__pagination {

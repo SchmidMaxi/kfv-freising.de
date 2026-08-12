@@ -1,0 +1,1877 @@
+{
+  "/home/maxi/kfv-freising.de/.claude/settings.local.json": {
+    "mtime": 1777964851.399265,
+    "ast_hash": "c24682a0fe79fa853e5a2ee5e1ceb85d",
+    "semantic_hash": "c24682a0fe79fa853e5a2ee5e1ceb85d"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/commands/host/git-push": {
+    "mtime": 1753089326.483839,
+    "ast_hash": "a4ad2c69d518c85886766da9f4da9531",
+    "semantic_hash": "a4ad2c69d518c85886766da9f4da9531"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/commands/host/make-backup": {
+    "mtime": 1753089326.483839,
+    "ast_hash": "69cd78f7f50d7fd6ca12eb8378904fde",
+    "semantic_hash": "69cd78f7f50d7fd6ca12eb8378904fde"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/commands/host/phpmyadmin": {
+    "mtime": 1738009421.3859284,
+    "ast_hash": "b9e4c50a911fa27d5077de4f5ced4769",
+    "semantic_hash": "b9e4c50a911fa27d5077de4f5ced4769"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/commands/host/push-live": {
+    "mtime": 1753089326.483839,
+    "ast_hash": "42acfb29a474ea2141100b4db7911c92",
+    "semantic_hash": "42acfb29a474ea2141100b4db7911c92"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/commands/host/push-staging": {
+    "mtime": 1753089326.483839,
+    "ast_hash": "fac8296f3f4418b4007fcbcba0dcc4f5",
+    "semantic_hash": "fac8296f3f4418b4007fcbcba0dcc4f5"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/commands/host/sync": {
+    "mtime": 1777884283.6043844,
+    "ast_hash": "305c0a2746c060946b803a534939b7f2",
+    "semantic_hash": "305c0a2746c060946b803a534939b7f2"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/commands/host/sync-news": {
+    "mtime": 1777905712.4710536,
+    "ast_hash": "d7aeeeb03164d27b46f7d6080da69945",
+    "semantic_hash": "d7aeeeb03164d27b46f7d6080da69945"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/commands/host/sync-v12": {
+    "mtime": 1753089326.483839,
+    "ast_hash": "bcc0d8d3a8e6de54e42d3c613c05bfef",
+    "semantic_hash": "bcc0d8d3a8e6de54e42d3c613c05bfef"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/commands/host/update-template": {
+    "mtime": 1753089326.483839,
+    "ast_hash": "f7154e20fdaf9dee3efd28072074dce3",
+    "semantic_hash": "f7154e20fdaf9dee3efd28072074dce3"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/commands/web/create-dev-admin": {
+    "mtime": 1753089326.483839,
+    "ast_hash": "097b0d02635dd3d8d6def26248e3cb63",
+    "semantic_hash": "097b0d02635dd3d8d6def26248e3cb63"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/commands/web/php-cs-fixer": {
+    "mtime": 1753089326.483839,
+    "ast_hash": "093b947db478e8368c1f96490cd2d399",
+    "semantic_hash": "093b947db478e8368c1f96490cd2d399"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/commands/web/phpstan": {
+    "mtime": 1753089326.483839,
+    "ast_hash": "a4fb4e55064465d13ffd419d79c6812e",
+    "semantic_hash": "a4fb4e55064465d13ffd419d79c6812e"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/commands/web/typo3": {
+    "mtime": 1753089326.483839,
+    "ast_hash": "10072e00042107afde2b695ed46c112a",
+    "semantic_hash": "10072e00042107afde2b695ed46c112a"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/commands/web/vite": {
+    "mtime": 1769524447.8551095,
+    "ast_hash": "6ccbc4268892f0f40225ff5f75529e09",
+    "semantic_hash": "6ccbc4268892f0f40225ff5f75529e09"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/share-providers/cloudflared.sh": {
+    "mtime": 1775034975.8025784,
+    "ast_hash": "1cc76d875af0064cda0e063292df6bac",
+    "semantic_hash": "1cc76d875af0064cda0e063292df6bac"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/share-providers/ngrok.sh": {
+    "mtime": 1775034975.8025784,
+    "ast_hash": "ebc056d46b0b06338da5b6048ee04d20",
+    "semantic_hash": "ebc056d46b0b06338da5b6048ee04d20"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/xhprof/xhprof_prepend.php": {
+    "mtime": 1736967221.2479308,
+    "ast_hash": "1aee09fa7c304faf582bbd9f03d39e96",
+    "semantic_hash": "1aee09fa7c304faf582bbd9f03d39e96"
+  },
+  "/home/maxi/kfv-freising.de/composer.json": {
+    "mtime": 1780318844.68036,
+    "ast_hash": "3aa25e85213d596950e7ee941618d3c2",
+    "semantic_hash": "3aa25e85213d596950e7ee941618d3c2"
+  },
+  "/home/maxi/kfv-freising.de/config/system/additional.php": {
+    "mtime": 1758277297.8771365,
+    "ast_hash": "6f09a2a4acce20b13b5bec9e1fec201e",
+    "semantic_hash": "6f09a2a4acce20b13b5bec9e1fec201e"
+  },
+  "/home/maxi/kfv-freising.de/config/system/oidc.example.php": {
+    "mtime": 1780318609.6683419,
+    "ast_hash": "4079b90fafc3c657bfe499b4a492f34c",
+    "semantic_hash": "4079b90fafc3c657bfe499b4a492f34c"
+  },
+  "/home/maxi/kfv-freising.de/config/system/settings.php": {
+    "mtime": 1780326101.4285722,
+    "ast_hash": "2b8f39456eccabad38d0bbb783ec883a",
+    "semantic_hash": "2b8f39456eccabad38d0bbb783ec883a"
+  },
+  "/home/maxi/kfv-freising.de/deploy.php": {
+    "mtime": 1769524432.734216,
+    "ast_hash": "6ba56fe33eb65d603619fc664eb9bb41",
+    "semantic_hash": "6ba56fe33eb65d603619fc664eb9bb41"
+  },
+  "/home/maxi/kfv-freising.de/env_staging.php": {
+    "mtime": 1753089969.2629197,
+    "ast_hash": "cdc06d6fe8037b37ffab1e528f7669a0",
+    "semantic_hash": "cdc06d6fe8037b37ffab1e528f7669a0"
+  },
+  "/home/maxi/kfv-freising.de/frontend/components.json": {
+    "mtime": 1777882865.1790378,
+    "ast_hash": "a547944ace00dc5d5373aaca70a40bc4",
+    "semantic_hash": "a547944ace00dc5d5373aaca70a40bc4"
+  },
+  "/home/maxi/kfv-freising.de/frontend/eslint.config.js": {
+    "mtime": 1777882865.1790378,
+    "ast_hash": "31c0881fdd8500aa4d0aa963079713ae",
+    "semantic_hash": "31c0881fdd8500aa4d0aa963079713ae"
+  },
+  "/home/maxi/kfv-freising.de/frontend/package.json": {
+    "mtime": 1777882865.1790378,
+    "ast_hash": "8397e38e80697d22166cdffd13505196",
+    "semantic_hash": "8397e38e80697d22166cdffd13505196"
+  },
+  "/home/maxi/kfv-freising.de/frontend/postcss.config.js": {
+    "mtime": 1777882865.1790378,
+    "ast_hash": "c735540bb63936a123bc867d950c9f69",
+    "semantic_hash": "c735540bb63936a123bc867d950c9f69"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/App.tsx": {
+    "mtime": 1777882865.1863713,
+    "ast_hash": "7ae920b450b405860d876b0ace92363a",
+    "semantic_hash": "7ae920b450b405860d876b0ace92363a"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/AboutSection.tsx": {
+    "mtime": 1777882865.1863713,
+    "ast_hash": "17fe4d838a83e7f9425ab22e983c87ca",
+    "semantic_hash": "17fe4d838a83e7f9425ab22e983c87ca"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/Footer.tsx": {
+    "mtime": 1777882865.1863713,
+    "ast_hash": "ca00f34d4c9b25f12c10aa162133e4ce",
+    "semantic_hash": "ca00f34d4c9b25f12c10aa162133e4ce"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/Header.tsx": {
+    "mtime": 1777882865.1863713,
+    "ast_hash": "8ce4b96daf351688caf579fdbf10828d",
+    "semantic_hash": "8ce4b96daf351688caf579fdbf10828d"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/Hero.tsx": {
+    "mtime": 1777882865.1863713,
+    "ast_hash": "75949ee01202ab31958b54f70882093e",
+    "semantic_hash": "75949ee01202ab31958b54f70882093e"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ImageGallery.tsx": {
+    "mtime": 1777882865.1863713,
+    "ast_hash": "7ff448645ea2a06b348d83979011a301",
+    "semantic_hash": "7ff448645ea2a06b348d83979011a301"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/NavLink.tsx": {
+    "mtime": 1777882865.1863713,
+    "ast_hash": "8f7c178b4776787e58e1011855ca28f6",
+    "semantic_hash": "8f7c178b4776787e58e1011855ca28f6"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/News.tsx": {
+    "mtime": 1778139751.7662773,
+    "ast_hash": "b7743a5ade08ee51ea03b39e772909af",
+    "semantic_hash": "b7743a5ade08ee51ea03b39e772909af"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/QuickActions.tsx": {
+    "mtime": 1777882865.1863713,
+    "ast_hash": "0b48e41d73955f4ec80d9032fead037d",
+    "semantic_hash": "0b48e41d73955f4ec80d9032fead037d"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/SearchDialog.tsx": {
+    "mtime": 1777882865.1863713,
+    "ast_hash": "bdbb1ff3bb5800472e0157bd5396973a",
+    "semantic_hash": "bdbb1ff3bb5800472e0157bd5396973a"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ThemeProvider.tsx": {
+    "mtime": 1777882865.1863713,
+    "ast_hash": "0473df27827002329c6c3ccd99d91197",
+    "semantic_hash": "0473df27827002329c6c3ccd99d91197"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ThemeToggle.tsx": {
+    "mtime": 1777882865.1863713,
+    "ast_hash": "f5090e98d32fa3384b26562267032482",
+    "semantic_hash": "f5090e98d32fa3384b26562267032482"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/accordion.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "f9ebb6ee913b44e5f3e06fe1d9679784",
+    "semantic_hash": "f9ebb6ee913b44e5f3e06fe1d9679784"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/alert-dialog.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "2ee6c5e5e070315114319bc060d17a52",
+    "semantic_hash": "2ee6c5e5e070315114319bc060d17a52"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/alert.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "354d0206f924d48bcebbb023c3940a6b",
+    "semantic_hash": "354d0206f924d48bcebbb023c3940a6b"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/aspect-ratio.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "c5c364545e1b25a94e9e752cd67ad048",
+    "semantic_hash": "c5c364545e1b25a94e9e752cd67ad048"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/avatar.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "53921dca0903c74cd72fada89388d9f8",
+    "semantic_hash": "53921dca0903c74cd72fada89388d9f8"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/badge.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "e0a2902bb50a6d958873ff1ff0e37bb1",
+    "semantic_hash": "e0a2902bb50a6d958873ff1ff0e37bb1"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/breadcrumb.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "c200fc41e9b214ebb6ccd19a300c42c5",
+    "semantic_hash": "c200fc41e9b214ebb6ccd19a300c42c5"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/button.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "b59f5a3c54b63cf3ea4eb2523151f617",
+    "semantic_hash": "b59f5a3c54b63cf3ea4eb2523151f617"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/calendar.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "1da7a387f28cdb11722da319c0295a6c",
+    "semantic_hash": "1da7a387f28cdb11722da319c0295a6c"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/card.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "202402023747c80d975f48b906e6eb1b",
+    "semantic_hash": "202402023747c80d975f48b906e6eb1b"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/carousel.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "63a7442a3088b58113c8a8cfc1defe26",
+    "semantic_hash": "63a7442a3088b58113c8a8cfc1defe26"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/chart.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "29cfd7470f3197deccd58b2b4f00fbae",
+    "semantic_hash": "29cfd7470f3197deccd58b2b4f00fbae"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/checkbox.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "cb12d2f3410761f7a678add95c90ac5d",
+    "semantic_hash": "cb12d2f3410761f7a678add95c90ac5d"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/collapsible.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "934b00582dae08af749fb55469081de6",
+    "semantic_hash": "934b00582dae08af749fb55469081de6"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/command.tsx": {
+    "mtime": 1777964246.624379,
+    "ast_hash": "72a32e9f3ca381338da82bbbc823fc22",
+    "semantic_hash": "72a32e9f3ca381338da82bbbc823fc22"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/context-menu.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "9b8e8efdf0456cd542e32d341b071cac",
+    "semantic_hash": "9b8e8efdf0456cd542e32d341b071cac"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/dialog.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "fc3a9626ba52435552c93ac3a74374ec",
+    "semantic_hash": "fc3a9626ba52435552c93ac3a74374ec"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/drawer.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "05e2b536fe11649e9b4c6e73678e32a6",
+    "semantic_hash": "05e2b536fe11649e9b4c6e73678e32a6"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/dropdown-menu.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "f308eb98a2e21bf8bd1e30dbcb741dc0",
+    "semantic_hash": "f308eb98a2e21bf8bd1e30dbcb741dc0"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/form.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "4bb820d59aad3ee5bc78097596298ace",
+    "semantic_hash": "4bb820d59aad3ee5bc78097596298ace"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/hover-card.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "f77f80ed64ff8f3549e5d7e9d837e08e",
+    "semantic_hash": "f77f80ed64ff8f3549e5d7e9d837e08e"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/input-otp.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "3fb5994635434d5168bee869689fc2aa",
+    "semantic_hash": "3fb5994635434d5168bee869689fc2aa"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/input.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "b8279d768c2a1ce78a05a369a0502877",
+    "semantic_hash": "b8279d768c2a1ce78a05a369a0502877"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/label.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "cd2b2255bbe519cb0865dfeaa6615797",
+    "semantic_hash": "cd2b2255bbe519cb0865dfeaa6615797"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/menubar.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "163c3fa58a2b4ea2caa00166f4d862c7",
+    "semantic_hash": "163c3fa58a2b4ea2caa00166f4d862c7"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/navigation-menu.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "0fd79e6c55b6f24b0ec648acc27c3cc3",
+    "semantic_hash": "0fd79e6c55b6f24b0ec648acc27c3cc3"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/pagination.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "a3ced9f9b19826b467d788b1bf01746f",
+    "semantic_hash": "a3ced9f9b19826b467d788b1bf01746f"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/popover.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "c056d22288a642b756b77c7691ad4532",
+    "semantic_hash": "c056d22288a642b756b77c7691ad4532"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/progress.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "9a8b05beca19e008a562a10e489f5968",
+    "semantic_hash": "9a8b05beca19e008a562a10e489f5968"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/radio-group.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "3773798b5b2f334a5db0dc9c8d06f1b8",
+    "semantic_hash": "3773798b5b2f334a5db0dc9c8d06f1b8"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/resizable.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "ec681e92cbe705b5571ded11b5227a2a",
+    "semantic_hash": "ec681e92cbe705b5571ded11b5227a2a"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/scroll-area.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "cfbc224001af0e6daba676de225a2a47",
+    "semantic_hash": "cfbc224001af0e6daba676de225a2a47"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/select.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "25de64d0126624cbd8efa50cfb64bd21",
+    "semantic_hash": "25de64d0126624cbd8efa50cfb64bd21"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/separator.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "ed1101f185e9dc801712593e3330a75d",
+    "semantic_hash": "ed1101f185e9dc801712593e3330a75d"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/sheet.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "3660be09e2e40467a22fd46b354c1b50",
+    "semantic_hash": "3660be09e2e40467a22fd46b354c1b50"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/sidebar.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "9eab1256b1ffe3f1336eebfd07b319c9",
+    "semantic_hash": "9eab1256b1ffe3f1336eebfd07b319c9"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/skeleton.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "c55f76f4faa1d6e888dbc51d41eaa586",
+    "semantic_hash": "c55f76f4faa1d6e888dbc51d41eaa586"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/slider.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "e3bf7b6116ddbdbe8c7b3597d07daee0",
+    "semantic_hash": "e3bf7b6116ddbdbe8c7b3597d07daee0"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/sonner.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "88644703cc00886c56e0e3b7df0e21d8",
+    "semantic_hash": "88644703cc00886c56e0e3b7df0e21d8"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/switch.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "eccd8c41c46e782eaaa1f8be0111e089",
+    "semantic_hash": "eccd8c41c46e782eaaa1f8be0111e089"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/table.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "d0ff87c4734c23839337811378ad07df",
+    "semantic_hash": "d0ff87c4734c23839337811378ad07df"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/tabs.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "26b15e1ffce0f831be4da95b8f8a43df",
+    "semantic_hash": "26b15e1ffce0f831be4da95b8f8a43df"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/textarea.tsx": {
+    "mtime": 1777964246.819344,
+    "ast_hash": "497a6ff07a577eb952f51d775c99c2da",
+    "semantic_hash": "497a6ff07a577eb952f51d775c99c2da"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/toast.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "7c08b5cb6026058514672a4ebc53847e",
+    "semantic_hash": "7c08b5cb6026058514672a4ebc53847e"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/toaster.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "1903846ab268620de6356ef667e3fa21",
+    "semantic_hash": "1903846ab268620de6356ef667e3fa21"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/toggle-group.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "e82bf234e3877ad708ea3d1dba614def",
+    "semantic_hash": "e82bf234e3877ad708ea3d1dba614def"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/toggle.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "ff7a7deebff23c3488e79ad72ee47e4b",
+    "semantic_hash": "ff7a7deebff23c3488e79ad72ee47e4b"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/tooltip.tsx": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "d7e923341b9e91d77db45ba5f2fa0cf9",
+    "semantic_hash": "d7e923341b9e91d77db45ba5f2fa0cf9"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/components/ui/use-toast.ts": {
+    "mtime": 1777882865.1937046,
+    "ast_hash": "4f094014a1315ca1081cbdc7f78d55cc",
+    "semantic_hash": "4f094014a1315ca1081cbdc7f78d55cc"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/hooks/use-mobile.tsx": {
+    "mtime": 1777882865.1973712,
+    "ast_hash": "c0a0bdd4638c391a1dd06ac82074e60b",
+    "semantic_hash": "c0a0bdd4638c391a1dd06ac82074e60b"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/hooks/use-toast.ts": {
+    "mtime": 1777882865.1973712,
+    "ast_hash": "e706bc004c87e17db559a113637eddea",
+    "semantic_hash": "e706bc004c87e17db559a113637eddea"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/lib/utils.ts": {
+    "mtime": 1777882865.201038,
+    "ast_hash": "d9837f38cc05303254571985e3164050",
+    "semantic_hash": "d9837f38cc05303254571985e3164050"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/main.tsx": {
+    "mtime": 1777882865.201038,
+    "ast_hash": "092c6937f28c1dff19a7d561f5f98360",
+    "semantic_hash": "092c6937f28c1dff19a7d561f5f98360"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/pages/Aktuelles.tsx": {
+    "mtime": 1777882865.201038,
+    "ast_hash": "2e9b645869eb249ab9ba1a5ffe197d82",
+    "semantic_hash": "2e9b645869eb249ab9ba1a5ffe197d82"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/pages/Ausbildung.tsx": {
+    "mtime": 1777882865.201038,
+    "ast_hash": "42382c53872214f5e6845b3bdc475836",
+    "semantic_hash": "42382c53872214f5e6845b3bdc475836"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/pages/Downloads.tsx": {
+    "mtime": 1777882865.201038,
+    "ast_hash": "f3173b7a6d6f5644e1aa086fe4b41eef",
+    "semantic_hash": "f3173b7a6d6f5644e1aa086fe4b41eef"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/pages/Einsaetze.tsx": {
+    "mtime": 1777882865.201038,
+    "ast_hash": "de9b41f8098da8f5140bbff10fa02bcc",
+    "semantic_hash": "de9b41f8098da8f5140bbff10fa02bcc"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/pages/FeuerwehrDetail.tsx": {
+    "mtime": 1777882865.201038,
+    "ast_hash": "11b283ea3f1152e7ddcf8d68d4a88f28",
+    "semantic_hash": "11b283ea3f1152e7ddcf8d68d4a88f28"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/pages/FireStationsMap.tsx": {
+    "mtime": 1777882865.201038,
+    "ast_hash": "3e1271af633ff8b0eb047aec1412aa0c",
+    "semantic_hash": "3e1271af633ff8b0eb047aec1412aa0c"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/pages/Index.tsx": {
+    "mtime": 1777882865.201038,
+    "ast_hash": "72f324f253f3053902b39c2b60c31863",
+    "semantic_hash": "72f324f253f3053902b39c2b60c31863"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/pages/InspektionDetail.tsx": {
+    "mtime": 1777882865.201038,
+    "ast_hash": "9ad4936eb1ad2640d5725a615039bf92",
+    "semantic_hash": "9ad4936eb1ad2640d5725a615039bf92"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/pages/Kontakt.tsx": {
+    "mtime": 1777882865.201038,
+    "ast_hash": "f94bb70ca0153f106286d691ac6df1ec",
+    "semantic_hash": "f94bb70ca0153f106286d691ac6df1ec"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/pages/NewsDetail.tsx": {
+    "mtime": 1777882865.201038,
+    "ast_hash": "8e39899a6d9c18376380a1712d86535b",
+    "semantic_hash": "8e39899a6d9c18376380a1712d86535b"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/pages/NotFound.tsx": {
+    "mtime": 1777882865.201038,
+    "ast_hash": "5f71a685d45814cd169e3e17bd75b09d",
+    "semantic_hash": "5f71a685d45814cd169e3e17bd75b09d"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/pages/SearchResults.tsx": {
+    "mtime": 1777882865.201038,
+    "ast_hash": "73b70c148914f3013747d925f39a086d",
+    "semantic_hash": "73b70c148914f3013747d925f39a086d"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/pages/Service.tsx": {
+    "mtime": 1777882865.201038,
+    "ast_hash": "f4ed022bad4a3c9209440ad088f7fa3a",
+    "semantic_hash": "f4ed022bad4a3c9209440ad088f7fa3a"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/pages/ShowcaseAccordions.tsx": {
+    "mtime": 1777882865.201038,
+    "ast_hash": "c0434bd68faa8c1b1ec547ca86d98d92",
+    "semantic_hash": "c0434bd68faa8c1b1ec547ca86d98d92"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/pages/ShowcaseCards.tsx": {
+    "mtime": 1777882865.201038,
+    "ast_hash": "637c9dbe2918cf0a185ba3a1e7af92bb",
+    "semantic_hash": "637c9dbe2918cf0a185ba3a1e7af92bb"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/pages/ShowcaseSlider.tsx": {
+    "mtime": 1777882865.2047045,
+    "ast_hash": "6df29c14cd60003a32b778b6c3c1ebd7",
+    "semantic_hash": "6df29c14cd60003a32b778b6c3c1ebd7"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/pages/ShowcaseTabs.tsx": {
+    "mtime": 1777882865.2047045,
+    "ast_hash": "bc3151b53131cf849c95ebb9d02ff501",
+    "semantic_hash": "bc3151b53131cf849c95ebb9d02ff501"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/pages/Styleguide.tsx": {
+    "mtime": 1777882865.2047045,
+    "ast_hash": "c8ace4151e541ee7a8a51def6783ef38",
+    "semantic_hash": "c8ace4151e541ee7a8a51def6783ef38"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/pages/Termine.tsx": {
+    "mtime": 1777882865.2047045,
+    "ast_hash": "d197534079c88fc6ce557da040ec5453",
+    "semantic_hash": "d197534079c88fc6ce557da040ec5453"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/pages/Verband.tsx": {
+    "mtime": 1777882865.2047045,
+    "ast_hash": "dc4dc96f9991b364cbd039978dbec463",
+    "semantic_hash": "dc4dc96f9991b364cbd039978dbec463"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/vite-env.d.ts": {
+    "mtime": 1777882865.2047045,
+    "ast_hash": "0352474ba2918efe13895edbc3780d94",
+    "semantic_hash": "0352474ba2918efe13895edbc3780d94"
+  },
+  "/home/maxi/kfv-freising.de/frontend/tailwind.config.ts": {
+    "mtime": 1777964249.5434713,
+    "ast_hash": "3548d6a81c15997ce348a1d8fefd41e0",
+    "semantic_hash": "3548d6a81c15997ce348a1d8fefd41e0"
+  },
+  "/home/maxi/kfv-freising.de/frontend/tsconfig.app.json": {
+    "mtime": 1777882865.2047045,
+    "ast_hash": "8712c60b1f86eac1daa91619eb776efd",
+    "semantic_hash": "8712c60b1f86eac1daa91619eb776efd"
+  },
+  "/home/maxi/kfv-freising.de/frontend/tsconfig.json": {
+    "mtime": 1777882865.2047045,
+    "ast_hash": "bb72695c901d34a52a46196ba258371d",
+    "semantic_hash": "bb72695c901d34a52a46196ba258371d"
+  },
+  "/home/maxi/kfv-freising.de/frontend/tsconfig.node.json": {
+    "mtime": 1777882865.2047045,
+    "ast_hash": "1417fb05378a1d1102f085e60b20db0e",
+    "semantic_hash": "1417fb05378a1d1102f085e60b20db0e"
+  },
+  "/home/maxi/kfv-freising.de/frontend/vite.config.ts": {
+    "mtime": 1777882865.2047045,
+    "ast_hash": "eea8e578ebca550761c5c0e19be01385",
+    "semantic_hash": "eea8e578ebca550761c5c0e19be01385"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Classes/Command/MbtilesFetchCommand.php": {
+    "mtime": 1758276315.5850406,
+    "ast_hash": "0dedbc09d24eecf5f379578f8dd86731",
+    "semantic_hash": "0dedbc09d24eecf5f379578f8dd86731"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Classes/Command/TilesPrefetchCommand.php": {
+    "mtime": 1758278611.022742,
+    "ast_hash": "3df1890b22bfceb08e87b7fa8224905e",
+    "semantic_hash": "3df1890b22bfceb08e87b7fa8224905e"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Classes/Controller/FeuerwehrController.php": {
+    "mtime": 1769778399.6364205,
+    "ast_hash": "719e38f72e73594d868320709abc5af7",
+    "semantic_hash": "719e38f72e73594d868320709abc5af7"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Classes/Controller/JubilaeumController.php": {
+    "mtime": 1761598915.8144853,
+    "ast_hash": "7eef94b9a67bfb9357c7ba95066f158e",
+    "semantic_hash": "7eef94b9a67bfb9357c7ba95066f158e"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Classes/Controller/PersonController.php": {
+    "mtime": 1769778468.6318092,
+    "ast_hash": "41222e5ebef6e3eb02a0040c8a053f38",
+    "semantic_hash": "41222e5ebef6e3eb02a0040c8a053f38"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Classes/Controller/VectorTileController.php": {
+    "mtime": 1769778442.9295104,
+    "ast_hash": "f06f77eb3db6d3140373322eada38abc",
+    "semantic_hash": "f06f77eb3db6d3140373322eada38abc"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Classes/Domain/Model/Area.php": {
+    "mtime": 1761598915.8144853,
+    "ast_hash": "11aa094a0ddee3a6ef09ff1e5cc8c8e1",
+    "semantic_hash": "11aa094a0ddee3a6ef09ff1e5cc8c8e1"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Classes/Domain/Model/Fahrzeugkategorie.php": {
+    "mtime": 1758274190.5076823,
+    "ast_hash": "5bc41427d998533fb4512d19876a06b0",
+    "semantic_hash": "5bc41427d998533fb4512d19876a06b0"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Classes/Domain/Model/Feuerwehr.php": {
+    "mtime": 1761598915.8144853,
+    "ast_hash": "9764fcee4cc79e37f41e8cb4f5309d1c",
+    "semantic_hash": "9764fcee4cc79e37f41e8cb4f5309d1c"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Classes/Domain/Model/FrontendUser.php": {
+    "mtime": 1758274190.5076823,
+    "ast_hash": "f30757830bdcebcd708e2e6b34764e68",
+    "semantic_hash": "f30757830bdcebcd708e2e6b34764e68"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Classes/Domain/Model/Gemeinde.php": {
+    "mtime": 1759123730.4051156,
+    "ast_hash": "c3c5becc293e68f67f4bcb487791326a",
+    "semantic_hash": "c3c5becc293e68f67f4bcb487791326a"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Classes/Domain/Model/Jubilaeum.php": {
+    "mtime": 1761598915.8144853,
+    "ast_hash": "8709b1cbc628726be44caf080ad0663c",
+    "semantic_hash": "8709b1cbc628726be44caf080ad0663c"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Classes/Domain/Model/Person.php": {
+    "mtime": 1761598915.8144853,
+    "ast_hash": "e51ddf9a68c4f473d9102ea36606ce01",
+    "semantic_hash": "e51ddf9a68c4f473d9102ea36606ce01"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Classes/Domain/Repository/AreaRepository.php": {
+    "mtime": 1769778482.6296508,
+    "ast_hash": "3c004164e2404682ca80b52ff7bddc4d",
+    "semantic_hash": "3c004164e2404682ca80b52ff7bddc4d"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Classes/Domain/Repository/FahrzeugkategorieRepository.php": {
+    "mtime": 1758283088.101266,
+    "ast_hash": "848d0cd3484d9b5338af2f2bbe04b489",
+    "semantic_hash": "848d0cd3484d9b5338af2f2bbe04b489"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Classes/Domain/Repository/FeuerwehrRepository.php": {
+    "mtime": 1769778525.3767064,
+    "ast_hash": "9e201c8614e3aa4271dec6240be0c17c",
+    "semantic_hash": "9e201c8614e3aa4271dec6240be0c17c"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Classes/Domain/Repository/GemeindeRepository.php": {
+    "mtime": 1761598915.8144853,
+    "ast_hash": "831a9681504cc78cdabd2e822ef615fb",
+    "semantic_hash": "831a9681504cc78cdabd2e822ef615fb"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Classes/Domain/Repository/JubilaeumRepository.php": {
+    "mtime": 1761598915.8144853,
+    "ast_hash": "8d20b22c3cd6c8c9f8b9f8ea1be0e2aa",
+    "semantic_hash": "8d20b22c3cd6c8c9f8b9f8ea1be0e2aa"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Classes/Domain/Repository/PersonRepository.php": {
+    "mtime": 1761598915.8144853,
+    "ast_hash": "e2b8ee6cf2bf39687795fdeff5f16cb7",
+    "semantic_hash": "e2b8ee6cf2bf39687795fdeff5f16cb7"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Classes/Middleware/ApiGatewayMiddleware.php": {
+    "mtime": 1761598915.8144853,
+    "ast_hash": "cd8f75fdcd4725d558f5323d18bfa672",
+    "semantic_hash": "cd8f75fdcd4725d558f5323d18bfa672"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Classes/Service/Api/OverlaysService.php": {
+    "mtime": 1769778381.7031872,
+    "ast_hash": "a8b71000879c6751774eaf55f6196359",
+    "semantic_hash": "a8b71000879c6751774eaf55f6196359"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Classes/Service/Api/SearchService.php": {
+    "mtime": 1769778508.2414858,
+    "ast_hash": "ceb3deffed32a9f80b98d188d9880f3e",
+    "semantic_hash": "ceb3deffed32a9f80b98d188d9880f3e"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Classes/Service/Api/SettingsReader.php": {
+    "mtime": 1761598915.8144853,
+    "ast_hash": "187df2cceca8e7a3a1cb197ccb2fd917",
+    "semantic_hash": "187df2cceca8e7a3a1cb197ccb2fd917"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Classes/Service/GeoJsonService.php": {
+    "mtime": 1769778349.1688128,
+    "ast_hash": "2a3b895c285a2a3909987134e09e58b0",
+    "semantic_hash": "2a3b895c285a2a3909987134e09e58b0"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Configuration/Backend/Routes.php": {
+    "mtime": 1753089326.483839,
+    "ast_hash": "3360b693e19ab527d8bf9151a3567426",
+    "semantic_hash": "3360b693e19ab527d8bf9151a3567426"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Configuration/Extbase/Persistence/Classes.php": {
+    "mtime": 1758274190.5076823,
+    "ast_hash": "48282fac704d2550e7ac4e160945cb0a",
+    "semantic_hash": "48282fac704d2550e7ac4e160945cb0a"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Configuration/Icons.php": {
+    "mtime": 1761598915.8144853,
+    "ast_hash": "ecc2838d09cf01a2ca1362e4fdfdf520",
+    "semantic_hash": "ecc2838d09cf01a2ca1362e4fdfdf520"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Configuration/RequestMiddlewares.php": {
+    "mtime": 1761598915.8144853,
+    "ast_hash": "fcff514c9328f22b73e6e444bc1168f1",
+    "semantic_hash": "fcff514c9328f22b73e6e444bc1168f1"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Configuration/TCA/Overrides/tt_content.php": {
+    "mtime": 1769064528.829273,
+    "ast_hash": "d85e49eef0ca07cd99501df4e81b0909",
+    "semantic_hash": "d85e49eef0ca07cd99501df4e81b0909"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Configuration/TCA/tx_feuerwehren_domain_model_area.php": {
+    "mtime": 1761598915.8144853,
+    "ast_hash": "2fcd016f1c7f187c43a9d60c7097ede3",
+    "semantic_hash": "2fcd016f1c7f187c43a9d60c7097ede3"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Configuration/TCA/tx_feuerwehren_domain_model_fahrzeugkategorie.php": {
+    "mtime": 1761598915.8144853,
+    "ast_hash": "c2a79407b28f24d0eaedc2eee7e138ee",
+    "semantic_hash": "c2a79407b28f24d0eaedc2eee7e138ee"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Configuration/TCA/tx_feuerwehren_domain_model_feuerwehr.php": {
+    "mtime": 1761598915.8144853,
+    "ast_hash": "2ca88b1ef9e298f74e1d8a13d2b979a1",
+    "semantic_hash": "2ca88b1ef9e298f74e1d8a13d2b979a1"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Configuration/TCA/tx_feuerwehren_domain_model_gemeinde.php": {
+    "mtime": 1761598915.8144853,
+    "ast_hash": "7b7c6951a591deef5350a267c26aafc8",
+    "semantic_hash": "7b7c6951a591deef5350a267c26aafc8"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Configuration/TCA/tx_feuerwehren_domain_model_jubilaeum.php": {
+    "mtime": 1761598915.8144853,
+    "ast_hash": "57f5118f698408b7d003eeb1b6cd86b7",
+    "semantic_hash": "57f5118f698408b7d003eeb1b6cd86b7"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Configuration/TCA/tx_feuerwehren_domain_model_person.php": {
+    "mtime": 1761598915.8144853,
+    "ast_hash": "473697672ec9404631878d2fd1287024",
+    "semantic_hash": "473697672ec9404631878d2fd1287024"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Resources/Public/JavaScript/map-feuerwehren.js": {
+    "mtime": 1769064528.8370075,
+    "ast_hash": "cf63ea9446051d3beeab460a636ecd5a",
+    "semantic_hash": "cf63ea9446051d3beeab460a636ecd5a"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Resources/Public/JavaScript/maplibre-gl.js": {
+    "mtime": 1758276315.594352,
+    "ast_hash": "cca11fd8e34158ed1aabf0f2b96bbb1b",
+    "semantic_hash": "cca11fd8e34158ed1aabf0f2b96bbb1b"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Resources/Public/JavaScript/turf.min.js": {
+    "mtime": 1758276315.594352,
+    "ast_hash": "2b35d7bed462469dc09139b38dd9e29e",
+    "semantic_hash": "2b35d7bed462469dc09139b38dd9e29e"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/composer.json": {
+    "mtime": 1761598915.8244052,
+    "ast_hash": "be35d8d755af20c9efd4d5fa677cffe2",
+    "semantic_hash": "be35d8d755af20c9efd4d5fa677cffe2"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/ext_emconf.php": {
+    "mtime": 1758274190.5076823,
+    "ast_hash": "197f44ba6e20eb249815efe811964bae",
+    "semantic_hash": "197f44ba6e20eb249815efe811964bae"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/ext_localconf.php": {
+    "mtime": 1769778327.3557498,
+    "ast_hash": "8bc5be8262a3b0b8ee0234e3c43fbec1",
+    "semantic_hash": "8bc5be8262a3b0b8ee0234e3c43fbec1"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/ext_tables.sql": {
+    "mtime": 1761598915.8244052,
+    "ast_hash": "36124cb97df4edbc6c924d019b503cab",
+    "semantic_hash": "36124cb97df4edbc6c924d019b503cab"
+  },
+  "/home/maxi/kfv-freising.de/packages/icsimporter/Classes/Ical/FixedTimezoneEventAdapter.php": {
+    "mtime": 1769439816.3286345,
+    "ast_hash": "b4844d9158e89aa4d73313c5d409223b",
+    "semantic_hash": "b4844d9158e89aa4d73313c5d409223b"
+  },
+  "/home/maxi/kfv-freising.de/packages/icsimporter/Classes/Service/CategoryAssignmentService.php": {
+    "mtime": 1771579413.0597272,
+    "ast_hash": "d28a54590e5fb2bf375c8a8638052509",
+    "semantic_hash": "d28a54590e5fb2bf375c8a8638052509"
+  },
+  "/home/maxi/kfv-freising.de/packages/icsimporter/Classes/Service/FixedTimezoneICalService.php": {
+    "mtime": 1769439816.3286345,
+    "ast_hash": "d076b1b714a88939d9a269cc24783731",
+    "semantic_hash": "d076b1b714a88939d9a269cc24783731"
+  },
+  "/home/maxi/kfv-freising.de/packages/icsimporter/Classes/Task/ImportWithCategoryAdditionalFieldProvider.php": {
+    "mtime": 1769439816.3286345,
+    "ast_hash": "e24640ffbdb629665694a1a2a6732db5",
+    "semantic_hash": "e24640ffbdb629665694a1a2a6732db5"
+  },
+  "/home/maxi/kfv-freising.de/packages/icsimporter/Classes/Task/ImportWithCategoryTask.php": {
+    "mtime": 1769439816.3286345,
+    "ast_hash": "54c9f4207dcd136b6ed4253b25e36e06",
+    "semantic_hash": "54c9f4207dcd136b6ed4253b25e36e06"
+  },
+  "/home/maxi/kfv-freising.de/packages/icsimporter/composer.json": {
+    "mtime": 1769439816.3286345,
+    "ast_hash": "476447b9aa8c799fbb1631d5f0649396",
+    "semantic_hash": "476447b9aa8c799fbb1631d5f0649396"
+  },
+  "/home/maxi/kfv-freising.de/packages/icsimporter/ext_emconf.php": {
+    "mtime": 1769439816.3286345,
+    "ast_hash": "eb0dfeeaadfae828e6f7c6ebde8f3d46",
+    "semantic_hash": "eb0dfeeaadfae828e6f7c6ebde8f3d46"
+  },
+  "/home/maxi/kfv-freising.de/packages/icsimporter/ext_localconf.php": {
+    "mtime": 1769439816.3286345,
+    "ast_hash": "5cea2079092e02a518c5da6c94ed8fd8",
+    "semantic_hash": "5cea2079092e02a518c5da6c94ed8fd8"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Configuration/TCA/Overrides/cropping.php": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "06f5e1b7b2ef057070cb8b533bf81931",
+    "semantic_hash": "06f5e1b7b2ef057070cb8b533bf81931"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Configuration/TCA/Overrides/sys_templates.php": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "4b17155c2a8debcbda628d2f50d524c3",
+    "semantic_hash": "4b17155c2a8debcbda628d2f50d524c3"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Configuration/TCA/Overrides/tt_content.php": {
+    "mtime": 1778049028.6776116,
+    "ast_hash": "cdbd7961d871e9187ffe46a87df8db94",
+    "semantic_hash": "cdbd7961d871e9187ffe46a87df8db94"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Configuration/TCA/Overrides/tt_content_container.php": {
+    "mtime": 1777985891.0698702,
+    "ast_hash": "fb2397d7b10c57ffb12a7409a76b9a2e",
+    "semantic_hash": "fb2397d7b10c57ffb12a7409a76b9a2e"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/accordion/assets/frontend.js": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "62fc5e95bb872c5ed467d861373c4d04",
+    "semantic_hash": "62fc5e95bb872c5ed467d861373c4d04"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/card-group/assets/frontend.js": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "62fc5e95bb872c5ed467d861373c4d04",
+    "semantic_hash": "62fc5e95bb872c5ed467d861373c4d04"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/card-slider/assets/frontend.js": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "76e7371225a1a8fdc90783c29a60262c",
+    "semantic_hash": "76e7371225a1a8fdc90783c29a60262c"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/card-slider/assets/splide.min.js": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "6e8b169cbce7bbb54b72873ee6e25eb6",
+    "semantic_hash": "6e8b169cbce7bbb54b72873ee6e25eb6"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/card/assets/frontend.js": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "62fc5e95bb872c5ed467d861373c4d04",
+    "semantic_hash": "62fc5e95bb872c5ed467d861373c4d04"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/heroslider/assets/frontend.js": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "76e7371225a1a8fdc90783c29a60262c",
+    "semantic_hash": "76e7371225a1a8fdc90783c29a60262c"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/heroslider/assets/splide.min.js": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "6e8b169cbce7bbb54b72873ee6e25eb6",
+    "semantic_hash": "6e8b169cbce7bbb54b72873ee6e25eb6"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/slider/assets/frontend.js": {
+    "mtime": 1777534471.1623971,
+    "ast_hash": "7bbb7c09a137921749eaf9d66c19149b",
+    "semantic_hash": "7bbb7c09a137921749eaf9d66c19149b"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/JavaScript/colormode.js": {
+    "mtime": 1777471131.534369,
+    "ast_hash": "415c25e78856071634a8de8467eb1457",
+    "semantic_hash": "415c25e78856071634a8de8467eb1457"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/JavaScript/main.js": {
+    "mtime": 1777884181.8394217,
+    "ast_hash": "769b849534e72d603811d6dc8caf149c",
+    "semantic_hash": "769b849534e72d603811d6dc8caf149c"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/JavaScript/colormode.js": {
+    "mtime": 1753089326.5328565,
+    "ast_hash": "3dd5b3a43b3afc5ec60df022b27622bf",
+    "semantic_hash": "3dd5b3a43b3afc5ec60df022b27622bf"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/JavaScript/glightbox.min.js": {
+    "mtime": 1753089326.5328565,
+    "ast_hash": "3e80bc0db9ea0983473b1fa66fb4571d",
+    "semantic_hash": "3e80bc0db9ea0983473b1fa66fb4571d"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/JavaScript/main.js": {
+    "mtime": 1761598915.8343248,
+    "ast_hash": "d6b6738b56eef6526edebffc1f0a15ca",
+    "semantic_hash": "d6b6738b56eef6526edebffc1f0a15ca"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/JavaScript/splide.min.js": {
+    "mtime": 1753089326.5328565,
+    "ast_hash": "e182d14f4d0790c792ff81e0190d1e13",
+    "semantic_hash": "e182d14f4d0790c792ff81e0190d1e13"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Scss/tests/jasmine.js": {
+    "mtime": 1769517064.6960444,
+    "ast_hash": "6d4914ef46ff7f1b03d4eac1750f69b9",
+    "semantic_hash": "6d4914ef46ff7f1b03d4eac1750f69b9"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Scss/tests/sass-true/register.js": {
+    "mtime": 1769517064.7201169,
+    "ast_hash": "9595c18a6d2d4fc8b80b48930eb7a663",
+    "semantic_hash": "9595c18a6d2d4fc8b80b48930eb7a663"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Scss/tests/sass-true/runner.js": {
+    "mtime": 1769517064.723143,
+    "ast_hash": "7df83f25a7395cb3d5c3e63fc087561f",
+    "semantic_hash": "7df83f25a7395cb3d5c3e63fc087561f"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Scss_backup/tests/jasmine.js": {
+    "mtime": 1777449954.4339583,
+    "ast_hash": "6d4914ef46ff7f1b03d4eac1750f69b9",
+    "semantic_hash": "6d4914ef46ff7f1b03d4eac1750f69b9"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Scss_backup/tests/sass-true/register.js": {
+    "mtime": 1777449954.4376106,
+    "ast_hash": "9595c18a6d2d4fc8b80b48930eb7a663",
+    "semantic_hash": "9595c18a6d2d4fc8b80b48930eb7a663"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Scss_backup/tests/sass-true/runner.js": {
+    "mtime": 1777449954.441263,
+    "ast_hash": "7df83f25a7395cb3d5c3e63fc087561f",
+    "semantic_hash": "7df83f25a7395cb3d5c3e63fc087561f"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Vite/.vite/manifest.json": {
+    "mtime": 1777967243.6613343,
+    "ast_hash": "e9c9e6738bc6d07c3c696d3cad34fa95",
+    "semantic_hash": "e9c9e6738bc6d07c3c696d3cad34fa95"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Vite/assets/main-YYC7-Xcm.js": {
+    "mtime": 1777967243.6692853,
+    "ast_hash": "7fec205a7598dfe40e7bf41072092ee0",
+    "semantic_hash": "7fec205a7598dfe40e7bf41072092ee0"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/composer.json": {
+    "mtime": 1777966728.045107,
+    "ast_hash": "4a5a9e701c8e53e3adc1bd2b867ef6e8",
+    "semantic_hash": "4a5a9e701c8e53e3adc1bd2b867ef6e8"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ext_emconf.php": {
+    "mtime": 1753089326.54266,
+    "ast_hash": "79921c82a3e35d831dd8b46dc1037dc9",
+    "semantic_hash": "79921c82a3e35d831dd8b46dc1037dc9"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ext_localconf.php": {
+    "mtime": 1753089326.54266,
+    "ast_hash": "ba817f501f8ff460b5a084e93dc3faf9",
+    "semantic_hash": "ba817f501f8ff460b5a084e93dc3faf9"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ext_tables.php": {
+    "mtime": 1753089326.54266,
+    "ast_hash": "2166f94f4c3b5c4aa44ed22f03547cea",
+    "semantic_hash": "2166f94f4c3b5c4aa44ed22f03547cea"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ext_tables.sql": {
+    "mtime": 1753089326.54266,
+    "ast_hash": "ecf9d8f60e5388f8854ae2a7b9caf4d0",
+    "semantic_hash": "ecf9d8f60e5388f8854ae2a7b9caf4d0"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/package.json": {
+    "mtime": 1777472198.9041798,
+    "ast_hash": "665620dbfa34c555185aeef0892ffa1b",
+    "semantic_hash": "665620dbfa34c555185aeef0892ffa1b"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/postcss.config.js": {
+    "mtime": 1777449954.4449153,
+    "ast_hash": "c735540bb63936a123bc867d950c9f69",
+    "semantic_hash": "c735540bb63936a123bc867d950c9f69"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/tailwind.config.js": {
+    "mtime": 1777986288.2040076,
+    "ast_hash": "69d3f67be1c9558235634341a38320b1",
+    "semantic_hash": "69d3f67be1c9558235634341a38320b1"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/vite.config.js": {
+    "mtime": 1769612643.6932619,
+    "ast_hash": "2ba7f669537d6f925184eb8cce6bfa06",
+    "semantic_hash": "2ba7f669537d6f925184eb8cce6bfa06"
+  },
+  "/home/maxi/kfv-freising.de/pages.sql": {
+    "mtime": 1778050448.4924536,
+    "ast_hash": "3d56bd7cc43c835cc0883e46520a8f76",
+    "semantic_hash": "3d56bd7cc43c835cc0883e46520a8f76"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/.ddev-docker-compose-base.yaml": {
+    "mtime": 1775034974.8569214,
+    "ast_hash": "1ffa092e415cf42182e79485520d9965",
+    "semantic_hash": "1ffa092e415cf42182e79485520d9965"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/.ddev-docker-compose-full.yaml": {
+    "mtime": 1781249300.7104836,
+    "ast_hash": "e770a518e4d0543ddc97b4948ecc5973",
+    "semantic_hash": "e770a518e4d0543ddc97b4948ecc5973"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/.homeadditions/README.txt": {
+    "mtime": 1781249301.7600546,
+    "ast_hash": "b661f84e87711152976e9535aa37b60f",
+    "semantic_hash": "b661f84e87711152976e9535aa37b60f"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/addon-metadata/phpmyadmin/manifest.yaml": {
+    "mtime": 1753089326.483839,
+    "ast_hash": "a689e9d48e13b8cdaf7e5530a0f41206",
+    "semantic_hash": "a689e9d48e13b8cdaf7e5530a0f41206"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/apache/README.apache.txt": {
+    "mtime": 1781249301.2812357,
+    "ast_hash": "62d8bd805e4f650717c6e021e6e603fc",
+    "semantic_hash": "62d8bd805e4f650717c6e021e6e603fc"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/commands/db/README.txt": {
+    "mtime": 1775034975.7945654,
+    "ast_hash": "37ebb86ce4c106d7581ff02d4dfdc44b",
+    "semantic_hash": "37ebb86ce4c106d7581ff02d4dfdc44b"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/commands/host/README.txt": {
+    "mtime": 1775034975.7945654,
+    "ast_hash": "496be45b579db6738eaba1d12c32cc40",
+    "semantic_hash": "496be45b579db6738eaba1d12c32cc40"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/commands/solr/README.txt": {
+    "mtime": 1736967221.2479308,
+    "ast_hash": "e896e416103b359919b5d01cfbdb536c",
+    "semantic_hash": "e896e416103b359919b5d01cfbdb536c"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/commands/web/README.txt": {
+    "mtime": 1775034975.7945654,
+    "ast_hash": "9e7ed9bd01f28d98c0deaf624d91695c",
+    "semantic_hash": "9e7ed9bd01f28d98c0deaf624d91695c"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/config.yaml": {
+    "mtime": 1769525131.6981351,
+    "ast_hash": "e908ff7c4174a92ca938679133604d6a",
+    "semantic_hash": "e908ff7c4174a92ca938679133604d6a"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/db-build/README.txt": {
+    "mtime": 1775034975.7945654,
+    "ast_hash": "a8a7156dc71748245e4fac0a6cd6fc63",
+    "semantic_hash": "a8a7156dc71748245e4fac0a6cd6fc63"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/docker-compose.phpmyadmin.yaml": {
+    "mtime": 1736965989.8694239,
+    "ast_hash": "ac3a0f0f08269da2c983c3fe2a910d24",
+    "semantic_hash": "ac3a0f0f08269da2c983c3fe2a910d24"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/docker-compose.phpmyadmin_norouter.yaml": {
+    "mtime": 1736965989.8694239,
+    "ast_hash": "ad2f1600d4305590a35cdf294d4b100a",
+    "semantic_hash": "ad2f1600d4305590a35cdf294d4b100a"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/docker-compose.vite.yaml": {
+    "mtime": 1769525152.8787916,
+    "ast_hash": "d1d61375162187f366353ce464ea8cf4",
+    "semantic_hash": "d1d61375162187f366353ce464ea8cf4"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/homeadditions/README.txt": {
+    "mtime": 1736967221.2479308,
+    "ast_hash": "b661f84e87711152976e9535aa37b60f",
+    "semantic_hash": "b661f84e87711152976e9535aa37b60f"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/mysql/README.txt": {
+    "mtime": 1775034975.806585,
+    "ast_hash": "3fd87985d5afecc0d73130ae0e714f62",
+    "semantic_hash": "3fd87985d5afecc0d73130ae0e714f62"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/nginx_full/README.nginx_full.txt": {
+    "mtime": 1781249301.2812357,
+    "ast_hash": "7e21ac4269144763a0a8d1e13acf22dd",
+    "semantic_hash": "7e21ac4269144763a0a8d1e13acf22dd"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/php/README.txt": {
+    "mtime": 1775034975.7985718,
+    "ast_hash": "501b2c73647b17908047f308d6e2c8b6",
+    "semantic_hash": "501b2c73647b17908047f308d6e2c8b6"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/providers/README.txt": {
+    "mtime": 1775034975.7985718,
+    "ast_hash": "81a62ef79031fe1e470a1c7ae2117ec0",
+    "semantic_hash": "81a62ef79031fe1e470a1c7ae2117ec0"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/providers/acquia.yaml": {
+    "mtime": 1775034975.7985718,
+    "ast_hash": "6ae386f15ce5c639708a9cf591f673c7",
+    "semantic_hash": "6ae386f15ce5c639708a9cf591f673c7"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/providers/lagoon.yaml": {
+    "mtime": 1775034975.7985718,
+    "ast_hash": "e59edd8fd671a21401f54ed6dc83d7b4",
+    "semantic_hash": "e59edd8fd671a21401f54ed6dc83d7b4"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/providers/pantheon.yaml": {
+    "mtime": 1775034975.7985718,
+    "ast_hash": "9f05838572c976de7b6af2901adee186",
+    "semantic_hash": "9f05838572c976de7b6af2901adee186"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/providers/platform.yaml": {
+    "mtime": 1775034975.8025784,
+    "ast_hash": "8148e79d0a49467ee453ed9b2fe7cc9b",
+    "semantic_hash": "8148e79d0a49467ee453ed9b2fe7cc9b"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/providers/upsun.yaml": {
+    "mtime": 1775034975.8025784,
+    "ast_hash": "bd42a6895465b3447447cddadf678fe8",
+    "semantic_hash": "bd42a6895465b3447447cddadf678fe8"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/share-providers/README.txt": {
+    "mtime": 1775034975.8025784,
+    "ast_hash": "f85655c9575c8edb17dabdefbbb93c31",
+    "semantic_hash": "f85655c9575c8edb17dabdefbbb93c31"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/traefik/config/kfv-freising.yaml": {
+    "mtime": 1781249309.8568842,
+    "ast_hash": "28f4648cfe0305185202e05acaeb65e7",
+    "semantic_hash": "28f4648cfe0305185202e05acaeb65e7"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/traefik/config/vite-cors.yaml": {
+    "mtime": 1769525145.083591,
+    "ast_hash": "6c5e7c43be3363c2da30bd574bd55f18",
+    "semantic_hash": "6c5e7c43be3363c2da30bd574bd55f18"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/web-build/README.txt": {
+    "mtime": 1775034975.8025784,
+    "ast_hash": "c72db0ed6746c5bb2e90fedf80692727",
+    "semantic_hash": "c72db0ed6746c5bb2e90fedf80692727"
+  },
+  "/home/maxi/kfv-freising.de/.ddev/web-entrypoint.d/README.txt": {
+    "mtime": 1755504281.60859,
+    "ast_hash": "86fbb76b17303609b103fd46288c64f0",
+    "semantic_hash": "86fbb76b17303609b103fd46288c64f0"
+  },
+  "/home/maxi/kfv-freising.de/.github/workflows/production.yaml": {
+    "mtime": 1753089326.483839,
+    "ast_hash": "3cbff4ec03e93ac8638bfe36d3fc8336",
+    "semantic_hash": "3cbff4ec03e93ac8638bfe36d3fc8336"
+  },
+  "/home/maxi/kfv-freising.de/.github/workflows/staging.yaml": {
+    "mtime": 1753089326.483839,
+    "ast_hash": "24a8aa6fcbdf53bf989fd6219595f034",
+    "semantic_hash": "24a8aa6fcbdf53bf989fd6219595f034"
+  },
+  "/home/maxi/kfv-freising.de/CLAUDE.md": {
+    "mtime": 1777986379.8304954,
+    "ast_hash": "fa45f45bb152dd37aa466ecb6af7a344",
+    "semantic_hash": "fa45f45bb152dd37aa466ecb6af7a344"
+  },
+  "/home/maxi/kfv-freising.de/DB-SYNC-README.md": {
+    "mtime": 1769064528.8254056,
+    "ast_hash": "5eeb3d6b9ee55285af188435b23ccdcc",
+    "semantic_hash": "5eeb3d6b9ee55285af188435b23ccdcc"
+  },
+  "/home/maxi/kfv-freising.de/Ext-Feuerwehren.txt": {
+    "mtime": 1753089326.483839,
+    "ast_hash": "f3b967547a52dccbc404d622816dabf3",
+    "semantic_hash": "f3b967547a52dccbc404d622816dabf3"
+  },
+  "/home/maxi/kfv-freising.de/config/sites/kfv/config.yaml": {
+    "mtime": 1780318623.6683471,
+    "ast_hash": "581552a99d0b9ca2b51988edc6ccd0bc",
+    "semantic_hash": "581552a99d0b9ca2b51988edc6ccd0bc"
+  },
+  "/home/maxi/kfv-freising.de/frontend/README.md": {
+    "mtime": 1777882865.1717045,
+    "ast_hash": "f4883400a888785b401ba15288cda0f7",
+    "semantic_hash": "f4883400a888785b401ba15288cda0f7"
+  },
+  "/home/maxi/kfv-freising.de/frontend/docs/CMS-Content-Types.md": {
+    "mtime": 1777882865.1790378,
+    "ast_hash": "0750522bff99fd885ec44790ee86025c",
+    "semantic_hash": "0750522bff99fd885ec44790ee86025c"
+  },
+  "/home/maxi/kfv-freising.de/frontend/index.html": {
+    "mtime": 1778139751.7662773,
+    "ast_hash": "bd2e0ab6d4cbcb80f0d7d1609e484d08",
+    "semantic_hash": "bd2e0ab6d4cbcb80f0d7d1609e484d08"
+  },
+  "/home/maxi/kfv-freising.de/frontend/public/robots.txt": {
+    "mtime": 1777882865.1863713,
+    "ast_hash": "f9dff89adf98833e676de2205921996a",
+    "semantic_hash": "f9dff89adf98833e676de2205921996a"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/CLAUDE.md": {
+    "mtime": 1769778580.6464555,
+    "ast_hash": "36d0b25f20c0cd42dd3bdd3e2472e44e",
+    "semantic_hash": "36d0b25f20c0cd42dd3bdd3e2472e44e"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Configuration/Routes.yaml": {
+    "mtime": 1769778448.8276215,
+    "ast_hash": "81cd3bb4c23a96b8f45f40116990c4cc",
+    "semantic_hash": "81cd3bb4c23a96b8f45f40116990c4cc"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Configuration/Services.yaml": {
+    "mtime": 1769778538.4758677,
+    "ast_hash": "2918c16a8cdeca5a8648cf76953fd933",
+    "semantic_hash": "2918c16a8cdeca5a8648cf76953fd933"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Configuration/Sets/Feuerwehren/config.yaml": {
+    "mtime": 1761598915.8144853,
+    "ast_hash": "0eefae76a49e28728f8f2a350c759635",
+    "semantic_hash": "0eefae76a49e28728f8f2a350c759635"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Configuration/Sets/Feuerwehren/settings.yaml": {
+    "mtime": 1761598915.8144853,
+    "ast_hash": "a8738496b08a14bcba3e3791284fd2bf",
+    "semantic_hash": "a8738496b08a14bcba3e3791284fd2bf"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/README.md": {
+    "mtime": 1761598915.8144853,
+    "ast_hash": "5636697ca063e64a13d45e585a21e666",
+    "semantic_hash": "5636697ca063e64a13d45e585a21e666"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Resources/Private/Layouts/Default.html": {
+    "mtime": 1761598915.8144853,
+    "ast_hash": "3562e70c618c35c2da12c7d5483b6d96",
+    "semantic_hash": "3562e70c618c35c2da12c7d5483b6d96"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Resources/Private/Partials/Person/AreaItem.html": {
+    "mtime": 1777449954.3828263,
+    "ast_hash": "fb118ad5bb47322959b43b5684caa8a4",
+    "semantic_hash": "fb118ad5bb47322959b43b5684caa8a4"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Resources/Private/Templates/Feuerwehr/List.html": {
+    "mtime": 1777449954.3828263,
+    "ast_hash": "33afbed242b0ce82a3a2067e981fdf1f",
+    "semantic_hash": "33afbed242b0ce82a3a2067e981fdf1f"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Resources/Private/Templates/Jubilaeum/List.html": {
+    "mtime": 1777884224.989512,
+    "ast_hash": "14f55b72c362cd607babac3ba5c21c4b",
+    "semantic_hash": "14f55b72c362cd607babac3ba5c21c4b"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Resources/Private/Templates/Person/List.html": {
+    "mtime": 1777449954.3864787,
+    "ast_hash": "2176bddad289d363bda3d9a3b805e1a8",
+    "semantic_hash": "2176bddad289d363bda3d9a3b805e1a8"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Resources/Private/Templates/Person/Show.html": {
+    "mtime": 1777472612.440647,
+    "ast_hash": "294d0d0242e678a2c8a7ec9ae2eff343",
+    "semantic_hash": "294d0d0242e678a2c8a7ec9ae2eff343"
+  },
+  "/home/maxi/kfv-freising.de/packages/icsimporter/Configuration/Services.yaml": {
+    "mtime": 1769439816.3286345,
+    "ast_hash": "19932d0f2a4b88349cd7241912ff7c20",
+    "semantic_hash": "19932d0f2a4b88349cd7241912ff7c20"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Configuration/RTE/Default.yaml": {
+    "mtime": 1777965915.2614284,
+    "ast_hash": "84822e7f14a9d9b6394ca1b5cd996020",
+    "semantic_hash": "84822e7f14a9d9b6394ca1b5cd996020"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Configuration/Sets/SitePackage/config.yaml": {
+    "mtime": 1761598915.8244052,
+    "ast_hash": "69b788c1b2133322675541add0c46b7a",
+    "semantic_hash": "69b788c1b2133322675541add0c46b7a"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Configuration/Sets/SitePackage/settings.definitions.yaml": {
+    "mtime": 1771246675.1111722,
+    "ast_hash": "e245283a711f818193a6b44ccc899476",
+    "semantic_hash": "e245283a711f818193a6b44ccc899476"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Configuration/Sets/SitePackage/settings.yaml": {
+    "mtime": 1769777350.236449,
+    "ast_hash": "50357efa1fcad2e1a67bf4bea2fe6ff8",
+    "semantic_hash": "50357efa1fcad2e1a67bf4bea2fe6ff8"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/Basics/Breakpoints.yaml": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "a33acbd933458a23844a3c2362ddae48",
+    "semantic_hash": "a33acbd933458a23844a3c2362ddae48"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/Basics/Icons.yaml": {
+    "mtime": 1778066202.152324,
+    "ast_hash": "a7eef98af7f45759f9af84dd6e60a0b1",
+    "semantic_hash": "a7eef98af7f45759f9af84dd6e60a0b1"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/accordion/config.yaml": {
+    "mtime": 1777549265.115823,
+    "ast_hash": "cbf3c57738ad7ccb2a73a0e7c8e985fb",
+    "semantic_hash": "cbf3c57738ad7ccb2a73a0e7c8e985fb"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/accordion/templates/backend-preview.html": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "40fe2ac8e23eef42b3212a07ec1b2c63",
+    "semantic_hash": "40fe2ac8e23eef42b3212a07ec1b2c63"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/accordion/templates/frontend.html": {
+    "mtime": 1777549258.695663,
+    "ast_hash": "468598701ea7c132838630de9eb44a67",
+    "semantic_hash": "468598701ea7c132838630de9eb44a67"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/card-group/config.yaml": {
+    "mtime": 1777534300.855825,
+    "ast_hash": "ac4e075b9997676d1e0f60a7863f27db",
+    "semantic_hash": "ac4e075b9997676d1e0f60a7863f27db"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/card-group/templates/backend-preview.html": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "40fe2ac8e23eef42b3212a07ec1b2c63",
+    "semantic_hash": "40fe2ac8e23eef42b3212a07ec1b2c63"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/card-group/templates/frontend.html": {
+    "mtime": 1777534303.5950668,
+    "ast_hash": "a13172a2bd759f109b2d2c3d60545cef",
+    "semantic_hash": "a13172a2bd759f109b2d2c3d60545cef"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/card-slider/config.yaml": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "58bff237450280aa616b324f68598145",
+    "semantic_hash": "58bff237450280aa616b324f68598145"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/card-slider/templates/backend-preview.html": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "40fe2ac8e23eef42b3212a07ec1b2c63",
+    "semantic_hash": "40fe2ac8e23eef42b3212a07ec1b2c63"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/card-slider/templates/frontend.html": {
+    "mtime": 1777449954.3864787,
+    "ast_hash": "307334992cad07574964a5996d154d36",
+    "semantic_hash": "307334992cad07574964a5996d154d36"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/card/config.yaml": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "4aae35b33042065b3c7540c4db279312",
+    "semantic_hash": "4aae35b33042065b3c7540c4db279312"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/card/templates/backend-preview.html": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "5f4864b8e603f5cb28ab28e78f149e5c",
+    "semantic_hash": "5f4864b8e603f5cb28ab28e78f149e5c"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/card/templates/frontend.html": {
+    "mtime": 1777449954.3864787,
+    "ast_hash": "3d3c008bce6e90dabcadc766e26aeecc",
+    "semantic_hash": "3d3c008bce6e90dabcadc766e26aeecc"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/feature-list/config.yaml": {
+    "mtime": 1777986240.6989534,
+    "ast_hash": "d4ef590658be84f6d367e72eab3245ab",
+    "semantic_hash": "d4ef590658be84f6d367e72eab3245ab"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/feature-list/templates/backend-preview.html": {
+    "mtime": 1777986271.188625,
+    "ast_hash": "ac3d4316a884ed2e5ae661d9cde6c06e",
+    "semantic_hash": "ac3d4316a884ed2e5ae661d9cde6c06e"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/feature-list/templates/frontend.html": {
+    "mtime": 1778051592.1879034,
+    "ast_hash": "3716e3ac62c2e256f4271c209e07f69f",
+    "semantic_hash": "3716e3ac62c2e256f4271c209e07f69f"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/hero-static/config.yaml": {
+    "mtime": 1778064139.840893,
+    "ast_hash": "e6a17f65496cb492ac39a7fca902d7d6",
+    "semantic_hash": "e6a17f65496cb492ac39a7fca902d7d6"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/hero-static/templates/backend-preview.html": {
+    "mtime": 1777985872.3594913,
+    "ast_hash": "0334a593afb4c8bcdc588bd42eacd44e",
+    "semantic_hash": "0334a593afb4c8bcdc588bd42eacd44e"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/hero-static/templates/frontend.html": {
+    "mtime": 1778066578.5842676,
+    "ast_hash": "30592efd9b164a3df190ce3e6bde235d",
+    "semantic_hash": "30592efd9b164a3df190ce3e6bde235d"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/heroslider/config.yaml": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "1baf26950128cff0529505baa90a6d32",
+    "semantic_hash": "1baf26950128cff0529505baa90a6d32"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/heroslider/templates/backend-preview.html": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "3afc1705bc26f0b44a74d89c28de4697",
+    "semantic_hash": "3afc1705bc26f0b44a74d89c28de4697"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/heroslider/templates/frontend.html": {
+    "mtime": 1777449954.3901308,
+    "ast_hash": "485bb93d00d452c3e1c0ed9558ec2ef3",
+    "semantic_hash": "485bb93d00d452c3e1c0ed9558ec2ef3"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/quick-actions/config.yaml": {
+    "mtime": 1778065508.6646094,
+    "ast_hash": "17d4ac68aa1d20285d905cf8fe330730",
+    "semantic_hash": "17d4ac68aa1d20285d905cf8fe330730"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/quick-actions/templates/backend-preview.html": {
+    "mtime": 1777449954.3901308,
+    "ast_hash": "b2fdaf3ab80d1a3981e8fecbd47c8523",
+    "semantic_hash": "b2fdaf3ab80d1a3981e8fecbd47c8523"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/quick-actions/templates/frontend.html": {
+    "mtime": 1778066279.496307,
+    "ast_hash": "97c2184b2fe57de09a0de2a370597753",
+    "semantic_hash": "97c2184b2fe57de09a0de2a370597753"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/section-header/config.yaml": {
+    "mtime": 1778049103.0488534,
+    "ast_hash": "2e6d7332c1300a3320520a721905392a",
+    "semantic_hash": "2e6d7332c1300a3320520a721905392a"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/section-header/templates/backend-preview.html": {
+    "mtime": 1777986265.0204356,
+    "ast_hash": "c6fc0362f969514ea26364fb46adb593",
+    "semantic_hash": "c6fc0362f969514ea26364fb46adb593"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/section-header/templates/frontend.html": {
+    "mtime": 1778049109.7801354,
+    "ast_hash": "ae5d7e64aa7fca9a0cbbf4041e96e091",
+    "semantic_hash": "ae5d7e64aa7fca9a0cbbf4041e96e091"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/slider/config.yaml": {
+    "mtime": 1777534485.9059768,
+    "ast_hash": "631a964b06a87b0da952a4116127439b",
+    "semantic_hash": "631a964b06a87b0da952a4116127439b"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/slider/templates/frontend.html": {
+    "mtime": 1777549059.8388174,
+    "ast_hash": "63d77df8fa7845cc4438c21b7b368501",
+    "semantic_hash": "63d77df8fa7845cc4438c21b7b368501"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/README.md": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "8b6dcba2217abcbea145dacecaba9faa",
+    "semantic_hash": "8b6dcba2217abcbea145dacecaba9faa"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/ContentElements/Layouts/Default.html": {
+    "mtime": 1761598915.8244052,
+    "ast_hash": "60f32c64cba3abd5e49fc3c30f4e1ccc",
+    "semantic_hash": "60f32c64cba3abd5e49fc3c30f4e1ccc"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/ContentElements/Partials/Icon.html": {
+    "mtime": 1778066111.6363657,
+    "ast_hash": "b344a9824222d6ff8953006be68264bc",
+    "semantic_hash": "b344a9824222d6ff8953006be68264bc"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/ContentElements/Templates/FourColumns.html": {
+    "mtime": 1777967190.4379148,
+    "ast_hash": "dd9dd3a66d69c12267329a9db22562a5",
+    "semantic_hash": "dd9dd3a66d69c12267329a9db22562a5"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/ContentElements/Templates/Section.html": {
+    "mtime": 1777985886.1655583,
+    "ast_hash": "76ab2d417182af226d7b9fe57d42f70b",
+    "semantic_hash": "76ab2d417182af226d7b9fe57d42f70b"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/ContentElements/Templates/Tabs.html": {
+    "mtime": 1777534719.0107546,
+    "ast_hash": "9ae8bfd6a2bff1066e858047fedff3af",
+    "semantic_hash": "9ae8bfd6a2bff1066e858047fedff3af"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/ContentElements/Templates/ThreeColumns.html": {
+    "mtime": 1777967185.2259452,
+    "ast_hash": "b07959067217777aa8f42eeb8964b5a0",
+    "semantic_hash": "b07959067217777aa8f42eeb8964b5a0"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/ContentElements/Templates/TwoColumns.html": {
+    "mtime": 1777967181.853801,
+    "ast_hash": "ae96f0351de1a208443abf912c386434",
+    "semantic_hash": "ae96f0351de1a208443abf912c386434"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/Calendarize/Partials/Event/Detail.html": {
+    "mtime": 1777472507.221202,
+    "ast_hash": "17934fdad97711d75edcf28881efb8ea",
+    "semantic_hash": "17934fdad97711d75edcf28881efb8ea"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/Calendarize/Partials/Event/ListItem.html": {
+    "mtime": 1778244113.6664653,
+    "ast_hash": "3e42130f22abac9d450d23f9f223347e",
+    "semantic_hash": "3e42130f22abac9d450d23f9f223347e"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/Calendarize/Partials/Pagination.html": {
+    "mtime": 1777985461.3095791,
+    "ast_hash": "b46cec239bd32f2505d0c2fe189bffae",
+    "semantic_hash": "b46cec239bd32f2505d0c2fe189bffae"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/Calendarize/Templates/Calendar/Detail.html": {
+    "mtime": 1777472525.2238164,
+    "ast_hash": "a797bdb338b0adc9a2fb62e4108a19b4",
+    "semantic_hash": "a797bdb338b0adc9a2fb62e4108a19b4"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/Calendarize/Templates/Calendar/List.html": {
+    "mtime": 1777884252.6068387,
+    "ast_hash": "7efc8af692dd14df27d3289781630fa7",
+    "semantic_hash": "7efc8af692dd14df27d3289781630fa7"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/Calendarize/Templates/Calendar/Search.html": {
+    "mtime": 1777472528.9369512,
+    "ast_hash": "6deb9d079962425bb456541b9d2d2f05",
+    "semantic_hash": "6deb9d079962425bb456541b9d2d2f05"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/MdFullcalendar/Templates/Cal/Detail.html": {
+    "mtime": 1777472567.568857,
+    "ast_hash": "383005e0e9ee965be1208d05363982ee",
+    "semantic_hash": "383005e0e9ee965be1208d05363982ee"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/MdFullcalendar/Templates/Cal/Show.html": {
+    "mtime": 1777884261.248723,
+    "ast_hash": "b1ea7d75bcf8cc126cbd17a5b4b2680e",
+    "semantic_hash": "b1ea7d75bcf8cc126cbd17a5b4b2680e"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/News/Layouts/Backend/Default.html": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "d095afe487c5254d33df7ee87293d869",
+    "semantic_hash": "d095afe487c5254d33df7ee87293d869"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/News/Layouts/Detail.html": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "43cb96f29a3db8d31196c435389baba0",
+    "semantic_hash": "43cb96f29a3db8d31196c435389baba0"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/News/Layouts/General.html": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "b113f9280803915dd12ed0f42d6b87af",
+    "semantic_hash": "b113f9280803915dd12ed0f42d6b87af"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/News/Partials/Category/Items.html": {
+    "mtime": 1777449954.393783,
+    "ast_hash": "db3fc506ed8f587982583c8bc7b64897",
+    "semantic_hash": "db3fc506ed8f587982583c8bc7b64897"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/News/Partials/Detail/MediaContainer.html": {
+    "mtime": 1753089326.503446,
+    "ast_hash": "eb27a3f8b76ff6833154b7c4986cb8c7",
+    "semantic_hash": "eb27a3f8b76ff6833154b7c4986cb8c7"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/News/Partials/Detail/MediaImage.html": {
+    "mtime": 1777449954.3974354,
+    "ast_hash": "66040b4f3c4845e58e9e8dcd5f5707e4",
+    "semantic_hash": "66040b4f3c4845e58e9e8dcd5f5707e4"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/News/Partials/Detail/MediaVideo.html": {
+    "mtime": 1777449954.3974354,
+    "ast_hash": "1f423be69ee5e59030dffe4b861f7022",
+    "semantic_hash": "1f423be69ee5e59030dffe4b861f7022"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/News/Partials/Detail/Opengraph.html": {
+    "mtime": 1753089326.503446,
+    "ast_hash": "4215c8b349bd3262a73808a5d49e763a",
+    "semantic_hash": "4215c8b349bd3262a73808a5d49e763a"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/News/Partials/Detail/Shariff.html": {
+    "mtime": 1753089326.503446,
+    "ast_hash": "093d7123761e172c5579be149d495153",
+    "semantic_hash": "093d7123761e172c5579be149d495153"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/News/Partials/List/Item.html": {
+    "mtime": 1778166221.8475573,
+    "ast_hash": "e6f52e82c8b1be4e433d1f7fb62b4a51",
+    "semantic_hash": "e6f52e82c8b1be4e433d1f7fb62b4a51"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/News/Partials/List/Pagination.html": {
+    "mtime": 1777472280.8412206,
+    "ast_hash": "25f3f22497c07fe5a1708aa75eac31e2",
+    "semantic_hash": "25f3f22497c07fe5a1708aa75eac31e2"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/News/Templates/Category/List.html": {
+    "mtime": 1753089326.503446,
+    "ast_hash": "1e2eb5528bdac41e5d013869e671a9b8",
+    "semantic_hash": "1e2eb5528bdac41e5d013869e671a9b8"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/News/Templates/News/DateMenu.html": {
+    "mtime": 1753089326.503446,
+    "ast_hash": "0dfb86c245acf820e33807fbf642a3fc",
+    "semantic_hash": "0dfb86c245acf820e33807fbf642a3fc"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/News/Templates/News/Detail.html": {
+    "mtime": 1777472270.915616,
+    "ast_hash": "18ce0beedfa7bd989ce40075d505b8ed",
+    "semantic_hash": "18ce0beedfa7bd989ce40075d505b8ed"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/News/Templates/News/DetailNotFound.html": {
+    "mtime": 1753089326.503446,
+    "ast_hash": "f4d8575b4b6ca3938103480c3866f7d4",
+    "semantic_hash": "f4d8575b4b6ca3938103480c3866f7d4"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/News/Templates/News/List.html": {
+    "mtime": 1777449954.3974354,
+    "ast_hash": "750dbf2a26ca63d756b94deb09648737",
+    "semantic_hash": "750dbf2a26ca63d756b94deb09648737"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/News/Templates/News/SearchForm.html": {
+    "mtime": 1777449954.3974354,
+    "ast_hash": "19b752b7013f1fab2709fe7bcf20a547",
+    "semantic_hash": "19b752b7013f1fab2709fe7bcf20a547"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/News/Templates/News/SearchResult.html": {
+    "mtime": 1777884243.7371743,
+    "ast_hash": "39b06459fe0fdeecc23296935481924e",
+    "semantic_hash": "39b06459fe0fdeecc23296935481924e"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/News/Templates/News/SelectedList.html": {
+    "mtime": 1753089326.503446,
+    "ast_hash": "f14143e6f036773e6bc03bf2caaccbd8",
+    "semantic_hash": "f14143e6f036773e6bc03bf2caaccbd8"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Extensions/News/Templates/Tag/List.html": {
+    "mtime": 1753089326.503446,
+    "ast_hash": "6a8db14fcb70b310b42514ba5bb55cb1",
+    "semantic_hash": "6a8db14fcb70b310b42514ba5bb55cb1"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/PageView/Layouts/Default.html": {
+    "mtime": 1769598969.560117,
+    "ast_hash": "b6b99f0af1e81df931790133d479f9e2",
+    "semantic_hash": "b6b99f0af1e81df931790133d479f9e2"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/PageView/Pages/Default.html": {
+    "mtime": 1777884167.834436,
+    "ast_hash": "fac0065e5bbae30698bf2e20946dd324",
+    "semantic_hash": "fac0065e5bbae30698bf2e20946dd324"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/PageView/Pages/Functional.html": {
+    "mtime": 1769598210.4528878,
+    "ast_hash": "29e1336e10ca45b5e9d7e2cefc447ff3",
+    "semantic_hash": "29e1336e10ca45b5e9d7e2cefc447ff3"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/PageView/Pages/News.html": {
+    "mtime": 1769598219.3171933,
+    "ast_hash": "ef343d200054de4c6e87b54d7234df83",
+    "semantic_hash": "ef343d200054de4c6e87b54d7234df83"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/PageView/Partials/Content.html": {
+    "mtime": 1753089326.503446,
+    "ast_hash": "71c92199a976d489c22a93bcfb7fb45d",
+    "semantic_hash": "71c92199a976d489c22a93bcfb7fb45d"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/PageView/Partials/Footer.html": {
+    "mtime": 1777473191.4388103,
+    "ast_hash": "fe6192b057da4fa55e94c1421f96fe4a",
+    "semantic_hash": "fe6192b057da4fa55e94c1421f96fe4a"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/PageView/Partials/Header.html": {
+    "mtime": 1777528963.0224292,
+    "ast_hash": "7b270d5517e19b22314d4d309316ae2d",
+    "semantic_hash": "7b270d5517e19b22314d4d309316ae2d"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Private/Templates/Error/404.html": {
+    "mtime": 1777472602.6438494,
+    "ast_hash": "a47d05271bee188564ffd733d31c9789",
+    "semantic_hash": "a47d05271bee188564ffd733d31c9789"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ext_conf_template.txt": {
+    "mtime": 1753089326.54266,
+    "ast_hash": "2e284d834697e564e13fd15481a23cfb",
+    "semantic_hash": "2e284d834697e564e13fd15481a23cfb"
+  },
+  "/home/maxi/kfv-freising.de/frontend/public/images/logo-white.png": {
+    "mtime": 1777882865.1863713,
+    "ast_hash": "11ff286b0c3e855baf863a9e58f7ada0",
+    "semantic_hash": "11ff286b0c3e855baf863a9e58f7ada0"
+  },
+  "/home/maxi/kfv-freising.de/frontend/public/images/logo.png": {
+    "mtime": 1777882865.1863713,
+    "ast_hash": "47c5170d3f01048eae7ecc249e6ae67f",
+    "semantic_hash": "47c5170d3f01048eae7ecc249e6ae67f"
+  },
+  "/home/maxi/kfv-freising.de/frontend/public/placeholder.svg": {
+    "mtime": 1777882865.1863713,
+    "ast_hash": "35707bd9960ba5281c72af927b79291f",
+    "semantic_hash": "35707bd9960ba5281c72af927b79291f"
+  },
+  "/home/maxi/kfv-freising.de/frontend/src/assets/logo.png": {
+    "mtime": 1777882865.1863713,
+    "ast_hash": "47c5170d3f01048eae7ecc249e6ae67f",
+    "semantic_hash": "47c5170d3f01048eae7ecc249e6ae67f"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Resources/Public/Icons/area.svg": {
+    "mtime": 1761598915.8244052,
+    "ast_hash": "e1f4ba228e1d1cde2421c8a712c34a44",
+    "semantic_hash": "e1f4ba228e1d1cde2421c8a712c34a44"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Resources/Public/Icons/fahrzeug.svg": {
+    "mtime": 1758274190.5076823,
+    "ast_hash": "e94ba513a3115a0ff10d2940d5021b09",
+    "semantic_hash": "e94ba513a3115a0ff10d2940d5021b09"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Resources/Public/Icons/feuerwehr.svg": {
+    "mtime": 1758274190.5076823,
+    "ast_hash": "6f5341b1385e881a66f657937dca04b3",
+    "semantic_hash": "6f5341b1385e881a66f657937dca04b3"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Resources/Public/Icons/gemeinde.svg": {
+    "mtime": 1758274190.5076823,
+    "ast_hash": "e1f4ba228e1d1cde2421c8a712c34a44",
+    "semantic_hash": "e1f4ba228e1d1cde2421c8a712c34a44"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Resources/Public/Icons/jubilaeum.svg": {
+    "mtime": 1758274190.5076823,
+    "ast_hash": "6f82f3ddea6bd137f48f4971d4de7547",
+    "semantic_hash": "6f82f3ddea6bd137f48f4971d4de7547"
+  },
+  "/home/maxi/kfv-freising.de/packages/feuerwehren/Resources/Public/Icons/person.svg": {
+    "mtime": 1758274190.5076823,
+    "ast_hash": "9f41cd839124dfb283a0301d4de8558e",
+    "semantic_hash": "9f41cd839124dfb283a0301d4de8558e"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/accordion/assets/icon.svg": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "116cf86fd555bebbec953002b6fc45b1",
+    "semantic_hash": "116cf86fd555bebbec953002b6fc45b1"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/card-group/assets/icon.svg": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "116cf86fd555bebbec953002b6fc45b1",
+    "semantic_hash": "116cf86fd555bebbec953002b6fc45b1"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/card-slider/assets/icon.svg": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "116cf86fd555bebbec953002b6fc45b1",
+    "semantic_hash": "116cf86fd555bebbec953002b6fc45b1"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/card-slider/assets/slider_arrow.svg": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "58f041a016f1f484e4c0a5e5e3d90db6",
+    "semantic_hash": "58f041a016f1f484e4c0a5e5e3d90db6"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/card/assets/icon.svg": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "116cf86fd555bebbec953002b6fc45b1",
+    "semantic_hash": "116cf86fd555bebbec953002b6fc45b1"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/heroslider/assets/checker-pattern.png": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "e4dc2fecc79b174aa2c4e0255e324d7a",
+    "semantic_hash": "e4dc2fecc79b174aa2c4e0255e324d7a"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/heroslider/assets/icon.svg": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "116cf86fd555bebbec953002b6fc45b1",
+    "semantic_hash": "116cf86fd555bebbec953002b6fc45b1"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/heroslider/assets/slider_arrow.svg": {
+    "mtime": 1753089326.4936426,
+    "ast_hash": "58f041a016f1f484e4c0a5e5e3d90db6",
+    "semantic_hash": "58f041a016f1f484e4c0a5e5e3d90db6"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/ContentBlocks/ContentElements/slider/assets/icon.svg": {
+    "mtime": 1777534471.1584506,
+    "ast_hash": "116cf86fd555bebbec953002b6fc45b1",
+    "semantic_hash": "116cf86fd555bebbec953002b6fc45b1"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Icons/Extension.svg": {
+    "mtime": 1753089326.503446,
+    "ast_hash": "6a9d6396fdc9600efdda7207cc37c391",
+    "semantic_hash": "6a9d6396fdc9600efdda7207cc37c391"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Icons/favicon.svg": {
+    "mtime": 1753089326.503446,
+    "ast_hash": "ca21b8e97699661b9ca86c7d2c178791",
+    "semantic_hash": "ca21b8e97699661b9ca86c7d2c178791"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Icons/touchIcon.png": {
+    "mtime": 1753089326.503446,
+    "ast_hash": "7f8c16ae76aa9417ad891a8fb11c18ad",
+    "semantic_hash": "7f8c16ae76aa9417ad891a8fb11c18ad"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Icons/touchIcon.svg": {
+    "mtime": 1753089326.503446,
+    "ast_hash": "ca21b8e97699661b9ca86c7d2c178791",
+    "semantic_hash": "ca21b8e97699661b9ca86c7d2c178791"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Images/BackendLayouts/default.png": {
+    "mtime": 1753089326.503446,
+    "ast_hash": "3ac36c98c7f2213b4411cc4c2d4e6bbf",
+    "semantic_hash": "3ac36c98c7f2213b4411cc4c2d4e6bbf"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Images/Emblem_KFV-Freising.png": {
+    "mtime": 1753089326.503446,
+    "ast_hash": "793e168bf28e87382a8ac22e5a2d5ae5",
+    "semantic_hash": "793e168bf28e87382a8ac22e5a2d5ae5"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Images/Emblem_KFV-Freising.svg": {
+    "mtime": 1753089326.5132494,
+    "ast_hash": "288d0a8b5bbad236abe31576b4f0ffce",
+    "semantic_hash": "288d0a8b5bbad236abe31576b4f0ffce"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Images/Fallback-Images/dummyimage.png": {
+    "mtime": 1753089326.5132494,
+    "ast_hash": "d8caba4de23a284a67564cde9ed7dad4",
+    "semantic_hash": "d8caba4de23a284a67564cde9ed7dad4"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Images/Fallback-Images/news.jpg": {
+    "mtime": 1753089326.5132494,
+    "ast_hash": "487eb5dedc55a04c69d75f130d5946e7",
+    "semantic_hash": "487eb5dedc55a04c69d75f130d5946e7"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Images/Hero_Fallback.jpg": {
+    "mtime": 1753089326.5132494,
+    "ast_hash": "487eb5dedc55a04c69d75f130d5946e7",
+    "semantic_hash": "487eb5dedc55a04c69d75f130d5946e7"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Images/Logo_KFV-Freising-b.svg": {
+    "mtime": 1753089326.523053,
+    "ast_hash": "4fb9d31f6646a6331b85d73dc3386c22",
+    "semantic_hash": "4fb9d31f6646a6331b85d73dc3386c22"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Images/Logo_KFV-Freising-b.webp": {
+    "mtime": 1770045303.7858665,
+    "ast_hash": "9a0743cbfe9349f4a6ef23aa919e3217",
+    "semantic_hash": "9a0743cbfe9349f4a6ef23aa919e3217"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Images/Logo_KFV-Freising-w.png": {
+    "mtime": 1753089326.523053,
+    "ast_hash": "11ff286b0c3e855baf863a9e58f7ada0",
+    "semantic_hash": "11ff286b0c3e855baf863a9e58f7ada0"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Images/Logo_KFV-Freising-w.svg": {
+    "mtime": 1753089326.523053,
+    "ast_hash": "66dcb7b6e36c6f1f16a79196a4a50850",
+    "semantic_hash": "66dcb7b6e36c6f1f16a79196a4a50850"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Images/Logo_KFV-Freising-w.webp": {
+    "mtime": 1770045303.2606113,
+    "ast_hash": "d874e1400110e09a1827885eff5c6079",
+    "semantic_hash": "d874e1400110e09a1827885eff5c6079"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Images/checker-pattern.png": {
+    "mtime": 1753089326.523053,
+    "ast_hash": "e4dc2fecc79b174aa2c4e0255e324d7a",
+    "semantic_hash": "e4dc2fecc79b174aa2c4e0255e324d7a"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Images/fire-4149479_1920.jpg": {
+    "mtime": 1753089326.523053,
+    "ast_hash": "487eb5dedc55a04c69d75f130d5946e7",
+    "semantic_hash": "487eb5dedc55a04c69d75f130d5946e7"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Images/logo.jpeg": {
+    "mtime": 1753089326.5328565,
+    "ast_hash": "72ea6e58844362b6fe4837f1cf6244e3",
+    "semantic_hash": "72ea6e58844362b6fe4837f1cf6244e3"
+  },
+  "/home/maxi/kfv-freising.de/packages/sitepackage/Resources/Public/Images/water-4495538_1920.jpg": {
+    "mtime": 1753089326.5328565,
+    "ast_hash": "e30fb354a6c52680557579ae81a54225",
+    "semantic_hash": "e30fb354a6c52680557579ae81a54225"
+  }
+}

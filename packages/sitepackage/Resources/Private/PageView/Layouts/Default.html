@@ -1,1 +1,14 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+      xmlns:vite="http://typo3.org/ns/Praetorius/ViteAssetCollector/ViewHelpers"
+      data-namespace-typo3-fluid="true">
+
+<vite:asset
+    manifest="EXT:sitepackage/Resources/Public/Vite/.vite/manifest.json"
+    entry="Resources/Private/JavaScript/main.js"
+/>
+
+<f:render partial="Header" arguments="{main:main, secondary:secondary}" />
 <f:render section="Main" />
+<f:render partial="Footer" arguments="{_all}" />
+
+</html>

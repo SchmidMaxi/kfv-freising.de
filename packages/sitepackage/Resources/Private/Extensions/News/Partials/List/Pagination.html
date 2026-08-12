@@ -1,62 +1,62 @@
 <f:if condition="{pagination.allPageNumbers -> f:count()} > 1">
-    <nav class="my-5" aria-label="Nachrichten Navigation">
-        <ul class="pagination justify-content-center">
-            <f:if condition="{pagination.previousPageNumber} && {pagination.previousPageNumber} >= {pagination.firstPageNumber}">
-                <f:then>
-                    <li class="page-item">
-                        <a href="{f:uri.action(action:actionName, arguments:{currentPage: pagination.previousPageNumber},addQueryString:'untrusted')}" title="{f:translate(key:'pagination.previous')}" class="page-link">
-                            <span aria-hidden="true">&laquo;</span>
-                        </a>
-                    </li>
-                </f:then>
-                <f:else>
-                    <f:comment>
-                        <li class="disabled"><span><i class="material-icons">first_page</i></span></li>
-                        <li class="disabled"><span>{f:translate(key:'widget.pagination.previous', extensionName: 'fluid')}</span></li>
-                    </f:comment>
-                </f:else>
-            </f:if>
-            <f:if condition="{pagination.hasLessPages}">
-                <li class="page-item"><span class="page-link">…</span></li>
-            </f:if>
-            <f:for each="{pagination.allPageNumbers}" as="page">
-                <f:if condition="{page} == {paginator.currentPageNumber}">
-                    <f:then>
-                        <li  class="page-item active" aria-current="page"><span class="page-link">{page}</span></li>
-                    </f:then>
-                    <f:else>
-                        <li class="page-item">
-                            <a class="page-link" href="{f:uri.action(action:actionName, arguments:{currentPage: page},addQueryString:'untrusted')}">{page}</a>
-                        </li>
-                    </f:else>
-                </f:if>
+  <nav class="my-4 d-flex justify-content-center" aria-label="Nachrichten Navigation">
+    <ul class="pagination">
 
-            </f:for>
-            <f:if condition="{pagination.hasMorePages}">
-                <li class="page-item"><span class="page-link">…</span></li>
-            </f:if>
-            <f:if condition="{pagination.nextPageNumber} && {pagination.nextPageNumber} <= {pagination.lastPageNumber}">
-                <f:then>
-                    <li  class="page-item next">
-                        <a class="page-link" href="{f:uri.action(action:actionName, arguments:{currentPage: pagination.nextPageNumber},addQueryString:'untrusted')}" title="{f:translate(key:'pagination.next')}">
-                            <span aria-hidden="true">&raquo;</span>
-                        </a>
-                    </li>
-                    <f:comment>
-                        <li  class="page-item last">
-                            <a class="page-link" href="{f:uri.action(action:actionName, arguments:{currentPage: pagination.lastPageNumber},addQueryString:'untrusted')}" title="{f:translate(key:'pagination.last')}">
-                                last
-                            </a>
-                        </li>
-                    </f:comment>
-                </f:then>
-                <f:else>
-                    <f:comment>
-                        <li class="disabled"><span>{f:translate(key:'widget.pagination.next', extensionName: 'fluid')}</span></li>
-                        <li class="disabled"><span>last page</span></li>
-                    </f:comment>
-                </f:else>
-            </f:if>
-        </ul>
-    </nav>
+      <f:if condition="{pagination.previousPageNumber} && {pagination.previousPageNumber} >= {pagination.firstPageNumber}">
+        <f:then>
+          <li class="page-item">
+            <a class="page-link" href="{f:uri.action(action:actionName, arguments:{currentPage: pagination.previousPageNumber}, addQueryString:'untrusted')}"
+               title="{f:translate(key:'pagination.previous')}" aria-label="{f:translate(key:'pagination.previous')}">
+              <span aria-hidden="true">&laquo;</span>
+            </a>
+          </li>
+        </f:then>
+        <f:else>
+          <li class="page-item disabled">
+            <span class="page-link" aria-hidden="true">&laquo;</span>
+          </li>
+        </f:else>
+      </f:if>
+
+      <f:if condition="{pagination.hasLessPages}">
+        <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+      </f:if>
+
+      <f:for each="{pagination.allPageNumbers}" as="page">
+        <f:if condition="{page} == {paginator.currentPageNumber}">
+          <f:then>
+            <li class="page-item active" aria-current="page">
+              <span class="page-link">{page}</span>
+            </li>
+          </f:then>
+          <f:else>
+            <li class="page-item">
+              <a class="page-link" href="{f:uri.action(action:actionName, arguments:{currentPage: page}, addQueryString:'untrusted')}">{page}</a>
+            </li>
+          </f:else>
+        </f:if>
+      </f:for>
+
+      <f:if condition="{pagination.hasMorePages}">
+        <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+      </f:if>
+
+      <f:if condition="{pagination.nextPageNumber} && {pagination.nextPageNumber} <= {pagination.lastPageNumber}">
+        <f:then>
+          <li class="page-item">
+            <a class="page-link" href="{f:uri.action(action:actionName, arguments:{currentPage: pagination.nextPageNumber}, addQueryString:'untrusted')}"
+               title="{f:translate(key:'pagination.next')}" aria-label="{f:translate(key:'pagination.next')}">
+              <span aria-hidden="true">&raquo;</span>
+            </a>
+          </li>
+        </f:then>
+        <f:else>
+          <li class="page-item disabled">
+            <span class="page-link" aria-hidden="true">&raquo;</span>
+          </li>
+        </f:else>
+      </f:if>
+
+    </ul>
+  </nav>
 </f:if>

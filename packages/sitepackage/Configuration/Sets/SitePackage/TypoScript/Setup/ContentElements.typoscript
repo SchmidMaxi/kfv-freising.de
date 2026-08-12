@@ -1,6 +1,18 @@
 
 
 
+lib.contentBlock {
+    partialRootPaths {
+        100 = EXT:sitepackage/Resources/Private/ContentElements/Partials/
+    }
+}
+
+lib.contentElement {
+    partialRootPaths {
+        100 = EXT:sitepackage/Resources/Private/ContentElements/Partials/
+    }
+}
+
 tt_content.section < lib.contentElement
 tt_content.section {
     templateName = Section
@@ -54,6 +66,34 @@ tt_content.3cols {
         202 {
             colPos = 202
             as = children_202
+        }
+    }
+}
+
+tt_content.tabs < lib.contentElement
+tt_content.tabs {
+    templateName = Tabs
+    dataProcessing {
+        10 = flex-form
+        210 = B13\Container\DataProcessing\ContainerProcessor
+        210 {
+            colPos = 210
+            as = children_210
+        }
+        211 = B13\Container\DataProcessing\ContainerProcessor
+        211 {
+            colPos = 211
+            as = children_211
+        }
+        212 = B13\Container\DataProcessing\ContainerProcessor
+        212 {
+            colPos = 212
+            as = children_212
+        }
+        213 = B13\Container\DataProcessing\ContainerProcessor
+        213 {
+            colPos = 213
+            as = children_213
         }
     }
 }

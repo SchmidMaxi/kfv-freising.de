@@ -1,0 +1,120 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+      xmlns:vite="http://typo3.org/ns/Praetorius/ViteAssetCollector/ViewHelpers"
+      data-namespace-typo3-fluid="true">
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Seite nicht gefunden – KFV Freising</title>
+    <meta name="robots" content="noindex,nofollow">
+    <vite:asset
+        manifest="EXT:sitepackage/Resources/Public/Vite/.vite/manifest.json"
+        entry="Resources/Private/JavaScript/main.js"
+    />
+</head>
+<body class="d-flex flex-column min-vh-100 bg-body">
+
+    <!-- Minimal Header -->
+    <header class="sticky-top w-100 bg-body border-bottom shadow-sm">
+        <div class="container d-flex align-items-center justify-content-between py-3">
+            <a href="/" class="d-flex align-items-center gap-2 text-decoration-none">
+                <img src="{f:uri.resource(path: 'Images/Emblem_KFV-Freising.png', extensionName: 'sitepackage')}"
+                     alt="KFV Freising"
+                     class="show-light-mode"
+                     style="height: 3rem; width: auto;" />
+                <img src="{f:uri.resource(path: 'Images/Logo_KFV-Freising-w.webp', extensionName: 'sitepackage')}"
+                     alt="KFV Freising"
+                     class="show-dark-mode"
+                     style="height: 3rem; width: auto;" />
+            </a>
+            <a href="/" class="btn btn-primary d-inline-flex align-items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="flex-shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                Zur Startseite
+            </a>
+        </div>
+    </header>
+
+    <!-- 404 Content -->
+    <main class="flex-fill d-flex align-items-center">
+        <div class="container py-5 py-lg-6">
+            <div class="row g-5 align-items-center">
+
+                <!-- Left: Content -->
+                <div class="col-12 col-lg-6">
+                    <div class="badge rounded-pill bg-danger-subtle text-danger-emphasis fw-medium mb-4 d-inline-flex align-items-center gap-2 px-3 py-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+                        Fehler 404
+                    </div>
+
+                    <h1 class="fw-bold display-1 mb-4 lh-1">
+                        Seite nicht
+                        <span class="d-block text-primary">gefunden</span>
+                    </h1>
+
+                    <p class="fs-5 text-body-secondary mb-4" style="max-width: 36rem;">
+                        Die von Ihnen aufgerufene Seite existiert nicht oder wurde verschoben.
+                        Kein Grund zur Beunruhigung – wir helfen Ihnen, schnell wieder den richtigen Weg zu finden.
+                    </p>
+
+                    <div class="d-flex flex-wrap gap-3 mb-5">
+                        <a href="/" class="btn btn-primary btn-lg d-inline-flex align-items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                            Zur Startseite
+                        </a>
+                        <button type="button"
+                                onclick="window.history.back()"
+                                class="btn btn-outline-secondary btn-lg d-inline-flex align-items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                            Zurück
+                        </button>
+                    </div>
+
+                    <div>
+                        <h2 class="fw-semibold text-uppercase small text-body-secondary mb-3" style="letter-spacing: .05em;">
+                            Beliebte Seiten
+                        </h2>
+                        <div class="d-flex flex-wrap gap-2">
+                            <a href="/aktuelles" class="btn btn-sm btn-outline-secondary rounded-pill">Aktuelles</a>
+                            <a href="/feuerwehren" class="btn btn-sm btn-outline-secondary rounded-pill">Feuerwehren</a>
+                            <a href="/verband" class="btn btn-sm btn-outline-secondary rounded-pill">Verband</a>
+                            <a href="/termine" class="btn btn-sm btn-outline-secondary rounded-pill">Termine</a>
+                            <a href="/kontakt" class="btn btn-sm btn-outline-secondary rounded-pill">Kontakt</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Visual -->
+                <div class="col-lg-6 d-none d-lg-block">
+                    <div class="position-relative mx-auto" style="max-width: 32rem; aspect-ratio: 1;">
+                        <div class="position-absolute top-0 start-0 w-100 h-100 gradient-fire rounded-circle opacity-25" style="filter: blur(64px);"></div>
+                        <div class="position-relative h-100 d-flex align-items-center justify-content-center">
+                            <div class="fw-bold lh-1 user-select-none" style="font-size: 20rem; opacity: .05;">
+                                404
+                            </div>
+                            <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center">
+                                <div class="gradient-fire rounded-circle d-flex align-items-center justify-content-center shadow-lg" style="width: 12rem; height: 12rem;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="text-white" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Minimal Footer -->
+    <footer id="footer" class="bg-surface-dark py-4">
+        <div class="container d-flex flex-column flex-sm-row align-items-center justify-content-between gap-3 small">
+            <span>© 2024 Kreisfeuerwehrverband Freising e.V.</span>
+            <div class="d-flex gap-4">
+                <a href="/impressum">Impressum</a>
+                <a href="/datenschutz">Datenschutz</a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

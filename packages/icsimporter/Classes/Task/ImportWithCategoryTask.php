@@ -1,147 +1,196 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Schmid\IcsImporter\Task;
 
-use Doctrine\DBAL\ArrayParameterType;
-use Doctrine\DBAL\ParameterType;
 use HDNET\Calendarize\Event\ImportSingleIcalEvent;
 use HDNET\Calendarize\Exception\UnableToGetFileForUrlException;
+use HDNET\Calendarize\Ical\ICalEvent;
 use HDNET\Calendarize\Service\Ical\ICalUrlService;
-use HDNET\Calendarize\Service\Ical\VObjectICalService;
 use HDNET\Calendarize\Service\IndexerService;
 use Psr\EventDispatcher\EventDispatcherInterface;
-use TYPO3\CMS\Core\Database\ConnectionPool;
-use TYPO3\CMS\Core\EventDispatcher\EventDispatcher;
+use Schmid\IcsImporter\Service\CategoryAssignmentService;
+use Schmid\IcsImporter\Service\FixedTimezoneICalService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Scheduler\Task\AbstractTask;
 
+/**
+ * Scheduler task for importing ICS feeds with automatic category assignment.
+ */
 final class ImportWithCategoryTask extends AbstractTask
 {
-    /** @var string */
-    public $icsUrl = '';
-
-    /** @var int */
-    public $pid = 0;
-
-    /** @var int */
-    public $categoryUid = 0;
-
-    /** @var string|null e.g. "2024-01-01" or "-10 days" */
-    public $since;
+    public string $icsUrl = '';
+    public int $pid = 0;
+    public int $categoryUid = 0;
+    public ?string $since = null;
 
     public function execute(): bool
     {
-        if ($this->pid <= 0 || $this->categoryUid <= 0 || empty($this->icsUrl)) {
-            throw new \RuntimeException('Bitte ICS-URL, PID und Kategorie-UID konfigurieren.');
-        }
+        $this->validateConfiguration();
 
-        /** @var ICalUrlService $iCalUrlService */
-        $iCalUrlService = GeneralUtility::makeInstance(ICalUrlService::class);
-        /** @var VObjectICalService $iCalService */
-        $iCalService    = GeneralUtility::makeInstance(VObjectICalService::class);
-        /** @var EventDispatcherInterface $dispatcher */
-        $dispatcher     = GeneralUtility::makeInstance(EventDispatcher::class);
-        /** @var IndexerService $indexer */
-        $indexer        = GeneralUtility::makeInstance(IndexerService::class);
+        $icalFile = $this->downloadIcsFile();
 
-        // optionaler Filter
-        $ignoreBeforeDate = null;
-        if ($this->since !== null && $this->since !== '') {
-            $ignoreBeforeDate = new \DateTime($this->since);
-        }
-
-        // 1) ICS laden → Temp-Datei
         try {
-            $icalFile = $iCalUrlService->getOrCreateLocalFileForUrl($this->icsUrl);
-        } catch (UnableToGetFileForUrlException $e) {
-            throw new \RuntimeException('ICS-Quelle ungültig: ' . $e->getMessage(), 0, $e);
-        }
+            $events = $this->parseEvents($icalFile);
+            $importIds = $this->extractImportIds($events);
 
-        // 2) Events parsen
-        try {
-            $events = $iCalService->getEvents($icalFile);
+            $this->importEvents($events);
+            $this->assignCategories($importIds);
+            $this->reindexEvents();
         } finally {
             GeneralUtility::unlink_tempfile($icalFile);
         }
 
-        // 3) Event‑UIDs (iCal UID) sammeln, um hinterher über import_id zu kategorisieren
-        $icsUids = [];
-        foreach ($events as $e) {
-            $uid = null;
-            if (method_exists($e, 'getUid')) { $uid = (string)$e->getUid(); }
-            elseif (method_exists($e, 'getId')) { $uid = (string)$e->getId(); }
-            if ($uid !== null && $uid !== '') { $icsUids[$uid] = true; }
-        }
-        $icsUids = array_keys($icsUids);
-
-        // 4) Import per Event-Dispatch (Calendarize-Standard)
-        foreach ($events as $event) {
-            $endOrStart = $event->getEndDate() ?? $event->getStartDate();
-            if ($ignoreBeforeDate instanceof \DateTimeInterface && $endOrStart < $ignoreBeforeDate) {
-                continue;
-            }
-            $dispatcher->dispatch(new ImportSingleIcalEvent($event, (int)$this->pid));
-        }
-
-        // 5) Kategorie an alle Events dieses Feeds hängen (import_id IN (<iCal-UIDs>)), optional auf PID beschränkt
-        $this->assignCategoryByImportIds($icsUids, (int)$this->pid, (int)$this->categoryUid);
-
-        // 6) Reindex
-        $indexer->reindexAll();
-
         return true;
     }
 
-    private function assignCategoryByImportIds(array $icsUids, int $pid, int $categoryUid): void
+    private function validateConfiguration(): void
     {
-        if (!$icsUids) {
-            return;
-        }
-        $pool = GeneralUtility::makeInstance(ConnectionPool::class);
-
-        $qb = $pool->getQueryBuilderForTable('tx_calendarize_domain_model_event');
-        $qb->select('uid')
-            ->from('tx_calendarize_domain_model_event')
-            ->where(
-                $qb->expr()->in(
-                    'import_id',
-                    $qb->createNamedParameter($icsUids, ArrayParameterType::STRING)
-                )
+        if ($this->pid <= 0 || $this->categoryUid <= 0 || $this->icsUrl === '') {
+            throw new \InvalidArgumentException(
+                'ICS-URL, PID und Kategorie-UID müssen konfiguriert sein.',
+                1700000001
             );
-        if ($pid > 0) {
-            $qb->andWhere($qb->expr()->eq('pid', $qb->createNamedParameter($pid, ParameterType::INTEGER)));
-        }
-        $eventUids = $qb->executeQuery()->fetchFirstColumn();
-        if (!$eventUids) {
-            return;
-        }
-
-        $mm = $pool->getConnectionForTable('sys_category_record_mm');
-
-        foreach ($eventUids as $eventUid) {
-            $qb2 = $pool->getQueryBuilderForTable('sys_category_record_mm');
-            $exists = (int)$qb2->count('*')
-                ->from('sys_category_record_mm')
-                ->where(
-                    $qb2->expr()->eq('uid_local',   $qb2->createNamedParameter($categoryUid, ParameterType::INTEGER)),
-                    $qb2->expr()->eq('uid_foreign', $qb2->createNamedParameter((int)$eventUid, ParameterType::INTEGER)),
-                    $qb2->expr()->eq('tablenames',  $qb2->createNamedParameter('tx_calendarize_domain_model_event')),
-                    $qb2->expr()->eq('fieldname',   $qb2->createNamedParameter('categories'))
-                )
-                ->executeQuery()
-                ->fetchOne();
-
-            if ($exists === 0) {
-                $mm->insert('sys_category_record_mm', [
-                    'uid_local'   => $categoryUid,
-                    'uid_foreign' => (int)$eventUid,
-                    'tablenames'  => 'tx_calendarize_domain_model_event',
-                    'fieldname'   => 'categories',
-                    'sorting'     => 0,
-                ]);
-            }
         }
     }
-}
 
+    private function downloadIcsFile(): string
+    {
+        try {
+            return $this->getICalUrlService()->getOrCreateLocalFileForUrl($this->icsUrl);
+        } catch (UnableToGetFileForUrlException $e) {
+            throw new \RuntimeException(
+                'ICS-Quelle ungültig: ' . $e->getMessage(),
+                1700000002,
+                $e
+            );
+        }
+    }
+
+    /**
+     * @return list<ICalEvent>
+     */
+    private function parseEvents(string $icalFile): array
+    {
+        return $this->getICalService()->getEvents($icalFile);
+    }
+
+    /**
+     * @param list<ICalEvent> $events
+     * @return list<string>
+     */
+    private function extractImportIds(array $events): array
+    {
+        $ids = [];
+
+        foreach ($events as $event) {
+            $uid = $this->getEventUid($event);
+            if ($uid !== null && $uid !== '') {
+                $ids[$uid] = true;
+            }
+        }
+
+        return array_keys($ids);
+    }
+
+    private function getEventUid(ICalEvent $event): ?string
+    {
+        $uid = null;
+
+        if (method_exists($event, 'getUid')) {
+            $uid = (string)$event->getUid();
+        } elseif (method_exists($event, 'getId')) {
+            $uid = (string)$event->getId();
+        }
+
+        if ($uid === null || $uid === '') {
+            return null;
+        }
+
+        // Must match HDNET\Calendarize\EventListener\ImportSingleIcalEventListener::__invoke(),
+        // which hashes UIDs over 100 chars (e.g. long Outlook UIDs) before storing as import_id.
+        return \strlen($uid) <= 100 ? $uid : md5($uid);
+    }
+
+    /**
+     * @param list<ICalEvent> $events
+     */
+    private function importEvents(array $events): void
+    {
+        $ignoreBeforeDate = $this->getIgnoreBeforeDate();
+        $dispatcher = $this->getEventDispatcher();
+
+        foreach ($events as $event) {
+            if ($this->shouldSkipEvent($event, $ignoreBeforeDate)) {
+                continue;
+            }
+
+            $dispatcher->dispatch(new ImportSingleIcalEvent($event, $this->pid));
+        }
+    }
+
+    private function getIgnoreBeforeDate(): ?\DateTimeInterface
+    {
+        if ($this->since === null || $this->since === '') {
+            return null;
+        }
+
+        return new \DateTime($this->since);
+    }
+
+    private function shouldSkipEvent(ICalEvent $event, ?\DateTimeInterface $ignoreBeforeDate): bool
+    {
+        if ($ignoreBeforeDate === null) {
+            return false;
+        }
+
+        $eventDate = $event->getEndDate() ?? $event->getStartDate();
+
+        return $eventDate !== null && $eventDate < $ignoreBeforeDate;
+    }
+
+    /**
+     * @param list<string> $importIds
+     */
+    private function assignCategories(array $importIds): void
+    {
+        $this->getCategoryAssignmentService()->assignCategoryToEventsByImportIds(
+            $importIds,
+            $this->pid,
+            $this->categoryUid
+        );
+    }
+
+    private function reindexEvents(): void
+    {
+        $this->getIndexerService()->reindexAll();
+    }
+
+    // Service getters (scheduler tasks don't support constructor injection due to serialization)
+
+    private function getICalUrlService(): ICalUrlService
+    {
+        return GeneralUtility::makeInstance(ICalUrlService::class);
+    }
+
+    private function getICalService(): FixedTimezoneICalService
+    {
+        return GeneralUtility::makeInstance(FixedTimezoneICalService::class);
+    }
+
+    private function getEventDispatcher(): EventDispatcherInterface
+    {
+        return GeneralUtility::makeInstance(EventDispatcherInterface::class);
+    }
+
+    private function getIndexerService(): IndexerService
+    {
+        return GeneralUtility::makeInstance(IndexerService::class);
+    }
+
+    private function getCategoryAssignmentService(): CategoryAssignmentService
+    {
+        return GeneralUtility::makeInstance(CategoryAssignmentService::class);
+    }
+}

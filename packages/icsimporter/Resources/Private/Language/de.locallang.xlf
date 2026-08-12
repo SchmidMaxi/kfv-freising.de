@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+    <file source-language="en" target-language="de" datatype="plaintext" original="EXT:icsimporter/Resources/Private/Language/locallang.xlf">
+        <body>
+            <trans-unit id="task.title" resname="task.title">
+                <source>ICS Import (Calendarize) with Category</source>
+                <target>ICS Import (Calendarize) mit Kategorie</target>
+            </trans-unit>
+            <trans-unit id="task.description" resname="task.description">
+                <source>Imports an ICS feed into Calendarize and assigns a sys_category to the events.</source>
+                <target>Importiert einen ICS-Feed in Calendarize und weist eine sys_category zu.</target>
+            </trans-unit>
+            <trans-unit id="task.field.icsUrl" resname="task.field.icsUrl">
+                <source>ICS URL (https://… or t3://file?uid=…)</source>
+                <target>ICS URL (https://… oder t3://file?uid=…)</target>
+            </trans-unit>
+            <trans-unit id="task.field.pid" resname="task.field.pid">
+                <source>Target Page ID</source>
+                <target>Ziel-PID</target>
+            </trans-unit>
+            <trans-unit id="task.field.categoryUid" resname="task.field.categoryUid">
+                <source>Category UID (sys_category)</source>
+                <target>Kategorie UID (sys_category)</target>
+            </trans-unit>
+            <trans-unit id="task.field.since" resname="task.field.since">
+                <source>Since (optional)</source>
+                <target>Seit (optional)</target>
+            </trans-unit>
+            <trans-unit id="task.field.since.placeholder" resname="task.field.since.placeholder">
+                <source>e.g. -14 days or 2024-01-01</source>
+                <target>z.B. -14 days oder 2024-01-01</target>
+            </trans-unit>
+            <trans-unit id="task.error.icsUrl" resname="task.error.icsUrl">
+                <source>Please provide an ICS URL.</source>
+                <target>Bitte eine ICS-URL angeben.</target>
+            </trans-unit>
+            <trans-unit id="task.error.pid" resname="task.error.pid">
+                <source>Please provide a valid Page ID.</source>
+                <target>Bitte eine gültige PID angeben.</target>
+            </trans-unit>
+            <trans-unit id="task.error.categoryUid" resname="task.error.categoryUid">
+                <source>Please provide a valid Category UID.</source>
+                <target>Bitte eine gültige Kategorie UID angeben.</target>
+            </trans-unit>
+        </body>
+    </file>
+</xliff>

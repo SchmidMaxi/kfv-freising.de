@@ -10,6 +10,20 @@ fields:
     identifier: header
     useExistingField: true
   -
+    identifier: card_layout
+    type: Select
+    renderType: selectSingle
+    default: 'default'
+    items:
+      - label: 'Standard (Bild + Text)'
+        value: default
+      - label: 'Quick-Action Cards (Icon + Link)'
+        value: quick-action
+      - label: 'Statistik-Kacheln'
+        value: stat
+      - label: 'Feature-Cards (mit Badge + Link)'
+        value: feature
+  -
     identifier: color
     type: Select
     useExistingField: true
@@ -28,6 +42,7 @@ fields:
     fields:
       - identifier: header
         type: Text
+        label: 'Titel'
       - identifier: image
         type: File
         label: Bild
@@ -35,3 +50,30 @@ fields:
       - identifier: bodytext
         type: Textarea
         enableRichtext: true
+        label: 'Text / Beschreibung'
+      - identifier: sitepackage/bootstrap-icon
+        type: Basic
+      - identifier: variant
+        type: Select
+        renderType: selectSingle
+        default: 'accent'
+        label: 'Icon-Farbe (Quick-Action)'
+        items:
+          - label: 'Akzent (Feuerwehr-Rot)'
+            value: accent
+          - label: 'Primär (Dunkel)'
+            value: primary
+      - identifier: badge
+        type: Text
+        label: 'Badge-Text (Feature)'
+      - identifier: link
+        type: Link
+        label: 'Link (Quick-Action / Feature)'
+      - identifier: stat_value
+        type: Text
+        label: 'Kennzahl (Statistik)'
+        placeholder: 'z.B. 2.850'
+      - identifier: stat_trend
+        type: Text
+        label: 'Trend (Statistik)'
+        placeholder: 'z.B. +12%'

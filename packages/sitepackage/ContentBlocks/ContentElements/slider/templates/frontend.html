@@ -1,0 +1,132 @@
+<f:asset.css identifier="sliderSplideCss" href="{cb:assetPath()}/splide-core.min.css"/>
+
+<div id="c{data.uid}" class="frame frame-{data.frame_class} frame-type-{data.CType} frame-layout-{data.layout}{f:if(condition: data.space_before_class, then: ' frame-space-before-{data.space_before_class}')}{f:if(condition: data.space_after_class, then: ' frame-space-after-{data.space_after_class}')}">
+  <div class="my-5">
+    <f:if condition="{data.header}">
+      <div class="container mb-4">
+        <h2>{data.header}</h2>
+      </div>
+    </f:if>
+
+    <f:switch expression="{data.slider_layout}">
+
+      <!-- Variante 1: News-Slider -->
+      <f:case value="news">
+        <div class="container">
+          <div class="splide splide-slider splide-layout-news px-5"
+               data-splide='{"type":"loop","perPage":<f:format.raw>{data.breakpoint_desktop}</f:format.raw>,"perMove":1,"gap":"1.5rem","breakpoints":{"1024":{"perPage":<f:format.raw>{data.breakpoint_tablet}</f:format.raw>},"640":{"perPage":<f:format.raw>{data.breakpoint_mobile}</f:format.raw>}}<f:if condition="{data.autoplay}">,"autoplay":true,"interval":<f:format.raw>{data.autoplay_interval}</f:format.raw>,"pauseOnHover":true</f:if>}'>
+            <div class="splide__track">
+              <ul class="splide__list">
+                <f:for each="{data.items}" as="item">
+                  <li class="splide__slide">
+                    <f:link.typolink parameter="{item.link}" class="text-decoration-none d-block h-100">
+                      <div class="card h-100 shadow-sm">
+                        <f:if condition="{item.image}">
+                          <div class="ratio ratio-16x9">
+                            <f:image image="{item.image.0}" class="object-fit-cover" />
+                          </div>
+                        </f:if>
+                        <div class="card-body">
+                          <f:if condition="{item.category}">
+                            <span class="badge gradient-fire text-white rounded-pill mb-2">{item.category}</span>
+                          </f:if>
+                          <h3 class="h6 card-title mb-0">{item.header}</h3>
+                        </div>
+                      </div>
+                    </f:link.typolink>
+                  </li>
+                </f:for>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </f:case>
+
+      <!-- Variante 2: Hero-Slider -->
+      <f:case value="hero">
+        <div class="splide splide-slider splide-layout-hero"
+             data-splide='{"type":"loop","perPage":1,"perMove":1<f:if condition="{data.autoplay}">,"autoplay":true,"interval":<f:format.raw>{data.autoplay_interval}</f:format.raw>,"pauseOnHover":true</f:if>}'>
+          <div class="splide__track">
+            <ul class="splide__list">
+              <f:for each="{data.items}" as="item">
+                <li class="splide__slide">
+                  <div class="ratio ratio-21x9 overflow-hidden">
+                    <f:if condition="{item.image}">
+                      <f:image image="{item.image.0}" class="object-fit-cover" />
+                    </f:if>
+                    <div class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column justify-content-end p-4 p-md-5" style="background: linear-gradient(0deg, rgba(0,0,0,.8), rgba(0,0,0,.2) 60%, transparent);">
+                      <f:if condition="{item.category}">
+                        <span class="badge gradient-fire text-white rounded-pill mb-3 align-self-start">{item.category}</span>
+                      </f:if>
+                      <h3 class="display-6 fw-bold text-white mb-3">{item.header}</h3>
+                      <f:if condition="{item.link}">
+                        <f:link.typolink parameter="{item.link}" class="btn btn-light text-primary fw-semibold d-inline-flex align-items-center gap-2 align-self-start">
+                          {f:if(condition: item.button_label, then: item.button_label, else: 'Mehr erfahren')}
+                          <i class="bi bi-arrow-right"></i>
+                        </f:link.typolink>
+                      </f:if>
+                    </div>
+                  </div>
+                </li>
+              </f:for>
+            </ul>
+          </div>
+        </div>
+      </f:case>
+
+      <!-- Variante 3: Zitate-Slider -->
+      <f:case value="quote">
+        <div class="container">
+          <div class="splide splide-slider splide-layout-quote mx-auto px-5" style="max-width: 42rem;"
+               data-splide='{"type":"loop","perPage":1,"perMove":1<f:if condition="{data.autoplay}">,"autoplay":true,"interval":<f:format.raw>{data.autoplay_interval}</f:format.raw>,"pauseOnHover":true</f:if>}'>
+            <div class="splide__track">
+              <ul class="splide__list">
+                <f:for each="{data.items}" as="item">
+                  <li class="splide__slide">
+                    <div class="text-center py-5 px-3">
+                      <div class="display-1 text-primary lh-1 mb-3">&#8220;</div>
+                      <blockquote class="fs-3 fst-italic mb-3">
+                        {item.quote_text}
+                      </blockquote>
+                      <f:if condition="{item.author}">
+                        <p class="text-body-secondary fw-medium mb-0">— {item.author}</p>
+                      </f:if>
+                    </div>
+                  </li>
+                </f:for>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </f:case>
+
+      <!-- Variante 4: Logo-Band -->
+      <f:case value="logo">
+        <div class="container">
+          <div class="splide splide-slider splide-layout-logo px-5"
+               data-splide='{"type":"slide","perPage":<f:format.raw>{data.breakpoint_desktop}</f:format.raw>,"perMove":1,"gap":"1rem","rewind":true,"breakpoints":{"1024":{"perPage":<f:format.raw>{data.breakpoint_tablet}</f:format.raw>},"640":{"perPage":<f:format.raw>{data.breakpoint_mobile}</f:format.raw>}}<f:if condition="{data.autoplay}">,"autoplay":true,"interval":<f:format.raw>{data.autoplay_interval}</f:format.raw>,"pauseOnHover":true</f:if>}'>
+            <div class="splide__track">
+              <ul class="splide__list">
+                <f:for each="{data.items}" as="item">
+                  <li class="splide__slide">
+                    <f:link.typolink parameter="{item.link}" class="d-block">
+                      <div class="ratio bg-light rounded border d-flex align-items-center justify-content-center p-3" style="--bs-aspect-ratio: 66.6667%;">
+                        <f:if condition="{item.image}">
+                          <f:image image="{item.image.0}" class="object-fit-contain" />
+                          <f:else>
+                            <span class="text-body-secondary small fw-medium text-center">{item.header}</span>
+                          </f:else>
+                        </f:if>
+                      </div>
+                    </f:link.typolink>
+                  </li>
+                </f:for>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </f:case>
+
+    </f:switch>
+  </div>
+</div>

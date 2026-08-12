@@ -1,0 +1,75 @@
+<T3DataStructure>
+    <sheets>
+        <sDEF>
+            <ROOT>
+                <TCEforms>
+                    <sheetTitle>Einstellungen</sheetTitle>
+                </TCEforms>
+                <type>array</type>
+                <el>
+                    <settings.layout>
+                        <TCEforms>
+                            <label>Layout</label>
+                            <config>
+                                <type>select</type>
+                                <renderType>selectSingle</renderType>
+                                <items type="array">
+                                    <numIndex index="0">
+                                        <numIndex index="0">Vollständig (Tabelle, wie /termine)</numIndex>
+                                        <numIndex index="1">full</numIndex>
+                                    </numIndex>
+                                    <numIndex index="1">
+                                        <numIndex index="0">Kompakt (kurze Liste, z.B. für /service)</numIndex>
+                                        <numIndex index="1">compact</numIndex>
+                                    </numIndex>
+                                </items>
+                                <default>full</default>
+                            </config>
+                        </TCEforms>
+                    </settings.layout>
+                    <settings.showPastJubilaeen>
+                        <TCEforms>
+                            <label>Vergangene Jubiläen anzeigen</label>
+                            <config>
+                                <type>check</type>
+                                <renderType>checkboxToggle</renderType>
+                                <default>0</default>
+                            </config>
+                        </TCEforms>
+                    </settings.showPastJubilaeen>
+                    <settings.showCalendarizeEvents>
+                        <TCEforms>
+                            <label>Zusätzlich Calendarize-Termine anzeigen</label>
+                            <onChange>reload</onChange>
+                            <config>
+                                <type>check</type>
+                                <renderType>checkboxToggle</renderType>
+                                <default>0</default>
+                            </config>
+                        </TCEforms>
+                    </settings.showCalendarizeEvents>
+                    <settings.calendarizeStoragePid>
+                        <TCEforms>
+                            <label>Calendarize: Speicherordner-PIDs (kommagetrennt)</label>
+                            <displayCond>FIELD:settings.showCalendarizeEvents:=:1</displayCond>
+                            <config>
+                                <type>input</type>
+                                <size>20</size>
+                                <placeholder>z.B. 68,69,70</placeholder>
+                            </config>
+                        </TCEforms>
+                    </settings.calendarizeStoragePid>
+                    <settings.limit>
+                        <TCEforms>
+                            <label>Max. Anzahl Einträge je Liste (0 = alle)</label>
+                            <config>
+                                <type>number</type>
+                                <default>0</default>
+                            </config>
+                        </TCEforms>
+                    </settings.limit>
+                </el>
+            </ROOT>
+        </sDEF>
+    </sheets>
+</T3DataStructure>

@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+	<file datatype="plaintext" original="labels.xlf" source-language="de" date="2026-05-05T00:00:00+00:00" product-name="sitepackage/section-header">
+		<header/>
+		<body>
+			<trans-unit id="title" resname="title">
+				<source>Abschnitts-Kopfzeile</source>
+			</trans-unit>
+			<trans-unit id="description" resname="description">
+				<source>Badge, Überschrift (H2) mit optionalem Akzent-Teil, Einleitungstext und Link-Button</source>
+			</trans-unit>
+			<trans-unit id="badge_text.label" resname="badge_text.label">
+				<source>Badge-Text</source>
+			</trans-unit>
+			<trans-unit id="header_highlight.label" resname="header_highlight.label">
+				<source>Farbiger Überschriftsteil</source>
+			</trans-unit>
+			<trans-unit id="link_text.label" resname="link_text.label">
+				<source>Link-Button Text</source>
+			</trans-unit>
+			<trans-unit id="link_url.label" resname="link_url.label">
+				<source>Link-Button Ziel</source>
+			</trans-unit>
+			<trans-unit id="alignment.label" resname="alignment.label">
+				<source>Ausrichtung</source>
+			</trans-unit>
+		</body>
+	</file>
+</xliff>

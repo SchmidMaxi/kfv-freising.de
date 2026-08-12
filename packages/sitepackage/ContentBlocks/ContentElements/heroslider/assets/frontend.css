@@ -1,6 +1,3 @@
-.heroslider {
-    color: white;
-}
 .heroslider picture {
     position: relative;
     display: block;
@@ -15,27 +12,15 @@
     z-index: 1;
     background: url(./checker-pattern.png) rgba(0, 0, 0, 0.25);
 }
-.heroslider .caption {
-    position: absolute;
-    z-index: 1;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    color: var(--bs-white);
-    --bs-link-color-rgb: var(--bs-white);
-    background: linear-gradient(90deg, rgba(0,0,0,.65) 0%, rgba(0,0,0,.25) 100%);
-//text-align: center;
-}
 .heroslider .splide__pagination {
     position: absolute;
     bottom: 1rem;
 }
-
 .heroslider .splide__arrows {
     position: absolute;
     left: 0;
     top: 50%;
-    z-index: 1;
+    z-index: 20;
     width: 100%;
 }
 .heroslider .splide__arrows:has(:disabled + :disabled) {

@@ -10,6 +10,20 @@ fields:
     identifier: header
     useExistingField: true
   -
+    identifier: accordion_layout
+    type: Select
+    renderType: selectSingle
+    default: 'card'
+    items:
+      - label: 'Card-Style (FAQ)'
+        value: card
+      - label: 'Minimalistisch (Trennlinien)'
+        value: minimal
+      - label: 'Mit Icons & Badges'
+        value: icon-badge
+      - label: 'Gruppiert (2-Spalten-Grid)'
+        value: grouped
+  -
     identifier: items
     type: Collection
     labelField: title
@@ -20,6 +34,56 @@ fields:
     fields:
       - identifier: title
         type: Text
+        label: 'Frage / Titel'
       - identifier: bodytext
         type: Textarea
         enableRichtext: true
+        label: 'Antwort / Inhalt'
+      - identifier: sitepackage/bootstrap-icon
+        type: Basic
+      - identifier: icon_color
+        type: Select
+        renderType: selectSingle
+        default: 'blue'
+        label: 'Icon-Farbe'
+        items:
+          - label: 'Blau'
+            value: blue
+          - label: 'Rot (Feuerwehr)'
+            value: red
+          - label: 'Grün'
+            value: green
+          - label: 'Amber'
+            value: amber
+      - identifier: badge
+        type: Text
+        label: 'Badge-Text (Kategorie)'
+        placeholder: 'z.B. Sicherheit, Allgemein'
+  -
+    identifier: groups
+    type: Collection
+    displayCond: 'FIELD:sitepackage_accordion_accordion_layout:=:grouped'
+    labelField: group_title
+    minitems: 1
+    appearance:
+      collapseAll: true
+      levelLinksPosition: bottom
+    fields:
+      - identifier: group_title
+        type: Text
+        label: 'Gruppen-Titel'
+      - identifier: group_items
+        type: Collection
+        labelField: title
+        minitems: 1
+        appearance:
+          collapseAll: true
+          levelLinksPosition: bottom
+        fields:
+          - identifier: title
+            type: Text
+            label: 'Frage / Titel'
+          - identifier: bodytext
+            type: Textarea
+            enableRichtext: true
+            label: 'Antwort / Inhalt'

@@ -32,3 +32,8 @@ fields:
     identifier: bodytext
     useExistingField: true
     enableRichtext: true
+  -
+    identifier: header_link
+    useExistingField: true
+    label: Link
+

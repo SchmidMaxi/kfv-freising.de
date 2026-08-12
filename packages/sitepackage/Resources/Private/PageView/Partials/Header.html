@@ -1,15 +1,132 @@
-<header
-    class="mb-3 mb-lg-5 hero {f:if(condition:'{content.stage.records} && ({content.stage.records.0.CType} == heroslider)', then:'hero_high', else:'hero_small')}"
-    <f:if condition="{files.0} && ({content.stage.records.0.CType} != heroslider)">
-    style="
-        --xxlarge:url({f:uri.image(image:files.0, cropVariant:'default', maxWidth: 1920)});
-        --xlarge:url({f:uri.image(image:files.0, cropVariant:'xlarge', maxWidth: 1400)});
-        --large:url({f:uri.image(image:files.0, cropVariant:'large', maxWidth: 1200)});
-        --medium:url({f:uri.image(image:files.0, cropVariant:'medium', maxWidth: 992)});
-        --small:url({f:uri.image(image:files.0, cropVariant:'small', maxWidth: 768)});
-        --extrasmall:url({f:uri.image(image:files.0, cropVariant:'extrasmall, maxWidth: 576')});
-    "
-    </f:if>
->
-    <f:render partial="Content" arguments="{records: content.stage.records}"/>
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+
+<header class="sticky-top">
+
+    <!-- Preheader: dunkle Top-Bar, nur Desktop -->
+    <div id="preheader" class="bg-surface-dark d-none d-md-block py-2">
+        <div class="container d-flex justify-content-between align-items-center small">
+            <div class="d-flex align-items-center gap-4">
+                <a href="tel:+49816160033170" class="d-inline-flex align-items-center gap-2 text-decoration-none">
+                    <i class="bi bi-telephone-fill" aria-hidden="true"></i>
+                    <span>08161 / 600 33 170</span>
+                </a>
+                <f:link.email email="info@kfv-freising.de" class="d-inline-flex align-items-center gap-2 text-decoration-none">
+                    <i class="bi bi-envelope-fill" aria-hidden="true"></i>
+                    <span>info@kfv-freising.de</span>
+                </f:link.email>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-white-50">Notruf:</span>
+                <span class="fw-bold fs-5 text-danger">112</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hauptnavigation -->
+    <nav id="nav_main" class="navbar navbar-expand-lg bg-body bg-opacity-95 backdrop-blur-nav border-bottom shadow-sm py-2">
+        <div class="container">
+
+            <!-- Logo -->
+            <f:link.typolink parameter="/" class="navbar-brand d-flex align-items-center gap-2 py-1">
+                <img src="{f:uri.image(src: settings.Sitepackage.logo)}"
+                     alt="Kreisfeuerwehrverband Freising e.V. Logo"
+                     class="show-light-mode"
+                     style="height: 3rem; width: auto;" />
+                <img src="{f:uri.image(src: settings.Sitepackage.logoInverse)}"
+                     alt="Kreisfeuerwehrverband Freising e.V. Logo"
+                     class="show-dark-mode"
+                     style="height: 3rem; width: auto;" />
+            </f:link.typolink>
+
+            <!-- Mobile: Offcanvas-Toggle -->
+            <button class="navbar-toggler" type="button"
+                    data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavbar"
+                    aria-controls="offcanvasNavbar" aria-label="Menü öffnen">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <!-- Navigation: Desktop inline / Mobile Offcanvas -->
+            <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasNavbar" aria-labelledby="offcanvasNavbarLabel">
+                <div class="offcanvas-header">
+                    <h2 class="offcanvas-title h5 mb-0" id="offcanvasNavbarLabel">Menü</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Schließen"></button>
+                </div>
+                <div class="offcanvas-body">
+
+                    <!-- Hauptmenü -->
+                    <ul class="navbar-nav">
+                        <li class="nav-item">
+                            <a href="/" class="nav-link">Startseite</a>
+                        </li>
+                        <f:for each="{main}" as="navItem">
+                            <f:if condition="!{navItem.spacer}">
+                                <f:if condition="!{navItem.children}">
+                                    <f:then>
+                                        <li class="nav-item">
+                                            <a href="{navItem.link}"
+                                               class="nav-link {f:if(condition: navItem.active, then: 'active')}"
+                                               aria-current="{f:if(condition: navItem.active, then: 'page')}">
+                                                {navItem.title}
+                                            </a>
+                                        </li>
+                                    </f:then>
+                                    <f:else>
+                                        <li class="nav-item dropdown">
+                                            <div class="d-flex align-items-center">
+                                                <a href="{navItem.link}"
+                                                   class="nav-link {f:if(condition: navItem.active, then: 'active')}"
+                                                   aria-current="{f:if(condition: navItem.active, then: 'page')}">
+                                                    {navItem.title}
+                                                </a>
+                                                <a href="#" role="button"
+                                                   class="nav-link dropdown-toggle dropdown-toggle-split px-2"
+                                                   data-bs-toggle="dropdown" aria-expanded="false">
+                                                    <span class="visually-hidden">Untermenü "{navItem.title}" öffnen</span>
+                                                </a>
+                                                <ul class="dropdown-menu">
+                                                    <f:for each="{navItem.children}" as="child">
+                                                        <f:if condition="!{child.spacer}">
+                                                            <li>
+                                                                <a href="{child.link}"
+                                                                   class="dropdown-item {f:if(condition: child.active, then: 'active')}">
+                                                                    {child.title}
+                                                                </a>
+                                                            </li>
+                                                        </f:if>
+                                                    </f:for>
+                                                </ul>
+                                            </div>
+                                        </li>
+                                    </f:else>
+                                </f:if>
+                            </f:if>
+                        </f:for>
+                    </ul>
+
+                    <!-- Suche + Theme-Toggle -->
+                    <ul class="navbar-nav ms-lg-auto align-items-lg-center mt-3 mt-lg-0">
+                        <li class="nav-item">
+                            <a href="/suche" class="nav-link" aria-label="Suche">
+                                <i class="bi bi-search" aria-hidden="true"></i>
+                                <span class="d-lg-none ms-2">Suche</span>
+                            </a>
+                        </li>
+                        <li id="theme-switch" class="nav-item">
+                            <button type="button" data-theme-toggle class="nav-link border-0 bg-transparent" aria-label="Theme wechseln">
+                                <i class="bi bi-sun-fill show-light-mode" aria-hidden="true"></i>
+                                <i class="bi bi-moon-stars-fill show-dark-mode" aria-hidden="true"></i>
+                                <span class="d-lg-none ms-2">
+                                    <span class="show-light-mode">Dunkles Design aktivieren</span>
+                                    <span class="show-dark-mode">Helles Design aktivieren</span>
+                                </span>
+                            </button>
+                        </li>
+                    </ul>
+
+                </div>
+            </div>
+        </div>
+    </nav>
 </header>
+
+</html>

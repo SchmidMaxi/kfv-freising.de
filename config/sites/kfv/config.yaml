@@ -1,4 +1,19 @@
 base: 'https://www.kfv-freising.de/'
+errorHandling:
+  -
+    errorCode: 404
+    errorHandler: Fluid
+    errorFluidTemplate: 'EXT:sitepackage/Resources/Private/Templates/Error/404.html'
+    errorFluidTemplatesRootPath: 'EXT:sitepackage/Resources/Private/Templates'
+    errorFluidLayoutsRootPath: 'EXT:sitepackage/Resources/Private/PageView/Layouts'
+    errorFluidPartialsRootPath: 'EXT:sitepackage/Resources/Private/PageView/Partials'
+  -
+    errorCode: 0
+    errorHandler: Fluid
+    errorFluidTemplate: 'EXT:sitepackage/Resources/Private/Templates/Error/404.html'
+    errorFluidTemplatesRootPath: 'EXT:sitepackage/Resources/Private/Templates'
+    errorFluidLayoutsRootPath: 'EXT:sitepackage/Resources/Private/PageView/Layouts'
+    errorFluidPartialsRootPath: 'EXT:sitepackage/Resources/Private/PageView/Partials'
 baseVariants:
   -
     base: 'https://staging.kfv-freising.de/'
@@ -8,7 +23,6 @@ baseVariants:
     condition: 'applicationContext == "Development"'
 dependencies:
   - schmid/sitepackage
-  - georgringer/news
 languages:
   -
     title: Deutsch
@@ -20,5 +34,16 @@ languages:
     flag: de
     hreflang: ''
     websiteTitle: ''
+matomoWidgetsActiveWidgets: 'actionsPerDay,actionsPerMonth,aiAssistants,annotations,conversionsPerMonth,createAnnotation,bounceRate,browserPlugins,browsers,campaigns,contentNames,contentPieces,countries,javaScriptErrors,linkMatomo,mostViewedPages,osFamilies,pagesNotFound,siteSearchKeywords,siteSearchNoResultKeywords,visitsPerDay,visitsPerMonth'
+matomoWidgetsIdSite: '1'
+matomoWidgetsPagesNotFoundTemplate: '404/URL = {path} /From = {referrer}'
+matomoWidgetsTitle: matomoWidgetsTitle
+matomoWidgetsTokenAuth: 630300504a26e65f5e72d0f50ed1d7fa
+matomoWidgetsUrl: //matomo.kfv-freising.de/
 rootPageId: 1
+staticRoutes:
+  -
+    route: oidc/callback
+    type: staticText
+    content: ''
 websiteTitle: ''

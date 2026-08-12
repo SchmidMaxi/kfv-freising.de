@@ -1,0 +1,186 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+
+<f:if condition="{compact}">
+    <f:then>
+        <div class="vstack gap-2">
+            <f:if condition="{jubilaeen -> f:count()} == 0">
+                <p class="text-body-secondary mb-0">Keine anstehenden Jubiläen.</p>
+            </f:if>
+            <f:for each="{jubilaeen}" as="j">
+                <div class="d-flex align-items-center gap-3 p-2 rounded border">
+                    <span class="badge gradient-fire text-white flex-shrink-0">
+                        <f:format.date format="d.m.Y">{j.datum}</f:format.date>
+                    </span>
+                    <div class="flex-grow-1">
+                        <div class="fw-medium">{j.feuerwehr_name}</div>
+                        <div class="small text-body-secondary">{j.titel} Jahre &middot; {j.feuerwehr_ort}</div>
+                    </div>
+                </div>
+            </f:for>
+        </div>
+    </f:then>
+    <f:else>
+        <div class="card border-0 shadow-sm mb-4" id="jubilaeum-filter">
+            <div class="card-body p-4">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label small text-body-secondary" for="jubilaeum-search">Suche</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-body"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control" id="jubilaeum-search" placeholder="Feuerwehr, Gemeinde oder Anlass…">
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <label class="form-label small text-body-secondary" for="jubilaeum-year">Jahr</label>
+                        <select class="form-select" id="jubilaeum-year">
+                            <option value="">Alle Jahre</option>
+                            <f:for each="{years}" as="y">
+                                <option value="{y}">{y}</option>
+                            </f:for>
+                        </select>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <label class="form-label small text-body-secondary" for="jubilaeum-art">Jubiläumsart</label>
+                        <select class="form-select" id="jubilaeum-art">
+                            <option value="">Alle</option>
+                            <f:for each="{arten}" as="a">
+                                <option value="{a}">{a} Jahre</option>
+                            </f:for>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-outline-secondary w-100" id="jubilaeum-reset">Zurücksetzen</button>
+                    </div>
+                </div>
+                <p class="text-body-secondary small mb-0 mt-3" id="jubilaeum-count">&nbsp;</p>
+            </div>
+        </div>
+
+        <div class="table-responsive shadow-sm rounded border">
+            <table class="table table-hover align-middle mb-0" id="jubilaeum-table">
+                <thead>
+                    <tr>
+                        <th data-sort-col="0" class="jubilaeum-sort" style="cursor:pointer">Datum</th>
+                        <th data-sort-col="1" class="jubilaeum-sort" style="cursor:pointer">Feuerwehr</th>
+                        <th data-sort-col="2" class="jubilaeum-sort d-none d-md-table-cell" style="cursor:pointer">Gemeinde</th>
+                        <th data-sort-col="3" class="jubilaeum-sort" style="cursor:pointer">Jubiläum</th>
+                        <th data-sort-col="4" class="jubilaeum-sort d-none d-lg-table-cell" style="cursor:pointer">Gegründet</th>
+                        <th class="d-none d-lg-table-cell">Anlass</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <f:if condition="{jubilaeen -> f:count()} == 0">
+                        <tr>
+                            <td colspan="6" class="text-center text-body-secondary py-5">
+                                Keine Jubiläen gefunden.
+                            </td>
+                        </tr>
+                    </f:if>
+                    <f:for each="{jubilaeen}" as="j">
+                        <tr
+                            data-jahr="<f:format.date format="Y">{j.datum}</f:format.date>"
+                            data-art="{j.titel}"
+                            data-search="{j.feuerwehr_name} {j.feuerwehr_ort} {j.beschreibung -> f:format.stripTags()}"
+                        >
+                            <td class="fw-medium text-nowrap">
+                                <f:format.date format="d.m.Y">{j.datum}</f:format.date>
+                            </td>
+                            <td class="fw-medium">{j.feuerwehr_name}</td>
+                            <td class="text-body-secondary d-none d-md-table-cell">{j.feuerwehr_ort}</td>
+                            <td>
+                                <span class="badge badge-soft-fire">{j.titel} Jahre</span>
+                            </td>
+                            <td class="text-body-secondary d-none d-lg-table-cell">
+                                <f:if condition="{j.feuerwehr_gruendungsdatum}">
+                                    <f:format.date format="Y">{j.feuerwehr_gruendungsdatum}</f:format.date>
+                                </f:if>
+                            </td>
+                            <td class="text-body-secondary d-none d-lg-table-cell">
+                                <f:if condition="{j.beschreibung}">
+                                    <f:then><f:format.stripTags>{j.beschreibung}</f:format.stripTags></f:then>
+                                    <f:else>&ndash;</f:else>
+                                </f:if>
+                            </td>
+                        </tr>
+                    </f:for>
+                </tbody>
+            </table>
+            <p class="text-center text-body-secondary py-5 mb-0 d-none" id="jubilaeum-empty">
+                Keine Jubiläen für die gewählten Filter gefunden.
+            </p>
+        </div>
+
+        <f:asset.script identifier="jubilaeum-sortable">
+            document.addEventListener('DOMContentLoaded', () => {
+                const table = document.getElementById('jubilaeum-table');
+                if (!table) return;
+                const tbody = table.querySelector('tbody');
+                const dirs = {};
+
+                table.querySelectorAll('.jubilaeum-sort').forEach(th => {
+                    th.addEventListener('click', () => {
+                        const col = parseInt(th.dataset.sortCol, 10);
+                        const dir = dirs[col] === 'asc' ? 'desc' : 'asc';
+                        dirs[col] = dir;
+
+                        const rows = Array.from(tbody.querySelectorAll('tr[data-jahr]'));
+                        rows.sort((a, b) => {
+                            const aText = (a.querySelectorAll('td')[col]?.textContent ?? '').trim();
+                            const bText = (b.querySelectorAll('td')[col]?.textContent ?? '').trim();
+                            const cmp = aText.localeCompare(bText, 'de', { numeric: true });
+                            return dir === 'asc' ? cmp : -cmp;
+                        });
+                        rows.forEach(row => tbody.appendChild(row));
+                    });
+                });
+            });
+        </f:asset.script>
+
+        <f:asset.script identifier="jubilaeum-filter">
+            document.addEventListener('DOMContentLoaded', () => {
+                const filterBox = document.getElementById('jubilaeum-filter');
+                const table = document.getElementById('jubilaeum-table');
+                if (!filterBox || !table) return;
+
+                const searchInput = document.getElementById('jubilaeum-search');
+                const yearSelect = document.getElementById('jubilaeum-year');
+                const artSelect = document.getElementById('jubilaeum-art');
+                const resetBtn = document.getElementById('jubilaeum-reset');
+                const countEl = document.getElementById('jubilaeum-count');
+                const emptyEl = document.getElementById('jubilaeum-empty');
+                const rows = Array.from(table.querySelectorAll('tbody tr[data-jahr]'));
+
+                function apply() {
+                    const q = searchInput.value.trim().toLowerCase();
+                    const year = yearSelect.value;
+                    const art = artSelect.value;
+                    let visible = 0;
+
+                    rows.forEach((row) => {
+                        const matchesYear = !year || row.dataset.jahr === year;
+                        const matchesArt = !art || row.dataset.art === art;
+                        const matchesSearch = !q || row.dataset.search.toLowerCase().includes(q);
+                        const show = matchesYear && matchesArt && matchesSearch;
+                        row.style.display = show ? '' : 'none';
+                        if (show) visible++;
+                    });
+
+                    emptyEl.classList.toggle('d-none', visible > 0);
+                    countEl.textContent = `${visible} ${visible === 1 ? 'Jubiläum' : 'Jubiläen'} gefunden`;
+                }
+
+                [searchInput, yearSelect, artSelect].forEach((el) => el.addEventListener('input', apply));
+                resetBtn.addEventListener('click', () => {
+                    searchInput.value = '';
+                    yearSelect.value = '';
+                    artSelect.value = '';
+                    apply();
+                });
+
+                apply();
+            });
+        </f:asset.script>
+    </f:else>
+</f:if>
+
+</html>

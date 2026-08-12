@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+	<file datatype="plaintext" original="labels.xlf" source-language="de" date="2026-04-28T00:00:00+00:00" product-name="sitepackage/hero-static">
+		<header/>
+		<body>
+			<trans-unit id="title" resname="title">
+				<source>Hero (statisch)</source>
+			</trans-unit>
+			<trans-unit id="description" resname="description">
+				<source>Vollbild-Herobanner mit Hintergrundbild, Überschrift, CTA-Buttons und Statistiken</source>
+			</trans-unit>
+			<trans-unit id="subheadline.label" resname="subheadline.label">
+				<source>Untertitel</source>
+			</trans-unit>
+			<trans-unit id="badge_text.label" resname="badge_text.label">
+				<source>Badge-Text</source>
+			</trans-unit>
+			<trans-unit id="buttons.label" resname="buttons.label">
+				<source>Buttons</source>
+			</trans-unit>
+			<trans-unit id="buttons.button_text.label" resname="buttons.button_text.label">
+				<source>Beschriftung</source>
+			</trans-unit>
+			<trans-unit id="buttons.button_link.label" resname="buttons.button_link.label">
+				<source>Ziel-Link</source>
+			</trans-unit>
+			<trans-unit id="buttons.button_style.label" resname="buttons.button_style.label">
+				<source>Style</source>
+			</trans-unit>
+			<trans-unit id="stats.label" resname="stats.label">
+				<source>Statistiken</source>
+			</trans-unit>
+			<trans-unit id="stats.stat_value.label" resname="stats.stat_value.label">
+				<source>Wert (z.B. 4.200+)</source>
+			</trans-unit>
+			<trans-unit id="stats.stat_label.label" resname="stats.stat_label.label">
+				<source>Bezeichnung (z.B. Aktive Mitglieder)</source>
+			</trans-unit>
+			<trans-unit id="stats.stat_icon.label" resname="stats.stat_icon.label">
+				<source>Icon</source>
+			</trans-unit>
+		</body>
+	</file>
+</xliff>

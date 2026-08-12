@@ -8,6 +8,8 @@ styles:
     textmedia:
       linkWrap:
         lightboxEnabled: true
+        width: 1900m
+        height: 1000m
 
 page:
   pageview:
@@ -25,7 +27,7 @@ page:
       anonymizeIp: '1'
 
 config:
-  no_cache: '0'
+  no_cache: '1'
   removeDefaultJS: '0'
   admPanel: '1'
   prefixLocalAnchors: 'all'

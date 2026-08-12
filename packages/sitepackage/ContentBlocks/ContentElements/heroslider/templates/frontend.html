@@ -1,21 +1,21 @@
 <f:asset.css identifier="splideCss" href="{cb:assetPath()}/splide-core.min.css"/>
-<f:asset.css identifier="cardslider" href="{cb:assetPath()}/frontend.css"/>
+<f:asset.css identifier="heroslider" href="{cb:assetPath()}/frontend.css"/>
 <f:asset.script identifier="splideJs" src="{cb:assetPath()}/splide.min.js"/>
 <f:asset.script identifier="splideInit" src="{cb:assetPath()}/frontend.js"/>
 
-<div class="heroslider splide" data-splide='{"type":"fade", "rewind":true }'>
-    <div class="splide__arrows">
-        <button class="splide__arrow splide__arrow--prev">
-            <f:image src="{cb:assetPath()}/slider_arrow.svg" />
-        </button>
-        <button class="splide__arrow splide__arrow--next">
-            <f:image src="{cb:assetPath()}/slider_arrow.svg" />
-        </button>
-    </div>
+<div id="c{data.uid}" class="heroslider splide frame frame-{data.frame_class} frame-type-{data.CType} frame-layout-{data.layout}{f:if(condition: data.space_before_class, then: ' frame-space-before-{data.space_before_class}')}{f:if(condition: data.space_after_class, then: ' frame-space-after-{data.space_after_class}')}" data-splide='{"type":"fade","rewind":true}'>
+  <div class="splide__arrows">
+    <button class="splide__arrow splide__arrow--prev">
+      <i class="bi bi-chevron-left"></i>
+    </button>
+    <button class="splide__arrow splide__arrow--next">
+      <i class="bi bi-chevron-right"></i>
+    </button>
+  </div>
   <div class="splide__track">
     <ul class="splide__list">
       <f:for each="{data.slides}" as="slide">
-        <li class="splide__slide">
+        <li class="splide__slide position-relative">
           <f:if condition="({slide.image.0.type} == 2) || ({slide.image.0.type} == 5)">
             <f:then>
               <picture>
@@ -24,27 +24,25 @@
                 <source media="(min-width:992px)" srcset="{f:uri.image(image:'{slide.image.0}', cropVariant: 'large', maxWidth:'1199')}">
                 <source media="(min-width:768px)" srcset="{f:uri.image(image:'{slide.image.0}', cropVariant: 'medium', maxWidth:'991')}">
                 <source media="(min-width:576px)" srcset="{f:uri.image(image:'{slide.image.0}', cropVariant: 'small', maxWidth:'767')}">
-                <f:image image="{slide.image.0}" cropVariant="extrasmall" class="img-fluid w-100" maxWidth="575" />
+                <f:image image="{slide.image.0}" cropVariant="extrasmall" class="w-100" maxWidth="575" />
               </picture>
             </f:then>
             <f:else if="{slide.image.0.type} == 4">
-                <f:media file="{slide.image.0}" />
+              <f:media file="{slide.image.0}" />
             </f:else>
           </f:if>
-
-          <div class="caption">
+          <div class="position-absolute top-0 start-0 w-100 h-100 z-3 d-flex align-items-center text-white" style="background: linear-gradient(90deg, rgba(0,0,0,.65), rgba(0,0,0,.25));">
             <div class="container">
-              <div class="col-lg-6 text-lg-start">
-               <f:if condition="{slide.title}">
-                 <h1>{slide.title}</h1>
-               </f:if>
+              <div class="col-12 col-lg-6">
+                <f:if condition="{slide.title}">
+                  <h1 class="display-5 fw-bold mb-3" style="text-shadow: 0 2px 6px rgba(0,0,0,.6);">{slide.title}</h1>
+                </f:if>
                 <f:if condition="{slide.bodytext}">
-                  {slide.bodytext->f:format.html()}
+                  <div class="fs-5 text-white-50" style="text-shadow: 0 2px 6px rgba(0,0,0,.6);">{slide.bodytext -> f:format.html()}</div>
                 </f:if>
               </div>
             </div>
           </div>
-
         </li>
       </f:for>
     </ul>

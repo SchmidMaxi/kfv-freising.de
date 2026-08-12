@@ -1,28 +1,119 @@
-<footer class="bg-body-secondary py-3 mt-5">
-    <div class="container">
-        <div class="row">
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
 
-        </div>
-        <hr>
-        <div class="row justify-content-between">
-            <div id="meta" class="col-12 col-lg-auto order-lg-2">
-                <ul class="nav justify-content-center">
-                    <f:for each="{meta}" as="navItem" iteration="i">
-                        <li class="nav-item">
-                            <a
-                                href="{navItem.link}"
-                                class="nav-link{f:if(condition:i.isLast, then:' pe-lg-0')}{f:if(condition:navItem.active, then:' active')}"
-                                {f:if(condition: navItem.current, then: ' aria-current="page"')}
-                            >
-                            {navItem.title}
-                            </a>
-                        </li>
-                    </f:for>
+<footer id="footer" class="bg-surface-dark">
+
+    <!-- Haupt-Footer -->
+    <div class="container py-5">
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-5">
+
+            <!-- Marken-Spalte -->
+            <div>
+                <div class="d-flex align-items-center gap-3 mb-4">
+                    <img src="{f:uri.image(src: settings.Sitepackage.logoInverse)}"
+                         alt="Kreisfeuerwehrverband Freising e.V. Logo"
+                         style="height: 3.5rem; width: auto;" />
+                </div>
+                <p class="small mb-4" style="max-width: 26rem;">
+                    Gemeinsam für Ihre Sicherheit im Landkreis Freising.
+                    Rund um die Uhr im Einsatz.
+                </p>
+                <!-- Social Icons -->
+                <div class="d-flex gap-2" id="social">
+                    <f:link.external uri="https://www.facebook.com/kbifs/"
+                                     class="nav-link"
+                                     title="Facebook"
+                                     target="_blank" rel="noopener noreferrer">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
+                        </svg>
+                    </f:link.external>
+                    <f:link.external uri="https://www.instagram.com/kreisbrandinspektionfreising/"
+                                     class="nav-link"
+                                     title="Instagram"
+                                     target="_blank" rel="noopener noreferrer">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                            <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/>
+                            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37zm1.5-4.87h.01"/>
+                        </svg>
+                    </f:link.external>
+                    <f:link.external uri="https://www.youtube.com/@kreisbrandinspektionfreising"
+                                     class="nav-link"
+                                     title="YouTube"
+                                     target="_blank" rel="noopener noreferrer">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"/>
+                            <path d="m10 15 5-3-5-3z"/>
+                        </svg>
+                    </f:link.external>
+                </div>
+            </div>
+
+            <!-- Dynamische Navigations-Spalten aus TYPO3 -->
+            <f:for each="{footer}" as="footerItem">
+                <div>
+                    <h3 class="h6 text-white mb-3">{footerItem.title}</h3>
+                    <f:if condition="{footerItem.children}">
+                        <ul class="nav flex-column">
+                            <f:for each="{footerItem.children}" as="child">
+                                <li class="nav-item">
+                                    <f:link.typolink parameter="{child.link}" class="nav-link">
+                                        {child.title}
+                                    </f:link.typolink>
+                                </li>
+                            </f:for>
+                        </ul>
+                    </f:if>
+                </div>
+            </f:for>
+
+            <!-- Kontakt-Spalte -->
+            <div>
+                <h3 class="h6 text-white mb-3">Kontakt</h3>
+                <ul class="list-unstyled d-flex flex-column gap-3 mb-0">
+                    <li class="d-flex align-items-start gap-2">
+                        <i class="bi bi-geo-alt-fill text-danger mt-1" aria-hidden="true"></i>
+                        <span class="small">
+                            {settings.Sitepackage.address -> f:format.raw()}
+                        </span>
+                    </li>
+                    <li>
+                        <f:link.external uri="tel:{settings.Sitepackage.phone}" class="nav-link d-flex align-items-center gap-2">
+                            <i class="bi bi-telephone-fill text-danger" aria-hidden="true"></i>
+                            <span>{settings.Sitepackage.phone}</span>
+                        </f:link.external>
+                    </li>
+                    <li>
+                        <f:link.email email="{settings.Sitepackage.email}" class="nav-link d-flex align-items-center gap-2">
+                            <i class="bi bi-envelope-fill text-danger" aria-hidden="true"></i>
+                            <span>{settings.Sitepackage.email}</span>
+                        </f:link.email>
+                    </li>
                 </ul>
             </div>
-            <div class="col-12 col-lg-auto py-2 order-lg-1 text-center">
-                <f:cObject typoscriptObjectPath="lib.copyright" />
-            </div>
+
         </div>
     </div>
+
+    <!-- Untere Leiste -->
+    <div class="border-top border-white border-opacity-10">
+        <div id="meta" class="container py-4 d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+            <div class="small order-2 order-md-1">
+                <f:cObject typoscriptObjectPath="lib.copyright" />
+            </div>
+            <ul class="nav flex-wrap justify-content-center order-1 order-md-2">
+                <f:for each="{meta}" as="navItem" iteration="i">
+                    <li class="nav-item">
+                        <a href="{navItem.link}"
+                           class="nav-link {f:if(condition: navItem.active, then: 'active')}"
+                           aria-current="{f:if(condition: navItem.active, then: 'page')}">
+                            {navItem.title}
+                        </a>
+                    </li>
+                </f:for>
+            </ul>
+        </div>
+    </div>
+
 </footer>
+
+</html>

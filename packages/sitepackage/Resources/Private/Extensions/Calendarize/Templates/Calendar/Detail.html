@@ -1,0 +1,26 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+
+<f:layout name="Default"/>
+
+<f:section name="Main">
+    <div class="card shadow-sm">
+        <div class="card-body p-4 p-md-5">
+            <f:render partial="{index.configuration.partialIdentifier}/Detail" arguments="{index: index}"/>
+            <div class="d-flex flex-wrap gap-3 mt-4 pt-4 border-top">
+                <f:if condition="{settings.listPid}">
+                    <f:link.page pageUid="{settings.listPid}"
+                                 class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+                        <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                        <f:translate key="back"/>
+                    </f:link.page>
+                </f:if>
+                <f:link.action action="detail" arguments="{index: index}" format="ics"
+                               class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+                    <i class="bi bi-calendar3" aria-hidden="true"></i>
+                    ICS / iCal
+                </f:link.action>
+            </div>
+        </div>
+    </div>
+</f:section>
+</html>

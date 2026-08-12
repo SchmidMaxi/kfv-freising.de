@@ -1,54 +1,51 @@
-.hero {
-
+#preheader {
+  font-size: 0.875rem;
+  a {
+    text-decoration: none;
+    --#{$prefix}link-color-rgb: rgba(var(--#{$prefix}white-rgb), 1);
+    &:hover {
+      --#{$prefix}link-color-rgb: var(--#{$prefix}primary-rgb);
+    }
+    &.icon {
+      padding-left: 1.5rem;
+      &::before {
+        width: 16px;
+        height: 16px;
+        background-color: currentColor;
+      }
+    }
+  }
 }
-
-.hero_small {
-  --fallback: url(../Images/Hero_Fallback.jpg);
-  min-height: 500px;
-  background-size: cover;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
-  background-position: center;
-  padding-top: 250px;
-  padding-bottom: 100px;
-  position: relative;
-  color: white;
-  &:before {
-    content: "";
-    position: absolute;
-    right: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 1;
-    background: url(../Images/checker-pattern.png) rgba(0, 0, 0, 0.25);
+#nav_main {
+  .logo {
+    max-width: 72px;
   }
-
-  > .frame {
-    position: relative;
-    z-index: 1;
+  .logo-claim {
+    @include font-size(16px);
+    font-style: italic;
+    font-weight: 300;
+    line-height: 1.25;
+    //color: red;
+    letter-spacing: 0.075rem;
   }
-
-  @include media-breakpoint-down(sm) {
-    background-image: var(--extrasmall, var(--fallback));
-  }
-  @include media-breakpoint-up(sm) {
-    background-image: var(--small, var(--fallback));
-  }
-  @include media-breakpoint-up(md) {
-    background-image: var(--medium, var(--fallback));
-  }
-  @include media-breakpoint-up(lg) {
-    background-image: var(--large, var(--fallback));
-  }
-  @include media-breakpoint-up(xl) {
-    background-image: var(--xlarge, var(--fallback));
-  }
-  @include media-breakpoint-up(xxl) {
-    background-image: var(--xxlarge, var(--fallback));
+}
+#theme-switch {
+  .bi {
+    width: 1rem;
+    height: 1rem;
+    display: inline-block;
+    vertical-align: -0.125em;
+    fill: currentcolor;
   }
 }
 
-.hero_high {
-
+[data-bs-theme="light"] {
+  .show-dark-mode {
+    display: none !important;
+  }
+}
+[data-bs-theme="dark"] {
+  .show-light-mode {
+    display: none !important;
+  }
 }

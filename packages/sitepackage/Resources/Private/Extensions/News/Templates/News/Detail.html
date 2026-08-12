@@ -7,245 +7,224 @@
 <f:layout name="Detail" />
 
 <f:section name="content">
-    <f:if condition="{newsItem}">
-        <f:then>
-            <n:format.nothing>
-                <n:excludeDisplayedNews newsItem="{newsItem}" />
-                <f:if condition="{settings.detail.showMetaTags}">
-                    <f:render partial="Detail/Opengraph" arguments="{newsItem: newsItem, settings:settings}" />
-                </f:if>
-                <f:if condition="{newsItem.alternativeTitle}">
-                    <f:then>
-                        <n:titleTag>
-                            <f:format.htmlentitiesDecode>{newsItem.alternativeTitle}</f:format.htmlentitiesDecode>
-                        </n:titleTag>
-                    </f:then>
-                    <f:else>
-                        <n:titleTag>
-                            <f:format.htmlentitiesDecode>{newsItem.title}</f:format.htmlentitiesDecode>
-                        </n:titleTag>
-                    </f:else>
-                </f:if>
-            </n:format.nothing>
-            <f:if condition="{settings.detail.showPrevNext}">
-                <n:simplePrevNext pidList="{newsItem.pid}" news="{newsItem}" as="paginated" sortField="datetime">
-                    <f:if condition="{paginated}">
-                        <ul class="pager">
-                            <f:if condition="{paginated.prev}">
-                                <li class="previous">
-                                    <n:link newsItem="{paginated.prev}" settings="{settings}">
-                                        <span aria-hidden="true">&larr; </span>{paginated.prev.title}
-                                    </n:link>
-                                </li>
-                            </f:if>
-                            <f:if condition="{paginated.next}">
-                                <li class="next">
-                                    <n:link newsItem="{paginated.next}" settings="{settings}" class="next">
-                                        {paginated.next.title} <span aria-hidden="true"> &rarr;</span>
-                                    </n:link>
-                                </li>
-                            </f:if>
-                        </ul>
-                    </f:if>
-                </n:simplePrevNext>
+  <f:if condition="{newsItem}">
+    <f:then>
+      <n:format.nothing>
+        <n:excludeDisplayedNews newsItem="{newsItem}" />
+        <f:if condition="{settings.detail.showMetaTags}">
+          <f:render partial="Detail/Opengraph" arguments="{newsItem: newsItem, settings:settings}" />
+        </f:if>
+        <f:if condition="{newsItem.alternativeTitle}">
+          <f:then>
+            <n:titleTag><f:format.htmlentitiesDecode>{newsItem.alternativeTitle}</f:format.htmlentitiesDecode></n:titleTag>
+          </f:then>
+          <f:else>
+            <n:titleTag><f:format.htmlentitiesDecode>{newsItem.title}</f:format.htmlentitiesDecode></n:titleTag>
+          </f:else>
+        </f:if>
+      </n:format.nothing>
+
+      <!-- Prev/Next Navigation -->
+      <f:if condition="{settings.detail.showPrevNext}">
+        <n:simplePrevNext pidList="{newsItem.pid}" news="{newsItem}" as="paginated" sortField="datetime">
+          <f:if condition="{paginated}">
+            <nav class="container d-flex justify-content-between py-3 small text-body-secondary">
+              <f:if condition="{paginated.prev}">
+                <n:link newsItem="{paginated.prev}" settings="{settings}" class="d-inline-flex align-items-center gap-1 text-decoration-none link-body-emphasis">
+                  <i class="bi bi-arrow-left" aria-hidden="true"></i>{paginated.prev.title}
+                </n:link>
+              </f:if>
+              <f:if condition="{paginated.next}">
+                <n:link newsItem="{paginated.next}" settings="{settings}" class="ms-auto d-inline-flex align-items-center gap-1 text-decoration-none link-body-emphasis">
+                  {paginated.next.title}<i class="bi bi-arrow-right" aria-hidden="true"></i>
+                </n:link>
+              </f:if>
+            </nav>
+          </f:if>
+        </n:simplePrevNext>
+      </f:if>
+
+      <!-- Hero Header -->
+      <style>
+        .news-detail-hero { height: 12rem; }
+        @media (min-width: 576px) { .news-detail-hero { height: 16rem; } }
+        @media (min-width: 992px) { .news-detail-hero { height: 20rem; } }
+      </style>
+      <div class="news-detail-hero position-relative bg-surface-dark overflow-hidden">
+        <f:if condition="{newsItem.mediaPreviews}">
+          <div class="position-absolute top-0 start-0 w-100 h-100 bg-repeat-0"
+               style="background-image:url({f:uri.image(image:newsItem.mediaPreviews.0, cropVariant:'default', maxWidth:'1920')});background-size:cover;background-position:center;">
+          </div>
+          <div class="position-absolute top-0 start-0 w-100 h-100" style="background: linear-gradient(to bottom, transparent, rgba(0,0,0,.5));"></div>
+        </f:if>
+        <f:if condition="{newsItem.mediaPreviews -> f:count()} == 0">
+          <div class="position-absolute top-0 start-0 w-100 h-100 gradient-charcoal" style="opacity:.8;"></div>
+        </f:if>
+      </div>
+
+      <!-- Article -->
+      <main class="article" itemscope="itemscope" itemtype="http://schema.org/Article">
+        <div class="container position-relative bg-body shadow-lg px-4 py-4 px-xl-5 py-xl-5" style="margin-top:-3rem; border-top: 5px solid var(--bs-primary); z-index: 10;">
+
+          <!-- Meta: Datum + Kategorien -->
+          <div class="mb-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <time class="small text-body-secondary" itemprop="datePublished"
+                  datetime="{f:format.date(date:newsItem.datetime, format:'Y-m-d')}">
+              <i class="bi bi-calendar3 me-1" aria-hidden="true"></i>
+              <f:format.date format="d.m.Y; H:i">{newsItem.datetime}</f:format.date> Uhr
+            </time>
+            <f:if condition="{newsItem.categories}">
+              <f:render partial="Category/Items" arguments="{categories:newsItem.categories, settings:settings}" />
             </f:if>
+          </div>
 
-            <header class="hero hero_small"
-            <f:if condition="{newsItem.mediaPreviews}">
-                style="
-                --xxlarge:url({f:uri.image(image:newsItem.mediaPreviews.0, cropVariant:'default', maxWidth: 1920)});
-                --xlarge:url({f:uri.image(image:newsItem.mediaPreviews.0, cropVariant:'xlarge', maxWidth: 1400)});
-                --large:url({f:uri.image(image:newsItem.mediaPreviews.0, cropVariant:'large', maxWidth: 1200)});
-                --medium:url({f:uri.image(image:newsItem.mediaPreviews.0, cropVariant:'medium', maxWidth: 992)});
-                --small:url({f:uri.image(image:newsItem.mediaPreviews.0, cropVariant:'small', maxWidth: 768)});
-                --extrasmall:url({f:uri.image(image:newsItem.mediaPreviews.0, cropVariant:'extrasmall, maxWidth: 576')});
-                "</f:if>
-            >
+          <!-- Tags -->
+          <f:if condition="{newsItem.tags}">
+            <div class="mb-3 d-flex flex-wrap gap-2 small" itemprop="keywords">
+              <f:for each="{newsItem.tags}" as="tag">
+                <span class="badge rounded-pill text-bg-light border">{tag.title}</span>
+              </f:for>
+            </div>
+          </f:if>
 
-            </header>
-            <main class="article" itemscope="itemscope" itemtype="http://schema.org/Article">
-                <div class="container position-relative px-3 px-xl-5 py-4 z-1 mt-n5 bg-body border-top border-5  border-primary">
-                    <div class="row justify-content-between align-items-center mb-3">
-                        <div class="col-12 col-lg news-list-date">
-                            <time itemprop="datePublished" datetime="{f:format.date(date:newsItem.datetime, format:'Y-m-d')}">
-                                <f:format.date format="d.m.Y; H:i">{newsItem.datetime}</f:format.date> Uhr
-                            </time>
-                        </div>
+          <!-- Headline -->
+          <h1 itemprop="headline" class="mb-3 fw-bold display-6">{newsItem.title}</h1>
 
-                        <f:if condition="{newsItem.categories}">
-                            <div class="col-12 col-lg-auto">
-                                <f:render partial="Category/Items" arguments="{categories:newsItem.categories, settings:settings}" />
-                            </div>
-                        </f:if>
+          <!-- Teaser -->
+          <f:if condition="{newsItem.teaser}">
+            <div class="mb-4 fs-5 text-body-secondary" itemprop="description">
+              <f:format.html>{newsItem.teaser}</f:format.html>
+            </div>
+          </f:if>
 
+          <!-- Autoren -->
+          <f:if condition="{newsItem.newsAuthor}">
+            <div class="my-4 d-flex flex-wrap gap-2">
+              <f:for each="{newsItem.newsAuthor}" as="author">
+                <f:link.action action="show" controller="NewsAuthor" extensionName="mdnewsauthor" pluginName="show"
+                               arguments="{newsAuthor: author}" pageUid="{settings.newsAuthor.authorDetailPid}"
+                               title="Mehr von {md:ShowAuthorName(author:'{author}')}"
+                               class="text-decoration-none d-inline-flex align-items-center gap-2 gradient-fire rounded-pill small text-white">
+                  <f:if condition="{author.image}">
+                    <f:image image="{author.image}" width="32c" height="32c" class="rounded-circle" />
+                  </f:if>
+                  <span class="ps-2 pe-3 py-1">{author.firstname} {author.lastname}</span>
+                </f:link.action>
+              </f:for>
+            </div>
+          </f:if>
+
+          <!-- Haupttext -->
+          <div class="news-text-wrap" itemprop="articleBody">
+            <f:format.html>{newsItem.bodytext}</f:format.html>
+          </div>
+
+          <!-- Medien + Content-Elemente -->
+          <n:renderMedia news="{newsItem}" imgClass="img-fluid" videoClass="my-4">
+            <f:if condition="{newsItem.contentElements}">
+              <f:cObject typoscriptObjectPath="lib.tx_news.contentElementRendering">{newsItem.contentElementIdList}</f:cObject>
+            </f:if>
+            <f:render partial="Detail/MediaContainer" arguments="{media: newsItem.mediaNonPreviews, settings:settings}" />
+          </n:renderMedia>
+
+          <!-- Zurück-Link -->
+          <f:if condition="{settings.backPid}">
+            <div class="news-backlink-wrap mt-4">
+              <f:link.page pageUid="{settings.backPid}" class="d-inline-flex align-items-center gap-2 text-decoration-none link-primary">
+                <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                <f:translate key="back-link" />
+              </f:link.page>
+            </div>
+          </f:if>
+
+          <!-- Verwandte Inhalte -->
+          <f:if condition="{newsItem.allRelatedSorted} || {newsItem.relatedFiles} || {newsItem.relatedLinks}">
+            <div class="news-related-wrap mt-5 row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+
+              <f:if condition="{newsItem.allRelatedSorted}">
+                <div class="col">
+                  <div class="card h-100 shadow-sm">
+                    <div class="card-header fw-bold">
+                      <f:translate key="related-news" />
                     </div>
-
-                    <f:if condition="{newsItem.tags}">
-                        <!-- Tags -->
-                        <div class="news-list-tags" itemprop="keywords">
-                            <f:for each="{newsItem.tags}" as="tag">
-                                {tag.title}
-                            </f:for>
-                        </div>
-                    </f:if>
-
-                    <h1 itemprop="headline" class="mb-3">{newsItem.title}</h1>
-
-                    <f:if condition="{newsItem.teaser}">
-                        <!-- teaser -->
-                        <div class="teaser-text mb-5 lead" itemprop="description">
-                            <f:format.html>{newsItem.teaser}</f:format.html>
-                        </div>
-                    </f:if>
-
-                    <f:if condition="{newsItem.newsAuthor}">
-                        <div class="d-flex flex-wrap gap-2 my-5">
-                            <f:for each="{newsItem.newsAuthor}" as="author">
-                                <f:link.action action="show" controller="NewsAuthor" extensionName="mdnewsauthor" pluginName="show" arguments="{newsAuthor: author}" pageUid="{settings.newsAuthor.authorDetailPid}" title="Mehr von {md:ShowAuthorName(author:'{author}')}" class="text-decoration-none">
-                                    <div class="badge text-bg-primary p-0 d-flex gap-1 align-items-center">
-                                        <f:if condition="{author.image}">
-                                            <f:image image="{author.image}" width="32c" height="32c" class="img-fluid rounded-pill" />
-                                        </f:if>
-                                        <div class="ps-2 pe-3 py-1">
-                                            {author.firstname} {author.lastname}
-                                        </div>
-                                    </div>
-                                </f:link.action>
-                            </f:for>
-                        </div>
-                    </f:if>
-
-                    <!-- main text -->
-                    <div class="news-text-wrap" itemprop="articleBody">
-                        <f:format.html>{newsItem.bodytext}</f:format.html>
-                    </div>
-
-                    <n:renderMedia news="{newsItem}" imgClass="img-responsive" videoClass="video-wrapper" audioClass="audio-wrapper">
-                        <f:if condition="{newsItem.contentElements}">
-                            <!-- content elements -->
-                            <f:cObject typoscriptObjectPath="lib.tx_news.contentElementRendering">{newsItem.contentElementIdList}</f:cObject>
-                        </f:if>
-                        <f:render partial="Detail/MediaContainer" arguments="{media: newsItem.mediaNonPreviews, settings:settings}" />
-                    </n:renderMedia>
-
-                    <f:if condition="{settings.backPid}">
-                        <div class="news-backlink-wrap mt-5">
-                            <f:link.page pageUid="{settings.backPid}">
-                                <f:translate key="back-link" />
-                            </f:link.page>
-                        </div>
-                    </f:if>
-
-                    <f:if condition="{newsItem.allRelatedSorted} || {newsItem.relatedFiles} || {newsItem.relatedLinks}">
-                        <!-- related things -->
-                        <div class="news-related-wrap row gy-4 mt-5">
-                            <f:comment>
-                                Various options exist to fetch different related information:
-                                - {newsItem.allRelatedSorted}: all related news, related und related from, sorted by date
-                                - {newsItem.related}: all related
-                                - {newsItem.relatedSorted}: all related, sorted by date
-                                - {newsItem.relatedFrom}: all related from
-                                - {newsItem.relatedFromSortedByForeign}: all related from sorted by foreign sorting
-                                - {newsItem.relatedFromSorted}: all related from, sorted by date
-                            </f:comment>
-
-                            <f:if condition="{newsItem.allRelatedSorted}">
-                                <!-- Related news records -->
-                                <div class="col-12 col-lg-4">
-                                    <div class="card h-100">
-                                        <div class="card-header pb-0 h4">
-                                            <f:translate key="related-news" />
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="card-text">
-                                                <ul>
-                                                    <f:for each="{newsItem.allRelatedSorted}" as="related">
-                                                        <li>
-                                                            <span class="news-related-news-date"><f:format.date format="{f:translate(key:'dateFormat')}">{related.datetime}</f:format.date></span>
-                                                            <n:link newsItem="{related}" settings="{settings}" title="{related.title}">
-                                                                {related.title}
-                                                            </n:link>
-                                                        </li>
-                                                    </f:for>
-                                                </ul>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </f:if>
-
-                            <f:if condition="{newsItem.relatedFiles}">
-                                <div class="col-12 col-lg-4">
-                                    <div class="card h-100">
-                                        <div class="card-header pb-0 h4">
-                                            <f:translate key="related-files" />
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="card-text">
-                                                <ul>
-                                                    <f:for each="{newsItem.relatedFiles}" as="relatedFile">
-                                                        <li>
-                                                            <span class="news-related-files-link">
-                                                                <a href="{relatedFile.originalResource.publicUrl -> f:format.htmlspecialchars()}" target="_blank">
-                                                                    {f:if(condition:relatedFile.originalResource.title, then:relatedFile.originalResource.title, else:relatedFile.originalResource.name)}
-                                                                </a>
-                                                            </span>
-                                                            <span class="news-related-files-size">
-                                                                {relatedFile.originalResource.size -> f:format.bytes()}
-                                                            </span>
-                                                        </li>
-                                                    </f:for>
-                                                </ul>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </f:if>
-
-                            <f:if condition="{newsItem.relatedLinks}">
-                                <!-- Related links -->
-                                <div class="col-12 col-lg-4">
-                                    <div class="card h-100">
-                                        <div class="card-header pb-0 h4">
-                                            <f:translate key="related-links" />
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="card-text">
-                                                <ul>
-                                                    <f:for each="{newsItem.relatedLinks}" as="relatedLink">
-                                                        <li>
-                                                            <f:link.typolink parameter="{relatedLink.uri}" title="{relatedLink.title}" target="{n:targetLink(link:relatedLink.uri)}">{f:if(condition: relatedLink.title, then: relatedLink.title, else: relatedLink.uri)}</f:link.typolink>
-                                                            <f:if condition="{relatedLink.description}"><br><small>{relatedLink.description}</small></f:if>
-                                                        </li>
-                                                    </f:for>
-                                                </ul>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </f:if>
-                        </div>
-                    </f:if>
-
+                    <ul class="list-group list-group-flush">
+                      <f:for each="{newsItem.allRelatedSorted}" as="related">
+                        <li class="list-group-item">
+                          <span class="d-block small text-body-secondary">
+                            <f:format.date format="{f:translate(key:'dateFormat')}">{related.datetime}</f:format.date>
+                          </span>
+                          <n:link newsItem="{related}" settings="{settings}" title="{related.title}"
+                                  class="small text-decoration-none link-body-emphasis">
+                            {related.title}
+                          </n:link>
+                        </li>
+                      </f:for>
+                    </ul>
+                  </div>
                 </div>
+              </f:if>
 
-            </main>
+              <f:if condition="{newsItem.relatedFiles}">
+                <div class="col">
+                  <div class="card h-100 shadow-sm">
+                    <div class="card-header fw-bold">
+                      <f:translate key="related-files" />
+                    </div>
+                    <ul class="list-group list-group-flush">
+                      <f:for each="{newsItem.relatedFiles}" as="relatedFile">
+                        <li class="list-group-item d-flex align-items-center justify-content-between small">
+                          <a href="{relatedFile.originalResource.publicUrl -> f:format.htmlspecialchars()}" target="_blank"
+                             class="link-primary text-decoration-none">
+                            <i class="bi bi-file-earmark-text me-1" aria-hidden="true"></i>
+                            {f:if(condition:relatedFile.originalResource.title, then:relatedFile.originalResource.title, else:relatedFile.originalResource.name)}
+                          </a>
+                          <span class="text-body-secondary">{relatedFile.originalResource.size -> f:format.bytes()}</span>
+                        </li>
+                      </f:for>
+                    </ul>
+                  </div>
+                </div>
+              </f:if>
 
-            <f:if condition="{settings.detail.showSocialShareButtons}">
-                <f:comment>
-                    Care about the privacy of your readers?
-                    Checkout https://typo3.org/extensions/repository/view/rx_shariff
-                    and it will be used automatically!
-                </f:comment>
-                <n:extensionLoaded extensionKey="rx_shariff">
-                    <f:render partial="Detail/Shariff" />
-                </n:extensionLoaded>
-            </f:if>
+              <f:if condition="{newsItem.relatedLinks}">
+                <div class="col">
+                  <div class="card h-100 shadow-sm">
+                    <div class="card-header fw-bold">
+                      <f:translate key="related-links" />
+                    </div>
+                    <ul class="list-group list-group-flush">
+                      <f:for each="{newsItem.relatedLinks}" as="relatedLink">
+                        <li class="list-group-item small">
+                          <f:link.typolink parameter="{relatedLink.uri}" title="{relatedLink.title}"
+                                           target="{n:targetLink(link:relatedLink.uri)}"
+                                           class="link-primary text-decoration-none">
+                            <i class="bi bi-link-45deg me-1" aria-hidden="true"></i>
+                            {f:if(condition: relatedLink.title, then: relatedLink.title, else: relatedLink.uri)}
+                          </f:link.typolink>
+                          <f:if condition="{relatedLink.description}">
+                            <p class="mt-1 mb-0 text-body-secondary">{relatedLink.description}</p>
+                          </f:if>
+                        </li>
+                      </f:for>
+                    </ul>
+                  </div>
+                </div>
+              </f:if>
 
-        </f:then>
-        <f:else>
+            </div>
+          </f:if>
 
-        </f:else>
-    </f:if>
+        </div>
+      </main>
+
+      <!-- Social Share -->
+      <f:if condition="{settings.detail.showSocialShareButtons}">
+        <n:extensionLoaded extensionKey="rx_shariff">
+          <f:render partial="Detail/Shariff" />
+        </n:extensionLoaded>
+      </f:if>
+
+    </f:then>
+  </f:if>
 </f:section>
 </html>

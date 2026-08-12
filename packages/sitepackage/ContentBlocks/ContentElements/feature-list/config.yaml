@@ -1,0 +1,22 @@
+name: sitepackage/feature-list
+typeName: feature-list
+group: default
+prefixFields: true
+prefixType: full
+basics:
+  - TYPO3/Appearance
+fields:
+  - identifier: features
+    type: Collection
+    labelField: title
+    minitems: 1
+    maxitems: 10
+    appearance:
+      collapseAll: true
+    fields:
+      - identifier: sitepackage/bootstrap-icon
+        type: Basic
+      - identifier: title
+        type: Text
+      - identifier: description
+        type: Textarea

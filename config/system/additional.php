@@ -8,6 +8,20 @@ $GLOBALS['TYPO3_CONF_VARS']['DB']['Connections']['Default']['host'] =  getenv("h
 $GLOBALS['TYPO3_CONF_VARS']['DB']['Connections']['Default']['user'] = getenv("user");
 $GLOBALS['TYPO3_CONF_VARS']['DB']['Connections']['Default']['password'] = getenv("password");
 
+// Erlaubt Links auf die Feuerwehr-Detailansicht (tx_feuerwehren_karte[controller/action/feuerwehr])
+// ohne cHash, damit clientseitiges JS (map-feuerwehren.js, D8) direkt darauf verlinken kann,
+// ohne den cHash serverseitig neu berechnen zu müssen. Der Seiten-Cache bleibt dabei korrekt
+// nach der vollständigen Parameter-Kombination granular (excludedParameters betrifft nur die
+// cHash-Pflichtprüfung, nicht den Cache-Key).
+$GLOBALS['TYPO3_CONF_VARS']['FE']['cacheHash']['excludedParameters'] = array_merge(
+    $GLOBALS['TYPO3_CONF_VARS']['FE']['cacheHash']['excludedParameters'] ?? [],
+    [
+        'tx_feuerwehren_karte[controller]',
+        'tx_feuerwehren_karte[action]',
+        'tx_feuerwehren_karte[feuerwehr]',
+    ]
+);
+
 if (getenv('IS_DDEV_PROJECT') == 'true') {
     $GLOBALS['TYPO3_CONF_VARS'] = array_replace_recursive(
         $GLOBALS['TYPO3_CONF_VARS'],

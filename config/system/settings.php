@@ -36,9 +36,6 @@ return [
             'tillDaysRelative' => '',
             'timeTableManipulation' => '0',
         ],
-        'dpn_glossary' => [
-            'termSlugEvaluation' => 'unique',
-        ],
         'extensionmanager' => [
             'automaticInstallation' => '1',
             'offlineMode' => '0',
@@ -81,6 +78,32 @@ return [
             'storageUidImporter' => '1',
             'tagPid' => '1',
         ],
+        'oidc' => [
+            'authenticationServicePriority' => '82',
+            'authenticationServiceQuality' => '80',
+            'authenticationUrlRoute' => 'oidc/authentication',
+            'enableCodeVerifier' => '0',
+            'enableFrontendAuthentication' => '1',
+            'frontendUserMustExistLocally' => '0',
+            'oauthProviderFactory' => '',
+            'oidcAuthorizeLanguageParameter' => 'language',
+            'oidcClientKey' => '019e45e5-c0ee-7348-ba66-a69d1fb54419',
+            'oidcClientScopes' => 'openid',
+            'oidcClientSecret' => '$2y$12$NXjvBwuO0kxJq5OVC3VIReOFPS9m/Xs8t.rwiMmU9faDcFNmbUm7q',
+            'oidcDisableCSRFProtection' => '0',
+            'oidcEndpointAuthorize' => 'https://ids02.sac-cas.ch/oauth2/authorize',
+            'oidcEndpointLogout' => 'https://ids02.sac-cas.ch/oauth2/logout',
+            'oidcEndpointRevoke' => 'https://ids02.sac-cas.ch/oauth2/revoke',
+            'oidcEndpointToken' => 'https://ids02.sac-cas.ch/oauth2/token',
+            'oidcEndpointUserInfo' => 'https://ids02.sac-cas.ch/oauth2/userinfo',
+            'oidcRedirectUri' => 'https://kfv-freising.de/oidc/callback',
+            'oidcRevokeAccessTokenAfterLogin' => '0',
+            'oidcUseRequestPathAuthentication' => '0',
+            'reEnableFrontendUsers' => '0',
+            'undeleteFrontendUsers' => '0',
+            'usersDefaultGroup' => '',
+            'usersStoragePid' => '53',
+        ],
         'redirects' => [
             'showCheckIntegrityInfoInReports' => '1',
             'showCheckIntegrityInfoInReportsSeconds' => '86400',
@@ -94,6 +117,11 @@ return [
         ],
         'scheduler' => [
             'maxLifetime' => '1440',
+        ],
+        'vite_asset_collector' => [
+            'defaultManifest' => 'EXT:sitepackage/Resources/Public/Vite/.vite/manifest.json',
+            'devServerUri' => 'auto',
+            'useDevServer' => 'auto',
         ],
     ],
     'FE' => [
@@ -109,7 +137,7 @@ return [
         ],
     ],
     'GFX' => [
-        'processor' => 'GraphicsMagick',
+        'processor' => 'ImageMagick',
         'processor_effects' => false,
         'processor_enabled' => true,
         'processor_path' => '/usr/bin/',
@@ -144,7 +172,7 @@ return [
         'caching' => [
             'cacheConfigurations' => [
                 'hash' => [
-                    'backend' => 'TYPO3\\CMS\\Core\\Cache\\Backend\\Typo3DatabaseBackend',
+                    'backend' => 'TYPO3\\CMS\\Core\\Cache\\Backend\\FileBackend',
                 ],
                 'imagesizes' => [
                     'backend' => 'TYPO3\\CMS\\Core\\Cache\\Backend\\Typo3DatabaseBackend',
@@ -153,15 +181,15 @@ return [
                     ],
                 ],
                 'pages' => [
-                    'backend' => 'TYPO3\\CMS\\Core\\Cache\\Backend\\Typo3DatabaseBackend',
+                    'backend' => 'TYPO3\\CMS\\Core\\Cache\\Backend\\FileBackend',
                     'options' => [
-                        'compression' => true,
+                        'compression' => '__UNSET',
                     ],
                 ],
                 'rootline' => [
-                    'backend' => 'TYPO3\\CMS\\Core\\Cache\\Backend\\Typo3DatabaseBackend',
+                    'backend' => 'TYPO3\\CMS\\Core\\Cache\\Backend\\FileBackend',
                     'options' => [
-                        'compression' => true,
+                        'compression' => '__UNSET',
                     ],
                 ],
             ],

@@ -1,0 +1,247 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<f:layout name="Default" />
+<f:section name="Main">
+
+<f:variable name="tabsLayout" value="{flexFormData.tabs_layout}" />
+<f:variable name="uid" value="{data.uid}" />
+
+<!-- Tab-Daten aufbereiten -->
+<f:variable name="tabs" value="{
+  0: {title: flexFormData.tab_1_title, icon: flexFormData.tab_1_icon, badge: flexFormData.tab_1_badge, children: children_210},
+  1: {title: flexFormData.tab_2_title, icon: flexFormData.tab_2_icon, badge: flexFormData.tab_2_badge, children: children_211},
+  2: {title: flexFormData.tab_3_title, icon: flexFormData.tab_3_icon, badge: flexFormData.tab_3_badge, children: children_212},
+  3: {title: flexFormData.tab_4_title, icon: flexFormData.tab_4_icon, badge: flexFormData.tab_4_badge, children: children_213}
+}" />
+
+<div id="c{uid}" class="container my-5">
+
+  <f:switch expression="{tabsLayout}">
+
+    <!-- Variante 1: Standard mit Icons -->
+    <f:case value="standard">
+      <ul class="nav nav-pills gap-1 bg-body-secondary rounded p-1 mb-4" role="tablist">
+        <f:for each="{tabs}" as="tab" iteration="i">
+          <f:if condition="{tab.title}">
+            <li class="nav-item" role="presentation">
+              <button
+                class="nav-link d-flex align-items-center gap-2{f:if(condition: i.isFirst, then: ' active')}"
+                id="{uid}-tab-{i.cycle}"
+                data-bs-toggle="tab"
+                data-bs-target="#{uid}-panel-{i.cycle}"
+                type="button"
+                role="tab"
+                aria-controls="{uid}-panel-{i.cycle}"
+                aria-selected="{f:if(condition: i.isFirst, then: 'true', else: 'false')}"
+              >
+                <f:if condition="{tab.icon}">
+                  <i class="bi bi-{tab.icon}"></i>
+                </f:if>
+                {tab.title}
+              </button>
+            </li>
+          </f:if>
+        </f:for>
+      </ul>
+      <div class="tab-content">
+        <f:for each="{tabs}" as="tab" iteration="i">
+          <f:if condition="{tab.title}">
+            <div
+              class="tab-pane fade{f:if(condition: i.isFirst, then: ' show active')}"
+              id="{uid}-panel-{i.cycle}"
+              role="tabpanel"
+              aria-labelledby="{uid}-tab-{i.cycle}"
+              tabindex="0"
+            >
+              <f:for each="{tab.children}" as="record">
+                <f:format.raw>{record.renderedContent}</f:format.raw>
+              </f:for>
+            </div>
+          </f:if>
+        </f:for>
+      </div>
+    </f:case>
+
+    <!-- Variante 2: Fullwidth -->
+    <f:case value="fullwidth">
+      <ul class="nav nav-pills nav-fill gap-1 bg-body-secondary rounded p-1 mb-4" role="tablist">
+        <f:for each="{tabs}" as="tab" iteration="i">
+          <f:if condition="{tab.title}">
+            <li class="nav-item" role="presentation">
+              <button
+                class="nav-link{f:if(condition: i.isFirst, then: ' active')}"
+                id="{uid}-tab-{i.cycle}"
+                data-bs-toggle="tab"
+                data-bs-target="#{uid}-panel-{i.cycle}"
+                type="button"
+                role="tab"
+                aria-controls="{uid}-panel-{i.cycle}"
+                aria-selected="{f:if(condition: i.isFirst, then: 'true', else: 'false')}"
+              >
+                {tab.title}
+              </button>
+            </li>
+          </f:if>
+        </f:for>
+      </ul>
+      <div class="tab-content">
+        <f:for each="{tabs}" as="tab" iteration="i">
+          <f:if condition="{tab.title}">
+            <div
+              class="tab-pane fade{f:if(condition: i.isFirst, then: ' show active')}"
+              id="{uid}-panel-{i.cycle}"
+              role="tabpanel"
+              aria-labelledby="{uid}-tab-{i.cycle}"
+              tabindex="0"
+            >
+              <f:for each="{tab.children}" as="record">
+                <f:format.raw>{record.renderedContent}</f:format.raw>
+              </f:for>
+            </div>
+          </f:if>
+        </f:for>
+      </div>
+    </f:case>
+
+    <!-- Variante 3: Pills -->
+    <f:case value="pills">
+      <ul class="nav nav-pills flex-wrap gap-2 mb-4" role="tablist">
+        <f:for each="{tabs}" as="tab" iteration="i">
+          <f:if condition="{tab.title}">
+            <li class="nav-item" role="presentation">
+              <button
+                class="nav-link d-inline-flex align-items-center gap-2{f:if(condition: i.isFirst, then: ' active')}"
+                id="{uid}-tab-{i.cycle}"
+                data-bs-toggle="tab"
+                data-bs-target="#{uid}-panel-{i.cycle}"
+                type="button"
+                role="tab"
+                aria-controls="{uid}-panel-{i.cycle}"
+                aria-selected="{f:if(condition: i.isFirst, then: 'true', else: 'false')}"
+              >
+                <f:if condition="{tab.icon}">
+                  <i class="bi bi-{tab.icon}"></i>
+                </f:if>
+                {tab.title}
+                <f:if condition="{tab.badge}">
+                  <span class="badge rounded-pill text-bg-primary">{tab.badge}</span>
+                </f:if>
+              </button>
+            </li>
+          </f:if>
+        </f:for>
+      </ul>
+      <div class="tab-content">
+        <f:for each="{tabs}" as="tab" iteration="i">
+          <f:if condition="{tab.title}">
+            <div
+              class="tab-pane fade{f:if(condition: i.isFirst, then: ' show active')}"
+              id="{uid}-panel-{i.cycle}"
+              role="tabpanel"
+              aria-labelledby="{uid}-tab-{i.cycle}"
+              tabindex="0"
+            >
+              <f:for each="{tab.children}" as="record">
+                <f:format.raw>{record.renderedContent}</f:format.raw>
+              </f:for>
+            </div>
+          </f:if>
+        </f:for>
+      </div>
+    </f:case>
+
+    <!-- Variante 4: Vertikal -->
+    <f:case value="vertical">
+      <div class="d-flex flex-column flex-md-row gap-4">
+        <ul class="nav nav-pills flex-md-column gap-1 bg-body-secondary rounded p-1" style="min-width: 200px; height: fit-content;" role="tablist">
+          <f:for each="{tabs}" as="tab" iteration="i">
+            <f:if condition="{tab.title}">
+              <li class="nav-item" role="presentation">
+                <button
+                  class="nav-link d-flex align-items-center gap-2 w-100 text-start{f:if(condition: i.isFirst, then: ' active')}"
+                  id="{uid}-tab-{i.cycle}"
+                  data-bs-toggle="tab"
+                  data-bs-target="#{uid}-panel-{i.cycle}"
+                  type="button"
+                  role="tab"
+                  aria-controls="{uid}-panel-{i.cycle}"
+                  aria-selected="{f:if(condition: i.isFirst, then: 'true', else: 'false')}"
+                >
+                  <f:if condition="{tab.icon}">
+                    <i class="bi bi-{tab.icon}"></i>
+                  </f:if>
+                  {tab.title}
+                </button>
+              </li>
+            </f:if>
+          </f:for>
+        </ul>
+        <div class="tab-content flex-grow-1">
+          <f:for each="{tabs}" as="tab" iteration="i">
+            <f:if condition="{tab.title}">
+              <div
+                class="tab-pane fade{f:if(condition: i.isFirst, then: ' show active')}"
+                id="{uid}-panel-{i.cycle}"
+                role="tabpanel"
+                aria-labelledby="{uid}-tab-{i.cycle}"
+                tabindex="0"
+              >
+                <f:for each="{tab.children}" as="record">
+                  <f:format.raw>{record.renderedContent}</f:format.raw>
+                </f:for>
+              </div>
+            </f:if>
+          </f:for>
+        </div>
+      </div>
+    </f:case>
+
+    <!-- Fallback: Standard -->
+    <f:defaultCase>
+      <ul class="nav nav-pills gap-1 bg-body-secondary rounded p-1 mb-4" role="tablist">
+        <f:for each="{tabs}" as="tab" iteration="i">
+          <f:if condition="{tab.title}">
+            <li class="nav-item" role="presentation">
+              <button
+                class="nav-link d-flex align-items-center gap-2{f:if(condition: i.isFirst, then: ' active')}"
+                id="{uid}-tab-{i.cycle}"
+                data-bs-toggle="tab"
+                data-bs-target="#{uid}-panel-{i.cycle}"
+                type="button"
+                role="tab"
+                aria-controls="{uid}-panel-{i.cycle}"
+                aria-selected="{f:if(condition: i.isFirst, then: 'true', else: 'false')}"
+              >
+                <f:if condition="{tab.icon}">
+                  <i class="bi bi-{tab.icon}"></i>
+                </f:if>
+                {tab.title}
+              </button>
+            </li>
+          </f:if>
+        </f:for>
+      </ul>
+      <div class="tab-content">
+        <f:for each="{tabs}" as="tab" iteration="i">
+          <f:if condition="{tab.title}">
+            <div
+              class="tab-pane fade{f:if(condition: i.isFirst, then: ' show active')}"
+              id="{uid}-panel-{i.cycle}"
+              role="tabpanel"
+              aria-labelledby="{uid}-tab-{i.cycle}"
+              tabindex="0"
+            >
+              <f:for each="{tab.children}" as="record">
+                <f:format.raw>{record.renderedContent}</f:format.raw>
+              </f:for>
+            </div>
+          </f:if>
+        </f:for>
+      </div>
+    </f:defaultCase>
+
+  </f:switch>
+
+</div>
+
+</f:section>
+</html>

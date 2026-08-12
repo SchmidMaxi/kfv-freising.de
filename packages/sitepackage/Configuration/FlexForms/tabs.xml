@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<T3DataStructure>
+	<meta>
+		<langDisable>1</langDisable>
+	</meta>
+	<sheets>
+		<tabs_config>
+			<ROOT>
+				<TCEforms>
+					<sheetTitle>Tab-Konfiguration</sheetTitle>
+				</TCEforms>
+				<el>
+					<tabs_layout>
+						<label>Layout</label>
+						<config>
+							<type>select</type>
+							<renderType>selectSingle</renderType>
+							<default>standard</default>
+							<items>
+								<numIndex index="0"><label>Standard (mit Icons)</label><value>standard</value></numIndex>
+								<numIndex index="1"><label>Fullwidth</label><value>fullwidth</value></numIndex>
+								<numIndex index="2"><label>Pills (mit Badge-Zähler)</label><value>pills</value></numIndex>
+								<numIndex index="3"><label>Vertikal (Seitennavigation)</label><value>vertical</value></numIndex>
+							</items>
+						</config>
+					</tabs_layout>
+				</el>
+			</ROOT>
+		</tabs_config>
+		<tab_labels>
+			<ROOT>
+				<TCEforms>
+					<sheetTitle>Tab-Beschriftungen</sheetTitle>
+				</TCEforms>
+				<el>
+					<tab_1_title>
+						<label>Tab 1 – Titel</label>
+						<config>
+							<type>input</type>
+							<size>30</size>
+							<eval>trim</eval>
+							<default>Tab 1</default>
+						</config>
+					</tab_1_title>
+					<tab_1_icon>
+						<label>Tab 1 – Icon (Bootstrap Icons Name)</label>
+						<config>
+							<type>input</type>
+							<size>30</size>
+							<eval>trim</eval>
+							<placeholder>z.B. newspaper, fire, calendar</placeholder>
+						</config>
+					</tab_1_icon>
+					<tab_1_badge>
+						<label>Tab 1 – Badge-Zähler (nur Pills)</label>
+						<config>
+							<type>input</type>
+							<size>10</size>
+							<eval>trim</eval>
+						</config>
+					</tab_1_badge>
+					<tab_2_title>
+						<label>Tab 2 – Titel</label>
+						<config>
+							<type>input</type>
+							<size>30</size>
+							<eval>trim</eval>
+							<default>Tab 2</default>
+						</config>
+					</tab_2_title>
+					<tab_2_icon>
+						<label>Tab 2 – Icon (Bootstrap Icons Name)</label>
+						<config>
+							<type>input</type>
+							<size>30</size>
+							<eval>trim</eval>
+						</config>
+					</tab_2_icon>
+					<tab_2_badge>
+						<label>Tab 2 – Badge-Zähler (nur Pills)</label>
+						<config>
+							<type>input</type>
+							<size>10</size>
+							<eval>trim</eval>
+						</config>
+					</tab_2_badge>
+					<tab_3_title>
+						<label>Tab 3 – Titel (leer = Tab wird ausgeblendet)</label>
+						<config>
+							<type>input</type>
+							<size>30</size>
+							<eval>trim</eval>
+						</config>
+					</tab_3_title>
+					<tab_3_icon>
+						<label>Tab 3 – Icon</label>
+						<config>
+							<type>input</type>
+							<size>30</size>
+							<eval>trim</eval>
+						</config>
+					</tab_3_icon>
+					<tab_3_badge>
+						<label>Tab 3 – Badge-Zähler</label>
+						<config>
+							<type>input</type>
+							<size>10</size>
+							<eval>trim</eval>
+						</config>
+					</tab_3_badge>
+					<tab_4_title>
+						<label>Tab 4 – Titel (leer = Tab wird ausgeblendet)</label>
+						<config>
+							<type>input</type>
+							<size>30</size>
+							<eval>trim</eval>
+						</config>
+					</tab_4_title>
+					<tab_4_icon>
+						<label>Tab 4 – Icon</label>
+						<config>
+							<type>input</type>
+							<size>30</size>
+							<eval>trim</eval>
+						</config>
+					</tab_4_icon>
+					<tab_4_badge>
+						<label>Tab 4 – Badge-Zähler</label>
+						<config>
+							<type>input</type>
+							<size>10</size>
+							<eval>trim</eval>
+						</config>
+					</tab_4_badge>
+				</el>
+			</ROOT>
+		</tab_labels>
+	</sheets>
+</T3DataStructure>

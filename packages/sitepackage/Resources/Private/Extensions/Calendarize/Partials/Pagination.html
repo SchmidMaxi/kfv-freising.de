@@ -1,0 +1,92 @@
+<f:if condition="{pagination.previousPageNumber} && {pagination.previousPageNumber} >= {pagination.firstPageNumber}">
+    <f:then>
+        <f:comment>previous available</f:comment>
+    </f:then>
+</f:if>
+
+<nav aria-label="Seitennavigation">
+    <ul class="pagination flex-wrap">
+        <f:if condition="{pagination.previousPageNumber} && {pagination.previousPageNumber} >= {pagination.firstPageNumber}">
+            <f:then>
+            <li class="page-item">
+                <f:render section="PaginationLink" arguments="{actionName:actionName, page: pagination.previousPageNumber, title: '{f:translate(key:\'pagination.previous\')}', searchMode:searchMode}" contentAs="content">
+                    <span class="page-link">
+                        <i class="bi bi-chevron-left" aria-hidden="true"></i>
+                    </span>
+                </f:render>
+            </li>
+        </f:then>
+        <f:else>
+            <li class="page-item disabled">
+                <span class="page-link">
+                    <i class="bi bi-chevron-left" aria-hidden="true"></i>
+                </span>
+            </li>
+        </f:else>
+    </f:if>
+
+    <f:if condition="{pagination.hasLessPages}">
+        <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+    </f:if>
+
+    <f:for each="{pagination.allPageNumbers}" as="page">
+        <li class="page-item">
+            <f:if condition="{page} == {paginator.currentPageNumber}">
+                <f:then>
+                    <span class="page-link active" aria-current="page">
+                        {page}
+                    </span>
+                </f:then>
+                <f:else>
+                    <f:render section="PaginationLink" arguments="{actionName:actionName, page: page, title: page, searchMode:searchMode}" contentAs="content">
+                        <span class="page-link">
+                            {page}
+                        </span>
+                    </f:render>
+                </f:else>
+            </f:if>
+        </li>
+    </f:for>
+
+    <f:if condition="{pagination.hasMorePages}">
+        <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+    </f:if>
+
+    <f:if condition="{pagination.nextPageNumber} && {pagination.nextPageNumber} <= {pagination.lastPageNumber}">
+        <f:then>
+            <li class="page-item">
+                <f:render section="PaginationLink" arguments="{actionName:actionName, page: pagination.nextPageNumber, title: '{f:translate(key:\'pagination.next\')}', searchMode:searchMode}" contentAs="content">
+                    <span class="page-link">
+                        <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                    </span>
+                </f:render>
+            </li>
+        </f:then>
+        <f:else>
+            <li class="page-item disabled">
+                <span class="page-link">
+                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                </span>
+            </li>
+        </f:else>
+    </f:if>
+    </ul>
+</nav>
+
+<f:section name="PaginationLink">
+    <f:if condition="{searchMode}">
+        <f:then>
+            <a href="#"
+               title="{title}"
+               onclick="if(document.getElementById('calendarizePage')){document.getElementById('calendarizePage').value={page};document.getElementById('calendarizeSearchForm').submit();return false;}">
+                <f:format.raw>{content}</f:format.raw>
+            </a>
+        </f:then>
+        <f:else>
+            <a href="{f:uri.action(action:actionName, arguments:{currentPage: page})}"
+               title="{title}">
+                <f:format.raw>{content}</f:format.raw>
+            </a>
+        </f:else>
+    </f:if>
+</f:section>

@@ -1,9 +1,9 @@
-<section id="c{data.uid}" class="section{f:if(condition:files, then:' background-img')} frame frame-{data.frame_class}{f:if(condition: data.space_before_class, then: ' frame-space-before-{data.space_before_class}')}{f:if(condition: data.space_after_class, then: ' frame-space-after-{data.space_after_class}')} bg-{data.color}{f:if(condition:'({data.color} == dark) || ({data.color} == primary)', then:' text-white')}">
+<section id="c{data.uid}" class="section frame frame-{data.frame_class}{f:if(condition: data.space_before_class, then: ' frame-space-before-{data.space_before_class}')}{f:if(condition: data.space_after_class, then: ' frame-space-after-{data.space_after_class}')} {data.color}{f:if(condition: '{data.color} == bg-surface-dark', then: ' text-surface-dark-foreground')}">
   <f:if condition="{files}">
     <f:then>
-      <div class="container">
-        <div class="row">
-          <div class="col-12 col-lg-6 content-column">
+      <div class="container py-9 py-md-12">
+        <div class="row g-4 align-items-center">
+          <div class="col-12 col-lg-6">
             <f:for each="{children_200}" as="record">
               <f:format.raw>
                 {record.renderedContent}
@@ -11,19 +11,21 @@
             </f:for>
           </div>
           <div class="col-12 col-lg-6">
-            <div class="gradient" style="--color:var(--bs-{data.color}-rgb)">
-              <f:image image="{files.0}" class="background-image" maxWidth="800" loading="{settings.media.lazyLoading}" />
+            <div class="overflow-hidden rounded-3">
+              <f:image image="{files.0}" class="w-100 h-auto object-fit-cover" maxWidth="800" loading="{settings.media.lazyLoading}" />
             </div>
           </div>
         </div>
       </div>
     </f:then>
     <f:else>
-      <f:for each="{children_200}" as="record">
-        <f:format.raw>
-          {record.renderedContent}
-        </f:format.raw>
-      </f:for>
+      <div class="container py-9 py-md-12">
+        <f:for each="{children_200}" as="record">
+          <f:format.raw>
+            {record.renderedContent}
+          </f:format.raw>
+        </f:for>
+      </div>
     </f:else>
   </f:if>
 </section>

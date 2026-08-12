@@ -41,11 +41,12 @@
         "typo3/cms-webhooks": "^13.0",
         "typo3/cms-workspaces": "^13.0",
         "typo3/minimal": "^13",
-        "wapplersystems/ws-scss": "^13.0",
-        "zeroseven/pictureino": "^1.0",
+        "praetorius/vite-asset-collector": "^1.15",
         "helhum/typo3-console": "^8.2",
         "schmid/icsimporter": "@dev",
-        "schmid/feuerwehren": "@dev"
+        "schmid/feuerwehren": "@dev",
+        "brotkrueml/typo3-matomo-widgets": "*",
+        "causal/oidc": "^4.0"
     },
     "config": {
         "allow-plugins": {

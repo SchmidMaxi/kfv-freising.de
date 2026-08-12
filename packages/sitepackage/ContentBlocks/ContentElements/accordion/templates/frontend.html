@@ -1,16 +1,131 @@
-<div id="c{data.uid}" class="container accordion frame frame-{data.frame_class} frame-type-{data.CType} frame-layout-{data.layout}{f:if(condition: data.space_before_class, then: ' frame-space-before-{data.space_before_class}')}{f:if(condition: data.space_after_class, then: ' frame-space-after-{data.space_after_class}')}">
-  <f:for each="{data.items}" as="item" iteration="i">
-    <div class="accordion-item">
-      <h2 class="accordion-header">
-        <button class="accordion-button{f:if(condition:i.isFirst, else:' collapsed')}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{item.uid}" aria-expanded="{f:if(condition:i.isFirst, then:'true', else:'false')}" aria-controls="collapse{item.uid}">
-          {item.title}
-        </button>
-      </h2>
-      <div id="collapse{item.uid}" class="accordion-collapse collapse{f:if(condition:i.isFirst, then:' show')}" data-bs-parent="#c{data.uid}">
-        <div class="accordion-body">
-          {item.bodytext->f:format.html()}
+<div id="c{data.uid}" class="frame frame-{data.frame_class} frame-type-{data.CType} frame-layout-{data.layout}{f:if(condition: data.space_before_class, then: ' frame-space-before-{data.space_before_class}')}{f:if(condition: data.space_after_class, then: ' frame-space-after-{data.space_after_class}')}">
+  <div class="container my-5">
+    <f:if condition="{data.header}">
+      <h2 class="mb-4">{data.header}</h2>
+    </f:if>
+
+    <f:switch expression="{data.accordion_layout}">
+
+      <!-- Variante 2: Minimalistisch (Bootstrap accordion-flush) -->
+      <f:case value="minimal">
+        <div class="accordion accordion-flush" id="accordion{data.uid}">
+          <f:for each="{data.items}" as="item" iteration="i">
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="heading{data.uid}-{i.index}">
+                <button class="accordion-button{f:if(condition: i.isFirst, then: '', else: ' collapsed')}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{data.uid}-{i.index}" aria-expanded="{f:if(condition: i.isFirst, then: 'true', else: 'false')}" aria-controls="collapse{data.uid}-{i.index}">
+                  {item.title}
+                </button>
+              </h2>
+              <div id="collapse{data.uid}-{i.index}" class="accordion-collapse collapse{f:if(condition: i.isFirst, then: ' show')}" aria-labelledby="heading{data.uid}-{i.index}" data-bs-parent="#accordion{data.uid}">
+                <div class="accordion-body">
+                  {item.bodytext -> f:format.html()}
+                </div>
+              </div>
+            </div>
+          </f:for>
         </div>
-      </div>
-    </div>
-  </f:for>
+      </f:case>
+
+      <!-- Variante 3: Mit Icons & Badges -->
+      <f:case value="icon-badge">
+        <div class="accordion" id="accordion{data.uid}">
+          <f:for each="{data.items}" as="item" iteration="i">
+            <f:variable name="iconColorClass"><f:switch expression="{item.icon_color}"><f:case value="red">text-danger</f:case><f:case value="green">text-success</f:case><f:case value="amber">text-warning</f:case><f:defaultCase>text-info</f:defaultCase></f:switch></f:variable>
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="heading{data.uid}-{i.index}">
+                <button class="accordion-button{f:if(condition: i.isFirst, then: '', else: ' collapsed')} d-flex align-items-center" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{data.uid}-{i.index}" aria-expanded="{f:if(condition: i.isFirst, then: 'true', else: 'false')}" aria-controls="collapse{data.uid}-{i.index}">
+                  <f:if condition="{item.icon}">
+                    <i class="bi bi-{item.icon} {iconColorClass} fs-5 me-2 flex-shrink-0"></i>
+                  </f:if>
+                  <span class="flex-grow-1">{item.title}</span>
+                  <f:if condition="{item.badge}">
+                    <span class="badge text-bg-light border rounded-pill ms-2 me-2 d-none d-sm-inline-block">{item.badge}</span>
+                  </f:if>
+                </button>
+              </h2>
+              <div id="collapse{data.uid}-{i.index}" class="accordion-collapse collapse{f:if(condition: i.isFirst, then: ' show')}" aria-labelledby="heading{data.uid}-{i.index}" data-bs-parent="#accordion{data.uid}">
+                <div class="accordion-body{f:if(condition: item.icon, then: ' ps-5')}">
+                  {item.bodytext -> f:format.html()}
+                </div>
+              </div>
+            </div>
+          </f:for>
+        </div>
+      </f:case>
+
+      <!-- Variante 4: Gruppiert (2-Spalten-Grid aus Karten, je eine Flush-Accordion) -->
+      <f:case value="grouped">
+        <div class="row row-cols-1 row-cols-md-2 g-4">
+          <f:for each="{data.groups}" as="group" iteration="g">
+            <div class="col">
+              <div class="card h-100">
+                <f:if condition="{group.group_title}">
+                  <div class="card-header fw-semibold">{group.group_title}</div>
+                </f:if>
+                <div class="card-body p-0">
+                  <div class="accordion accordion-flush" id="accordion{data.uid}-{g.index}">
+                    <f:for each="{group.group_items}" as="item" iteration="i">
+                      <div class="accordion-item">
+                        <h2 class="accordion-header" id="heading{data.uid}-{g.index}-{i.index}">
+                          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{data.uid}-{g.index}-{i.index}" aria-expanded="false" aria-controls="collapse{data.uid}-{g.index}-{i.index}">
+                            {item.title}
+                          </button>
+                        </h2>
+                        <div id="collapse{data.uid}-{g.index}-{i.index}" class="accordion-collapse collapse" aria-labelledby="heading{data.uid}-{g.index}-{i.index}" data-bs-parent="#accordion{data.uid}-{g.index}">
+                          <div class="accordion-body">
+                            {item.bodytext -> f:format.html()}
+                          </div>
+                        </div>
+                      </div>
+                    </f:for>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </f:for>
+        </div>
+      </f:case>
+
+      <!-- Variante 1 (Standard): Card-Style (FAQ) -->
+      <f:case value="card">
+        <div class="accordion" id="accordion{data.uid}">
+          <f:for each="{data.items}" as="item" iteration="i">
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="heading{data.uid}-{i.index}">
+                <button class="accordion-button{f:if(condition: i.isFirst, then: '', else: ' collapsed')}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{data.uid}-{i.index}" aria-expanded="{f:if(condition: i.isFirst, then: 'true', else: 'false')}" aria-controls="collapse{data.uid}-{i.index}">
+                  {item.title}
+                </button>
+              </h2>
+              <div id="collapse{data.uid}-{i.index}" class="accordion-collapse collapse{f:if(condition: i.isFirst, then: ' show')}" aria-labelledby="heading{data.uid}-{i.index}" data-bs-parent="#accordion{data.uid}">
+                <div class="accordion-body">
+                  {item.bodytext -> f:format.html()}
+                </div>
+              </div>
+            </div>
+          </f:for>
+        </div>
+      </f:case>
+
+      <!-- Fallback: Card-Style -->
+      <f:defaultCase>
+        <div class="accordion" id="accordion{data.uid}">
+          <f:for each="{data.items}" as="item" iteration="i">
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="heading{data.uid}-{i.index}">
+                <button class="accordion-button{f:if(condition: i.isFirst, then: '', else: ' collapsed')}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{data.uid}-{i.index}" aria-expanded="{f:if(condition: i.isFirst, then: 'true', else: 'false')}" aria-controls="collapse{data.uid}-{i.index}">
+                  {item.title}
+                </button>
+              </h2>
+              <div id="collapse{data.uid}-{i.index}" class="accordion-collapse collapse{f:if(condition: i.isFirst, then: ' show')}" aria-labelledby="heading{data.uid}-{i.index}" data-bs-parent="#accordion{data.uid}">
+                <div class="accordion-body">
+                  {item.bodytext -> f:format.html()}
+                </div>
+              </div>
+            </div>
+          </f:for>
+        </div>
+      </f:defaultCase>
+
+    </f:switch>
+  </div>
 </div>

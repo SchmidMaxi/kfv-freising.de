@@ -7,6 +7,12 @@
                 </TCEforms>
                 <type>array</type>
                 <el>
+                    <settings.compact>
+                        <label>Kompakte Ansicht (nur Karte, ohne Filter/Liste — für Einbettung in Seitenabschnitte)</label>
+                        <config>
+                            <type>check</type>
+                        </config>
+                    </settings.compact>
                     <settings.restriction>
                         <label>Filter auf Nutzergruppe beschränken</label>
                         <config>

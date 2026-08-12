@@ -5,11 +5,17 @@ imports:
 
 editor:
     config:
-        contentsCss: "EXT:sitepackage/Resources/Public/Css/layout.css"
+        contentsCss:
+            - "%vite.css('Resources/Private/JavaScript/main.js')%"
 
         stylesSet:
             - { name: "Lead", element: "p", attributes: { 'class': 'lead' } }
-            -
+
+            - { name: "Small", element: "small" }
+
+            - { name: "Badge", element: "p", attributes: { 'class': 'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 mb-4 border-accent text-accent' } }
+
+            - { name: "Highlight", element: "a", attributes: { 'class': 'highlight' } }
             - { name: "Button Primär", element: "a", attributes: { 'class': 'btn btn-kfv' } }
             - { name: "Button Hellgrau", element: "a", attributes: { 'class': 'btn btn-light' } }
             - { name: "Button Grau", element: "a", attributes: { 'class': 'btn btn-light' } }
@@ -27,7 +33,7 @@ editor:
             - { name: tools, groups: [ table, specialchar ] }
             - { name: document, groups: [ mode ] }
 
-        format_tags: "p;h1;h2;h3;h4;h5;pre"
+        format_tags: "p;h1;h2;h3;h4;h5;h6;pre"
 
         justifyClasses:
             - text-left

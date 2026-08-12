@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+	<file datatype="plaintext" original="labels.xlf" source-language="de" date="2026-05-05T00:00:00+00:00" product-name="sitepackage/feature-list">
+		<header/>
+		<body>
+			<trans-unit id="title" resname="title">
+				<source>Feature-Liste</source>
+			</trans-unit>
+			<trans-unit id="description" resname="description">
+				<source>Liste von Features/Vorteilen mit Bootstrap-Icon, Titel und Beschreibung</source>
+			</trans-unit>
+			<trans-unit id="features.label" resname="features.label">
+				<source>Feature-Einträge</source>
+			</trans-unit>
+			<trans-unit id="features.icon.label" resname="features.icon.label">
+				<source>Icon (Bootstrap Icons Name)</source>
+			</trans-unit>
+			<trans-unit id="features.title.label" resname="features.title.label">
+				<source>Titel</source>
+			</trans-unit>
+			<trans-unit id="features.description.label" resname="features.description.label">
+				<source>Beschreibung</source>
+			</trans-unit>
+		</body>
+	</file>
+</xliff>

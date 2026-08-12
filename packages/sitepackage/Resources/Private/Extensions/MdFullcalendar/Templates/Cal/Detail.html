@@ -1,0 +1,126 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+      xmlns:c="http://typo3.org/ns/HDNET/Calendarize/ViewHelpers"
+      data-namespace-typo3-fluid="true">
+
+    <f:layout name="Default" />
+
+    <f:section name="content">
+        <f:alias map="{event: index.originalObject}">
+            <div class="px-4 pt-4">
+                <div class="d-flex align-items-start justify-content-between gap-3 mb-1">
+                    <h2 class="fw-bold fs-4 lh-sm mb-0" id="calModalLabel">
+                        {index.originalObject.title}
+                    </h2>
+                    <button type="button"
+                            class="cal-modal-close btn btn-outline-secondary btn-sm flex-shrink-0 d-inline-flex align-items-center justify-content-center"
+                            style="width: 2rem; height: 2rem; padding: 0;"
+                            aria-label="{f:translate(key: 'close', extensionName: 'MdFullcalendar')}">
+                        <i class="bi bi-x-lg" aria-hidden="true"></i>
+                    </button>
+                </div>
+
+                <p class="small text-body-secondary mb-4 state-{index.state}">
+                    <f:if condition="{index.state}=='canceled'">
+                        <f:then>
+                            <span class="text-danger fw-medium">
+                                <i class="bi bi-x-circle me-1" aria-hidden="true"></i>
+                                <f:translate key="canceled" extensionName="Calendarize" />
+                            </span>
+                        </f:then>
+                        <f:else>
+                            <i class="bi bi-calendar3 me-1" aria-hidden="true"></i>
+                            {index.startDate -> f:format.date(format: settings.dateFormat)}
+                            <f:if condition="{index.allDay}">
+                                <f:else>
+                                    <f:format.date format="{settings.timeFormat}">{index.startDateComplete}</f:format.date>
+                                </f:else>
+                            </f:if>
+                            <f:if condition="{index.startDate -> f:format.date(format: 'd.m.Y')} == {index.endDate -> f:format.date(format: 'd.m.Y')}">
+                                <f:else>
+                                    – {index.endDate -> f:format.date(format: settings.dateFormat)}
+                                </f:else>
+                            </f:if>
+                            <f:if condition="{index.allDay}">
+                                <f:then><f:translate key="all_day" extensionName="Calendarize" /></f:then>
+                                <f:else>
+                                    <f:if condition="{index.endTime}">
+                                        <f:if condition="{index.endTime}!=86399">
+                                            <f:then>
+                                                <f:if condition="{index.startDate -> f:format.date(format: 'd.m.Y')} == {index.endDate -> f:format.date(format: 'd.m.Y')}">–</f:if>
+                                                <f:format.date format="{settings.timeFormat}">{index.endDateComplete}</f:format.date>
+                                            </f:then>
+                                            <f:else>
+                                                <f:if condition="{index.startDate -> f:format.date(format: 'd.m.Y')} == {index.endDate -> f:format.date(format: 'd.m.Y')}">–</f:if>
+                                                <f:translate key="open_end" extensionName="Calendarize" />
+                                            </f:else>
+                                        </f:if>
+                                    </f:if>
+                                </f:else>
+                            </f:if>
+                        </f:else>
+                    </f:if>
+                </p>
+            </div>
+
+            <div class="px-4 pb-4">
+                <f:if condition="{event.abstract}">
+                    <p class="small text-body-secondary mb-3">{event.abstract}</p>
+                </f:if>
+
+                <div class="mb-4">
+                    <f:format.html>{event.description}</f:format.html>
+                </div>
+
+                <f:if condition="{event.location}">
+                    <dl class="row small mb-3">
+                        <dt class="col-auto fw-medium"><i class="bi bi-geo-alt me-1" aria-hidden="true"></i><f:translate key="tx_calendarize_domain_model_event.location" extensionName="Calendarize" />:</dt>
+                        <dd class="col text-body-secondary"><f:link.typolink parameter="{event.locationLink}" class="link-primary text-decoration-none">{event.location}</f:link.typolink></dd>
+                        <f:if condition="{event.organizer}">
+                            <dt class="col-auto fw-medium"><i class="bi bi-people me-1" aria-hidden="true"></i><f:translate key="tx_calendarize_domain_model_event.organizer" extensionName="Calendarize" />:</dt>
+                            <dd class="col text-body-secondary"><f:link.typolink parameter="{event.organizerLink}" class="link-primary text-decoration-none">{event.organizer}</f:link.typolink></dd>
+                        </f:if>
+                    </dl>
+                </f:if>
+
+                <f:if condition="{event.images}">
+                    <div class="d-flex flex-wrap gap-3 mb-4">
+                        <f:for each="{event.images}" as="image">
+                            <f:image src="{image.uid}" treatIdAsReference="1" alt="" maxWidth="300" class="rounded" />
+                        </f:for>
+                    </div>
+                </f:if>
+
+                <f:if condition="{event.downloads}">
+                    <div class="d-flex flex-column gap-1 mb-4">
+                        <f:for each="{event.downloads}" as="download">
+                            <a href="{download.originalResource.publicUrl}"
+                               class="d-inline-flex align-items-center gap-2 small link-primary text-decoration-none">
+                                <i class="bi bi-download" aria-hidden="true"></i>
+                                {download.originalResource.name}
+                            </a>
+                        </f:for>
+                    </div>
+                </f:if>
+
+                <div class="d-flex flex-wrap gap-3">
+                    <f:if condition="{event.bookable}">
+                        <c:link.booking index="{index}" class="btn btn-primary d-inline-flex align-items-center gap-2">
+                            <f:translate key="booking"/>
+                            <i class="bi bi-arrow-right" aria-hidden="true"></i>
+                        </c:link.booking>
+                    </f:if>
+
+                    <f:if condition="{settings.showIcsIcalButton}">
+                        <f:link.page pageUid="{settings.pid.defaultDetailPid}"
+                                     additionalParams="{tx_calendarize_calendar: {action: 'detail', format: 'ics', index: '{index}'}}"
+                                     additionalAttributes="{format:'ics'}"
+                                     class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+                            <i class="bi bi-calendar3" aria-hidden="true"></i>
+                            {f:translate(key: 'ics_ical', extensionName: 'MdFullcalendar')}
+                        </f:link.page>
+                    </f:if>
+                </div>
+            </div>
+        </f:alias>
+    </f:section>
+</html>

@@ -1,0 +1,21 @@
+{namespace c=HDNET\Calendarize\ViewHelpers}
+
+<f:alias map="{event: index.originalObject}">
+    <c:link.index index="{index}" class="list-group-item list-group-item-action d-block text-decoration-none">
+        <p class="fw-medium mb-1">
+            <f:render partial="{index.configuration.partialIdentifier}/Title" arguments="{index: index}" />
+        </p>
+        <div class="d-flex align-items-center gap-2 small text-body-secondary">
+            <i class="bi bi-calendar3" aria-hidden="true"></i>
+            <span>
+                <f:format.date format="d.m.Y">{index.startDate}</f:format.date>
+                <f:if condition="{index.allDay} == 0">
+                    <f:then>, <f:format.date format="H:i">{index.startDateComplete}</f:format.date> Uhr</f:then>
+                </f:if>
+            </span>
+        </div>
+        <f:if condition="{event.location}">
+            <p class="small text-body-secondary mt-1 mb-0">{event.location}</p>
+        </f:if>
+    </c:link.index>
+</f:alias>

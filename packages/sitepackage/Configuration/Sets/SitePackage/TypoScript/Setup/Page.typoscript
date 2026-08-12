@@ -17,29 +17,14 @@ page {
             10 {
                 references.fieldName = media
             }
-            20 = menu
-            20 {
+            20 = page-content
+            30 = menu
+            30 {
                 special = directory
                 special.value = 2
                 levels = 2
                 includeSpacer = 1
                 as = main
-            }
-            30 = menu
-            30 {
-                special = directory
-                special.value = 3
-                levels = 2
-                includeSpacer = 1
-                as = secondary
-            }
-            40 = menu
-            40 {
-                special = directory
-                special.value = 4
-                levels = 2
-                includeSpacer = 1
-                as = tertiary
             }
             50 = menu
             50 {
@@ -56,20 +41,6 @@ page {
                 levels = 2
                 includeSpacer = 1
                 as = meta
-            }
-            70 = menu
-            70 {
-                special = directory
-                special.value = 7
-                levels = 2
-                includeSpacer = 1
-                as = social
-                dataProcessing {
-                    10 = files
-                    10 {
-                        references.fieldName = media
-                    }
-                }
             }
             80 = menu
             80 {
@@ -88,7 +59,6 @@ page {
                     }
                 }
             }
-            100 = page-content
         }
     }
 
@@ -103,33 +73,4 @@ page {
         }
     }
 
-    includeCSSLibs {
-        glightbox = EXT:sitepackage/Resources/Public/Css/glightbox.min.css
-    }
-
-    includeCSS {
-        layout = EXT:sitepackage/Resources/Public/Scss/layout.scss
-        layout.outputfile = EXT:sitepackage/Resources/Public/Css/layout.css
-        icons = EXT:sitepackage/Resources/Public/Scss/icons.scss
-        icons.outputfile = EXT:sitepackage/Resources/Public/Css/icons.css
-    }
-
-    includeJSLibs {
-
-    }
-
-    includeJS {
-
-    }
-
-    includeJSFooterlibs {
-        bootstrap = EXT:sitepackage/Resources/Public/JavaScript/bootstrap.bundle.js
-        glightbox = EXT:sitepackage/Resources/Public/JavaScript/glightbox.min.js
-#        splide = EXT:sitepackage/Resources/Public/JavaScript/splide.min.js
-    }
-
-    includeJSFooter {
-        colormode = EXT:sitepackage/Resources/Public/JavaScript/colormode.js
-        main = EXT:sitepackage/Resources/Public/JavaScript/main.js
-    }
 }

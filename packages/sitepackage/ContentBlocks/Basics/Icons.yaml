@@ -1,0 +1,23 @@
+identifier: sitepackage/icons
+name: sitepackage/icons
+fields:
+  - identifier: icon
+    type: Select
+    renderType: selectSingle
+    default: 'people'
+    useExistingField: true
+    items:
+      - label: 'Personen / Mitglieder'
+        value: 'people'
+      - label: 'Schild / Schutz'
+        value: 'shield'
+      - label: 'Uhr / Zeit'
+        value: 'clock'
+      - label: 'Feuer'
+        value: 'fire'
+      - label: 'Kalender'
+        value: 'calendar'
+      - label: 'Standort'
+        value: 'pointer'
+      - label: 'Dokument'
+        value: 'document'

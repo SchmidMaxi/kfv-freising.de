@@ -4,12 +4,17 @@ TCEFORM {
     }
     tt_content {
         CType {
-            removeItems = text, textpic, image, html
+            removeItems = text, textpic, image
         }
         frame_class {
             removeItems = ruler-before, ruler-after, indent-left, indent-right
             addItems {
                 container-fluid = Volle Breite
+                primary-card = Primary-Karte
+                bg-white = Hintergrund: Weiß
+                bg-body-secondary = Hintergrund: Sekundär (hellgrau)
+                bg-body-tertiary = Hintergrund: Tertiär (gedämpft)
+                bg-surface-dark = Hintergrund: Dunkel (Marke)
             }
             types {
                 section {

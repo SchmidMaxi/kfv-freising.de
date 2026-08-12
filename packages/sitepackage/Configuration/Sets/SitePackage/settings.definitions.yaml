@@ -1,0 +1,48 @@
+categories:
+  Sitepackage:
+    label: 'Sitepackage'
+  Sitepackage.images:
+    label: 'Images'
+    parent: Sitepackage
+  Sitepackage.text:
+    label: 'Text'
+    parent: Sitepackage
+
+settings:
+  Sitepackage.title:
+    label: 'Titel'
+    category: Sitepackage.text
+    type: string
+    default: 'KFV Freising'
+  Sitepackage.emblem:
+    label: 'Emblem'
+    category: Sitepackage.images
+    type: string
+    default: 'EXT:sitepackage/Resources/Public/Images/Emblem_KFV-Freising.png'
+  Sitepackage.logo:
+    label: 'Logo'
+    category: Sitepackage.images
+    type: string
+    default: 'EXT:sitepackage/Resources/Public/Images/Logo_KFV-Freising-b.webp'
+  Sitepackage.logoInverse:
+    label: 'Logo Inverse'
+    category: Sitepackage.images
+    type: string
+    default: 'EXT:sitepackage/Resources/Public/Images/Logo_KFV-Freising-w.webp'
+  Sitepackage.address:
+    label: 'Adresse'
+    category: Sitepackage.text
+    type: text
+    default: "Thonstetten 26 <br>85368 Moosburg a. d. Isar"
+
+  Sitepackage.phone:
+    label: 'Telefonnummer'
+    category: Sitepackage.text
+    type: string
+    default: '08161 60033170'
+
+  Sitepackage.email:
+    label: 'E-Mail'
+    category: Sitepackage.text
+    type: string
+    default: 'info@kfv-freising.de'
