@@ -1,4 +1,5 @@
 <?php
+
 return [
     'ctrl' => [
         'title' => 'Fahrzeugkategorie',
@@ -8,29 +9,29 @@ return [
         'cruser_id' => 'cruser_id',
         'delete' => 'deleted',
         'enablecolumns' => [
-            'disabled' => 'hidden'
+            'disabled' => 'hidden',
         ],
         'typeicon_classes' => [
-            'default' => 'tx-feuerwehren-fahrzeugkategorie'
+            'default' => 'tx-feuerwehren-fahrzeugkategorie',
         ],
     ],
     'columns' => [
         'hidden' => [
             'config' => [
-                'type' => 'check'
-            ]
+                'type' => 'check',
+            ],
         ],
         'title' => [
             'label' => 'Titel',
             'config' => [
                 'type' => 'input',
-                'eval' => 'trim,required'
-            ]
+                'eval' => 'trim,required',
+            ],
         ],
     ],
     'types' => [
         '0' => [
-            'showitem' => 'title, --div--;Access, hidden'
-        ]
+            'showitem' => 'title, --div--;Access, hidden',
+        ],
     ],
 ];

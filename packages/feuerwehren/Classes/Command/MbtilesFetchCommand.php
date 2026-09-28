@@ -1,11 +1,11 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Schmid\Feuerwehren\Command;
 
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -46,7 +46,9 @@ final class MbtilesFetchCommand extends Command
         }
 
         $tmpDir = Environment::getVarPath() . '/mbtiles';
-        if (!is_dir($tmpDir)) { @mkdir($tmpDir, 0775, true); }
+        if (!is_dir($tmpDir)) {
+            @mkdir($tmpDir, 0775, true);
+        }
         $tmpFile = $tmpDir . '/download_' . date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.mbtiles';
 
         $output->writeln('<info>Downloading:</info> ' . $url);
@@ -58,7 +60,9 @@ final class MbtilesFetchCommand extends Command
             $output->writeln('<error>Could not open URL for reading</error>');
             return Command::FAILURE;
         }
-        if (!is_dir(dirname($tmpFile))) { @mkdir(dirname($tmpFile), 0775, true); }
+        if (!is_dir(dirname($tmpFile))) {
+            @mkdir(dirname($tmpFile), 0775, true);
+        }
         $out = @fopen($tmpFile, 'wb');
         if ($out === false) {
             fclose($in);
@@ -92,7 +96,9 @@ final class MbtilesFetchCommand extends Command
 
         // Ensure destination dir exists
         $destDir = dirname($dest);
-        if (!is_dir($destDir)) { @mkdir($destDir, 0775, true); }
+        if (!is_dir($destDir)) {
+            @mkdir($destDir, 0775, true);
+        }
 
         if (is_file($dest) && !$force) {
             $output->writeln('<comment>Destination exists; use --force to overwrite</comment>');
@@ -102,7 +108,9 @@ final class MbtilesFetchCommand extends Command
 
         // Atomic replace: write to *.new then rename
         $destNew = $dest . '.new';
-        if (is_file($destNew)) { @unlink($destNew); }
+        if (is_file($destNew)) {
+            @unlink($destNew);
+        }
         if (!@rename($tmpFile, $destNew)) {
             @unlink($tmpFile);
             $output->writeln('<error>Could not move temp to destination .new</error>');
@@ -130,10 +138,10 @@ final class MbtilesFetchCommand extends Command
             }
             $db->close();
             if ($info) {
-                $output->writeln('<comment>metadata:</comment> ' . json_encode($info, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
+                $output->writeln('<comment>metadata:</comment> ' . json_encode($info, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
             }
         } catch (\Throwable $e) {
-            $output->writeln('<comment>(metadata read skipped: '.$e->getMessage().')</comment>');
+            $output->writeln('<comment>(metadata read skipped: ' . $e->getMessage() . ')</comment>');
         }
 
         return Command::SUCCESS;

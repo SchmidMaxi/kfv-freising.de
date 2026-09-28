@@ -116,13 +116,13 @@ final class GeoJsonService
             return null;
         }
 
-        $stringValue = str_replace(',', '.', trim((string) $value));
+        $stringValue = str_replace(',', '.', trim((string)$value));
 
         if ($stringValue === '' || !preg_match('/^-?\d+(?:\.\d+)?$/', $stringValue)) {
             return null;
         }
 
-        $floatValue = (float) $stringValue;
+        $floatValue = (float)$stringValue;
 
         if ($floatValue < $min || $floatValue > $max) {
             return null;

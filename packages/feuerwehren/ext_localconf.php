@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 defined('TYPO3') or die();
@@ -16,17 +17,17 @@ if (!isset($GLOBALS['TYPO3_CONF_VARS']['SYS']['caching']['cacheConfigurations'][
     ];
 }
 
-use TYPO3\CMS\Extbase\Utility\ExtensionUtility;
 use Schmid\Feuerwehren\Controller\FeuerwehrController;
-use Schmid\Feuerwehren\Controller\PersonController;
 use Schmid\Feuerwehren\Controller\JubilaeumController;
+use Schmid\Feuerwehren\Controller\PersonController;
+use TYPO3\CMS\Extbase\Utility\ExtensionUtility;
 
 // Organigramm
 ExtensionUtility::configurePlugin(
     'Feuerwehren',
     'Organigramm',
     [
-        PersonController::class => 'list,show'
+        PersonController::class => 'list,show',
     ],
     []
 );
@@ -41,13 +42,12 @@ ExtensionUtility::configurePlugin(
     []
 );
 
-
 // Jubiläen
 ExtensionUtility::configurePlugin(
     'Feuerwehren',
     'Jubilaeen',
     [
-        JubilaeumController::class => 'list,show'
+        JubilaeumController::class => 'list,show',
     ],
     []
 );

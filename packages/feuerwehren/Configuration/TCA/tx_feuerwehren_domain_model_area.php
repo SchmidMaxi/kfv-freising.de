@@ -1,4 +1,5 @@
 <?php
+
 defined('TYPO3') || die();
 
 return [
@@ -39,7 +40,7 @@ return [
         'kbi' => [
             'showitem' => '
                 --palette--;;core,
-                title, type, parent, person,
+                title, type, parent, person, gemeinden,
                 --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:access, --palette--;;access
             ',
         ],
@@ -149,7 +150,6 @@ return [
             ],
         ],
 
-
         // optionale Verknüpfung zur Person (Inhaber/Ansprechpartner)
         'person' => [
             'label' => 'LLL:EXT:feuerwehren/Resources/Private/Language/locallang_db.xlf:tx_feuerwehren_domain_model_area.person',
@@ -160,10 +160,10 @@ return [
                     ['LLL:EXT:core/Resources/Private/Language/locallang_core.xlf:labels.no_value', 0],
                 ],
                 'foreign_table' => 'tx_feuerwehren_domain_model_person',
-                'foreign_table_where' =>
-                    ' AND {#tx_feuerwehren_domain_model_person}.{#pid}=###CURRENT_PID###' .
-                    ' AND {#tx_feuerwehren_domain_model_person}.{#deleted}=0' .
-                    ' AND {#tx_feuerwehren_domain_model_person}.{#hidden}=0',
+                'foreign_table_where'
+                    => ' AND {#tx_feuerwehren_domain_model_person}.{#pid}=###CURRENT_PID###'
+                    . ' AND {#tx_feuerwehren_domain_model_person}.{#deleted}=0'
+                    . ' AND {#tx_feuerwehren_domain_model_person}.{#hidden}=0',
                 'default' => 0,
             ],
         ],
@@ -172,7 +172,7 @@ return [
         // Funktioniert, wenn an Gemeinde das Feld "kbm_area" existiert (foreign_field).
         'gemeinden' => [
             'label' => 'LLL:EXT:feuerwehren/Resources/Private/Language/locallang_db.xlf:tx_feuerwehren_domain_model_area.gemeinden',
-            'displayCond' => 'FIELD:type:=:kbm',
+            'displayCond' => 'FIELD:type:IN:kbm,kbi',
             'config' => [
                 'type' => 'inline',
                 'foreign_table' => 'tx_feuerwehren_domain_model_gemeinde',

@@ -1,23 +1,11 @@
-#map {
-    width: 100%;
-    height: 600px;
-}
-
-@media (max-width: 768px) {
-    #map {
-        height: 450px;
-    }
-}
-
-#fwList {
-    height: 600px;
-}
-
-@media (max-width: 768px) {
-    #fwList {
-        height: 300px;
-    }
-}
+/*
+ * Nur Kartenmaße, die ohne den Sitepackage-Build greifen müssen.
+ * Layout/Farben der Kartenseite liegen in
+ * packages/sitepackage/Resources/Public/Scss/extensions/_feuerwehr.scss.
+ *
+ * Die volle Kartenansicht bekommt ihre Höhe dort über aspect-ratio — hier
+ * bewusst keine feste height, sonst gewinnt sie gegen die responsive Regel.
+ */
 
 .feuerwehren-karte-wrap--compact #map {
     height: 400px;

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Schmid\Feuerwehren\Command;
@@ -54,7 +55,7 @@ final class TilesPrefetchCommand extends Command
 
         $baseDir = GeneralUtility::getFileAbsFileName('_vt/');
         if (!is_dir($baseDir) && !@mkdir($baseDir, 0775, true)) {
-            $output->writeln('<error>Cannot create directory: '.$baseDir.'</error>');
+            $output->writeln('<error>Cannot create directory: ' . $baseDir . '</error>');
             return Command::FAILURE;
         }
 
@@ -73,7 +74,9 @@ final class TilesPrefetchCommand extends Command
             for ($x = $minX; $x <= $maxX; $x++) {
                 for ($y = $minY; $y <= $maxY; $y++) {
                     $local = $baseDir . $z . '/' . $x . '/' . $y . '.pbf';
-                    if (is_file($local)) { continue; }
+                    if (is_file($local)) {
+                        continue;
+                    }
                     $url = strtr($source, [
                         '{z}' => (string)$z,
                         '{x}' => (string)$x,
@@ -84,9 +87,14 @@ final class TilesPrefetchCommand extends Command
             }
             $output->writeln(sprintf(
                 '<info>z=%d</info> tiles: x[%d..%d], y[%d..%d]  (center approx %d/%d/%d)',
-                $z, $minX, $maxX, $minY, $maxY, $z,
-                (int)floor(($minX+$maxX)/2),
-                (int)floor(($minY+$maxY)/2)
+                $z,
+                $minX,
+                $maxX,
+                $minY,
+                $maxY,
+                $z,
+                (int)floor(($minX + $maxX) / 2),
+                (int)floor(($minY + $maxY) / 2)
             ));
         }
 
@@ -94,7 +102,7 @@ final class TilesPrefetchCommand extends Command
         $concurrency = max(1, (int)$input->getOption('concurrency'));
         $total = count($jobs);
         $done = 0;
-        $output->writeln('<comment>Jobs: '.$total.' (concurrency '.$concurrency.')</comment>');
+        $output->writeln('<comment>Jobs: ' . $total . ' (concurrency ' . $concurrency . ')</comment>');
 
         $queue = $jobs;
         $workers = [];
@@ -163,10 +171,14 @@ final class TilesPrefetchCommand extends Command
     private function parseZooms(string $zooms): array
     {
         $zooms = trim($zooms);
-        if ($zooms === '') { return []; }
+        if ($zooms === '') {
+            return [];
+        }
         if (str_contains($zooms, '-')) {
             [$a,$b] = array_map('intval', explode('-', $zooms, 2));
-            if ($a > $b) { [$a,$b] = [$b,$a]; }
+            if ($a > $b) {
+                [$a,$b] = [$b, $a];
+            }
             return range($a, $b);
         }
         return [ (int)$zooms ];
@@ -202,7 +214,9 @@ final class TilesPrefetchCommand extends Command
     {
         $tmp = $local . '.part';
         $dir = dirname($local);
-        if (!is_dir($dir)) { @mkdir($dir, 0775, true); }
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
 
         $done = false;
 
@@ -214,16 +228,22 @@ final class TilesPrefetchCommand extends Command
                 @rename($tmp, $local);
             } else {
                 // 204 / 404 / 5xx etc. => keine Datei anlegen
-                if (is_file($tmp)) { @unlink($tmp); }
+                if (is_file($tmp)) {
+                    @unlink($tmp);
+                }
             }
         } catch (\Throwable $e) {
-            if (is_file($tmp)) { @unlink($tmp); }
+            if (is_file($tmp)) {
+                @unlink($tmp);
+            }
         } finally {
             $done = true;
         }
 
         return [
-            'done' => static function() use (&$done): bool { return $done; }
+            'done' => static function () use (&$done): bool {
+                return $done;
+            },
         ];
     }
 }

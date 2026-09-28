@@ -1,4 +1,5 @@
 <?php
+
 // EXT:feuerwehren/Classes/Service/Api/SettingsReader.php
 declare(strict_types=1);
 

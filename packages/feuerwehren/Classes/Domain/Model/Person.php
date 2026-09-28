@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Schmid\Feuerwehren\Domain\Model;
@@ -13,7 +14,7 @@ final class Person extends AbstractEntity
     /**
      * @var \Schmid\Feuerwehren\Domain\Model\FrontendUser|null
      */
-    protected $feUser = null;
+    protected $feUser;
 
     public function getTitle(): string
     {

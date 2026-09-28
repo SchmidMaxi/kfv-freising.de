@@ -1,28 +1,31 @@
-# Definition der Extbase-Plugins
-tt_content.list.20 {
-    feuerwehren_karte = USER
-    feuerwehren_karte {
-        userFunc = TYPO3\CMS\Extbase\Core\Bootstrap->run
-        extensionName = Feuerwehren
-        pluginName = Karte
-        vendorName = Schmid
-    }
+# Each plugin has its own dedicated CType (feuerwehren_karte / _organigramm / _jubilaeen,
+# see Configuration/TCA/Overrides/tt_content.php) rather than the classic CType=list +
+# list_type convention, so none of the list_type CASE-dispatch shim is needed anymore.
+# Core's own top-level "tt_content = CASE, key.field = CType" dispatch (untouched in v14)
+# picks these up directly. Existing rows still carrying CType=list are migrated to their
+# real CType by Classes/Updates/MigratePluginCTypeUpdate (run once via upgrade wizard).
+tt_content.feuerwehren_karte = USER
+tt_content.feuerwehren_karte {
+    userFunc = TYPO3\CMS\Extbase\Core\Bootstrap->run
+    extensionName = Feuerwehren
+    pluginName = Karte
+    vendorName = Schmid
+}
 
-    feuerwehren_organigramm = USER
-    feuerwehren_organigramm {
-        userFunc = TYPO3\CMS\Extbase\Core\Bootstrap->run
-        extensionName = Feuerwehren
-        pluginName = Organigramm
-        vendorName = Schmid
-    }
+tt_content.feuerwehren_organigramm = USER
+tt_content.feuerwehren_organigramm {
+    userFunc = TYPO3\CMS\Extbase\Core\Bootstrap->run
+    extensionName = Feuerwehren
+    pluginName = Organigramm
+    vendorName = Schmid
+}
 
-    feuerwehren_jubilaeen = USER
-    feuerwehren_jubilaeen {
-        userFunc = TYPO3\CMS\Extbase\Core\Bootstrap->run
-        extensionName = Feuerwehren
-        pluginName = Jubilaeen
-        vendorName = Schmid
-    }
+tt_content.feuerwehren_jubilaeen = USER
+tt_content.feuerwehren_jubilaeen {
+    userFunc = TYPO3\CMS\Extbase\Core\Bootstrap->run
+    extensionName = Feuerwehren
+    pluginName = Jubilaeen
+    vendorName = Schmid
 }
 
 # Vektor-Kachel Endpunkt für MapLibre

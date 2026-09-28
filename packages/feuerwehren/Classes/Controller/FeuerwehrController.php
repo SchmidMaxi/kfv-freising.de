@@ -7,6 +7,7 @@ namespace Schmid\Feuerwehren\Controller;
 use Psr\Http\Message\ResponseInterface;
 use Schmid\Feuerwehren\Domain\Model\Feuerwehr;
 use Schmid\Feuerwehren\Domain\Repository\FahrzeugkategorieRepository;
+use Schmid\Feuerwehren\Domain\Repository\FeuerwehrRepository;
 use TYPO3\CMS\Extbase\Mvc\Controller\ActionController;
 
 /**
@@ -18,6 +19,7 @@ final class FeuerwehrController extends ActionController
 {
     public function __construct(
         private readonly FahrzeugkategorieRepository $fahrzeugkategorieRepository,
+        private readonly FeuerwehrRepository $feuerwehrRepository,
     ) {}
 
     /**
@@ -28,15 +30,16 @@ final class FeuerwehrController extends ActionController
         $kategorien = $this->fahrzeugkategorieRepository->findAll();
 
         $mapConfig = [
-            'vtUrlTemplate' => (string) ($this->settings['vtUrlTemplate'] ?? '/_vt/{z}/{x}/{y}.pbf'),
-            'apiSearchUrl' => (string) ($this->settings['apiSearchUrl'] ?? '/api/feuerwehren/search'),
-            'overlaysUrl' => (string) ($this->settings['overlaysUrl'] ?? '/api/feuerwehren/overlays'),
+            'vtUrlTemplate' => (string)($this->settings['vtUrlTemplate'] ?? '/_vt/{z}/{x}/{y}.pbf'),
+            'apiSearchUrl' => (string)($this->settings['apiSearchUrl'] ?? '/api/feuerwehren/search'),
+            'overlaysUrl' => (string)($this->settings['overlaysUrl'] ?? '/api/feuerwehren/overlays'),
         ];
 
         $this->view->assignMultiple([
             'fahrzeugkategorien' => $kategorien,
             'mapConfig' => $mapConfig,
-            'compact' => (bool) ($this->settings['compact'] ?? false),
+            'compact' => (bool)($this->settings['compact'] ?? false),
+            'hasTypen' => $this->feuerwehrRepository->hasClassified(),
         ]);
 
         return $this->htmlResponse();

@@ -1,0 +1,12 @@
+# The plugin has its own dedicated CType ("downloads_downloads", see
+# Configuration/TCA/Overrides/tt_content.php) rather than the classic CType=list +
+# list_type convention — so it needs none of the list_type CASE-dispatch shim that
+# EXT:feuerwehren/EXT:sitepackage_termine require. Core's own top-level
+# "tt_content = CASE, key.field = CType" dispatch (untouched in v14) picks this up directly.
+tt_content.downloads_downloads = USER
+tt_content.downloads_downloads {
+    userFunc = TYPO3\CMS\Extbase\Core\Bootstrap->run
+    extensionName = Downloads
+    pluginName = Downloads
+    vendorName = Schmid
+}

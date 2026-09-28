@@ -12,7 +12,7 @@
 #   sys_category_record_mm                  → scoped DELETE + REPLACE for news records
 #   sys_file                                 → INSERT IGNORE (keep local file metadata)
 #   sys_file_metadata                        → INSERT IGNORE (keep local)
-#   sys_file_reference (tablenames=news)     → scoped DELETE + REPLACE per news UID
+#   sys_file_reference (tablenames=news)     → REPLACE by uid (news scope, local-only refs kept)
 #   fileadmin/user_upload/                   → rsync (add new files, keep local)
 #
 # Schema-safety (TYPO3 9 → 13):
@@ -278,18 +278,31 @@ echo ""
 # ── Scoped DELETEs ───────────────────────────────────────────────────────────
 # Removes only relations that belong to the imported news UIDs so they can be
 # cleanly replaced with fresh data from the remote.
+#
+# sys_file_reference is intentionally NOT blanket-deleted here (unlike the MM
+# tables above): it has its own uid PK, and gen_insert below uses REPLACE INTO,
+# which already overwrites/inserts per-row by uid. A blanket delete-by-uid_foreign
+# would wipe local-only refs (e.g. images added directly in DDEV, or fields the
+# TYPO3 9 remote doesn't have) with no way to restore them, since the re-insert
+# only pulls rows that still exist on remote. Trade-off: a ref removed on remote
+# stays locally as a stale row until manually cleaned up — preferred over data loss.
 echo "-- Scoped DELETEs (relations for imported news UIDs only)"
 echo "DELETE FROM \`tx_news_domain_model_news_tag_mm\`       WHERE uid_local IN ($NEWS_UIDS);"
 echo "DELETE FROM \`tx_news_domain_model_news_related_mm\`   WHERE uid_local IN ($NEWS_UIDS);"
 echo "DELETE FROM \`tx_news_domain_model_news_ttcontent_mm\` WHERE uid_local IN ($NEWS_UIDS);"
 echo "DELETE FROM \`sys_category_record_mm\`                 WHERE tablenames='tx_news_domain_model_news' AND uid_foreign IN ($NEWS_UIDS);"
-echo "DELETE FROM \`sys_file_reference\`                     WHERE tablenames='tx_news_domain_model_news' AND uid_foreign IN ($NEWS_UIDS);"
 echo "DELETE FROM \`tx_news_domain_model_link\`              WHERE parent IN ($NEWS_UIDS);"
 echo ""
 
 # ── News content (production wins) ───────────────────────────────────────────
 echo "-- News records (production wins, deleted=0 only)"
 gen_insert "tx_news_domain_model_news" "$LC_NEWS" "deleted=0"
+echo ""
+
+# Remote news live under a different page (pid) than local — force target pid
+# after the REPLACE so news land in the correct local storage folder.
+echo "-- Force local news storage pid (remote pid overridden)"
+echo "UPDATE \`tx_news_domain_model_news\` SET pid=33 WHERE uid IN ($NEWS_UIDS);"
 echo ""
 
 echo "-- Tags"
@@ -314,7 +327,8 @@ gen_insert "tx_news_domain_model_news_ttcontent_mm" "$LC_NEWS_TTC" "uid_local IN
 echo ""
 
 # ── sys_file_reference (news scope) ─────────────────────────────────────────
-echo "-- sys_file_reference (news scope, INSERT after scoped DELETE)"
+# REPLACE INTO by uid — updates/inserts remote rows, leaves local-only refs untouched.
+echo "-- sys_file_reference (news scope, REPLACE INTO by uid — local-only refs kept)"
 gen_insert "sys_file_reference" "$LC_SFR" \
     "tablenames='tx_news_domain_model_news' AND uid_foreign IN ($NEWS_UIDS)"
 echo ""
@@ -443,7 +457,7 @@ echo ""
 print_info "What was merged:"
 echo "  • News, tags, links        → production wins (REPLACE)"
 echo "  • MM relations             → scoped delete + reinsert"
-echo "  • sys_file_reference       → scoped delete + reinsert (news scope only)"
+echo "  • sys_file_reference       → REPLACE by uid (news scope, local-only refs kept)"
 echo "  • sys_file, sys_file_meta  → INSERT IGNORE (new files only)"
 echo "  • sys_category             → INSERT IGNORE (new categories only)"
 echo "  • fileadmin/user_upload/   → rsync (new files added, local kept)"

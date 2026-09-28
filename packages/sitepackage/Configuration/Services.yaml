@@ -14,6 +14,12 @@ services:
         command: 'sitepackage:homepage:about-section'
         description: 'One-off, idempotent: wraps homepage "Über uns" 2cols in a bg-muted section, adds section-header + Feuerwehren-Karte plugin, fixes double-container frame_class, sets quick-actions card links'
 
+  Schmid\Sitepackage\Command\DataHandlerApplyCommand:
+    tags:
+      - name: 'console.command'
+        command: 'sitepackage:datahandler:apply'
+        description: 'Applies a JSON datamap/cmdmap file via DataHandler (live workspace) and prints the NEW-id mapping'
+
   Schmid\Sitepackage\Command\SeedPhaseCPagesCommand:
     tags:
       - name: 'console.command'

@@ -28,6 +28,14 @@
   border-top-color: var(--#{$prefix}warning);
 }
 
+// Farbcodierung der Feuerwehr-Einstufung. Muss zu TYPE_STYLE in
+// map-feuerwehren.js passen — dort dieselben Werte für die Kartenmarker.
+$fw-type-colors: (
+  "stuetzpunkt": $fire,
+  "ort": $gray-800,
+  "unbekannt": #1e88e5,
+);
+
 .feuerwehren-karte-wrap {
   #map {
     aspect-ratio: 1;
@@ -35,19 +43,201 @@
     @include media-breakpoint-up(md) {
       aspect-ratio: 4/3;
     }
-    @include media-breakpoint-up(xl) {
-      aspect-ratio: 16/9;
+  }
+
+  .fw-map-shell {
+    isolation: isolate;
+  }
+
+  // Overlays (Legende, Hinweis) liegen über der Karte. pointer-events: none,
+  // damit Klicks weiterhin auf den Kartenmarkern landen.
+  .fw-map-legend,
+  .fw-map-hint {
+    position: absolute;
+    z-index: 2;
+    max-width: calc(100% - 2rem);
+    pointer-events: none;
+  }
+
+  .fw-map-legend {
+    bottom: 1rem;
+    left: 1rem;
+  }
+
+  // Oben links, damit die MapLibre-NavigationControl (oben rechts) frei bleibt.
+  .fw-map-hint {
+    top: 1rem;
+    left: 1rem;
+  }
+
+  // Lovable: Legende + Hinweis in text-xs
+  .fw-map-legend,
+  .fw-map-hint {
+    font-size: .75rem;
+  }
+
+  // Detailkarte als Overlay unten rechts (Lovable: bottom-4 right-4, sm:w-[380px]).
+  // Anders als Legende/Hinweis klickbar (Schließen, Details-Link).
+  .fw-map-detail {
+    position: absolute;
+    z-index: 3;
+    right: 1rem;
+    bottom: 1rem;
+    left: 1rem;
+    animation: fw-detail-in .2s ease-out;
+
+    @include media-breakpoint-up(sm) {
+      left: auto;
+      width: 380px;
     }
   }
 
-  #fwList {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
+  // Lovable Button variant="outline": border-input, text-foreground, Hover-Fläche
+  .fw-detail-link {
+    --#{$prefix}btn-color: var(--#{$prefix}body-color);
+    --#{$prefix}btn-border-color: var(--#{$prefix}border-color);
+    --#{$prefix}btn-hover-color: var(--#{$prefix}body-color);
+    --#{$prefix}btn-hover-bg: var(--#{$prefix}secondary-bg);
+    --#{$prefix}btn-hover-border-color: var(--#{$prefix}border-color);
+    --#{$prefix}btn-active-color: var(--#{$prefix}body-color);
+    --#{$prefix}btn-active-bg: var(--#{$prefix}secondary-bg);
   }
+
+  .fw-legend-layer:not(.d-none) {
+    display: flex;
+  }
+
+  .fw-filter-toggle {
+    --#{$prefix}btn-active-bg: transparent;
+    font-size: 1rem;
+    color: var(--#{$prefix}heading-color, var(--#{$prefix}body-color));
+
+    .fw-filter-chevron {
+      transition: transform .2s ease-in-out;
+    }
+
+    &:not(.collapsed) .fw-filter-chevron {
+      transform: rotate(180deg);
+    }
+  }
+
+  .fw-stat-label {
+    font-size: .75rem;
+  }
+
+  .fw-back-link:hover {
+    color: var(--#{$prefix}primary) !important;
+  }
+
+  #fwList {
+    max-height: 400px;
+    overflow-y: auto;
+  }
+
   .fw-item {
-    padding: 1rem;
-    border-radius: 4px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    display: block;
+    padding: .75rem;
+    border: 1px solid transparent;
+    border-radius: var(--#{$prefix}border-radius);
+    background-color: var(--#{$prefix}secondary-bg);
+    transition: background-color .15s ease-in-out, border-color .15s ease-in-out, opacity .15s ease-in-out;
+
+    &:hover {
+      background-color: var(--#{$prefix}tertiary-bg);
+    }
+
+    &.active {
+      border-color: var(--#{$prefix}primary);
+      background-color: var(--#{$prefix}primary-bg-subtle);
+    }
+
+    &.dim {
+      opacity: .45;
+    }
+  }
+
+  // Adresse und Fahrzeug-Badges auf Höhe des Namens einrücken (Punkt + gap).
+  .fw-item-address,
+  .fw-item-badges {
+    padding-left: 1.25rem;
+  }
+
+  .fw-vehicle-badge {
+    font-size: .625rem;
+    line-height: 1.4;
+    padding: .1rem .35rem;
+    border: 1px solid var(--#{$prefix}border-color);
+    border-radius: var(--#{$prefix}border-radius-sm);
+    background-color: var(--#{$prefix}body-bg);
+    color: var(--#{$prefix}secondary-color);
+  }
+
+  .fw-sidebar-sticky {
+    @include media-breakpoint-up(lg) {
+      position: sticky;
+      top: 6rem;
+    }
+  }
+}
+
+// Punkte (Liste/Legende) und Badges (Detailkarte) je Einstufung.
+.fw-dot {
+  flex-shrink: 0;
+  width: .5rem;
+  height: .5rem;
+  border-radius: 50%;
+}
+
+.fw-swatch {
+  flex-shrink: 0;
+  width: .75rem;
+  height: .75rem;
+  border-radius: var(--#{$prefix}border-radius-sm);
+  border: 1px solid var(--#{$prefix}border-color);
+}
+
+.fw-swatch--gemeinden {
+  background-color: rgba(#66bb6a, .35);
+  border-color: #2e7d32;
+}
+.fw-swatch--kbm {
+  background-color: rgba(#42a5f5, .30);
+  border-color: #1e88e5;
+}
+.fw-swatch--kbi {
+  background-color: rgba(#7e57c2, .30);
+  border-color: #6a1b9a;
+}
+
+@each $key, $color in $fw-type-colors {
+  .fw-dot--#{$key} {
+    background-color: $color;
+  }
+}
+
+.fw-type-badge--stuetzpunkt {
+  background-color: map-get($fw-type-colors, "stuetzpunkt");
+  color: color-contrast(map-get($fw-type-colors, "stuetzpunkt"));
+}
+
+.fw-type-badge--ort {
+  background-color: map-get($fw-type-colors, "ort");
+  color: color-contrast(map-get($fw-type-colors, "ort"));
+}
+
+@keyframes fw-detail-in {
+  from {
+    opacity: 0;
+    transform: translateY(.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feuerwehren-karte-wrap .fw-map-detail {
+    animation: none;
   }
 }

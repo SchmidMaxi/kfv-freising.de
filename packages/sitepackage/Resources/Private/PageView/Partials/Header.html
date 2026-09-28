@@ -30,12 +30,10 @@
             <f:link.typolink parameter="/" class="navbar-brand d-flex align-items-center gap-2 py-1">
                 <img src="{f:uri.image(src: settings.Sitepackage.logo)}"
                      alt="Kreisfeuerwehrverband Freising e.V. Logo"
-                     class="show-light-mode"
-                     style="height: 3rem; width: auto;" />
+                     class="show-light-mode" />
                 <img src="{f:uri.image(src: settings.Sitepackage.logoInverse)}"
                      alt="Kreisfeuerwehrverband Freising e.V. Logo"
-                     class="show-dark-mode"
-                     style="height: 3rem; width: auto;" />
+                     class="show-dark-mode" />
             </f:link.typolink>
 
             <!-- Mobile: Offcanvas-Toggle -->
@@ -53,8 +51,8 @@
                 </div>
                 <div class="offcanvas-body">
 
-                    <!-- Hauptmenü -->
-                    <ul class="navbar-nav">
+                    <!-- Hauptmenü (Desktop zentriert zwischen Logo und Icons, wie Lovable) -->
+                    <ul class="navbar-nav mx-lg-auto">
                         <li class="nav-item">
                             <a href="/" class="nav-link">Startseite</a>
                         </li>
@@ -74,7 +72,7 @@
                                         <li class="nav-item dropdown">
                                             <div class="d-flex align-items-center">
                                                 <a href="{navItem.link}"
-                                                   class="nav-link {f:if(condition: navItem.active, then: 'active')}"
+                                                   class="nav-link pe-0 {f:if(condition: navItem.active, then: 'active')}"
                                                    aria-current="{f:if(condition: navItem.active, then: 'page')}">
                                                     {navItem.title}
                                                 </a>
@@ -104,7 +102,7 @@
                     </ul>
 
                     <!-- Suche + Theme-Toggle -->
-                    <ul class="navbar-nav ms-lg-auto align-items-lg-center mt-3 mt-lg-0">
+                    <ul class="navbar-nav align-items-lg-center mt-3 mt-lg-0">
                         <li class="nav-item">
                             <a href="/suche" class="nav-link" aria-label="Suche">
                                 <i class="bi bi-search" aria-hidden="true"></i>

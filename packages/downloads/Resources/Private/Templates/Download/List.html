@@ -1,0 +1,84 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+
+<f:asset.script identifier="downloads-search" src="EXT:downloads/Resources/Public/JavaScript/downloads-search.js" />
+<f:asset.css identifier="downloads" href="EXT:downloads/Resources/Public/Css/downloads.css" />
+
+<f:if condition="{downloads}">
+    <f:then>
+        <div class="downloads-plugin" data-downloads-plugin>
+            <div class="downloads-toolbar d-flex flex-column flex-md-row gap-3 align-items-start align-items-md-center justify-content-between mb-4 py-3 sticky-top bg-body border-bottom">
+                <div class="downloads-search position-relative w-100" style="max-width: 24rem;">
+                    <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-body-secondary" aria-hidden="true"></i>
+                    <input type="search" class="form-control ps-5" placeholder="Dokumente durchsuchen…" aria-label="Downloads durchsuchen" data-downloads-search>
+                </div>
+
+                <f:if condition="{categories -> f:count()} > 1">
+                    <div class="downloads-categories d-flex flex-wrap gap-2" role="group" aria-label="Nach Kategorie filtern">
+                        <button type="button" class="btn btn-sm btn-primary downloads-category-filter" data-category-reset>Alle Kategorien</button>
+                        <f:for each="{categories}" as="category">
+                            <button type="button" class="btn btn-sm btn-outline-primary downloads-category-filter" data-category="{category}">{category}</button>
+                        </f:for>
+                    </div>
+                </f:if>
+            </div>
+
+            <div class="downloads-empty-message d-none text-center py-5" data-downloads-empty>
+                <i class="bi bi-file-earmark-text display-4 text-body-secondary d-block mb-3" aria-hidden="true"></i>
+                <h3 class="h5 fw-semibold mb-2">Keine Dokumente gefunden</h3>
+                <p class="text-body-secondary mb-0">Versuchen Sie einen anderen Suchbegriff.</p>
+            </div>
+
+            <f:for each="{groups}" as="items" key="category">
+                <section class="downloads-group mb-5" data-downloads-group data-category="{category}">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <div class="p-3 rounded-3 bg-primary-subtle d-inline-flex">
+                            <i class="bi bi-folder2 fs-4 text-primary" aria-hidden="true"></i>
+                        </div>
+                        <h2 class="h4 fw-bold mb-0">{category}</h2>
+                        <span class="badge text-bg-secondary ms-auto">{items -> f:count()} Dokumente</span>
+                    </div>
+
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+                        <f:for each="{items}" as="download">
+                            <div class="col">
+                                <a href="{download.url}" download class="downloads-item-card d-flex align-items-start gap-3 p-3 rounded-3 border text-decoration-none h-100" data-downloads-item data-search="{download.searchText}">
+                                    <div class="p-2 rounded-3 bg-body-secondary flex-shrink-0">
+                                        <i class="bi
+                                            <f:switch expression="{download.extension}">
+                                                <f:case value="pdf">bi-file-earmark-pdf</f:case>
+                                                <f:case value="doc">bi-file-earmark-word</f:case>
+                                                <f:case value="docx">bi-file-earmark-word</f:case>
+                                                <f:case value="xls">bi-file-earmark-excel</f:case>
+                                                <f:case value="xlsx">bi-file-earmark-excel</f:case>
+                                                <f:case value="ppt">bi-file-earmark-ppt</f:case>
+                                                <f:case value="pptx">bi-file-earmark-ppt</f:case>
+                                                <f:case value="zip">bi-file-earmark-zip</f:case>
+                                                <f:defaultCase>bi-file-earmark</f:defaultCase>
+                                            </f:switch>
+                                            fs-5 text-body-secondary" aria-hidden="true"></i>
+                                    </div>
+                                    <div class="flex-grow-1 min-w-0">
+                                        <h3 class="fw-medium mb-1 text-truncate">{download.title}</h3>
+                                        <f:if condition="{download.description}">
+                                            <p class="small text-body-secondary mb-2 text-truncate">{download.description}</p>
+                                        </f:if>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge border text-body-secondary text-uppercase fw-normal">{download.extension}</span>
+                                            <span class="small text-body-secondary">{download.sizeFormatted}</span>
+                                        </div>
+                                    </div>
+                                    <i class="bi bi-download text-body-secondary flex-shrink-0" aria-hidden="true"></i>
+                                </a>
+                            </div>
+                        </f:for>
+                    </div>
+                </section>
+            </f:for>
+        </div>
+    </f:then>
+    <f:else>
+        <p class="text-body-secondary">Aktuell keine Downloads verfügbar.</p>
+    </f:else>
+</f:if>
+
+</html>

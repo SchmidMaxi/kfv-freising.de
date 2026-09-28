@@ -17,6 +17,69 @@
   }
 }
 #nav_main {
+  // Lovable Header: h-16 / md:h-20, Logo h-12 / md:h-14
+  min-height: 4rem;
+  @include media-breakpoint-up(md) {
+    min-height: 5rem;
+  }
+
+  .navbar-brand img {
+    height: 3rem;
+    width: auto;
+    @include media-breakpoint-up(md) {
+      height: 3.5rem;
+    }
+  }
+
+  // Desktop-Nav wie Lovable: text-sm font-medium, h-9, rounded-md,
+  // Hover über Hintergrundfläche (bg-secondary) statt Farbwechsel.
+  @include media-breakpoint-up(lg) {
+    .navbar-nav {
+      gap: .25rem;
+    }
+
+    .nav-link {
+      display: inline-flex;
+      align-items: center;
+      height: 2.25rem;
+      line-height: 1.25rem;
+      border-radius: var(--#{$prefix}border-radius);
+      transition: background-color .15s ease-in-out, color .15s ease-in-out;
+
+      &:hover,
+      &:focus-visible,
+      &.show {
+        background-color: var(--#{$prefix}secondary-bg);
+      }
+    }
+
+    // Split-Toggle (Chevron) ist ein eigener, schmaler Button (Lovable: px-1)
+    .dropdown-toggle-split {
+      padding-inline: .25rem;
+    }
+  }
+
+  // Bootstrap-Caret durch Chevron (Lucide ChevronDown ≙ bi-chevron-down) ersetzen
+  .dropdown-toggle::after {
+    content: "";
+    width: 1rem;
+    height: 1rem;
+    margin-left: 0;
+    border: 0;
+    vertical-align: middle;
+    background-color: currentColor;
+    mask: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='m6 9 6 6 6-6'/%3e%3c/svg%3e") center / contain no-repeat;
+    transition: transform .2s ease-in-out;
+  }
+
+  .dropdown-toggle.show::after {
+    transform: rotate(180deg);
+  }
+
+  .dropdown-item {
+    font-size: .875rem;
+  }
+
   .logo {
     max-width: 72px;
   }

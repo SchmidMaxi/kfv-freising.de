@@ -51,7 +51,7 @@
             <!-- Dynamische Navigations-Spalten aus TYPO3 -->
             <f:for each="{footer}" as="footerItem">
                 <div>
-                    <h3 class="h6 text-white mb-3">{footerItem.title}</h3>
+                    <h3 class="h5 text-white mb-4">{footerItem.title}</h3>
                     <f:if condition="{footerItem.children}">
                         <ul class="nav flex-column">
                             <f:for each="{footerItem.children}" as="child">
@@ -68,7 +68,7 @@
 
             <!-- Kontakt-Spalte -->
             <div>
-                <h3 class="h6 text-white mb-3">Kontakt</h3>
+                <h3 class="h5 text-white mb-4">Kontakt</h3>
                 <ul class="list-unstyled d-flex flex-column gap-3 mb-0">
                     <li class="d-flex align-items-start gap-2">
                         <i class="bi bi-geo-alt-fill text-danger mt-1" aria-hidden="true"></i>

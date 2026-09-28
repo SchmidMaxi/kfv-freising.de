@@ -1,5 +1,13 @@
 {
   "mcpServers": {
+    "typo3": {
+      "command": "ddev",
+      "args": [
+        "exec",
+        "vendor/bin/typo3",
+        "mcp:server"
+      ]
+    },
     "chrome-devtools": {
       "command": "npx",
       "args": [

@@ -1,4 +1,5 @@
 <?php
+
 defined('TYPO3') or die('Access denied.');
 
 \TYPO3\CMS\Core\Utility\ExtensionManagementUtility::addTCAcolumns('tt_content', [
@@ -25,7 +26,7 @@ defined('TYPO3') or die('Access denied.');
     'Sitepackage',
     'Termine',
     'Termine (Jubiläen + Calendarize)',
-    'EXT:sitepackage/Resources/Public/Icons/Extension.svg'
+    'ext-sitepackage-plugin-termine'
 );
 $GLOBALS['TCA']['tt_content']['types']['list']['subtypes_addlist']['sitepackage_termine'] = 'pi_flexform';
 \TYPO3\CMS\Core\Utility\ExtensionManagementUtility::addPiFlexFormValue(
