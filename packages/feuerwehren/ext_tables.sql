@@ -54,7 +54,9 @@ CREATE TABLE tx_feuerwehren_domain_model_feuerwehr (
     ort VARCHAR(255) DEFAULT '',
     longitude DECIMAL(11, 8) DEFAULT 0.0 NOT NULL,
     latitude DECIMAL(10, 8) DEFAULT 0.0 NOT NULL,
-    gruendungsdatum DATE DEFAULT NULL
+    gruendungsdatum DATE DEFAULT NULL,
+    mitglieder INT DEFAULT 0 NOT NULL,
+    typ VARCHAR(32) DEFAULT '' NOT NULL
 );
 
 CREATE TABLE tx_feuerwehren_feuerwehr_fahrzeugkategorie_mm (

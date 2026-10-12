@@ -24,7 +24,7 @@
 
                 <!-- Badge -->
                 <f:if condition="{data.badge_text}">
-                    <span class="badge rounded-pill bg-white bg-opacity-25 text-white border border-white border-opacity-50 d-inline-flex align-items-center gap-2 px-3 py-2 mb-4">
+                    <span class="hero-static__badge badge rounded-pill bg-white bg-opacity-25 text-white border border-white border-opacity-50 d-inline-flex align-items-center gap-2 mb-4">
                         <span class="spinner-grow spinner-grow-sm text-white" style="width: 0.5rem; height: 0.5rem;" role="status" aria-hidden="true"></span>
                         {data.badge_text}
                     </span>
@@ -32,14 +32,14 @@
 
                 <!-- Überschrift -->
                 <f:if condition="{data.header}">
-                    <h1 class="display-4 fw-bold text-white mb-4">
-                        {data.header}<f:if condition="{data.header_line2}"><span class="d-block text-white text-opacity-75">{data.header_line2}</span></f:if>
+                    <h1 class="hero-static__title fw-bold text-white mb-4">
+                        {data.header}<f:if condition="{data.header_line2}"><span class="hero-static__title-line2 d-block">{data.header_line2}</span></f:if>
                     </h1>
                 </f:if>
 
                 <!-- Untertitel -->
                 <f:if condition="{data.subheadline}">
-                    <p class="lead text-white text-opacity-75 mb-4" style="max-width: 40rem;">
+                    <p class="hero-static__lead mb-4" style="max-width: 42rem;">
                         {data.subheadline}
                     </p>
                 </f:if>
@@ -50,12 +50,12 @@
                         <f:for each="{data.buttons}" as="btn">
                             <f:if condition="{btn.button_style} == 'secondary'">
                                 <f:then>
-                                    <f:link.typolink parameter="{btn.button_link}" class="btn btn-outline-light btn-lg">
+                                    <f:link.typolink parameter="{btn.button_link}" class="btn btn-outline-light btn-lg font-heading fw-semibold">
                                         {btn.button_text}
                                     </f:link.typolink>
                                 </f:then>
                                 <f:else>
-                                    <f:link.typolink parameter="{btn.button_link}" class="btn btn-light text-primary btn-lg">
+                                    <f:link.typolink parameter="{btn.button_link}" class="btn btn-light text-primary btn-lg font-heading fw-semibold shadow">
                                         {btn.button_text}
                                         <i class="bi bi-arrow-right ms-2"></i>
                                     </f:link.typolink>
@@ -75,7 +75,7 @@
                                         <f:render partial="Icon" arguments="{icon: item.icon, class: 'text-white fs-3'}" />
                                     </div>
                                     <div>
-                                        <p class="h4 fw-bold text-white lh-1 mb-1">{item.stat_value}</p>
+                                        <p class="h3 fw-bold text-white mb-0">{item.stat_value}</p>
                                         <p class="small text-white text-opacity-75 mb-0">{item.stat_label}</p>
                                     </div>
                                 </div>

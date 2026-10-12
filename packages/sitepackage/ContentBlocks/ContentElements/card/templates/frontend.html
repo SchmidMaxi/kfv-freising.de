@@ -2,7 +2,7 @@
   <div class="container my-5">
     <div class="card card-color-{data.color} shadow-sm{f:if(condition: data.header_link, then: ' position-relative')}">
       <f:if condition="{data.image}">
-        <f:image image="{data.image.0}" class="card-img-top" />
+        <f:image image="{data.image.0}" class="card-img-top" maxWidth="800" />
       </f:if>
       <div class="card-body">
         <f:if condition="{data.header}">

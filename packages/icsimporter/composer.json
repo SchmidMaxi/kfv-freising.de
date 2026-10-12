@@ -3,8 +3,8 @@
   "type": "typo3-cms-extension",
   "description": "Runs calendarize:import and assigns a sys_category to touched events",
   "require": {
-    "typo3/cms-core": "^13.0",
-    "lochmueller/calendarize": "^14.0"
+    "typo3/cms-core": "^14.3",
+    "lochmueller/calendarize": "^15.0"
   },
   "autoload": {
     "psr-4": {

@@ -42,33 +42,33 @@ final class TermineController extends ActionController
         $showCalendarizeEvents = (bool)($this->settings['showCalendarizeEvents'] ?? false);
         $limit = (int)($this->settings['limit'] ?? 0);
 
-        $jubilaeen = $this->findJubilaeen($showPastJubilaeen, 'compact' === $layout ? $limit : 0);
+        $jubilaeen = $this->findJubilaeen($showPastJubilaeen, $layout === 'compact' ? $limit : 0);
 
         $calendarizeEvents = [];
         $calendarizeEventsFull = [];
         $calendarizeCategories = [];
         if ($showCalendarizeEvents) {
-            if ('compact' === $layout) {
+            if ($layout === 'compact') {
                 $calendarizeEvents = $this->findCalendarizeEvents($limit);
             } else {
                 $calendarizeEventsFull = $this->findCalendarizeEventsFull();
                 $categoryNames = array_values(array_unique(array_column($calendarizeEventsFull, 'category')));
                 sort($categoryNames);
                 $calendarizeCategories = array_map(
-                    fn (string $name): array => ['name' => $name, 'slug' => $this->slugify($name)],
+                    fn(string $name): array => ['name' => $name, 'slug' => $this->slugify($name)],
                     $categoryNames
                 );
             }
         }
 
         $jubilaeumYears = array_values(array_unique(array_map(
-            static fn (array $j): int => (int)substr((string)$j['datum'], 0, 4),
+            static fn(array $j): int => (int)substr((string)$j['datum'], 0, 4),
             $jubilaeen
         )));
         sort($jubilaeumYears);
 
         $jubilaeumArten = array_values(array_unique(array_map(
-            static fn (array $j): int => (int)$j['titel'],
+            static fn(array $j): int => (int)$j['titel'],
             $jubilaeen
         )));
         sort($jubilaeumArten);
@@ -180,7 +180,7 @@ final class TermineController extends ActionController
 
         $rows = $queryBuilder->executeQuery()->fetchAllAssociative();
 
-        $eventUids = array_values(array_unique(array_map(static fn (array $r): int => (int)$r['event_uid'], $rows)));
+        $eventUids = array_values(array_unique(array_map(static fn(array $r): int => (int)$r['event_uid'], $rows)));
         $categoriesByEvent = $this->findCategoriesForEvents($eventUids);
 
         return array_map(static function (array $row) use ($categoriesByEvent): array {
@@ -272,6 +272,6 @@ final class TermineController extends ActionController
 
         $result = $this->indexRepository->findList($limit > 0 ? $limit : 0);
 
-        return \is_array($result) ? $result : $result->toArray();
+        return is_array($result) ? $result : $result->toArray();
     }
 }

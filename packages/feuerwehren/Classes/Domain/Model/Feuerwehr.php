@@ -1,15 +1,14 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Schmid\Feuerwehren\Domain\Model;
 
 use DateTimeImmutable;
-use DateTime;
-use DateTimeInterface;
+use TYPO3\CMS\Extbase\Annotation\ORM\Cascade;
+use TYPO3\CMS\Extbase\Annotation\ORM\Lazy;
 use TYPO3\CMS\Extbase\DomainObject\AbstractEntity;
 use TYPO3\CMS\Extbase\Persistence\ObjectStorage;
-use TYPO3\CMS\Extbase\Annotation\ORM\Lazy;
-use TYPO3\CMS\Extbase\Annotation\ORM\Cascade;
 
 class Feuerwehr extends AbstractEntity
 {
@@ -25,7 +24,19 @@ class Feuerwehr extends AbstractEntity
     protected ?float $longitude = null;
 
     /** Gründungsdatum (TCA eval=date -> Domain: DateTimeImmutable) */
-    protected ?DateTimeImmutable $gruendungsdatum = null;
+    protected ?\DateTimeImmutable $gruendungsdatum = null;
+
+    /**
+     * Aktive Mitglieder. 0 bedeutet "nicht gepflegt" — das Frontend blendet
+     * Mitglieder-Anzeigen dann aus, statt eine Zahl zu erfinden.
+     */
+    protected int $mitglieder = 0;
+
+    /**
+     * Einstufung der Feuerwehr: '' (nicht festgelegt), 'stuetzpunkt' oder 'ort'.
+     * Steuert Markerfarbe und Badge in der Kartenansicht.
+     */
+    protected string $typ = '';
 
     /** @var ObjectStorage<Fahrzeugkategorie> */
     #[Lazy]
@@ -47,81 +58,138 @@ class Feuerwehr extends AbstractEntity
         return $this->crdate;
     }
 
-    public function getName(): string {
+    public function getName(): string
+    {
         return $this->name;
     }
-    public function setName(string $name): void {
+    public function setName(string $name): void
+    {
         $this->name = $name;
     }
 
-    public function getSlug(): string {
+    public function getSlug(): string
+    {
         return $this->slug;
     }
-    public function setSlug(string $slug): void {
+    public function setSlug(string $slug): void
+    {
         $this->slug = $slug;
     }
 
-    public function getStrasse(): string {
+    public function getStrasse(): string
+    {
         return $this->strasse;
     }
-    public function setStrasse(string $strasse): void {
+    public function setStrasse(string $strasse): void
+    {
         $this->strasse = $strasse;
     }
 
-    public function getPlz(): string {
+    public function getPlz(): string
+    {
         return $this->plz;
     }
-    public function setPlz(string $plz): void {
+    public function setPlz(string $plz): void
+    {
         $this->plz = $plz;
     }
 
-    public function getOrt(): string {
+    public function getOrt(): string
+    {
         return $this->ort;
     }
-    public function setOrt(string $ort): void {
+    public function setOrt(string $ort): void
+    {
         $this->ort = $ort;
     }
 
-    public function getLatitude(): ?float {
+    public function getLatitude(): ?float
+    {
         return $this->latitude;
     }
-    public function setLatitude(?float $latitude): void {
+    public function setLatitude(?float $latitude): void
+    {
         $this->latitude = $latitude;
     }
 
-    public function getLongitude(): ?float {
+    public function getLongitude(): ?float
+    {
         return $this->longitude;
     }
-    public function setLongitude(?float $longitude): void {
+    public function setLongitude(?float $longitude): void
+    {
         $this->longitude = $longitude;
     }
 
-    public function getGruendungsdatum(): ?DateTimeImmutable
+    public function getGruendungsdatum(): ?\DateTimeImmutable
     {
         return $this->gruendungsdatum;
     }
     public function setGruendungsdatum($date): void
     {
-        if ($date instanceof DateTimeImmutable) {
+        if ($date instanceof \DateTimeImmutable) {
             $this->gruendungsdatum = $date;
-        } elseif ($date instanceof DateTime) {
-            $this->gruendungsdatum = DateTimeImmutable::createFromInterface($date);
+        } elseif ($date instanceof \DateTime) {
+            $this->gruendungsdatum = \DateTimeImmutable::createFromInterface($date);
         } elseif ($date === null) {
             $this->gruendungsdatum = null;
         }
     }
 
+    public function getMitglieder(): int
+    {
+        return $this->mitglieder;
+    }
+    public function setMitglieder(int $mitglieder): void
+    {
+        $this->mitglieder = max(0, $mitglieder);
+    }
+
+    /** @return ''|'stuetzpunkt'|'ort' */
+    public function getTyp(): string
+    {
+        return $this->typ;
+    }
+    public function setTyp(string $typ): void
+    {
+        $this->typ = in_array($typ, ['stuetzpunkt', 'ort'], true) ? $typ : '';
+    }
+
     /** @return ObjectStorage<Fahrzeugkategorie> */
-    public function getFahrzeugkategorien(): ObjectStorage { return $this->fahrzeugkategorien; }
+    public function getFahrzeugkategorien(): ObjectStorage
+    {
+        return $this->fahrzeugkategorien;
+    }
     /** @param ObjectStorage<Fahrzeugkategorie> $fahrzeugkategorien */
-    public function setFahrzeugkategorien(ObjectStorage $fahrzeugkategorien): void { $this->fahrzeugkategorien = $fahrzeugkategorien; }
-    public function addFahrzeugkategorie(Fahrzeugkategorie $fahrzeug): void { $this->fahrzeugkategorien->attach($fahrzeug); }
-    public function removeFahrzeugkategorie(Fahrzeugkategorie $fahrzeug): void { $this->fahrzeugkategorien->detach($fahrzeug); }
+    public function setFahrzeugkategorien(ObjectStorage $fahrzeugkategorien): void
+    {
+        $this->fahrzeugkategorien = $fahrzeugkategorien;
+    }
+    public function addFahrzeugkategorie(Fahrzeugkategorie $fahrzeug): void
+    {
+        $this->fahrzeugkategorien->attach($fahrzeug);
+    }
+    public function removeFahrzeugkategorie(Fahrzeugkategorie $fahrzeug): void
+    {
+        $this->fahrzeugkategorien->detach($fahrzeug);
+    }
 
     /** @return ObjectStorage<Jubilaeum> */
-    public function getJubilaeen(): ObjectStorage { return $this->jubilaeen; }
+    public function getJubilaeen(): ObjectStorage
+    {
+        return $this->jubilaeen;
+    }
     /** @param ObjectStorage<Jubilaeum> $jubilaeen */
-    public function setJubilaeen(ObjectStorage $jubilaeen): void { $this->jubilaeen = $jubilaeen; }
-    public function addJubilaeum(Jubilaeum $j): void { $this->jubilaeen->attach($j); }
-    public function removeJubilaeum(Jubilaeum $j): void { $this->jubilaeen->detach($j); }
+    public function setJubilaeen(ObjectStorage $jubilaeen): void
+    {
+        $this->jubilaeen = $jubilaeen;
+    }
+    public function addJubilaeum(Jubilaeum $j): void
+    {
+        $this->jubilaeen->attach($j);
+    }
+    public function removeJubilaeum(Jubilaeum $j): void
+    {
+        $this->jubilaeen->detach($j);
+    }
 }

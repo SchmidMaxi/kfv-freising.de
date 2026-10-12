@@ -1,4 +1,5 @@
 <?php
+
 return [
     'ctrl' => [
         'title' => 'Gemeinde',
@@ -9,28 +10,28 @@ return [
         'cruser_id' => 'cruser_id',
         'delete' => 'deleted',
         'enablecolumns' => [
-            'disabled' => 'hidden'
+            'disabled' => 'hidden',
         ],
         'typeicon_classes' => [
-            'default' => 'tx-feuerwehren-gemeinde'
+            'default' => 'tx-feuerwehren-gemeinde',
         ],
     ],
     'columns' => [
         'hidden' => [
             'config' => [
-                'type' => 'check'
-            ]
+                'type' => 'check',
+            ],
         ],
         'name' => [
             'label' => 'Name',
             'config' => [
                 'type' => 'input',
-                'eval' => 'trim,required'
-            ]
+                'eval' => 'trim,required',
+            ],
         ],
         'slug' => [
             'label' => 'Slug', 'config' => [
-                'type' => 'slug', 'generatorOptions' => ['fields' => ['name']], 'fallbackCharacter' => '-', 'eval' => 'uniqueInSite']
+                'type' => 'slug', 'generatorOptions' => ['fields' => ['name']], 'fallbackCharacter' => '-', 'eval' => 'uniqueInSite'],
         ],
         'logo' => [
             'label' => 'Logo',
@@ -47,21 +48,21 @@ return [
             'config' => [
                 'type' => 'text',
                 'enableRichtext' => false,
-                'rows' => 10
-            ]
+                'rows' => 10,
+            ],
         ],
         'feuerwehren' => [
             'label' => 'Feuerwehren',
             'config' => [
                 'type' => 'select', 'renderType' => 'selectMultipleSideBySide',
                 'foreign_table' => 'tx_feuerwehren_domain_model_feuerwehr',
-                'MM' => 'tx_feuerwehren_gemeinde_feuerwehr_mm', 'size' => 10, 'autoSizeMax' => 30
-            ]
+                'MM' => 'tx_feuerwehren_gemeinde_feuerwehr_mm', 'size' => 10, 'autoSizeMax' => 30,
+            ],
         ],
     ],
     'types' => [
         '0' => [
-            'showitem' => 'name, slug, logo, gemeindegebiet, feuerwehren, --div--;Access, hidden'
-        ]
+            'showitem' => 'name, slug, logo, gemeindegebiet, feuerwehren, --div--;Access, hidden',
+        ],
     ],
 ];

@@ -1,12 +1,12 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Schmid\Feuerwehren\Domain\Model;
 
-use TYPO3\CMS\Extbase\Domain\Model\FileReference;
+use TYPO3\CMS\Extbase\Annotation\ORM\Lazy;
 use TYPO3\CMS\Extbase\DomainObject\AbstractEntity;
 use TYPO3\CMS\Extbase\Persistence\ObjectStorage;
-use TYPO3\CMS\Extbase\Annotation\ORM\Lazy;
 
 class Gemeinde extends AbstractEntity
 {
@@ -17,7 +17,7 @@ class Gemeinde extends AbstractEntity
     protected string $slug = '';
 
     /** @var \TYPO3\CMS\Extbase\Domain\Model\FileReference|null */
-    protected $logo = null;
+    protected $logo;
 
     /** GeoJSON als String */
     protected string $gemeindegebiet = '';

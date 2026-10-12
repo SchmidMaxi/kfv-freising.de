@@ -15,31 +15,31 @@ $defaultCropSettings = [
     'allowedAspectRatios' => [
         '21:9' => [
             'title' => 'LLL:EXT:sitepackage/Resources/Private/Language/Backend.xlf:ratio.21_9',
-            'value' => 21 / 9
+            'value' => 21 / 9,
         ],
         '16:9' => [
             'title' => 'LLL:EXT:sitepackage/Resources/Private/Language/Backend.xlf:ratio.16_9',
-            'value' => 16 / 9
+            'value' => 16 / 9,
         ],
         '4:3' => [
             'title' => 'LLL:EXT:sitepackage/Resources/Private/Language/Backend.xlf:ratio.4_3',
-            'value' => 4 / 3
+            'value' => 4 / 3,
         ],
         '1:1' => [
             'title' => 'LLL:EXT:sitepackage/Resources/Private/Language/Backend.xlf:ratio.1_1',
-            'value' => 1.0
+            'value' => 1.0,
         ],
         '3:4' => [
             'title' => 'LLL:EXT:sitepackage/Resources/Private/Language/Backend.xlf:ratio.3_4',
-            'value' => 3 / 4
+            'value' => 3 / 4,
         ],
         '9:16' => [
             'title' => 'LLL:EXT:sitepackage/Resources/Private/Language/Backend.xlf:ratio.9_16',
-            'value' => 9 / 16
+            'value' => 9 / 16,
         ],
         'NaN' => [
             'title' => 'LLL:EXT:sitepackage/Resources/Private/Language/Backend.xlf:ratio.free',
-            'value' => 0.0
+            'value' => 0.0,
         ],
     ],
     'selectedRatio' => 'NaN',
@@ -48,7 +48,7 @@ $defaultCropSettings = [
         'y' => 0.0,
         'width' => 1.0,
         'height' => 1.0,
-    ]
+    ],
 ];
 $xlargeCropSettings = $defaultCropSettings;
 $xlargeCropSettings['title'] = 'LLL:EXT:sitepackage/Resources/Private/Language/Backend.xlf:option.xlarge';

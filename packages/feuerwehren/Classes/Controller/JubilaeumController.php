@@ -1,10 +1,10 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Schmid\Feuerwehren\Controller;
 
 use Psr\Http\Message\ResponseInterface;
-use Schmid\Feuerwehren\Domain\Model\Feuerwehr;
 use Schmid\Feuerwehren\Domain\Model\Jubilaeum;
 use Schmid\Feuerwehren\Domain\Repository\FeuerwehrRepository;
 use TYPO3\CMS\Extbase\Mvc\Controller\ActionController;
@@ -31,7 +31,7 @@ final class JubilaeumController extends ActionController
             }
             $feuerwehrenData[] = [
                 'feuerwehr' => $feuerwehr,
-                'jubilaeen' => $jubilaeenProFeuerwehr
+                'jubilaeen' => $jubilaeenProFeuerwehr,
             ];
         }
         sort($alleJubilaeumsTitel);
@@ -64,7 +64,7 @@ final class JubilaeumController extends ActionController
 
         $this->view->assignMultiple([
             'feuerwehrenData' => $feuerwehrenData,
-            'jubilaeumsTitel' => $alleJubilaeumsTitel // Umbenannt für Klarheit
+            'jubilaeumsTitel' => $alleJubilaeumsTitel, // Umbenannt für Klarheit
         ]);
 
         return $this->htmlResponse();

@@ -1,4 +1,5 @@
 <?php
+
 return [
     'ctrl' => [
         'title' => 'Feuerwehr',
@@ -10,20 +11,20 @@ return [
         'delete' => 'deleted',
         'enablecolumns' => ['disabled' => 'hidden'],
         'typeicon_classes' => [
-            'default' => 'tx-feuerwehren-feuerwehr'
+            'default' => 'tx-feuerwehren-feuerwehr',
         ],
     ],
     'columns' => [
         'hidden' => [
             'config' => [
-                'type' => 'check'
+                'type' => 'check',
             ],
         ],
         'name' => [
             'label' => 'Name',
             'config' => [
                 'type' => 'input',
-                'eval' => 'trim,required'
+                'eval' => 'trim,required',
             ],
         ],
         'slug' => [
@@ -32,8 +33,8 @@ return [
                 'type' => 'slug',
                 'generatorOptions' => [
                     'fields' => [
-                        'name'
-                    ]
+                        'name',
+                    ],
                 ],
                 'fallbackCharacter' => '-',
                 'eval' => 'uniqueInSite',
@@ -43,7 +44,7 @@ return [
             'label' => 'Straße + Hausnummer',
             'config' => [
                 'type' => 'input',
-                'eval' => 'trim'
+                'eval' => 'trim',
             ],
         ],
         'plz' => [
@@ -51,14 +52,14 @@ return [
             'config' => [
                 'type' => 'input',
                 'size' => 10,
-                'eval' => 'trim'
+                'eval' => 'trim',
             ],
         ],
         'ort' => [
             'label' => 'Ort',
             'config' => [
                 'type' => 'input',
-                'eval' => 'trim'
+                'eval' => 'trim',
             ],
         ],
         'latitude' => [
@@ -88,7 +89,31 @@ return [
                 'dbType' => 'date',
                 'default' => null,
                 'nullable' => true,
-            ]
+            ],
+        ],
+        'mitglieder' => [
+            'label' => 'Aktive Mitglieder',
+            'description' => 'Nur eintragen, wenn die Zahl bestätigt ist. Bei 0 blendet die Kartenansicht alle Mitglieder-Anzeigen aus, statt eine Zahl zu erfinden.',
+            'config' => [
+                'type' => 'number',
+                'size' => 10,
+                'range' => ['lower' => 0],
+                'default' => 0,
+            ],
+        ],
+        'typ' => [
+            'label' => 'Typ',
+            'description' => 'Steuert Markerfarbe und Badge in der Kartenansicht. Ohne Angabe wird die Feuerwehr neutral dargestellt.',
+            'config' => [
+                'type' => 'select',
+                'renderType' => 'selectSingle',
+                'items' => [
+                    ['label' => '— nicht festgelegt —', 'value' => ''],
+                    ['label' => 'Stützpunktfeuerwehr', 'value' => 'stuetzpunkt'],
+                    ['label' => 'Ortsfeuerwehr', 'value' => 'ort'],
+                ],
+                'default' => '',
+            ],
         ],
         'fahrzeugkategorien' => [
             'label' => 'Fahrzeuge',
@@ -174,15 +199,15 @@ return [
                     'levelLinksPosition' => 'top',
                     'showSynchronizationLink' => 1,
                     'showPossibleLocalizationRecords' => 1,
-                    'showAllLocalizationLink' => 1
+                    'showAllLocalizationLink' => 1,
                 ],
             ],
         ],
     ],
     'types' => [
         '0' => [
-            'showitem' =>
-                'name, slug, strasse, plz, ort, latitude, longitude, gruendungsdatum,
+            'showitem'
+                => 'name, slug, typ, strasse, plz, ort, latitude, longitude, gruendungsdatum, mitglieder,
          --div--;Fahrzeuge, fahrzeugkategorien,
          --div--;Führung, kommandant, stellv_kommandant, jugendwart, stellv_jugendwart, kinderwart, stellv_kinderwart,
          --div--;Jubiläen, jubilaeen,

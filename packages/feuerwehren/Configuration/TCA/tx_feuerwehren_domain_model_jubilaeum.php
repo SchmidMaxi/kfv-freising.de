@@ -1,4 +1,5 @@
 <?php
+
 return [
     'ctrl' => [
         'title' => 'LLL:EXT:feuerwehren/Resources/Private/Language/locallang_db.xlf:tx_feuerwehren_domain_model_jubilaeum',
@@ -18,12 +19,12 @@ return [
         ],
         'searchFields' => 'titel,beschreibung',
         'typeicon_classes' => [
-            'default' => 'tx-feuerwehren-jubilaeum'
+            'default' => 'tx-feuerwehren-jubilaeum',
         ],
         'hideTable' => true,
     ],
     'types' => [
-        '1' => ['showitem' => 'titel, datum, beschreibung, --div--;Access, hidden',],
+        '1' => ['showitem' => 'titel, datum, beschreibung, --div--;Access, hidden'],
     ],
     'columns' => [
         'titel' => [
@@ -32,8 +33,8 @@ return [
                 'type' => 'input',
                 'size' => 4,
                 'eval' => 'int,required',
-                'default' => 0
-            ]
+                'default' => 0,
+            ],
         ],
         'datum' => [
             'label' => 'LLL:EXT:feuerwehren/Resources/Private/Language/locallang_db.xlf:tx_feuerwehren_domain_model_jubilaeum.datum',
@@ -42,7 +43,7 @@ return [
                 'renderType' => 'inputDateTime',
                 'eval' => 'date',
                 'dbType' => 'date',
-            ]
+            ],
         ],
         'beschreibung' => [
             'label' => 'LLL:EXT:feuerwehren/Resources/Private/Language/locallang_db.xlf:tx_feuerwehren_domain_model_jubilaeum.beschreibung',

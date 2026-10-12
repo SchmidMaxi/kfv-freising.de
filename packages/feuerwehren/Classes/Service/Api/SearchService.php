@@ -22,6 +22,8 @@ final class SearchService
         'north' => 48.70,
     ];
 
+    private const MAX_NAME_QUERY_LENGTH = 100;
+
     public function __construct(
         private readonly FeuerwehrRepository $feuerwehrRepository,
     ) {}
@@ -33,6 +35,8 @@ final class SearchService
      *   - bbox: string "west,south,east,north" (optional, defaults to Freising region)
      *   - f[]: array<int> Vehicle category UIDs to filter by (optional)
      *   - mode: string 'and'|'or' for combining filters (default: 'and')
+     *   - q: string name substring; when given, the bbox is ignored and the whole
+     *     district is searched so hits outside the current viewport are found
      * @return array{items: list<array{
      *     uid: int,
      *     name: string,
@@ -41,12 +45,22 @@ final class SearchService
      *     ort: string,
      *     lat: float|null,
      *     lon: float|null,
+     *     mitglieder: int,
+     *     typ: string,
      *     fahrzeuge: list<string>
      * }>}
      */
     public function search(array $queryParams): array
     {
-        $bbox = $this->parseBoundingBox($queryParams['bbox'] ?? null);
+        $nameQuery = $this->parseNameQuery($queryParams['q'] ?? null);
+
+        // Bei einer Namenssuche landkreisweit suchen statt nur im sichtbaren
+        // Kartenausschnitt — sonst findet die Suche nichts, was gerade ausserhalb
+        // des Viewports liegt.
+        $bbox = $nameQuery === ''
+            ? $this->parseBoundingBox($queryParams['bbox'] ?? null)
+            : self::DEFAULT_BBOX;
+
         $categoryUids = $this->parseCategoryFilter($queryParams['f'] ?? []);
         $mode = $this->parseFilterMode($queryParams['mode'] ?? null);
 
@@ -56,7 +70,8 @@ final class SearchService
             $bbox['east'],
             $bbox['north'],
             $categoryUids,
-            $mode
+            $mode,
+            $nameQuery
         );
 
         $items = [];
@@ -87,10 +102,10 @@ final class SearchService
         }
 
         return [
-            'west' => (float) $coords[0],
-            'south' => (float) $coords[1],
-            'east' => (float) $coords[2],
-            'north' => (float) $coords[3],
+            'west' => (float)$coords[0],
+            'south' => (float)$coords[1],
+            'east' => (float)$coords[2],
+            'north' => (float)$coords[3],
         ];
     }
 
@@ -123,6 +138,29 @@ final class SearchService
     }
 
     /**
+     * Parses and normalises the free-text name query.
+     *
+     * LIKE wildcards are stripped here rather than in the repository so that the
+     * "is this a search?" decision (which discards the bbox) and the actual name
+     * constraint always agree — otherwise a query of just "%" would drop the bbox
+     * but apply no name filter, returning the whole district.
+     *
+     * Returns an empty string when no usable query was supplied, so callers can
+     * distinguish "no search" from "search". Length is capped to keep the LIKE
+     * constraint cheap.
+     */
+    private function parseNameQuery(mixed $query): string
+    {
+        if (!is_string($query)) {
+            return '';
+        }
+
+        $normalised = trim(str_replace(['%', '_'], '', $query));
+
+        return mb_substr($normalised, 0, self::MAX_NAME_QUERY_LENGTH);
+    }
+
+    /**
      * Transforms a Feuerwehr entity to an API response array.
      *
      * @return array{
@@ -133,6 +171,8 @@ final class SearchService
      *     ort: string,
      *     lat: float|null,
      *     lon: float|null,
+     *     mitglieder: int,
+     *     typ: string,
      *     fahrzeuge: list<string>
      * }
      */
@@ -152,6 +192,8 @@ final class SearchService
             'ort' => $feuerwehr->getOrt(),
             'lat' => $feuerwehr->getLatitude(),
             'lon' => $feuerwehr->getLongitude(),
+            'mitglieder' => $feuerwehr->getMitglieder(),
+            'typ' => $feuerwehr->getTyp(),
             'fahrzeuge' => $fahrzeuge,
         ];
     }

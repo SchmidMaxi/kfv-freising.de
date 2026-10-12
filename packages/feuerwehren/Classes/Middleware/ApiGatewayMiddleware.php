@@ -1,11 +1,12 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Schmid\Feuerwehren\Middleware;
 
 use Psr\Http\Message\ResponseInterface;
-use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface as Psr7Response;
+use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use Schmid\Feuerwehren\Service\Api\OverlaysService;
@@ -17,10 +18,10 @@ use TYPO3\CMS\Core\Http\JsonResponse;
 final class ApiGatewayMiddleware implements MiddlewareInterface
 {
     public function __construct(
-        private readonly SearchService   $search,
+        private readonly SearchService $search,
         private readonly OverlaysService $overlays,
-        private readonly SettingsReader  $settings,
-        private readonly CacheManager    $cacheManager,
+        private readonly SettingsReader $settings,
+        private readonly CacheManager $cacheManager,
     ) {}
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
@@ -117,13 +118,13 @@ final class ApiGatewayMiddleware implements MiddlewareInterface
             return null;
         }
 
-        $count = (int) (($entry['count'] ?? 0) + 1);
+        $count = (int)(($entry['count'] ?? 0) + 1);
         $remaining = max(1, $window - ($now - (int)($entry['start'] ?? $now)));
         $cache->set($key, ['count' => $count, 'start' => $entry['start']], [], $remaining);
 
         if ($count > $limit) {
             return (new JsonResponse(['error' => 'rate_limited'], 429))
-                ->withHeader('Retry-After', (string) $remaining);
+                ->withHeader('Retry-After', (string)$remaining);
         }
         return null;
     }

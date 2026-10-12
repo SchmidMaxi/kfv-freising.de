@@ -11,7 +11,7 @@ set('repository', 'git@github.com-typo3:SchmidMaxi/kfv-freising.de.git');
 set('keep_releases', 3);
 set('typo3_webroot', 'public');
 set('ssh_multiplexing', false);
-set('bin/php', '/usr/bin/php84');
+set('bin/php', '/usr/bin/php85');
 
 /**
  * Vite Build Task
@@ -41,7 +41,7 @@ host('staging')
     ->set('hostname', 'www416.your-server.de')
     ->set('port', '222')
     ->set('remote_user', 'kfvvfr')
-    ->set('deploy_path', '~/public_html/kfv-freising.de/v13/staging')
+    ->set('deploy_path', '~/public_html/kfv-freising.de/v14/staging')
     ->set('labels', ['stage' => 'staging']);
 
 // server configuration - PRODUCTION
@@ -49,7 +49,7 @@ host('production')
     ->set('hostname', 'www416.your-server.de')
     ->set('port', '222')
     ->set('remote_user', 'kfvvfr')
-    ->set('deploy_path', '~/public_html/kfv-freising.de/v13/production')
+    ->set('deploy_path', '~/public_html/kfv-freising.de/v14/production')
     ->set('labels', ['stage' => 'production']);
 
 # Writeable directories

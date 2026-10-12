@@ -10,3 +10,4 @@ dependencies:
   - georgringer/news-sitemap
   - lochmueller/calendarize
   - schmid/feuerwehren
+  - schmid/downloads

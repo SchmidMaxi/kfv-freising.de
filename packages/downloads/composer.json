@@ -1,0 +1,21 @@
+{
+    "name": "schmid/downloads",
+    "description": "Download plugin: lists FAL files grouped by sys_category, filterable by category and keyword",
+    "type": "typo3-cms-extension",
+    "require": {
+        "php": ">=8.5",
+        "typo3/cms-core": "^14.3",
+        "typo3/cms-extbase": "^14.3",
+        "typo3/cms-frontend": "^14.3"
+    },
+    "autoload": {
+        "psr-4": {
+            "Schmid\\Downloads\\": "Classes/"
+        }
+    },
+    "extra": {
+        "typo3/cms": {
+            "extension-key": "downloads"
+        }
+    }
+}

@@ -1,0 +1,32 @@
+<T3DataStructure>
+    <sheets>
+        <sDEF>
+            <ROOT>
+                <TCEforms>
+                    <sheetTitle>Einstellungen</sheetTitle>
+                </TCEforms>
+                <type>array</type>
+                <el>
+                    <settings.fileCollections>
+                        <label>Datei-Sammlungen (Ordner)</label>
+                        <config>
+                            <type>select</type>
+                            <renderType>selectMultipleSideBySide</renderType>
+                            <foreign_table>sys_file_collection</foreign_table>
+                            <foreign_table_where> ORDER BY sys_file_collection.title</foreign_table_where>
+                            <size>5</size>
+                            <minitems>1</minitems>
+                        </config>
+                    </settings.fileCollections>
+                    <settings.allowedExtensions>
+                        <label>Erlaubte Dateiendungen (kommagetrennt, leer = alle), z.B. pdf,docx,xlsx</label>
+                        <config>
+                            <type>input</type>
+                            <eval>trim,lower</eval>
+                        </config>
+                    </settings.allowedExtensions>
+                </el>
+            </ROOT>
+        </sDEF>
+    </sheets>
+</T3DataStructure>

@@ -1,4 +1,5 @@
 <?php
+
 return [
     'ctrl' => [
         'title' => 'Person',
@@ -9,10 +10,10 @@ return [
         'cruser_id' => 'cruser_id',
         'delete' => 'deleted',
         'enablecolumns' => [
-            'disabled' => 'hidden'
+            'disabled' => 'hidden',
         ],
         'typeicon_classes' => [
-            'default' => 'tx-feuerwehren-person'
+            'default' => 'tx-feuerwehren-person',
         ],
     ],
     'columns' => [
@@ -24,19 +25,19 @@ return [
                 'type' => 'slug',
                 'generatorOptions' => ['fields' => ['title']],
                 'fallbackCharacter' => '-',
-                'eval' => 'uniqueInSite'
-            ]
+                'eval' => 'uniqueInSite',
+            ],
         ],
         'fe_user' => [
             'label' => 'FE-User',
             'config' => [
                 'type' => 'select', 'renderType' => 'selectSingle',
-                'foreign_table' => 'fe_users', 'maxitems' => 1, 'items' => [['-', 0]]
-            ]
+                'foreign_table' => 'fe_users', 'maxitems' => 1, 'items' => [['-', 0]],
+            ],
         ],
     ],
     'types' => [
         '0' => [
             'showitem' => 'title, slug, fe_user, 
-            --div--;Access, hidden']],
+            --div--;Access, hidden', ]],
 ];

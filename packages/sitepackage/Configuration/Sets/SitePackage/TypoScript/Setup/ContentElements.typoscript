@@ -13,6 +13,38 @@ lib.contentElement {
     }
 }
 
+# TYPO3 v14 removed the "General Plugin" (CType=list) rendering definition from
+# fluid_styled_content entirely — there is no more default tt_content.list dispatch
+# by list_type. This declares the dispatch shell only (site-wide compat shim, same
+# pattern as the b13/container CType wiring below); each extension that still uses
+# the classic list_type convention contributes its OWN entry from its OWN Set
+# (see EXT:feuerwehren's setup.typoscript for feuerwehren_*). Only sitepackage_termine
+# is registered here, since TermineController is a sitepackage-owned plugin.
+tt_content.list = CASE
+tt_content.list {
+    key.field = list_type
+    default = TEXT
+    default {
+        field = uid
+        wrap = <p style="background-color: yellow; padding: 0.5em 1em;"><strong>ERROR:</strong> Unknown plugin (list_type) for Content Element with uid "|"</p>
+    }
+
+    sitepackage_termine =< tt_content.list.20.sitepackage_termine
+}
+
+# ExtensionUtility::configurePlugin() auto-injects "tt_content.sitepackage_termine =< lib.contentElement"
+# with templateName=Generic, whose Generic.fluid.html does
+# "<f:cObject typoscriptObjectPath="tt_content.{data.CType}.20" />" — that only works when CType itself
+# IS the plugin signature. Our backend record still uses the classic CType=list + list_type=<signature>
+# split (see tt_content.list CASE above), so that auto path can never resolve. Bypass it with an explicit
+# USER cObj under the classic tt_content.list.20.<signature> path, same as EXT:feuerwehren already does.
+tt_content.list.20.sitepackage_termine = USER
+tt_content.list.20.sitepackage_termine {
+    userFunc = TYPO3\CMS\Extbase\Core\Bootstrap->run
+    extensionName = Sitepackage
+    pluginName = Termine
+}
+
 tt_content.section < lib.contentElement
 tt_content.section {
     templateName = Section
