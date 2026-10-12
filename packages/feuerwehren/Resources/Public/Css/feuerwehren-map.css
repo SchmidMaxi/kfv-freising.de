@@ -7,12 +7,12 @@
  * bewusst keine feste height, sonst gewinnt sie gegen die responsive Regel.
  */
 
-.feuerwehren-karte-wrap--compact #map {
-    height: 400px;
-}
+/*!*.feuerwehren-karte-wrap--compact #map {*!*/
+/*!*    height: 400px;*!*/
+/*!*}*!*/
 
-@media (max-width: 768px) {
-    .feuerwehren-karte-wrap--compact #map {
-        height: 320px;
-    }
-}
+/*@media (max-width: 768px) {*/
+/*    .feuerwehren-karte-wrap--compact #map {*/
+/*        height: 320px;*/
+/*    }*/
+/*}*/

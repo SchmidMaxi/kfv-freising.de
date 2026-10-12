@@ -171,3 +171,8 @@ body {
     font-size: 2.25rem;
   }
 }
+
+// f:image renders intrinsic width/height attributes; keep the aspect ratio when the card scales the image
+.card-img-top {
+  height: auto;
+}

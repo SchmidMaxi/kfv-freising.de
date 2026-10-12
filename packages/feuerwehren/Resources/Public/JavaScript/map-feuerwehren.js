@@ -28,7 +28,7 @@
     // Kanonische Seite mit dem Karten-Plugin (Feuerwehr::showAction lebt auf derselben
     // Plugin-Instanz). Siehe Tracker D8: Marker-/Listen-Klick verlinkt hierher, damit auch
     // die kompakte Karten-Einbettung (Startseite) zur vollen Detailseite führt.
-    const DETAIL_BASE_PATH = '/feuerwehren';
+    const DETAIL_BASE_PATH = '/inspektion/feuerwehren';
 
     // Einstufung -> Markerfarbe/Badge. Der Bootstrap-$primary dieses Themes ist Rot,
     // deshalb entspricht Lovables neutrales "primary" hier dem dunklen $gray-800.

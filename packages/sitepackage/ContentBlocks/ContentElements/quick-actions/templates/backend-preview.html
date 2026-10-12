@@ -2,6 +2,10 @@
       xmlns:cb="http://typo3.org/ns/T3docs/ContentBlocks/ViewHelpers"
       data-namespace-typo3-fluid="true">
 
+<f:layout name="Preview"/>
+
+<f:section name="Content">
+
 <div style="background: hsl(40 20% 98%); border: 1px solid hsl(30 10% 82%); padding: 1rem 1.25rem; border-radius: 4px; font-family: sans-serif;">
     <strong style="display: block; font-size: 0.7rem; letter-spacing: 0.1em; color: hsl(215 20% 45%); text-transform: uppercase; margin-bottom: 0.5rem;">Quick Actions</strong>
     <f:if condition="{data.header}">
@@ -15,5 +19,7 @@
         </div>
     </f:if>
 </div>
+
+</f:section>
 
 </html>
