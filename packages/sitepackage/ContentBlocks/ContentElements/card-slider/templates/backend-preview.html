@@ -1,3 +1,6 @@
+<f:layout name="Preview"/>
+
+<f:section name="Content">
 <f:asset.css identifier="content-block/accordion-be" href="{cb:assetPath()}/preview.css"/>
 
 <f:if condition="{data.header}">
@@ -6,3 +9,4 @@
 <f:for each="{data.items}" as="item" iteration="i">
   {item.title}<br>
 </f:for>
+</f:section>

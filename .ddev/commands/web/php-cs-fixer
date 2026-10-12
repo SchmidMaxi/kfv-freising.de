@@ -5,4 +5,4 @@
 ## Example: "ddev php-cs-fixer analyse"
 ## ProjectTypes: typo3
 
-./.typo3/bin/php-cs-fixer "$@"
+./vendor/bin/php-cs-fixer "$@"

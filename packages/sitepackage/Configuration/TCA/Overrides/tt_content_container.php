@@ -1,4 +1,5 @@
 <?php
+
 defined('TYPO3') or die('Access denied.');
 
 $additionalColumns = [
@@ -25,7 +26,7 @@ $additionalColumns = [
                     'label' => 'Hellgrau (Secondary)',
                     'value' => 'bg-secondary',
                 ],
-            ]
+            ],
         ],
     ],
     'breakpoint_desktop' => [
@@ -56,7 +57,7 @@ $additionalColumns = [
                     'label' => '5',
                     'value' => 5,
                 ],
-            ]
+            ],
         ],
     ],
     'breakpoint_tablet' => [
@@ -87,7 +88,7 @@ $additionalColumns = [
                     'label' => '5',
                     'value' => '5',
                 ],
-            ]
+            ],
         ],
     ],
     'breakpoint_mobile' => [
@@ -118,7 +119,7 @@ $additionalColumns = [
                     'label' => '5',
                     'value' => '5',
                 ],
-            ]
+            ],
         ],
     ],
 ];
@@ -127,16 +128,16 @@ $additionalColumns = [
 //\TYPO3\CMS\Core\Utility\ExtensionManagementUtility::addToAllTCAtypes('tt_content', 'section', 'color', 'before:image');
 
 \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(\B13\Container\Tca\Registry::class)->configureContainer(
-  (
+    (
     new \B13\Container\Tca\ContainerConfiguration(
-      'section', // CType
-      'LLL:EXT:sitepackage/Resources/Private/Language/locallang.xlf:section_title', // label
-      'LLL:EXT:sitepackage/Resources/Private/Language/locallang.xlf:section_description', // description
-      [
+        'section', // CType
+        'LLL:EXT:sitepackage/Resources/Private/Language/locallang.xlf:section_title', // label
+        'LLL:EXT:sitepackage/Resources/Private/Language/locallang.xlf:section_description', // description
         [
-          ['name' => 'LLL:EXT:sitepackage/Resources/Private/Language/locallang.xlf:section.content', 'colPos' => 200],
-        ]
-      ] // grid configuration
+            [
+                ['name' => 'LLL:EXT:sitepackage/Resources/Private/Language/locallang.xlf:section.content', 'colPos' => 200],
+            ],
+        ] // grid configuration
     )
   )
   ->setSaveAndCloseInNewContentElementWizard(false)
@@ -165,17 +166,17 @@ $GLOBALS['TCA']['tt_content']['types']['section']['showitem'] = '
 
 // Two Column Container
 \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(\B13\Container\Tca\Registry::class)->configureContainer(
-  (
+    (
     new \B13\Container\Tca\ContainerConfiguration(
-      '2cols', // CType
-      'LLL:EXT:sitepackage/Resources/Private/Language/locallang.xlf:twoColumn_title', // label
-      'LLL:EXT:sitepackage/Resources/Private/Language/locallang.xlf:twoColumn_description', // description
-      [
+        '2cols', // CType
+        'LLL:EXT:sitepackage/Resources/Private/Language/locallang.xlf:twoColumn_title', // label
+        'LLL:EXT:sitepackage/Resources/Private/Language/locallang.xlf:twoColumn_description', // description
         [
-          ['name' => '1. Spalte', 'colPos' => 200],
-          ['name' => '2. Spalte', 'colPos' => 201]
-        ]
-      ] // grid configuration
+            [
+                ['name' => '1. Spalte', 'colPos' => 200],
+                ['name' => '2. Spalte', 'colPos' => 201],
+            ],
+        ] // grid configuration
     )
   )
   ->setSaveAndCloseInNewContentElementWizard(false)
@@ -183,9 +184,9 @@ $GLOBALS['TCA']['tt_content']['types']['section']['showitem'] = '
 );
 // Add Flexform to Container
 \TYPO3\CMS\Core\Utility\ExtensionManagementUtility::addPiFlexFormValue(
-  '*',
-  'FILE:EXT:sitepackage/Configuration/FlexForms/container_2col.xml',
-  '2cols'
+    '*',
+    'FILE:EXT:sitepackage/Configuration/FlexForms/container_2col.xml',
+    '2cols'
 );
 $GLOBALS['TCA']['tt_content']['types']['2cols']['showitem'] = '
    --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:general,
@@ -207,21 +208,20 @@ $GLOBALS['TCA']['tt_content']['types']['2cols']['showitem'] = '
    --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:extended,
 ';
 
-
 // Three Column Container
 \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(\B13\Container\Tca\Registry::class)->configureContainer(
-  (
+    (
     new \B13\Container\Tca\ContainerConfiguration(
-      '3cols', // CType
-      'LLL:EXT:sitepackage/Resources/Private/Language/locallang.xlf:threeColumn_title', // label
-      'LLL:EXT:sitepackage/Resources/Private/Language/locallang.xlf:threeColumn_description', // description
-      [
+        '3cols', // CType
+        'LLL:EXT:sitepackage/Resources/Private/Language/locallang.xlf:threeColumn_title', // label
+        'LLL:EXT:sitepackage/Resources/Private/Language/locallang.xlf:threeColumn_description', // description
         [
-          ['name' => '1. Spalte', 'colPos' => 200],
-          ['name' => '2. Spalte', 'colPos' => 201],
-          ['name' => '3. Spalte', 'colPos' => 202]
-        ]
-      ] // grid configuration
+            [
+                ['name' => '1. Spalte', 'colPos' => 200],
+                ['name' => '2. Spalte', 'colPos' => 201],
+                ['name' => '3. Spalte', 'colPos' => 202],
+            ],
+        ] // grid configuration
     )
   )
   ->setSaveAndCloseInNewContentElementWizard(false)
@@ -229,9 +229,9 @@ $GLOBALS['TCA']['tt_content']['types']['2cols']['showitem'] = '
 );
 // Add Flexform to Container
 \TYPO3\CMS\Core\Utility\ExtensionManagementUtility::addPiFlexFormValue(
-  '*',
-  'FILE:EXT:sitepackage/Configuration/FlexForms/container_3col.xml',
-  '3cols'
+    '*',
+    'FILE:EXT:sitepackage/Configuration/FlexForms/container_3col.xml',
+    '3cols'
 );
 $GLOBALS['TCA']['tt_content']['types']['3cols']['showitem'] = '
    --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:general,
@@ -253,31 +253,30 @@ $GLOBALS['TCA']['tt_content']['types']['3cols']['showitem'] = '
    --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:extended,
 ';
 
-
 // Tabs Container
 \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(\B13\Container\Tca\Registry::class)->configureContainer(
-  (
+    (
     new \B13\Container\Tca\ContainerConfiguration(
-      'tabs', // CType
-      'Tabs', // label
-      'Tab-Navigation mit bis zu 4 Tabs (beliebige Inhalte pro Tab)', // description
-      [
+        'tabs', // CType
+        'Tabs', // label
+        'Tab-Navigation mit bis zu 4 Tabs (beliebige Inhalte pro Tab)', // description
         [
-          ['name' => 'Tab 1', 'colPos' => 210],
-          ['name' => 'Tab 2', 'colPos' => 211],
-          ['name' => 'Tab 3', 'colPos' => 212],
-          ['name' => 'Tab 4', 'colPos' => 213],
-        ]
-      ] // grid configuration
+            [
+                ['name' => 'Tab 1', 'colPos' => 210],
+                ['name' => 'Tab 2', 'colPos' => 211],
+                ['name' => 'Tab 3', 'colPos' => 212],
+                ['name' => 'Tab 4', 'colPos' => 213],
+            ],
+        ] // grid configuration
     )
   )
   ->setSaveAndCloseInNewContentElementWizard(false)
   ->setIcon('EXT:container/Resources/Public/Icons/container-4col.svg')
 );
 \TYPO3\CMS\Core\Utility\ExtensionManagementUtility::addPiFlexFormValue(
-  '*',
-  'FILE:EXT:sitepackage/Configuration/FlexForms/tabs.xml',
-  'tabs'
+    '*',
+    'FILE:EXT:sitepackage/Configuration/FlexForms/tabs.xml',
+    'tabs'
 );
 $GLOBALS['TCA']['tt_content']['types']['tabs']['showitem'] = '
    --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:general,
@@ -297,19 +296,19 @@ $GLOBALS['TCA']['tt_content']['types']['tabs']['showitem'] = '
 
 // Four Column Container
 \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(\B13\Container\Tca\Registry::class)->configureContainer(
-  (
+    (
     new \B13\Container\Tca\ContainerConfiguration(
-      '4cols', // CType
-      'LLL:EXT:sitepackage/Resources/Private/Language/locallang.xlf:fourColumn_title', // label
-      'LLL:EXT:sitepackage/Resources/Private/Language/locallang.xlf:fourColumn_description', // description
-      [
+        '4cols', // CType
+        'LLL:EXT:sitepackage/Resources/Private/Language/locallang.xlf:fourColumn_title', // label
+        'LLL:EXT:sitepackage/Resources/Private/Language/locallang.xlf:fourColumn_description', // description
         [
-          ['name' => '1. Spalte', 'colPos' => 200],
-          ['name' => '2. Spalte', 'colPos' => 201],
-          ['name' => '3. Spalte', 'colPos' => 202],
-          ['name' => '4. Spalte', 'colPos' => 203]
-        ]
-      ] // grid configuration
+            [
+                ['name' => '1. Spalte', 'colPos' => 200],
+                ['name' => '2. Spalte', 'colPos' => 201],
+                ['name' => '3. Spalte', 'colPos' => 202],
+                ['name' => '4. Spalte', 'colPos' => 203],
+            ],
+        ] // grid configuration
     )
   )
   ->setSaveAndCloseInNewContentElementWizard(false)
@@ -317,9 +316,9 @@ $GLOBALS['TCA']['tt_content']['types']['tabs']['showitem'] = '
 );
 // Add Flexform to Container
 \TYPO3\CMS\Core\Utility\ExtensionManagementUtility::addPiFlexFormValue(
-  '*',
-  'FILE:EXT:sitepackage/Configuration/FlexForms/container_4col.xml',
-  '4cols'
+    '*',
+    'FILE:EXT:sitepackage/Configuration/FlexForms/container_4col.xml',
+    '4cols'
 );
 $GLOBALS['TCA']['tt_content']['types']['4cols']['showitem'] = '
    --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:general,

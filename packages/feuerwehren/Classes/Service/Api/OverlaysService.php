@@ -77,19 +77,27 @@ final class OverlaysService
 
         /** @var Area $kbm */
         foreach ($this->areaRepository->findByType('kbm') as $kbm) {
-            $gemeindeUids = [];
-
-            foreach ($kbm->getGemeinden() as $gemeinde) {
-                $gemeindeUids[] = $gemeinde->getUid();
-            }
-
             $multiPolygon = $this->geoJsonService->createMultiPolygonFromGemeinden(
-                $gemeindeUids,
+                $this->collectGemeindeUids($kbm),
                 $geometriesByGemeinde
             );
 
             if ($multiPolygon !== null) {
                 $features[] = $this->createAreaFeature($kbm, $multiPolygon, 'kbm');
+            }
+        }
+
+        // KBI-Bereiche ohne KBM-Ebene (Stadt Freising: SBI führt direkt) erscheinen
+        // auch in der KBM-Ansicht, damit dort keine Lücke im Landkreis bleibt.
+        /** @var Area $kbi */
+        foreach ($this->areaRepository->findByType('kbi') as $kbi) {
+            $multiPolygon = $this->geoJsonService->createMultiPolygonFromGemeinden(
+                $this->collectGemeindeUids($kbi),
+                $geometriesByGemeinde
+            );
+
+            if ($multiPolygon !== null) {
+                $features[] = $this->createAreaFeature($kbi, $multiPolygon, 'kbm');
             }
         }
 
@@ -108,12 +116,11 @@ final class OverlaysService
 
         /** @var Area $kbi */
         foreach ($this->areaRepository->findByType('kbi') as $kbi) {
-            $gemeindeUids = [];
+            // Direkt zugeordnete Gemeinden (Sonderfall Stadt Freising) + Gemeinden der KBMs
+            $gemeindeUids = $this->collectGemeindeUids($kbi);
 
             foreach ($this->areaRepository->findKbmsByParent($kbi) as $kbm) {
-                foreach ($kbm->getGemeinden() as $gemeinde) {
-                    $gemeindeUids[] = $gemeinde->getUid();
-                }
+                array_push($gemeindeUids, ...$this->collectGemeindeUids($kbm));
             }
 
             $multiPolygon = $this->geoJsonService->createMultiPolygonFromGemeinden(
@@ -127,6 +134,20 @@ final class OverlaysService
         }
 
         return ['type' => 'FeatureCollection', 'features' => $features];
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function collectGemeindeUids(Area $area): array
+    {
+        $uids = [];
+
+        foreach ($area->getGemeinden() as $gemeinde) {
+            $uids[] = (int)$gemeinde->getUid();
+        }
+
+        return $uids;
     }
 
     /**

@@ -1,5 +1,9 @@
 <html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
 
+<f:layout name="Preview"/>
+
+<f:section name="Content">
+
 <div style="padding: 0.75rem 1rem; border-left: 3px solid hsl(0 100% 35%); background: hsl(0 0% 97%); font-family: sans-serif;">
     <strong style="display: block; font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; color: hsl(0 100% 35%); margin-bottom: 0.35rem;">Abschnitts-Kopfzeile</strong>
     <f:if condition="{data.badge_text}">
@@ -14,5 +18,7 @@
         <span style="display: block; font-size: 0.8rem; color: #666; margin-top: 0.25rem;">{data.subheadline -> f:format.crop(maxCharacters: 100)}</span>
     </f:if>
 </div>
+
+</f:section>
 
 </html>

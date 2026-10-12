@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 namespace Schmid\IcsImporter\Ical;
 
-use DateInterval;
 use DateTime;
-use DateTimeImmutable;
-use DateTimeZone;
 use HDNET\Calendarize\Ical\VObjectEventAdapter;
 use HDNET\Calendarize\Utility\DateTimeUtility;
 use Sabre\VObject\Component\VCalendar;
@@ -31,7 +28,7 @@ final class FixedTimezoneEventAdapter extends VObjectEventAdapter
 
     public function __construct(
         VEvent $event,
-        private readonly ?DateTimeZone $fallbackTimezone = null,
+        private readonly ?\DateTimeZone $fallbackTimezone = null,
     ) {
         parent::__construct($event);
     }
@@ -43,7 +40,7 @@ final class FixedTimezoneEventAdapter extends VObjectEventAdapter
         return new self($event, $fallbackTimezone);
     }
 
-    private static function extractCalendarTimezone(?VCalendar $calendar): ?DateTimeZone
+    private static function extractCalendarTimezone(?VCalendar $calendar): ?\DateTimeZone
     {
         if ($calendar === null || !isset($calendar->{'X-WR-TIMEZONE'})) {
             return null;
@@ -54,20 +51,20 @@ final class FixedTimezoneEventAdapter extends VObjectEventAdapter
         return self::createTimezone($tzid);
     }
 
-    private static function createTimezone(string $tzid): ?DateTimeZone
+    private static function createTimezone(string $tzid): ?\DateTimeZone
     {
         if ($tzid === '') {
             return null;
         }
 
         try {
-            return new DateTimeZone($tzid);
+            return new \DateTimeZone($tzid);
         } catch (\Exception) {
             return null;
         }
     }
 
-    public function getStartDate(): ?DateTime
+    public function getStartDate(): ?\DateTime
     {
         $start = $this->getStartDateTime();
 
@@ -82,7 +79,7 @@ final class FixedTimezoneEventAdapter extends VObjectEventAdapter
         return DateTimeUtility::getDayStart($start);
     }
 
-    public function getEndDate(): ?DateTime
+    public function getEndDate(): ?\DateTime
     {
         $end = $this->getCorrectedEndDateTime();
 
@@ -91,7 +88,7 @@ final class FixedTimezoneEventAdapter extends VObjectEventAdapter
         }
 
         if ($this->isAllDay()) {
-            $end = $end->sub(new DateInterval('P1D'));
+            $end = $end->sub(new \DateInterval('P1D'));
             $end = $end->format('Y-m-d');
         }
 
@@ -101,7 +98,7 @@ final class FixedTimezoneEventAdapter extends VObjectEventAdapter
     /**
      * Returns the start datetime, handling both standard and non-standard TZID formats.
      */
-    private function getStartDateTime(): ?DateTimeImmutable
+    private function getStartDateTime(): ?\DateTimeImmutable
     {
         $event = $this->getEvent();
 
@@ -116,7 +113,7 @@ final class FixedTimezoneEventAdapter extends VObjectEventAdapter
      * Returns the corrected end datetime, ensuring it's never before start datetime.
      * This is the central method that applies all necessary fixes for invalid ICS data.
      */
-    private function getCorrectedEndDateTime(): ?DateTimeImmutable
+    private function getCorrectedEndDateTime(): ?\DateTimeImmutable
     {
         $end = $this->getRawEndDateTime();
         $start = $this->getStartDateTime();
@@ -179,7 +176,7 @@ final class FixedTimezoneEventAdapter extends VObjectEventAdapter
     /**
      * Returns the raw (uncorrected) end datetime from the event.
      */
-    private function getRawEndDateTime(): ?DateTimeImmutable
+    private function getRawEndDateTime(): ?\DateTimeImmutable
     {
         $event = $this->getEvent();
 
@@ -194,8 +191,8 @@ final class FixedTimezoneEventAdapter extends VObjectEventAdapter
             }
             $duration = $event->DURATION->getDateInterval();
 
-            return DateTimeImmutable::createFromMutable(
-                DateTime::createFromImmutable($start)->add($duration)
+            return \DateTimeImmutable::createFromMutable(
+                \DateTime::createFromImmutable($start)->add($duration)
             );
         }
 
@@ -206,7 +203,7 @@ final class FixedTimezoneEventAdapter extends VObjectEventAdapter
      * Extracts datetime from a property, handling both standard TZID parameter
      * and non-standard standalone TZID property formats.
      */
-    private function getDateTimeFromProperty(ICalDateTime $property): ?DateTimeImmutable
+    private function getDateTimeFromProperty(ICalDateTime $property): ?\DateTimeImmutable
     {
         $value = $property->getValue();
 
@@ -235,9 +232,9 @@ final class FixedTimezoneEventAdapter extends VObjectEventAdapter
             $matches[6]
         );
 
-        $timezone = $this->getEventTimezone() ?? new DateTimeZone(date_default_timezone_get());
+        $timezone = $this->getEventTimezone() ?? new \DateTimeZone(date_default_timezone_get());
 
-        return new DateTimeImmutable($dateString, $timezone);
+        return new \DateTimeImmutable($dateString, $timezone);
     }
 
     private function hasStandardTimezone(ICalDateTime $property): bool
@@ -245,7 +242,7 @@ final class FixedTimezoneEventAdapter extends VObjectEventAdapter
         return isset($property['TZID']);
     }
 
-    private function getEventTimezone(): ?DateTimeZone
+    private function getEventTimezone(): ?\DateTimeZone
     {
         $event = $this->getEvent();
 

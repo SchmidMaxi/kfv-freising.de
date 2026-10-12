@@ -1,0 +1,13 @@
+services:
+  _defaults:
+    autowire: true
+    autoconfigure: true
+    public: false
+
+  Schmid\Downloads\:
+    resource: '../Classes/*'
+    exclude: '../Classes/Domain/Dto/*'
+
+  # Controller (must be public for TYPO3 instantiation)
+  Schmid\Downloads\Controller\DownloadController:
+    public: true

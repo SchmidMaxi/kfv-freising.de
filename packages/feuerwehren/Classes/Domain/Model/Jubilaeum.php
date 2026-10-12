@@ -1,10 +1,9 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Schmid\Feuerwehren\Domain\Model;
 
-use DateTime;
-use DateTimeImmutable;
 use TYPO3\CMS\Extbase\Annotation\ORM\Lazy;
 use TYPO3\CMS\Extbase\DomainObject\AbstractEntity;
 
@@ -20,7 +19,7 @@ class Jubilaeum extends AbstractEntity
     protected int $titel = 0;
 
     /** Das ist das exakte Datum der Feier */
-    protected ?DateTimeImmutable $datum = null;
+    protected ?\DateTimeImmutable $datum = null;
 
     protected string $beschreibung = '';
 
@@ -47,16 +46,16 @@ class Jubilaeum extends AbstractEntity
         $this->titel = $titel;
     }
 
-    public function getDatum(): ?DateTimeImmutable
+    public function getDatum(): ?\DateTimeImmutable
     {
         return $this->datum;
     }
     public function setDatum($date): void
     {
-        if ($date instanceof DateTimeImmutable) {
+        if ($date instanceof \DateTimeImmutable) {
             $this->datum = $date;
-        } elseif ($date instanceof DateTime) {
-            $this->datum = DateTimeImmutable::createFromInterface($date);
+        } elseif ($date instanceof \DateTime) {
+            $this->datum = \DateTimeImmutable::createFromInterface($date);
         } elseif ($date === null) {
             $this->datum = null;
         }

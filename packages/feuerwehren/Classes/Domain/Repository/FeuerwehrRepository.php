@@ -31,6 +31,19 @@ final class FeuerwehrRepository extends Repository
     }
 
     /**
+     * Whether at least one fire department has a classification (Stützpunkt/Ortsfeuerwehr).
+     *
+     * Until someone maintains the field, the map legend omits the type labels.
+     */
+    public function hasClassified(): bool
+    {
+        $query = $this->createQuery();
+        $query->matching($query->logicalNot($query->equals('typ', '')));
+
+        return $query->setLimit(1)->count() > 0;
+    }
+
+    /**
      * Finds fire departments within a geographic bounding box.
      *
      * Optionally filters by vehicle categories using AND or OR logic.
@@ -41,6 +54,7 @@ final class FeuerwehrRepository extends Repository
      * @param float $north Northern boundary (maximum latitude)
      * @param list<int> $fahrzeugKategorieUids Vehicle category UIDs to filter by
      * @param 'and'|'or' $mode How to combine category filters
+     * @param string|null $nameQuery Optional case-insensitive substring match on the name
      * @return QueryResultInterface<Feuerwehr>
      */
     public function findForMapSearch(
@@ -49,7 +63,8 @@ final class FeuerwehrRepository extends Repository
         float $east,
         float $north,
         array $fahrzeugKategorieUids = [],
-        string $mode = 'and'
+        string $mode = 'and',
+        ?string $nameQuery = null
     ): QueryResultInterface {
         $query = $this->createQuery();
 
@@ -59,6 +74,16 @@ final class FeuerwehrRepository extends Repository
             $query->greaterThanOrEqual('latitude', $south),
             $query->lessThanOrEqual('latitude', $north),
         ];
+
+        if ($nameQuery !== null && $nameQuery !== '') {
+            // LIKE-Wildcards aus der Nutzereingabe entfernen, damit '%' oder '_'
+            // nicht als Platzhalter wirken (Extbase setzt keine ESCAPE-Clause).
+            $needle = str_replace(['%', '_'], '', $nameQuery);
+
+            if ($needle !== '') {
+                $constraints[] = $query->like('name', '%' . $needle . '%');
+            }
+        }
 
         if ($fahrzeugKategorieUids !== []) {
             $categoryConstraints = array_map(

@@ -2,12 +2,12 @@
 
 ## Overview
 
-TYPO3 13 LTS extension for managing and displaying fire department data with interactive maps, organizational charts, and jubilee management for the KFV Freising (Kreisfeuerwehrverband Freising - Fire Department District Association).
+TYPO3 14 LTS extension for managing and displaying fire department data with interactive maps, organizational charts, and jubilee management for the KFV Freising (Kreisfeuerwehrverband Freising - Fire Department District Association).
 
 ## Tech Stack
 
-- **TYPO3**: 13.4+ LTS
-- **PHP**: 8.3+
+- **TYPO3**: 14.3+ LTS
+- **PHP**: 8.5+
 - **Map Rendering**: MapLibre GL JS (vector tiles)
 - **Tile Format**: MBTiles (SQLite with PBF tiles)
 - **GeoJSON**: For overlay boundaries (Gemeinden, KBM, KBI areas)

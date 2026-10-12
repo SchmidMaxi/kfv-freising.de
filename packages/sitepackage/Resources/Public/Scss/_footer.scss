@@ -11,7 +11,9 @@ footer {
     --#{$prefix}nav-link-color: rgba(var(--#{$prefix}white-rgb), .7);
     --#{$prefix}nav-link-hover-color: var(--#{$prefix}primary);
     --#{$prefix}nav-link-padding-x: 0;
-    --#{$prefix}nav-link-padding-y: .2rem;
+    --#{$prefix}nav-link-padding-y: .375rem; // Lovable: space-y-3 bei text-base
+    --#{$prefix}nav-link-font-size: 1rem;
+    --#{$prefix}nav-link-font-weight: #{$font-weight-normal};
   }
 }
 #social {
@@ -32,9 +34,13 @@ footer {
 }
 #meta {
   font-size: 0.875rem;
+  .nav {
+    column-gap: 1.5rem; // Lovable: gap-6 zwischen Impressum/Datenschutz/…
+  }
   color: rgba(var(--#{$prefix}white-rgb), .5);
   .nav-link {
     --#{$prefix}nav-link-color: rgba(var(--#{$prefix}white-rgb), .5);
-    --#{$prefix}nav-link-hover-color: $white;
+    --#{$prefix}nav-link-hover-color: #{$white};
+    --#{$prefix}nav-link-font-size: .875rem;
   }
 }

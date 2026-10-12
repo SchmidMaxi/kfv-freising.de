@@ -61,7 +61,10 @@ final class PersonController extends ActionController
      */
     public function showAction(Person $person): ResponseInterface
     {
-        $this->view->assign('person', $person);
+        $this->view->assignMultiple([
+            'person' => $person,
+            'area' => $this->areaRepository->findOneBy(['person' => $person]),
+        ]);
 
         return $this->htmlResponse();
     }

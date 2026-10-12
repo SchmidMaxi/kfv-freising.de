@@ -6,7 +6,6 @@ namespace Schmid\Feuerwehren\Controller;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
-use SQLite3;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Http\Response;
 use TYPO3\CMS\Core\Site\Entity\Site;
@@ -101,7 +100,7 @@ final class VectorTileController
      */
     private function readTileFromMbtiles(string $path, int $z, int $x, int $y): ?string
     {
-        $db = new SQLite3($path, SQLITE3_OPEN_READONLY);
+        $db = new \SQLite3($path, SQLITE3_OPEN_READONLY);
 
         // Convert XYZ to TMS: Y is inverted
         $tmsY = (1 << $z) - 1 - $y;

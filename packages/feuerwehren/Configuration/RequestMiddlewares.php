@@ -1,4 +1,5 @@
 <?php
+
 use Schmid\Feuerwehren\Middleware\ApiGatewayMiddleware;
 
 return [

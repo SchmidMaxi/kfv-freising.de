@@ -30,6 +30,11 @@ final class SeedPhaseDPagesCommand extends Command
     private const PAGE_KONTAKT_HAUPTNAV = 63;
     private const CATEGORY_EINSATZ = 1;
 
+    // -----------------------------------------------------------------
+    // Suche (neue Seite unter Hauptnavigation, pid 2)
+    // -----------------------------------------------------------------
+    private const PID_HAUPTNAV = 2;
+
     protected function configure(): void
     {
         $this->setDescription('Seeds Musterseiten Tabs/Slider, Service-Hub, Kontakt-Shortcut, Einsätze (News) und Termine-Ergänzung. Safe to re-run.');
@@ -496,11 +501,6 @@ final class SeedPhaseDPagesCommand extends Command
         ], 5);
         $output->writeln('Termine (13): vollständige Terminliste ergänzt.');
     }
-
-    // -----------------------------------------------------------------
-    // Suche (neue Seite unter Hauptnavigation, pid 2)
-    // -----------------------------------------------------------------
-    private const PID_HAUPTNAV = 2;
 
     private function seedSuche(Connection $ttContent, Connection $pages, OutputInterface $output): void
     {

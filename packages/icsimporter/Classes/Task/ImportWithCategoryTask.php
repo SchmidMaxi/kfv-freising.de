@@ -110,7 +110,7 @@ final class ImportWithCategoryTask extends AbstractTask
 
         // Must match HDNET\Calendarize\EventListener\ImportSingleIcalEventListener::__invoke(),
         // which hashes UIDs over 100 chars (e.g. long Outlook UIDs) before storing as import_id.
-        return \strlen($uid) <= 100 ? $uid : md5($uid);
+        return strlen($uid) <= 100 ? $uid : md5($uid);
     }
 
     /**
