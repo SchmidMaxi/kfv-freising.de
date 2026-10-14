@@ -1,0 +1,9 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<f:layout name="Katschutz" />
+<f:section name="main">
+    <f:render partial="Verwaltung/Nav" arguments="{aktiv: 'Bestellverwaltung'}" />
+    <h1 class="h3">Schnellausgabe</h1>
+    <p class="text-body-secondary">Für telefonische oder mündliche Anforderungen. Die Bestellung wird sofort freigegeben, danach folgt die Ausgabe.</p>
+    <f:render partial="Bestellung/Formular" arguments="{_all}" />
+</f:section>
+</html>

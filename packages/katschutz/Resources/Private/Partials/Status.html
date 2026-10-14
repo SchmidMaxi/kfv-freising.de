@@ -1,0 +1,5 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<span class="badge text-bg-{bestellung.status.farbe}">{bestellung.status.label}</span>
+<f:if condition="{bestellung.bereichsfremd}"><span class="badge text-bg-dark" title="Feuerwehr außerhalb des Bereichs des Bestellers">bereichsfremd</span></f:if>
+<f:if condition="{bestellung.lage}"><span class="badge text-bg-danger" title="{bestellung.lage.title}">Lage</span></f:if>
+</html>

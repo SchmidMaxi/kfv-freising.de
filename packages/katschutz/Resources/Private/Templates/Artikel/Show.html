@@ -1,0 +1,78 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<f:layout name="Katschutz" />
+<f:section name="main">
+    <f:render partial="Verwaltung/Nav" arguments="{aktiv: 'Artikel'}" />
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+        <div>
+            <h1 class="h3 mb-0">{zeile.artikel.title}</h1>
+            <div class="text-body-secondary">{zeile.artikel.kategorie.title} · {f:if(condition: zeile.artikel.einzeln, then: 'Einzelstücke', else: 'Mengenartikel')}{f:if(condition: zeile.artikel.verbrauch, then: ' · Verbrauchsmaterial')}</div>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <f:link.action action="edit" arguments="{artikel: zeile.artikel}" class="btn btn-outline-primary"><i class="bi bi-pencil" aria-hidden="true"></i> Bearbeiten</f:link.action>
+            <f:if condition="{zeile.artikel.einzeln}">
+                <f:then><f:link.action controller="Einzelstueck" action="new" arguments="{artikel: zeile.artikel}" class="btn btn-primary"><i class="bi bi-plus-lg" aria-hidden="true"></i> Einzelstück erfassen</f:link.action></f:then>
+                <f:else><f:link.action controller="Buchung" action="new" arguments="{artikel: zeile.artikel.uid}" class="btn btn-primary"><i class="bi bi-plus-slash-minus" aria-hidden="true"></i> Bestand buchen</f:link.action></f:else>
+            </f:if>
+            <f:form action="archive" arguments="{artikel: zeile.artikel.uid}" method="post" additionalAttributes="{onsubmit: 'return confirm(\'Artikel archivieren? Er erscheint dann nicht mehr im Katalog.\')'}">
+                <button type="submit" class="btn btn-outline-danger"><i class="bi bi-archive" aria-hidden="true"></i> Archivieren</button>
+            </f:form>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <f:if condition="{zeile.artikel.erstesBild}"><f:image image="{zeile.artikel.erstesBild}" width="600" class="img-fluid rounded mb-3" alt="{zeile.artikel.title}" /></f:if>
+            <dl class="row small">
+                <dt class="col-6">Gesamt (Eigentum)</dt><dd class="col-6">{zeile.gesamt} {zeile.artikel.einheit}</dd>
+                <dt class="col-6">in der Halle</dt><dd class="col-6">{zeile.halle}</dd>
+                <dt class="col-6">bei Feuerwehren</dt><dd class="col-6">{zeile.draussen}</dd>
+                <dt class="col-6">reserviert</dt><dd class="col-6">{zeile.reserviert}</dd>
+                <dt class="col-6">verfügbar</dt><dd class="col-6 fw-semibold">{zeile.verfuegbar}</dd>
+                <dt class="col-6">Mindestbestand</dt><dd class="col-6">{zeile.artikel.mindestbestand}</dd>
+                <dt class="col-6">Lagerort</dt><dd class="col-6">{zeile.artikel.lagerort.title} {zeile.artikel.lagerfach}</dd>
+                <f:if condition="{zeile.artikel.pruefintervall}"><dt class="col-6">Prüfintervall</dt><dd class="col-6">{zeile.artikel.pruefintervall} Monate</dd></f:if>
+            </dl>
+            <f:if condition="{zeile.artikel.beschreibung}"><p class="small">{zeile.artikel.beschreibung -> f:format.nl2br()}</p></f:if>
+        </div>
+        <div class="col-lg-8">
+            <f:if condition="{zeile.artikel.einzeln}">
+                <h2 class="h5">Einzelstücke</h2>
+                <div class="table-responsive mb-4">
+                    <table class="table table-sm align-middle">
+                        <thead><tr><th>Inventar-Nr.</th><th>Serien-Nr.</th><th>Standort</th><th>Zustand</th><th>Nächste Prüfung</th><th></th></tr></thead>
+                        <tbody>
+                            <f:for each="{stuecke}" as="s">
+                                <tr class="{f:if(condition: s.stueck.hidden, then: 'opacity-50')}">
+                                    <td>{s.stueck.inventarnummer}</td>
+                                    <td class="small">{s.stueck.seriennummer}</td>
+                                    <td>{s.ort}<f:if condition="{s.ort} == 'Halle'"><div class="small text-body-secondary">{s.stueck.effektiverLagerort.title}</div></f:if></td>
+                                    <td>
+                                        <f:if condition="{s.sperrgrund}">
+                                            <f:then><span class="badge text-bg-danger">{s.sperrgrund}</span></f:then>
+                                            <f:else><span class="badge text-bg-success">einsatzbereit</span></f:else>
+                                        </f:if>
+                                    </td>
+                                    <td><f:if condition="{s.stueck.naechstePruefung}"><f:format.date format="d.m.Y">{s.stueck.naechstePruefung}</f:format.date></f:if></td>
+                                    <td class="text-end text-nowrap">
+                                        <f:if condition="!{s.stueck.hidden}">
+                                            <f:link.action controller="Pruefung" action="new" arguments="{einzelstueck: s.stueck}" class="btn btn-sm btn-outline-secondary" title="Prüfung erfassen"><i class="bi bi-patch-check" aria-hidden="true"></i></f:link.action>
+                                            <f:link.action controller="Einzelstueck" action="edit" arguments="{einzelstueck: s.stueck}" class="btn btn-sm btn-outline-secondary" title="Bearbeiten"><i class="bi bi-pencil" aria-hidden="true"></i></f:link.action>
+                                            <f:if condition="!{s.draussen}">
+                                                <f:form controller="Einzelstueck" action="archive" arguments="{einzelstueck: s.stueck.uid}" method="post" class="d-inline" additionalAttributes="{onsubmit: 'return confirm(\'Stück aussondern?\')'}">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Aussondern"><i class="bi bi-trash" aria-hidden="true"></i></button>
+                                                </f:form>
+                                            </f:if>
+                                        </f:if>
+                                    </td>
+                                </tr>
+                            </f:for>
+                        </tbody>
+                    </table>
+                </div>
+            </f:if>
+            <h2 class="h5">Letzte Buchungen</h2>
+            <f:render partial="Verwaltung/Journal" arguments="{buchungen: buchungen}" />
+        </div>
+    </div>
+</f:section>
+</html>

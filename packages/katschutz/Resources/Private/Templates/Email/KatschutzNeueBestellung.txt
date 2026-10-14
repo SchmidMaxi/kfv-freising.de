@@ -1,0 +1,13 @@
+<f:layout name="SystemEmail" />
+<f:section name="Main">Neue KatS-Bestellung {bestellung.nummer} ({bestellung.status.label})
+
+Feuerwehr: {bestellung.feuerwehr.name}
+Anlass: {bestellung.anlass}
+<f:if condition="{bestellung.einsatzabschnitt}">Einsatzabschnitt: {bestellung.einsatzabschnitt}
+</f:if><f:if condition="{bestellung.bereichsfremd}">ACHTUNG: Feuerwehr außerhalb des Bereichs des Bestellers.
+</f:if>
+<f:for each="{bestellung.positionen}" as="p">- {p.menge} {p.artikel.einheit} {p.artikel.title}
+</f:for>
+Besteller: {bestellung.besteller.anzeigename} {bestellung.besteller.email} {bestellung.besteller.telephone}
+<f:if condition="{bestellung.notiz}">Notiz: {bestellung.notiz}</f:if>
+</f:section>

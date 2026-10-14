@@ -1,0 +1,29 @@
+{
+  "name": "schmid/katschutz",
+  "description": "Inventar-Katalog der Katastrophenschutz-Halle: Bestand, Bestellungen, Verbleib, Prüffristen",
+  "type": "typo3-cms-extension",
+  "require": {
+    "php": ">=8.5",
+    "typo3/cms-core": "^14.3",
+    "typo3/cms-extbase": "^14.3",
+    "typo3/cms-fluid": "^14.3",
+    "typo3/cms-frontend": "^14.3",
+    "schmid/feuerwehren": "@dev",
+    "dompdf/dompdf": "^3.1"
+  },
+  "autoload": {
+    "psr-4": {
+      "Schmid\\Katschutz\\": "Classes/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Schmid\\Katschutz\\Tests\\": "Tests/"
+    }
+  },
+  "extra": {
+    "typo3/cms": {
+      "extension-key": "katschutz"
+    }
+  }
+}

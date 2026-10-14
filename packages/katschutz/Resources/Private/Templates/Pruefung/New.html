@@ -1,0 +1,38 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<f:layout name="Katschutz" />
+<f:section name="main">
+    <f:render partial="Verwaltung/Nav" arguments="{aktiv: 'Pruefung'}" />
+    <h1 class="h3">Prüfung – {einzelstueck.artikel.title} {einzelstueck.inventarnummer}</h1>
+    <f:if condition="{einzelstueck.artikel.pruefintervall}"><p class="text-body-secondary">Prüfintervall {einzelstueck.artikel.pruefintervall} Monate. Bei „bestanden“ wird der nächste Termin automatisch gesetzt.</p></f:if>
+    <f:form action="create" arguments="{einzelstueck: einzelstueck}" method="post" class="row g-3">
+        <div class="col-md-3">
+            <label for="kats-datum" class="form-label">Prüfdatum</label>
+            <f:form.textfield id="kats-datum" type="date" name="pruefung[datum]" value="{heute -> f:format.date(format: 'Y-m-d')}" class="form-control" required="1" />
+        </div>
+        <div class="col-md-3">
+            <label for="kats-erg" class="form-label">Ergebnis</label>
+            <f:form.select id="kats-erg" name="pruefung[ergebnis]" options="{bestanden: 'bestanden', mangel: 'Mangel festgestellt'}" class="form-select" />
+        </div>
+        <div class="col-md-6">
+            <label for="kats-pruefer" class="form-label">Prüfer</label>
+            <f:form.textfield id="kats-pruefer" name="pruefung[pruefer]" class="form-control" />
+        </div>
+        <div class="col-12">
+            <label for="kats-bem" class="form-label">Bemerkung</label>
+            <f:form.textarea id="kats-bem" name="pruefung[bemerkung]" class="form-control" rows="2" />
+        </div>
+        <div class="col-12">
+            <button type="submit" class="btn btn-primary">Speichern</button>
+            <f:link.action controller="Artikel" action="show" arguments="{artikel: einzelstueck.artikel}" class="btn btn-link">Abbrechen</f:link.action>
+        </div>
+    </f:form>
+    <f:if condition="{einzelstueck.pruefungen -> f:count()}">
+        <h2 class="h5 mt-4">Bisherige Prüfungen</h2>
+        <ul class="list-group">
+            <f:for each="{einzelstueck.pruefungen}" as="p">
+                <li class="list-group-item"><f:format.date format="d.m.Y">{p.datum}</f:format.date> · {p.ergebnis} · {p.pruefer} <span class="small text-body-secondary">{p.bemerkung}</span></li>
+            </f:for>
+        </ul>
+    </f:if>
+</f:section>
+</html>

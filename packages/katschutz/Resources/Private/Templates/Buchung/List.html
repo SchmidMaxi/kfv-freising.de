@@ -1,0 +1,12 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<f:layout name="Katschutz" />
+<f:section name="main">
+    <f:render partial="Verwaltung/Nav" arguments="{aktiv: 'Buchung'}" />
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h3 mb-0">Buchungsjournal<f:if condition="{artikel}"> – {artikel.title}</f:if></h1>
+        <f:link.action action="new" class="btn btn-primary"><i class="bi bi-plus-slash-minus" aria-hidden="true"></i> Lagerbuchung</f:link.action>
+    </div>
+    <p class="text-body-secondary small">Die letzten 200 Buchungen. Buchungen sind unveränderlich; Fehler werden durch eine Gegenbuchung (Korrektur) ausgeglichen.</p>
+    <f:render partial="Verwaltung/Journal" arguments="{buchungen: buchungen}" />
+</f:section>
+</html>

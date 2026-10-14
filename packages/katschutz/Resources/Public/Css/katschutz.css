@@ -1,0 +1,8 @@
+.katschutz .kats-menge { width: 7rem; margin-left: auto; }
+.katschutz .kats-kachel { text-decoration: none; }
+.katschutz .kats-kachel:hover { box-shadow: var(--bs-box-shadow-sm); }
+.katschutz .kats-kachel .display-6 { font-weight: 600; }
+.katschutz .kats-thumb { width: 64px; height: 48px; object-fit: cover; }
+@media print {
+    .katschutz nav, .katschutz .btn, .katschutz form { display: none !important; }
+}

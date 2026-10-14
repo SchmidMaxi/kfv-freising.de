@@ -1,0 +1,19 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<f:layout name="Katschutz" />
+<f:section name="main">
+    <f:render partial="Verwaltung/Nav" arguments="{aktiv: 'Lage'}" />
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h3 mb-0">Großschadenslagen</h1>
+        <f:if condition="!{lage}"><f:link.action action="new" class="btn btn-danger"><i class="bi bi-exclamation-octagon" aria-hidden="true"></i> Lage ausrufen</f:link.action></f:if>
+    </div>
+    <p class="text-body-secondary">Während einer aktiven Lage sind Bestellungen ohne Freigabe sofort gültig. Alle Bestellungen und Buchungen werden der Lage zugeordnet und sind hier auswertbar.</p>
+    <div class="list-group">
+        <f:for each="{lagen}" as="l">
+            <f:link.action action="show" arguments="{lage: l}" class="list-group-item list-group-item-action d-flex justify-content-between">
+                <span><strong>{l.title}</strong> <f:if condition="{l.aktiv}"><span class="badge text-bg-danger">aktiv</span></f:if></span>
+                <span class="small text-body-secondary"><f:format.date format="d.m.Y H:i">{l.beginn}</f:format.date><f:if condition="{l.ende}"> – <f:format.date format="d.m.Y H:i">{l.ende}</f:format.date></f:if></span>
+            </f:link.action>
+        </f:for>
+    </div>
+</f:section>
+</html>

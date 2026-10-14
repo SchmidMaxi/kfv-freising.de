@@ -1,0 +1,38 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<div class="table-responsive">
+    <table class="table table-sm table-hover align-middle">
+        <thead>
+            <tr>
+                <th>Artikel</th><th>Lagerort</th>
+                <th class="text-end" title="Eigentum: Halle + bei Feuerwehren">gesamt</th>
+                <th class="text-end">in Halle</th>
+                <th class="text-end">draußen</th>
+                <th class="text-end" title="freigegeben, noch nicht ausgegeben">reserviert</th>
+                <th class="text-end" title="noch nicht freigegeben">angefragt</th>
+                <th class="text-end">verfügbar</th>
+            </tr>
+        </thead>
+        <f:for each="{gruppen}" as="zeilen" key="kategorie">
+            <tbody>
+                <tr class="table-light"><th colspan="8">{kategorie}</th></tr>
+                <f:for each="{zeilen}" as="z">
+                    <tr class="{f:if(condition: z.unterMindestbestand, then: 'table-danger')}">
+                        <td>
+                            <f:link.action controller="Artikel" action="show" arguments="{artikel: z.artikel}">{z.artikel.title}</f:link.action>
+                            <f:if condition="{z.artikel.verbrauch}"><span class="badge text-bg-light border">Verbrauch</span></f:if>
+                            <f:if condition="{z.unterMindestbestand}"><span class="badge text-bg-danger" title="Mindestbestand {z.artikel.mindestbestand}">Mindestbestand</span></f:if>
+                        </td>
+                        <td class="small">{z.artikel.lagerort.title} {z.artikel.lagerfach}</td>
+                        <td class="text-end">{z.gesamt}</td>
+                        <td class="text-end">{z.halle}<f:if condition="{z.gesperrt}"> <span class="text-danger small" title="davon gesperrt">({z.gesperrt} gesperrt)</span></f:if></td>
+                        <td class="text-end">{z.draussen}</td>
+                        <td class="text-end">{z.reserviert}</td>
+                        <td class="text-end">{z.angefragt}</td>
+                        <td class="text-end fw-semibold">{z.verfuegbar} <span class="small fw-normal text-body-secondary">{z.artikel.einheit}</span></td>
+                    </tr>
+                </f:for>
+            </tbody>
+        </f:for>
+    </table>
+</div>
+</html>

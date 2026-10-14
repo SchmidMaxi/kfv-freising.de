@@ -1,0 +1,21 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<f:layout name="Katschutz" />
+<f:section name="main">
+    <f:render partial="Verwaltung/Nav" arguments="{aktiv: 'Lage'}" />
+    <h1 class="h3">Großschadenslage ausrufen</h1>
+    <div class="alert alert-warning">Ab sofort sind alle Bestellungen ohne Freigabe gültig. Beenden nicht vergessen!</div>
+    <f:render partial="Fehler" />
+    <f:form action="create" object="{eintrag}" name="eintrag" method="post">
+        <div class="mb-3">
+            <label for="kats-title" class="form-label">Bezeichnung (z.B. „Hochwasser Isar Juni 2026“) <span class="text-danger">*</span></label>
+            <f:form.textfield id="kats-title" property="title" class="form-control" required="1" />
+        </div>
+        <div class="mb-3">
+            <label for="kats-bem" class="form-label">Bemerkung</label>
+            <f:form.textarea id="kats-bem" property="bemerkung" class="form-control" rows="2" />
+        </div>
+        <button type="submit" class="btn btn-danger">Lage aktivieren</button>
+        <f:link.action action="list" class="btn btn-link">Abbrechen</f:link.action>
+    </f:form>
+</f:section>
+</html>

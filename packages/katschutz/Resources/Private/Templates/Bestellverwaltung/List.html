@@ -1,0 +1,33 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<f:layout name="Katschutz" />
+<f:section name="main">
+    <f:render partial="Verwaltung/Nav" arguments="{aktiv: 'Bestellverwaltung'}" />
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h1 class="h3 mb-0">Bestellungen</h1>
+        <f:link.action action="new" class="btn btn-primary"><i class="bi bi-lightning-charge" aria-hidden="true"></i> Schnellausgabe</f:link.action>
+    </div>
+    <ul class="nav nav-tabs mb-3">
+        <f:for each="{offen: 'Offen', neu: 'Angefragt', draussen: 'Ausgegeben', alle: 'Alle'}" as="label" key="f">
+            <li class="nav-item"><f:link.action action="list" arguments="{filter: f}" class="nav-link{f:if(condition: '{f} == {filter}', then: ' active')}">{label}</f:link.action></li>
+        </f:for>
+    </ul>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead><tr><th>Nr.</th><th>Datum</th><th>Feuerwehr</th><th>Anlass</th><th>Besteller</th><th>Status</th></tr></thead>
+            <tbody>
+                <f:for each="{bestellungen}" as="b">
+                    <tr>
+                        <td><f:link.action action="show" arguments="{bestellung: b}">{b.nummer}</f:link.action></td>
+                        <td class="text-nowrap"><f:format.date format="d.m.Y H:i">{b.crdate}</f:format.date></td>
+                        <td>{b.feuerwehr.name}</td>
+                        <td>{b.anlass}<f:if condition="{b.einsatzabschnitt}"><div class="small text-body-secondary">{b.einsatzabschnitt}</div></f:if></td>
+                        <td>{b.besteller.anzeigename}</td>
+                        <td><f:render partial="Status" arguments="{bestellung: b}" /></td>
+                    </tr>
+                </f:for>
+            </tbody>
+        </table>
+    </div>
+    <f:if condition="{bestellungen -> f:count()} == 0"><p class="text-body-secondary">Keine Bestellungen.</p></f:if>
+</f:section>
+</html>

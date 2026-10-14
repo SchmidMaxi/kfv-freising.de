@@ -1,0 +1,23 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<nav class="mb-4" aria-label="KatS-Verwaltung">
+    <ul class="nav nav-pills flex-wrap gap-1">
+        <f:for each="{
+            0: {c: 'Dashboard', a: 'index', l: 'Dashboard', i: 'speedometer2'},
+            1: {c: 'Bestellverwaltung', a: 'list', l: 'Bestellungen', i: 'clipboard-check'},
+            2: {c: 'Artikel', a: 'list', l: 'Artikel', i: 'box-seam'},
+            3: {c: 'Modul', a: 'list', l: 'Module', i: 'boxes'},
+            4: {c: 'Buchung', a: 'list', l: 'Buchungen', i: 'journal-text'},
+            5: {c: 'Pruefung', a: 'list', l: 'Prüfungen', i: 'patch-check'},
+            6: {c: 'Lage', a: 'list', l: 'Großschadenslage', i: 'exclamation-octagon'},
+            7: {c: 'Kategorie', a: 'list', l: 'Kategorien', i: 'tags'},
+            8: {c: 'Lagerort', a: 'list', l: 'Lagerorte', i: 'geo-alt'}
+        }" as="eintrag">
+            <li class="nav-item">
+                <f:link.action controller="{eintrag.c}" action="{eintrag.a}" class="nav-link{f:if(condition: '{eintrag.c} == {aktiv}', then: ' active')}">
+                    <i class="bi bi-{eintrag.i}" aria-hidden="true"></i> {eintrag.l}
+                </f:link.action>
+            </li>
+        </f:for>
+    </ul>
+</nav>
+</html>

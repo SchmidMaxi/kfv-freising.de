@@ -1,0 +1,11 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<f:layout name="Katschutz" />
+<f:section name="main">
+    <f:render partial="Verwaltung/Nav" arguments="{aktiv: 'Pruefung'}" />
+    <h1 class="h3">Prüffristen</h1>
+    <h2 class="h5 mt-3">Fällig in den nächsten {vorlauf} Tagen oder überfällig</h2>
+    <f:render partial="Verwaltung/PruefListe" arguments="{stuecke: faellig, heute: heute}" />
+    <h2 class="h5 mt-4">Mit Mangel / defekt</h2>
+    <f:render partial="Verwaltung/PruefListe" arguments="{stuecke: nichtEinsatzbereit, heute: heute}" />
+</f:section>
+</html>

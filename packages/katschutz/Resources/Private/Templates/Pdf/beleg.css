@@ -1,0 +1,16 @@
+@page { margin: 18mm 16mm; }
+body { font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #222; }
+.kopf { width: 100%; border-bottom: 2px solid #c8102e; margin-bottom: 8mm; }
+.kopf td { vertical-align: middle; }
+.kopf img { height: 18mm; }
+h1 { font-size: 16pt; margin: 0; }
+.meta { width: 100%; margin-bottom: 6mm; }
+.meta th { text-align: left; width: 35mm; font-weight: bold; vertical-align: top; }
+table.pos { width: 100%; border-collapse: collapse; }
+table.pos th, table.pos td { border-bottom: 1px solid #bbb; padding: 2mm 1.5mm; text-align: left; }
+table.pos th { background: #eee; }
+.r { text-align: right; }
+.unterschrift { width: 100%; margin-top: 22mm; }
+.unterschrift td { width: 50%; padding-right: 10mm; }
+.linie { border-top: 1px solid #222; padding-top: 1mm; font-size: 8pt; }
+.fuss { position: fixed; bottom: -10mm; left: 0; right: 0; font-size: 7pt; color: #777; text-align: center; }

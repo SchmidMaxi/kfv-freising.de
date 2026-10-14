@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <title>{titel} {bestellung.nummer}</title>
+    <style>
+{css -> f:format.raw()}
+    </style>
+</head>
+<body>
+<table class="kopf">
+    <tr>
+        <td><h1>{titel}</h1>Kreisfeuerwehrverband Freising · KatS-Halle</td>
+        <td class="r"><f:if condition="{emblem}"><img src="{emblem}" alt=""></f:if></td>
+    </tr>
+</table>
+<table class="meta">
+    <tr><th>Bestellung</th><td>{bestellung.nummer}</td><th>Datum</th><td><f:format.date format="d.m.Y H:i">{datum}</f:format.date></td></tr>
+    <tr><th>Feuerwehr</th><td>{bestellung.feuerwehr.name}</td><th>Besteller</th><td>{bestellung.besteller.anzeigename}</td></tr>
+    <tr><th>Anlass</th><td>{bestellung.anlass}</td><th>Einsatzabschnitt</th><td>{bestellung.einsatzabschnitt}</td></tr>
+    <f:if condition="{bestellung.bis}"><tr><th>Rückgabe bis</th><td><f:format.date format="d.m.Y">{bestellung.bis}</f:format.date></td><th><f:if condition="{bestellung.lage}">Lage</f:if></th><td>{bestellung.lage.title}</td></tr></f:if>
+</table>
+<table class="pos">
+    <thead><tr><th>Datum</th><th>Art</th><th>Artikel</th><th>Inventar-Nr.</th><th class="r">Menge</th><th>Feuerwehr</th></tr></thead>
+    <tbody>
+        <f:for each="{buchungen}" as="b">
+            <tr>
+                <td><f:format.date format="d.m.Y H:i">{b.crdate}</f:format.date></td>
+                <td>{b.typ.label}</td>
+                <td>{b.artikel.title}</td>
+                <td>{b.einzelstueck.inventarnummer}</td>
+                <td class="r">{b.menge} {b.artikel.einheit}</td>
+                <td>{b.feuerwehr.name}</td>
+            </tr>
+        </f:for>
+        <f:if condition="{buchungen -> f:count()} == 0"><tr><td colspan="6">Keine Positionen gebucht.</td></tr></f:if>
+    </tbody>
+</table>
+<table class="unterschrift">
+    <tr>
+        <td><div class="linie">{f:if(condition: '{art} == ruecknahme', then: 'Zurückgegeben von (Name, Unterschrift)', else: 'Ausgegeben durch KatS-Halle (Name, Unterschrift)')}</div></td>
+        <td><div class="linie">{f:if(condition: '{art} == ruecknahme', then: 'Angenommen durch KatS-Halle (Name, Unterschrift)', else: 'Empfangen von (Name, Feuerwehr, Unterschrift)')}</div></td>
+    </tr>
+</table>
+<div class="fuss">{titel} {bestellung.nummer} · erstellt <f:format.date format="d.m.Y H:i">{datum}</f:format.date></div>
+</body>
+</html>

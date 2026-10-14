@@ -1,0 +1,74 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<f:layout name="Katschutz" />
+<f:section name="main">
+    <f:render partial="Verwaltung/Nav" arguments="{aktiv: 'Bestellverwaltung'}" />
+    <h1 class="h3">Rücknahme – {bestellung.nummer}</h1>
+    <p class="text-body-secondary">{bestellung.feuerwehr.name} · {bestellung.anlass}</p>
+    <f:form action="ruecknahmeBuchen" arguments="{bestellung: bestellung}" method="post">
+        <f:if condition="{leihgut -> f:count()}">
+            <h2 class="h5">Leihgut</h2>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead><tr><th>Artikel</th><th>bei</th><th class="text-end">draußen</th><th style="width: 9rem">zurück</th><th style="width: 9rem">Verlust</th></tr></thead>
+                    <tbody>
+                        <f:for each="{leihgut}" as="l">
+                            <tr>
+                                <td>{l.artikel.title}</td>
+                                <td>{l.feuerwehrName}</td>
+                                <td class="text-end">{l.menge} {l.artikel.einheit}</td>
+                                <td><f:form.textfield type="number" name="ruecknahme[zurueck][{l.artikel.uid}][{l.feuerwehr}]" value="{l.menge}" class="form-control form-control-sm" additionalAttributes="{min: 0, max: l.menge}" /></td>
+                                <td><f:form.textfield type="number" name="ruecknahme[verlust][{l.artikel.uid}][{l.feuerwehr}]" value="0" class="form-control form-control-sm" additionalAttributes="{min: 0, max: l.menge}" /></td>
+                            </tr>
+                        </f:for>
+                    </tbody>
+                </table>
+            </div>
+        </f:if>
+        <f:if condition="{stuecke -> f:count()}">
+            <h2 class="h5">Einzelstücke</h2>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead><tr><th>Stück</th><th>bei</th><th>Aktion</th><th>Zustand bei Rückgabe</th></tr></thead>
+                    <tbody>
+                        <f:for each="{stuecke}" as="s">
+                            <tr>
+                                <td>{s.stueck.artikel.title} <span class="badge text-bg-light border">{s.stueck.inventarnummer}</span></td>
+                                <td>{s.feuerwehrName}</td>
+                                <td>
+                                    <f:form.select name="ruecknahme[stueck][{s.stueck.uid}]" class="form-select form-select-sm" options="{zurueck: 'zurück', bleibt: 'noch draußen', verlust: 'Verlust'}" value="zurueck" />
+                                </td>
+                                <td>
+                                    <f:form.select name="ruecknahme[zustand][{s.stueck.uid}]" class="form-select form-select-sm" options="{ok: 'einsatzbereit', mangel: 'Mangel', defekt: 'defekt'}" value="{s.stueck.zustand}" />
+                                </td>
+                            </tr>
+                        </f:for>
+                    </tbody>
+                </table>
+            </div>
+        </f:if>
+        <f:if condition="{verbrauch -> f:count()}">
+            <h2 class="h5">Verbrauchsmaterial – nicht verbrauchte Reste</h2>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead><tr><th>Artikel</th><th class="text-end">ausgegeben (netto)</th><th style="width: 9rem">Rest zurück</th></tr></thead>
+                    <tbody>
+                        <f:for each="{verbrauch}" as="v">
+                            <tr>
+                                <td>{v.artikel.title}</td>
+                                <td class="text-end">{v.menge} {v.artikel.einheit}</td>
+                                <td><f:form.textfield type="number" name="ruecknahme[verbrauch][{v.artikel.uid}]" value="0" class="form-control form-control-sm" additionalAttributes="{min: 0, max: v.menge}" /></td>
+                            </tr>
+                        </f:for>
+                    </tbody>
+                </table>
+            </div>
+        </f:if>
+        <div class="mb-3">
+            <label for="kats-bem" class="form-label">Bemerkung (Mängel, Verlustumstände …)</label>
+            <f:form.textfield id="kats-bem" name="ruecknahme[bemerkung]" class="form-control" />
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-box-arrow-in-left" aria-hidden="true"></i> Rücknahme buchen</button>
+        <f:link.action action="show" arguments="{bestellung: bestellung}" class="btn btn-link">Abbrechen</f:link.action>
+    </f:form>
+</f:section>
+</html>

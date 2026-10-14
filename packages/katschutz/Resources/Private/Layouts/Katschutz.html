@@ -1,0 +1,23 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<f:asset.css identifier="katschutz" href="EXT:katschutz/Resources/Public/Css/katschutz.css" />
+<div class="katschutz">
+    <f:if condition="{lage}">
+        <div class="alert alert-danger d-flex align-items-center gap-2" role="status">
+            <i class="bi bi-exclamation-triangle-fill fs-4" aria-hidden="true"></i>
+            <div>
+                <strong>Großschadenslage aktiv: {lage.title}</strong><br>
+                Bestellungen sind ohne Freigabe sofort gültig und werden der Lage zugeordnet.
+            </div>
+        </div>
+    </f:if>
+    <f:flashMessages as="meldungen">
+        <f:for each="{meldungen}" as="meldung">
+            <div class="alert alert-{f:if(condition: '{meldung.severity.cssClass} == notice', then: 'secondary', else: meldung.severity.cssClass)} alert-dismissible fade show" role="alert">
+                {meldung.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Schließen"></button>
+            </div>
+        </f:for>
+    </f:flashMessages>
+    <f:render section="main" />
+</div>
+</html>

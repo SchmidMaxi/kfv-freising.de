@@ -1,0 +1,27 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+    <h1 class="h3 mb-0">Bestellung {bestellung.nummer}</h1>
+    <div><f:render partial="Status" arguments="{bestellung: bestellung}" /></div>
+</div>
+<div class="card mb-4">
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-3">Feuerwehr</dt><dd class="col-sm-9">{bestellung.feuerwehr.name}</dd>
+            <dt class="col-sm-3">Anlass</dt><dd class="col-sm-9">{bestellung.anlass}</dd>
+            <f:if condition="{bestellung.einsatzabschnitt}"><dt class="col-sm-3">Einsatzabschnitt</dt><dd class="col-sm-9">{bestellung.einsatzabschnitt}</dd></f:if>
+            <dt class="col-sm-3">Besteller</dt><dd class="col-sm-9">{bestellung.besteller.anzeigename}<f:if condition="{bestellung.besteller.telephone}">, {bestellung.besteller.telephone}</f:if></dd>
+            <dt class="col-sm-3">Angelegt</dt><dd class="col-sm-9"><f:format.date format="d.m.Y H:i">{bestellung.crdate}</f:format.date></dd>
+            <f:if condition="{bestellung.von} || {bestellung.bis}">
+                <dt class="col-sm-3">Zeitraum</dt>
+                <dd class="col-sm-9">
+                    <f:if condition="{bestellung.von}"><f:format.date format="d.m.Y">{bestellung.von}</f:format.date></f:if> –
+                    <f:if condition="{bestellung.bis}"><f:format.date format="d.m.Y">{bestellung.bis}</f:format.date></f:if>
+                </dd>
+            </f:if>
+            <f:if condition="{bestellung.notiz}"><dt class="col-sm-3">Notiz</dt><dd class="col-sm-9">{bestellung.notiz -> f:format.nl2br()}</dd></f:if>
+            <f:if condition="{bestellung.freigegebenAm}"><dt class="col-sm-3">Freigegeben</dt><dd class="col-sm-9"><f:format.date format="d.m.Y H:i">{bestellung.freigegebenAm}</f:format.date> {bestellung.freigegebenVon.anzeigename}</dd></f:if>
+            <f:if condition="{bestellung.verwalterNotiz}"><dt class="col-sm-3">Hinweis Verwaltung</dt><dd class="col-sm-9">{bestellung.verwalterNotiz -> f:format.nl2br()}</dd></f:if>
+        </dl>
+    </div>
+</div>
+</html>

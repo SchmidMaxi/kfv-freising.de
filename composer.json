@@ -48,7 +48,8 @@
         "schmid/downloads": "@dev",
         "brotkrueml/typo3-matomo-widgets": "^4.0",
         "causal/oidc": "^6.0",
-        "hn/typo3-mcp-server": "^0.6.2"
+        "hn/typo3-mcp-server": "^0.6.2",
+        "schmid/katschutz": "@dev"
     },
     "config": {
         "allow-plugins": {
@@ -64,6 +65,12 @@
     ],
     "require-dev": {
         "deployer/deployer": "^7.4",
-        "typo3/coding-standards": "^0.9.0"
+        "typo3/coding-standards": "^0.9.0",
+        "phpunit/phpunit": "^13.4"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Schmid\\Katschutz\\Tests\\": "packages/katschutz/Tests/"
+        }
     }
 }

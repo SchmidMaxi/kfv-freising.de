@@ -1,0 +1,31 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<f:layout name="Katschutz" />
+<f:section name="main">
+    <f:render partial="Verwaltung/Nav" arguments="{aktiv: 'Buchung'}" />
+    <h1 class="h3">Lagerbuchung</h1>
+    <p class="text-body-secondary">Für Mengenartikel. Einzelstücke werden über „Einzelstück erfassen“ bzw. „Aussondern“ gebucht.</p>
+    <f:form action="create" method="post" class="row g-3">
+        <div class="col-md-3">
+            <label for="kats-typ" class="form-label">Buchungsart</label>
+            <f:form.select id="kats-typ" name="buchung[typ]" options="{typen}" class="form-select" />
+        </div>
+        <div class="col-md-5">
+            <label for="kats-artikel" class="form-label">Artikel</label>
+            <f:form.select id="kats-artikel" name="buchung[artikel]" value="{artikel}" options="{artikelListe}" optionValueField="uid" optionLabelField="title" prependOptionLabel="Bitte wählen …" prependOptionValue="" class="form-select" />
+        </div>
+        <div class="col-md-4">
+            <label for="kats-menge" class="form-label">Menge</label>
+            <f:form.textfield id="kats-menge" type="number" name="buchung[menge]" class="form-control" />
+            <div class="form-text">Korrektur: negative Zahl verringert den Bestand.</div>
+        </div>
+        <div class="col-12">
+            <label for="kats-bem" class="form-label">Bemerkung / Begründung (Pflicht außer bei Zugang)</label>
+            <f:form.textfield id="kats-bem" name="buchung[bemerkung]" class="form-control" />
+        </div>
+        <div class="col-12">
+            <button type="submit" class="btn btn-primary">Buchen</button>
+            <f:link.action action="list" class="btn btn-link">Abbrechen</f:link.action>
+        </div>
+    </f:form>
+</f:section>
+</html>
