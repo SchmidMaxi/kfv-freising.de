@@ -1,0 +1,9 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<nav class="mb-4" aria-label="KatS-Inventar">
+    <ul class="nav nav-pills flex-wrap gap-1">
+        <li class="nav-item"><f:link.action controller="Katalog" action="list" class="nav-link{f:if(condition: '{aktiv} == katalog', then: ' active')}"><i class="bi bi-grid" aria-hidden="true"></i> Katalog</f:link.action></li>
+        <li class="nav-item"><f:link.action controller="Bestellung" action="new" class="nav-link{f:if(condition: '{aktiv} == neu', then: ' active')}"><i class="bi bi-plus-circle" aria-hidden="true"></i> Neue Bestellung</f:link.action></li>
+        <li class="nav-item"><f:link.action controller="Bestellung" action="list" class="nav-link{f:if(condition: '{aktiv} == meine', then: ' active')}"><i class="bi bi-list-check" aria-hidden="true"></i> Meine Bestellungen</f:link.action></li>
+    </ul>
+</nav>
+</html>

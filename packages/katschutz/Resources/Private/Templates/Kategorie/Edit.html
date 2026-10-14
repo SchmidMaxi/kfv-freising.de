@@ -1,0 +1,17 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<f:layout name="Katschutz" />
+<f:section name="main">
+    <f:render partial="Verwaltung/Nav" arguments="{aktiv: 'Kategorie'}" />
+    <h1 class="h3 mb-3">Kategorie</h1>
+    <f:render partial="Fehler" />
+    <f:form action="update" object="{kategorie}" name="kategorie" method="post">
+        <div class="mb-3">
+            <label for="kats-title" class="form-label">Bezeichnung <span class="text-danger">*</span></label>
+            <f:form.textfield id="kats-title" property="title" class="form-control" required="1" />
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Speichern</button>
+        <f:link.action action="list" class="btn btn-link">Abbrechen</f:link.action>
+    </f:form>
+</f:section>
+</html>

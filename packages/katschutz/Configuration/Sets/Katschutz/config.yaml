@@ -1,0 +1,4 @@
+name: schmid/katschutz
+label: 'KatS-Inventar'
+dependencies:
+  - schmid/feuerwehren

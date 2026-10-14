@@ -1,0 +1,36 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<f:layout name="Katschutz" />
+<f:section name="main">
+    <f:render partial="Verwaltung/Nav" arguments="{aktiv: 'Bestellverwaltung'}" />
+    <h1 class="h3">Umbuchung – {bestellung.nummer}</h1>
+    <p class="text-body-secondary">Material wechselt direkt von einer Feuerwehr zur nächsten, ohne Rückweg in die Halle.</p>
+    <f:form action="umbuchungBuchen" arguments="{bestellung: bestellung}" method="post" class="row g-3">
+        <div class="col-md-6">
+            <label for="kats-quelle" class="form-label">Was</label>
+            <f:form.select id="kats-quelle" name="umbuchung[quelle]" options="{quellen}" class="form-select" prependOptionLabel="Bitte wählen …" prependOptionValue="" />
+        </div>
+        <div class="col-md-2">
+            <label for="kats-menge" class="form-label">Menge</label>
+            <f:form.textfield id="kats-menge" type="number" name="umbuchung[menge]" value="1" class="form-control" additionalAttributes="{min: 1}" />
+            <div class="form-text">bei Einzelstücken immer 1</div>
+        </div>
+        <div class="col-md-4">
+            <label for="kats-ziel" class="form-label">an Feuerwehr</label>
+            <f:form.select id="kats-ziel" name="umbuchung[ziel]" class="form-select">
+                <f:form.select.option value="">Bitte wählen …</f:form.select.option>
+                <f:for each="{feuerwehrGruppen}" as="liste" key="gruppe">
+                    <f:for each="{liste}" as="name" key="uid"><f:form.select.option value="{uid}">{name}</f:form.select.option></f:for>
+                </f:for>
+            </f:form.select>
+        </div>
+        <div class="col-12">
+            <label for="kats-bem" class="form-label">Bemerkung</label>
+            <f:form.textfield id="kats-bem" name="umbuchung[bemerkung]" class="form-control" />
+        </div>
+        <div class="col-12">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-arrow-left-right" aria-hidden="true"></i> Umbuchen</button>
+            <f:link.action action="show" arguments="{bestellung: bestellung}" class="btn btn-link">Abbrechen</f:link.action>
+        </div>
+    </f:form>
+</f:section>
+</html>

@@ -1,0 +1,21 @@
+services:
+  _defaults:
+    autowire: true
+    autoconfigure: true
+    public: false
+
+  Schmid\Katschutz\:
+    resource: '../Classes/*'
+    exclude:
+      - '../Classes/Domain/Model/*'
+      - '../Classes/Exception/*'
+      - '../Classes/Domain/Dto/*'
+      - '../Classes/Domain/Enum/*'
+      - '../Classes/Service/Bestand/Bestand.php'
+
+  Schmid\Katschutz\Property\DateTimeImmutableConverter:
+    tags:
+      - name: extbase.type_converter
+        priority: 10
+        target: DateTimeImmutable
+        sources: string,integer,array

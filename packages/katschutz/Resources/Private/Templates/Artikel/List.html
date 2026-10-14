@@ -1,0 +1,41 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<f:layout name="Katschutz" />
+<f:section name="main">
+    <f:render partial="Verwaltung/Nav" arguments="{aktiv: 'Artikel'}" />
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h1 class="h3 mb-0">Artikel{f:if(condition: archiv, then: ' – Archiv')}</h1>
+        <div class="d-flex gap-2">
+            <f:link.action action="list" arguments="{archiv: '{f:if(condition: archiv, then: 0, else: 1)}'}" class="btn btn-outline-secondary">{f:if(condition: archiv, then: 'Aktive Artikel', else: 'inkl. Archiv')}</f:link.action>
+            <f:link.action action="new" class="btn btn-primary"><i class="bi bi-plus-lg" aria-hidden="true"></i> Neuer Artikel</f:link.action>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead><tr><th></th><th>Artikel</th><th>Kategorie</th><th>Erfassung</th><th class="text-end">gesamt</th><th class="text-end">Halle</th><th class="text-end">draußen</th><th></th></tr></thead>
+            <tbody>
+                <f:for each="{zeilen}" as="z">
+                    <tr class="{f:if(condition: z.artikel.hidden, then: 'opacity-50')}">
+                        <td><f:if condition="{z.artikel.erstesBild}"><f:image image="{z.artikel.erstesBild}" width="64c" height="48c" class="kats-thumb rounded" alt="" /></f:if></td>
+                        <td>
+                            <f:if condition="{z.artikel.hidden}">
+                                <f:then>{z.artikel.title} <span class="badge text-bg-secondary">archiviert</span></f:then>
+                                <f:else><f:link.action action="show" arguments="{artikel: z.artikel}">{z.artikel.title}</f:link.action></f:else>
+                            </f:if>
+                        </td>
+                        <td>{z.artikel.kategorie.title}</td>
+                        <td>{f:if(condition: z.artikel.einzeln, then: 'Einzelstücke', else: 'Menge')}{f:if(condition: z.artikel.verbrauch, then: ' · Verbrauch')}</td>
+                        <td class="text-end">{z.gesamt}</td>
+                        <td class="text-end">{z.halle}</td>
+                        <td class="text-end">{z.draussen}</td>
+                        <td class="text-end">
+                            <f:if condition="{z.artikel.hidden}">
+                                <f:form action="archive" arguments="{artikel: z.artikel.uid}" method="post"><button class="btn btn-sm btn-outline-secondary" type="submit">Reaktivieren</button></f:form>
+                            </f:if>
+                        </td>
+                    </tr>
+                </f:for>
+            </tbody>
+        </table>
+    </div>
+</f:section>
+</html>

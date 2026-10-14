@@ -1,0 +1,28 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<f:if condition="{verbleib -> f:count()}">
+    <f:then>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead><tr><th>Feuerwehr</th><th>Artikel</th><th class="text-end">Menge</th><th>Inventar-Nr.</th><th>Bestellung</th><th>Rückgabe bis</th></tr></thead>
+                <tbody>
+                    <f:for each="{verbleib}" as="zeilen" key="feuerwehr">
+                        <f:for each="{zeilen}" as="z" iteration="i">
+                            <tr>
+                                <td><f:if condition="{i.isFirst}"><strong>{feuerwehr}</strong></f:if></td>
+                                <td>{z.artikel.title}</td>
+                                <td class="text-end text-nowrap">{z.menge} {z.artikel.einheit}</td>
+                                <td><f:for each="{z.stuecke}" as="s"><span class="badge text-bg-light border me-1">{s.inventarnummer}</span></f:for></td>
+                                <td><f:link.action controller="Bestellverwaltung" action="show" arguments="{bestellung: z.bestellung}">{z.bestellung.nummer}</f:link.action></td>
+                                <td class="{f:if(condition: z.bestellung.rueckgabeUeberfaellig, then: 'text-danger fw-semibold')}">
+                                    <f:if condition="{z.bestellung.bis}"><f:format.date format="d.m.Y">{z.bestellung.bis}</f:format.date></f:if>
+                                </td>
+                            </tr>
+                        </f:for>
+                    </f:for>
+                </tbody>
+            </table>
+        </div>
+    </f:then>
+    <f:else><p class="text-body-secondary">Derzeit ist kein Leihgut bei Feuerwehren.</p></f:else>
+</f:if>
+</html>

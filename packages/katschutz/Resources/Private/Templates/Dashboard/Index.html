@@ -1,0 +1,63 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<f:layout name="Katschutz" />
+<f:section name="main">
+    <f:render partial="Verwaltung/Nav" arguments="{aktiv: 'Dashboard'}" />
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h1 class="h3 mb-0">KatS-Halle – Übersicht</h1>
+        <f:link.action controller="Bestellverwaltung" action="new" class="btn btn-primary"><i class="bi bi-lightning-charge" aria-hidden="true"></i> Schnellausgabe</f:link.action>
+    </div>
+
+    <f:variable name="uriAnfragen" value="{f:uri.action(controller: 'Bestellverwaltung', action: 'list', arguments: {filter: 'neu'})}" />
+    <f:variable name="uriOffen" value="{f:uri.action(controller: 'Bestellverwaltung', action: 'list')}" />
+    <f:variable name="uriPruefung" value="{f:uri.action(controller: 'Pruefung', action: 'list')}" />
+    <div class="row row-cols-2 row-cols-md-3 row-cols-xl-6 g-3 mb-4">
+        <f:render partial="Verwaltung/Kachel" arguments="{wert: '{f:count(subject: anfragen)}', label: 'offene Anfragen', icon: 'inbox', farbe: 'warning', ziel: uriAnfragen}" />
+        <f:render partial="Verwaltung/Kachel" arguments="{wert: '{f:count(subject: bereit)}', label: 'bereit zur Ausgabe', icon: 'box-arrow-right', farbe: 'info', ziel: uriOffen}" />
+        <f:render partial="Verwaltung/Kachel" arguments="{wert: anzahlFeuerwehrenMitMaterial, label: 'Feuerwehren mit Leihgut', icon: 'truck', farbe: 'primary', ziel: '#kats-verbleib'}" />
+        <f:render partial="Verwaltung/Kachel" arguments="{wert: '{f:count(subject: ueberfaellig)}', label: 'Rückgabe überfällig', icon: 'alarm', farbe: 'danger', ziel: '#kats-ueberfaellig'}" />
+        <f:render partial="Verwaltung/Kachel" arguments="{wert: '{f:count(subject: unterMindestbestand)}', label: 'unter Mindestbestand', icon: 'graph-down-arrow', farbe: 'danger', ziel: '#kats-bestand'}" />
+        <f:render partial="Verwaltung/Kachel" arguments="{wert: '{f:count(subject: pruefungFaellig)}', label: 'Prüfung fällig', icon: 'patch-exclamation', farbe: 'warning', ziel: uriPruefung}" />
+    </div>
+
+    <f:if condition="{anfragen -> f:count()}">
+        <h2 class="h5">Offene Anfragen</h2>
+        <div class="list-group mb-4">
+            <f:for each="{anfragen}" as="b">
+                <f:link.action controller="Bestellverwaltung" action="show" arguments="{bestellung: b}" class="list-group-item list-group-item-action d-flex flex-wrap justify-content-between gap-2">
+                    <span><strong>{b.nummer}</strong> · {b.feuerwehr.name} · {b.anlass}</span>
+                    <span><f:render partial="Status" arguments="{bestellung: b}" /> <small class="text-body-secondary"><f:format.date format="d.m. H:i">{b.crdate}</f:format.date></small></span>
+                </f:link.action>
+            </f:for>
+        </div>
+    </f:if>
+
+    <f:if condition="{ueberfaellig -> f:count()}">
+        <h2 class="h5" id="kats-ueberfaellig">Rückgabe überfällig</h2>
+        <div class="list-group mb-4">
+            <f:for each="{ueberfaellig}" as="b">
+                <f:link.action controller="Bestellverwaltung" action="show" arguments="{bestellung: b}" class="list-group-item list-group-item-action list-group-item-danger">
+                    <strong>{b.nummer}</strong> · {b.feuerwehr.name} · fällig seit <f:format.date format="d.m.Y">{b.bis}</f:format.date>
+                </f:link.action>
+            </f:for>
+        </div>
+    </f:if>
+
+    <h2 class="h5" id="kats-verbleib">Verbleib: Wo ist was?</h2>
+    <f:render partial="Verwaltung/Verbleib" arguments="{verbleib: verbleib}" />
+
+    <h2 class="h5 mt-4" id="kats-bestand">Bestand</h2>
+    <f:render partial="Verwaltung/Bestand" arguments="{gruppen: gruppen}" />
+
+    <f:if condition="{nichtEinsatzbereit -> f:count()}">
+        <h2 class="h5 mt-4">Nicht einsatzbereit</h2>
+        <ul class="list-group mb-4">
+            <f:for each="{nichtEinsatzbereit}" as="s">
+                <li class="list-group-item d-flex justify-content-between">
+                    <f:link.action controller="Artikel" action="show" arguments="{artikel: s.artikel}">{s.artikel.title} {s.inventarnummer}</f:link.action>
+                    <span class="badge text-bg-{f:if(condition: '{s.zustand} == defekt', then: 'danger', else: 'warning')}">{s.zustand}</span>
+                </li>
+            </f:for>
+        </ul>
+    </f:if>
+</f:section>
+</html>

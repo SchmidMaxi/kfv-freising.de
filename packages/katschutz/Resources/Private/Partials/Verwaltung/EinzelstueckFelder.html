@@ -1,0 +1,29 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<div class="row g-3">
+    <div class="col-md-4">
+        <label for="kats-inv" class="form-label">Inventarnummer <span class="text-danger">*</span></label>
+        <f:form.textfield id="kats-inv" property="inventarnummer" class="form-control" required="1" />
+    </div>
+    <div class="col-md-4">
+        <label for="kats-sn" class="form-label">Seriennummer</label>
+        <f:form.textfield id="kats-sn" property="seriennummer" class="form-control" />
+    </div>
+    <div class="col-md-4">
+        <label for="kats-lo" class="form-label">Lagerort (leer = wie Artikel)</label>
+        <f:form.select id="kats-lo" property="lagerort" options="{lagerorte}" optionValueField="uid" optionLabelField="title" prependOptionLabel="–" prependOptionValue="" class="form-select" />
+    </div>
+    <div class="col-md-4">
+        <label for="kats-zustand" class="form-label">Zustand</label>
+        <f:form.select id="kats-zustand" property="zustand" options="{ok: 'einsatzbereit', mangel: 'Mangel', defekt: 'defekt / gesperrt'}" class="form-select" />
+    </div>
+    <div class="col-md-4">
+        <label for="kats-np" class="form-label">Nächste Prüfung</label>
+        <f:form.textfield id="kats-np" type="date" name="{objektName}[naechstePruefung][date]" value="{f:if(condition: einzelstueck.naechstePruefung, then: '{einzelstueck.naechstePruefung -> f:format.date(format: \'Y-m-d\')}')}" class="form-control" />
+        <f:form.hidden name="{objektName}[naechstePruefung][dateFormat]" value="!Y-m-d" />
+    </div>
+    <div class="col-12">
+        <label for="kats-bem" class="form-label">Bemerkung</label>
+        <f:form.textarea id="kats-bem" property="bemerkung" class="form-control" rows="2" />
+    </div>
+</div>
+</html>

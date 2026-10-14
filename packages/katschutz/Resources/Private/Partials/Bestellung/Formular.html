@@ -1,0 +1,106 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<f:asset.script identifier="katschutz-bestellung" src="EXT:katschutz/Resources/Public/JavaScript/bestellung.js" defer="1" />
+<f:render partial="Fehler" arguments="{fehler: fehler}" />
+<f:form action="create" method="post" class="katschutz-bestellformular" additionalAttributes="{novalidate: 'novalidate'}">
+    <div class="card mb-4">
+        <div class="card-header fw-semibold">Anforderung</div>
+        <div class="card-body row g-3">
+            <div class="col-md-6">
+                <label for="kats-feuerwehr" class="form-label">Anfordernde Feuerwehr <span class="text-danger">*</span></label>
+                <f:form.select id="kats-feuerwehr" name="bestellung[feuerwehr]" value="{daten.feuerwehr}" class="form-select" required="1" additionalAttributes="{data-katschutz-feuerwehr: '1'}">
+                    <f:form.select.option value="">Bitte wählen …</f:form.select.option>
+                    <f:for each="{feuerwehrGruppen}" as="liste" key="gruppe">
+                        <f:form.select.optgroup label="{gruppe}">
+                            <f:for each="{liste}" as="name" key="uid">
+                                <f:form.select.option value="{uid}">{name}</f:form.select.option>
+                            </f:for>
+                        </f:form.select.optgroup>
+                    </f:for>
+                </f:form.select>
+            </div>
+            <div class="col-md-6">
+                <label for="kats-anlass" class="form-label">Anlass / Einsatznummer <span class="text-danger">*</span></label>
+                <f:form.textfield id="kats-anlass" name="bestellung[anlass]" value="{daten.anlass}" class="form-control" required="1" />
+            </div>
+            <div class="col-12" data-katschutz-abschnitt>
+                <label for="kats-abschnitt" class="form-label">Einsatzabschnitt / Begründung <span class="text-danger d-none" data-katschutz-pflicht>*</span></label>
+                <f:form.textfield id="kats-abschnitt" name="bestellung[einsatzabschnitt]" value="{daten.einsatzabschnitt}" class="form-control" />
+                <div class="form-text d-none" data-katschutz-hinweis>
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    Die Feuerwehr liegt außerhalb Ihres Bereichs – bitte Einsatzabschnitt bzw. Begründung angeben.
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label for="kats-von" class="form-label">Benötigt ab</label>
+                <f:form.textfield id="kats-von" type="date" name="bestellung[von]" value="{daten.von}" class="form-control" />
+            </div>
+            <div class="col-md-3">
+                <label for="kats-bis" class="form-label">Rückgabe bis</label>
+                <f:form.textfield id="kats-bis" type="date" name="bestellung[bis]" value="{daten.bis}" class="form-control" />
+            </div>
+            <div class="col-md-6">
+                <label for="kats-notiz" class="form-label">Notiz (Abholung/Lieferung, Ansprechpartner, Telefon)</label>
+                <f:form.textarea id="kats-notiz" name="bestellung[notiz]" value="{daten.notiz}" class="form-control" rows="2" />
+            </div>
+        </div>
+    </div>
+
+    <f:if condition="{module -> f:count()}">
+        <div class="card mb-4">
+            <div class="card-header fw-semibold">Module / Sets</div>
+            <ul class="list-group list-group-flush">
+                <f:for each="{module}" as="modul">
+                    <li class="list-group-item d-flex flex-wrap align-items-center gap-3">
+                        <div class="flex-grow-1">
+                            <strong>{modul.title}</strong>
+                            <div class="small text-body-secondary">
+                                <f:for each="{modul.positionen}" as="p" iteration="i">{p.menge} × {p.artikel.title}{f:if(condition: i.isLast, else: ', ')}</f:for>
+                            </div>
+                        </div>
+                        <label class="visually-hidden" for="kats-modul-{modul.uid}">Anzahl {modul.title}</label>
+                        <f:form.textfield id="kats-modul-{modul.uid}" type="number" name="bestellung[modul][{modul.uid}]" value="{daten.modul.{modul.uid}}" class="form-control kats-menge" additionalAttributes="{min: 0, max: 99, placeholder: '0'}" />
+                    </li>
+                </f:for>
+            </ul>
+        </div>
+    </f:if>
+
+    <f:for each="{gruppen}" as="zeilen" key="kategorie">
+        <div class="card mb-4">
+            <div class="card-header fw-semibold">{kategorie}</div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr><th>Artikel</th><th class="text-end">verfügbar</th><th class="text-end" style="width: 9rem">Menge</th></tr>
+                    </thead>
+                    <tbody>
+                        <f:for each="{zeilen}" as="zeile">
+                            <tr>
+                                <td>
+                                    <label for="kats-menge-{zeile.artikel.uid}" class="fw-semibold">{zeile.artikel.title}</label>
+                                    <f:if condition="{zeile.artikel.verbrauch}"><span class="badge text-bg-light border">Verbrauch</span></f:if>
+                                    <div class="small text-body-secondary">{zeile.artikel.beschreibung -> f:format.crop(maxCharacters: 120)}</div>
+                                </td>
+                                <td class="text-end text-nowrap">
+                                    <span class="{f:if(condition: zeile.verfuegbar, then: 'text-success', else: 'text-danger')}">{zeile.verfuegbar}</span> {zeile.artikel.einheit}
+                                </td>
+                                <td>
+                                    <f:form.textfield id="kats-menge-{zeile.artikel.uid}" type="number" name="bestellung[menge][{zeile.artikel.uid}]" value="{daten.menge.{zeile.artikel.uid}}" class="form-control form-control-sm kats-menge" additionalAttributes="{min: 0, placeholder: '0'}" />
+                                </td>
+                            </tr>
+                        </f:for>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </f:for>
+
+    <div class="d-flex gap-2 justify-content-end">
+        <f:if condition="{freigabeNoetig}">
+            <f:then><p class="text-body-secondary small me-auto mb-0 align-self-center">Die Bestellung wird nach dem Absenden von der KatS-Verwaltung freigegeben.</p></f:then>
+            <f:else><p class="text-body-secondary small me-auto mb-0 align-self-center">Die Bestellung ist nach dem Absenden sofort gültig.</p></f:else>
+        </f:if>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-send" aria-hidden="true"></i> Bestellung absenden</button>
+    </div>
+</f:form>
+</html>

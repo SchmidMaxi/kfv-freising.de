@@ -1,0 +1,71 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<div class="row g-3">
+    <div class="col-md-8">
+        <label for="kats-title" class="form-label">Bezeichnung <span class="text-danger">*</span></label>
+        <f:form.textfield id="kats-title" property="title" class="form-control" required="1" />
+    </div>
+    <div class="col-md-4">
+        <label for="kats-kategorie" class="form-label">Kategorie</label>
+        <f:form.select id="kats-kategorie" property="kategorie" options="{kategorien}" optionValueField="uid" optionLabelField="title" prependOptionLabel="–" prependOptionValue="" class="form-select" />
+    </div>
+    <div class="col-12">
+        <label for="kats-beschreibung" class="form-label">Beschreibung</label>
+        <f:form.textarea id="kats-beschreibung" property="beschreibung" class="form-control" rows="3" />
+    </div>
+    <div class="col-md-4">
+        <label for="kats-typ" class="form-label">Erfassung</label>
+        <f:if condition="{artikel.uid}">
+            <f:then>
+                <input id="kats-typ" class="form-control" value="{f:if(condition: artikel.einzeln, then: 'Einzelstücke (Inventarnummer)', else: 'Mengenartikel (nur Anzahl)')}" disabled>
+                <div class="form-text">Nach dem Anlegen nicht mehr änderbar.</div>
+            </f:then>
+            <f:else>
+                <f:form.select id="kats-typ" property="typ" options="{menge: 'Mengenartikel (nur Anzahl)', einzeln: 'Einzelstücke (Inventarnummer)'}" class="form-select" />
+            </f:else>
+        </f:if>
+    </div>
+    <div class="col-md-4">
+        <label for="kats-einheit" class="form-label">Einheit</label>
+        <f:form.textfield id="kats-einheit" property="einheit" class="form-control" />
+    </div>
+    <div class="col-md-4 d-flex align-items-end">
+        <div class="form-check form-switch">
+            <f:form.checkbox id="kats-verbrauch" property="verbrauch" value="1" class="form-check-input" />
+            <label class="form-check-label" for="kats-verbrauch">Verbrauchsmaterial (kommt nicht zurück)</label>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <label for="kats-lagerort" class="form-label">Lagerort</label>
+        <f:form.select id="kats-lagerort" property="lagerort" options="{lagerorte}" optionValueField="uid" optionLabelField="title" prependOptionLabel="–" prependOptionValue="" class="form-select" />
+    </div>
+    <div class="col-md-4">
+        <label for="kats-fach" class="form-label">Fach / Position</label>
+        <f:form.textfield id="kats-fach" property="lagerfach" class="form-control" />
+    </div>
+    <div class="col-md-2">
+        <label for="kats-min" class="form-label">Mindestbestand</label>
+        <f:form.textfield id="kats-min" type="number" property="mindestbestand" class="form-control" additionalAttributes="{min: 0}" />
+    </div>
+    <div class="col-md-2">
+        <label for="kats-pruef" class="form-label">Prüfintervall (Monate)</label>
+        <f:form.textfield id="kats-pruef" type="number" property="pruefintervall" class="form-control" additionalAttributes="{min: 0}" />
+    </div>
+    <div class="col-12">
+        <label for="kats-bilder" class="form-label">Bilder hinzufügen</label>
+        <f:form.upload id="kats-bilder" property="bilder" multiple="1" class="form-control" additionalAttributes="{accept: 'image/jpeg,image/png,image/webp'}" />
+        <f:if condition="{artikel.bilder -> f:count()}">
+            <div class="d-flex flex-wrap gap-3 mt-2">
+                <f:for each="{artikel.bilder}" as="bild">
+                    <div class="text-center">
+                        <f:image image="{bild}" width="96c" height="72c" class="rounded d-block mb-1" alt="" />
+                        <div class="form-check small">
+                            <f:form.uploadDeleteCheckbox id="kats-del-{bild.uid}" property="bilder" fileReference="{bild}" class="form-check-input" />
+                            <label class="form-check-label" for="kats-del-{bild.uid}">entfernen</label>
+                        </div>
+                    </div>
+                </f:for>
+            </div>
+        </f:if>
+    </div>
+</div>
+</html>

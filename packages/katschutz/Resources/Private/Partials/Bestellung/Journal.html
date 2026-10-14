@@ -1,0 +1,22 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<f:if condition="{buchungen -> f:count()}">
+    <h2 class="h5 mt-4">Ausgaben &amp; Rücknahmen</h2>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle">
+            <thead><tr><th>Zeit</th><th>Art</th><th>Artikel</th><th class="text-end">Menge</th><th>Feuerwehr</th><th>Bemerkung</th></tr></thead>
+            <tbody>
+                <f:for each="{buchungen}" as="b">
+                    <tr>
+                        <td class="text-nowrap"><f:format.date format="d.m.Y H:i">{b.crdate}</f:format.date></td>
+                        <td>{b.typ.label}</td>
+                        <td>{b.artikel.title}<f:if condition="{b.einzelstueck}"> <span class="badge text-bg-light border">{b.einzelstueck.inventarnummer}</span></f:if></td>
+                        <td class="text-end">{b.menge}</td>
+                        <td>{b.feuerwehr.name}<f:if condition="{b.zielFeuerwehr}"> → {b.zielFeuerwehr.name}</f:if></td>
+                        <td class="small">{b.bemerkung}</td>
+                    </tr>
+                </f:for>
+            </tbody>
+        </table>
+    </div>
+</f:if>
+</html>

@@ -1,0 +1,27 @@
+# Eigene CTypes (siehe Configuration/TCA/Overrides/tt_content.php)
+tt_content.katschutz_bestellung = USER
+tt_content.katschutz_bestellung {
+    userFunc = TYPO3\CMS\Extbase\Core\Bootstrap->run
+    extensionName = Katschutz
+    pluginName = Bestellung
+    vendorName = Schmid
+}
+
+tt_content.katschutz_verwaltung = USER
+tt_content.katschutz_verwaltung {
+    userFunc = TYPO3\CMS\Extbase\Core\Bootstrap->run
+    extensionName = Katschutz
+    pluginName = Verwaltung
+    vendorName = Schmid
+}
+
+plugin.tx_katschutz {
+    persistence {
+        storagePid = {$katschutz.storagePid}
+    }
+    view {
+        templateRootPaths.0 = EXT:katschutz/Resources/Private/Templates/
+        partialRootPaths.0 = EXT:katschutz/Resources/Private/Partials/
+        layoutRootPaths.0 = EXT:katschutz/Resources/Private/Layouts/
+    }
+}

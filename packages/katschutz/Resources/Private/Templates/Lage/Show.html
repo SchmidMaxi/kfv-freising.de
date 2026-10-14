@@ -1,0 +1,30 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<f:layout name="Katschutz" />
+<f:section name="main">
+    <f:render partial="Verwaltung/Nav" arguments="{aktiv: 'Lage'}" />
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <h1 class="h3 mb-0">{eintrag.title} <f:if condition="{eintrag.aktiv}"><span class="badge text-bg-danger">aktiv</span></f:if></h1>
+            <div class="text-body-secondary"><f:format.date format="d.m.Y H:i">{eintrag.beginn}</f:format.date><f:if condition="{eintrag.ende}"> – <f:format.date format="d.m.Y H:i">{eintrag.ende}</f:format.date></f:if></div>
+        </div>
+        <f:if condition="{eintrag.aktiv}">
+            <f:form action="end" arguments="{eintrag: eintrag}" method="post" additionalAttributes="{onsubmit: 'return confirm(\'Lage beenden? Freigaben gelten danach wieder wie konfiguriert.\')'}">
+                <button type="submit" class="btn btn-outline-danger">Lage beenden</button>
+            </f:form>
+        </f:if>
+    </div>
+    <h2 class="h5">Noch draußen</h2>
+    <f:render partial="Verwaltung/Verbleib" arguments="{verbleib: verbleib}" />
+    <h2 class="h5 mt-4">Bestellungen ({bestellungen -> f:count()})</h2>
+    <div class="list-group mb-4">
+        <f:for each="{bestellungen}" as="b">
+            <f:link.action controller="Bestellverwaltung" action="show" arguments="{bestellung: b}" class="list-group-item list-group-item-action d-flex justify-content-between">
+                <span><strong>{b.nummer}</strong> · {b.feuerwehr.name} · {b.anlass}</span>
+                <f:render partial="Status" arguments="{bestellung: b}" />
+            </f:link.action>
+        </f:for>
+    </div>
+    <h2 class="h5">Buchungen</h2>
+    <f:render partial="Verwaltung/Journal" arguments="{buchungen: buchungen}" />
+</f:section>
+</html>

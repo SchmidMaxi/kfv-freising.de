@@ -1,0 +1,14 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<f:layout name="Katschutz" />
+<f:section name="main">
+    <f:render partial="Verwaltung/Nav" arguments="{aktiv: 'Artikel'}" />
+    <h1 class="h3 mb-3">Einzelstück erfassen – {artikel.title}</h1>
+    <f:render partial="Fehler" />
+    <f:form action="create" object="{einzelstueck}" name="einzelstueck" arguments="{artikel: artikel}" method="post">
+        <f:render partial="Verwaltung/EinzelstueckFelder" arguments="{einzelstueck: einzelstueck, lagerorte: lagerorte, objektName: 'einzelstueck'}" />
+        <p class="form-text mt-2">Das Stück wird als Zugang in die Halle gebucht.</p>
+        <button type="submit" class="btn btn-primary">Erfassen</button>
+        <f:link.action controller="Artikel" action="show" arguments="{artikel: artikel}" class="btn btn-link">Abbrechen</f:link.action>
+    </f:form>
+</f:section>
+</html>

@@ -1,0 +1,50 @@
+categories:
+  Katschutz:
+    label: 'KatS-Inventar'
+  Katschutz.zugriff:
+    label: 'Zugriff'
+    parent: Katschutz
+  Katschutz.ablauf:
+    label: 'Ablauf'
+    parent: Katschutz
+  Katschutz.mail:
+    label: 'E-Mail'
+    parent: Katschutz
+
+settings:
+  katschutz.freigabeErforderlich:
+    label: 'Bestellungen müssen von einem Verwalter freigegeben werden'
+    description: 'Aus: Bestellungen sind sofort freigegeben. Während einer aktiven Großschadenslage entfällt die Freigabe immer.'
+    category: Katschutz.ablauf
+    type: bool
+    default: true
+  katschutz.pruefungVorlaufTage:
+    label: 'Prüfung fällig: Vorlauf in Tagen'
+    category: Katschutz.ablauf
+    type: int
+    default: 30
+  katschutz.storagePid:
+    label: 'Datensatz-Ordner (PID) – Fallback, wenn im Plugin keine Datensatzsammlung gewählt ist'
+    category: Katschutz.zugriff
+    type: int
+    default: 0
+  katschutz.gruppeInspektion:
+    label: 'FE-Gruppe Inspektion (darf bestellen) – Titel oder UID'
+    category: Katschutz.zugriff
+    type: string
+    default: 'Inspektion'
+  katschutz.gruppeVerwalter:
+    label: 'FE-Gruppe Verwalter (Dashboard, Stammdaten, Ausgabe) – Titel oder UID'
+    category: Katschutz.zugriff
+    type: string
+    default: 'KatS-Verwalter'
+  katschutz.mailAbsender:
+    label: 'Absender-Adresse für Benachrichtigungen (leer = System-Default)'
+    category: Katschutz.mail
+    type: string
+    default: ''
+  katschutz.mailVerwalter:
+    label: 'Empfänger neuer Bestellungen (kommagetrennt, leer = keine Mail)'
+    category: Katschutz.mail
+    type: string
+    default: ''

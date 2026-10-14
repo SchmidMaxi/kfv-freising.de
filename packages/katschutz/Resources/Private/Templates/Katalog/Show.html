@@ -1,0 +1,27 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<f:layout name="Katschutz" />
+<f:section name="main">
+    <f:render partial="Bestellung/Nav" arguments="{aktiv: 'katalog'}" />
+    <div class="row g-4">
+        <f:if condition="{zeile.artikel.bilder -> f:count()}">
+            <div class="col-md-5">
+                <f:for each="{zeile.artikel.bilder}" as="bild">
+                    <f:image image="{bild}" width="800" class="img-fluid rounded mb-2" alt="{zeile.artikel.title}" />
+                </f:for>
+            </div>
+        </f:if>
+        <div class="col">
+            <h1 class="h3">{zeile.artikel.title}</h1>
+            <p class="text-body-secondary">{zeile.artikel.kategorie.title}</p>
+            <f:if condition="{zeile.artikel.beschreibung}"><p>{zeile.artikel.beschreibung -> f:format.nl2br()}</p></f:if>
+            <dl class="row">
+                <dt class="col-sm-5">Verfügbar</dt><dd class="col-sm-7">{zeile.verfuegbar} {zeile.artikel.einheit}</dd>
+                <dt class="col-sm-5">Lagerort</dt><dd class="col-sm-7">{zeile.artikel.lagerort.title} {zeile.artikel.lagerfach}</dd>
+                <dt class="col-sm-5">Art</dt><dd class="col-sm-7">{f:if(condition: zeile.artikel.verbrauch, then: 'Verbrauchsmaterial', else: 'Leihgut (Rückgabe erforderlich)')}</dd>
+            </dl>
+            <f:link.action controller="Bestellung" action="new" class="btn btn-primary"><i class="bi bi-plus-circle" aria-hidden="true"></i> Bestellen</f:link.action>
+            <f:link.action action="list" class="btn btn-outline-secondary">Zurück zum Katalog</f:link.action>
+        </div>
+    </div>
+</f:section>
+</html>

@@ -1,0 +1,13 @@
+<html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
+<div class="col">
+    <a href="{ziel}" class="card h-100 kats-kachel border-{f:if(condition: wert, then: farbe, else: 'light')}">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+                <span class="display-6 text-{f:if(condition: wert, then: farbe, else: 'body-secondary')}">{wert}</span>
+                <i class="bi bi-{icon} fs-3 text-body-secondary" aria-hidden="true"></i>
+            </div>
+            <div class="text-body">{label}</div>
+        </div>
+    </a>
+</div>
+</html>

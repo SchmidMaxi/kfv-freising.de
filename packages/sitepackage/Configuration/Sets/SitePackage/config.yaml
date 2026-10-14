@@ -11,3 +11,4 @@ dependencies:
   - lochmueller/calendarize
   - schmid/feuerwehren
   - schmid/downloads
+  - schmid/katschutz

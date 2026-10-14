@@ -1,0 +1,6 @@
+<f:layout name="SystemEmail" />
+<f:section name="Title">KatS-Bestellung {bestellung.nummer}: {bestellung.status.label}</f:section>
+<f:section name="Main">
+    <p>Ihre Bestellung {bestellung.nummer} für <strong>{bestellung.feuerwehr.name}</strong> ({bestellung.anlass}) ist jetzt: <strong>{bestellung.status.label}</strong>.</p>
+    <f:if condition="{bestellung.verwalterNotiz}"><p>Hinweis der KatS-Verwaltung: {bestellung.verwalterNotiz}</p></f:if>
+</f:section>
