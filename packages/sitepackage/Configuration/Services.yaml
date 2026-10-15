@@ -31,3 +31,15 @@ services:
       - name: 'console.command'
         command: 'sitepackage:seed:phase-d'
         description: 'One-off, idempotent: Musterseiten Tabs/Slider, Service-Hub (39), Kontakt-Shortcut (63), Einsätze via News-Kategorie (32), Termine-Ergänzung (13)'
+
+  Schmid\Sitepackage\Command\OidcSetupGroupsCommand:
+    tags:
+      - name: 'console.command'
+        command: 'kfv:oidc:setup-groups'
+        description: 'Idempotent: legt die FE-Gruppen für IAM-Rollen (Kommandant, Kreisbrandmeister) mit tx_oidc_pattern an'
+
+  Schmid\Sitepackage\Command\OidcLinkUsersCommand:
+    tags:
+      - name: 'console.command'
+        command: 'kfv:oidc:link-users'
+        description: 'Verknüpft bestehende fe_users per E-Mail mit der KFV-ID (CSV email,kfv_id aus dem IAM), Default Dry-Run'
