@@ -1,0 +1,38 @@
+# Login-/Benutzerbereich im Header (KFV-Login via causal/oidc). Ungecacht, weil personenbezogen.
+# IAM-Adresse und Aktivierung kommen aus env.php (siehe config/system/additional.php).
+lib.kfvIamBaseUrl = TEXT
+lib.kfvIamBaseUrl {
+    data = getenv:OIDC_BASE_URL
+    ifEmpty = https://login.kfv-freising.de
+}
+
+lib.kfvLoginNav = COA_INT
+lib.kfvLoginNav {
+    10 = FLUIDTEMPLATE
+    10 {
+        file = EXT:sitepackage/Resources/Private/PageView/Partials/Uncached/LoginNav.html
+        variables {
+            username = TEXT
+            username.data = context:frontend.user:username
+            oidcEnabled = TEXT
+            oidcEnabled.data = getenv:OIDC_CLIENT_ID
+            oidcEnabled.bool = 1
+            iamBaseUrl < lib.kfvIamBaseUrl
+            # Erst zentral im KFV-Login abmelden, Rücksprung auf die Startseite mit logintype=logout beendet die TYPO3-Session
+            logoutUrl = COA
+            logoutUrl {
+                10 < lib.kfvIamBaseUrl
+                20 = TEXT
+                20.value = /oidc/end-session?post_logout_redirect_uri=
+                30 = COA
+                30 {
+                    10 = TEXT
+                    10.data = getIndpEnv:TYPO3_SITE_URL
+                    20 = TEXT
+                    20.value = ?logintype=logout
+                    stdWrap.rawUrlEncode = 1
+                }
+            }
+        }
+    }
+}

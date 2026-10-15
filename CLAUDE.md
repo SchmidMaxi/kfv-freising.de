@@ -64,6 +64,15 @@ GitHub Actions automatically deploy:
 
 Manuell: `dep deploy staging|production` (Deployer, `deploy.php`). Bei Fehlern: SSH-Key im Agent? Serverzugang `ssh -p 222 kfvvfr@www416.your-server.de` prüfen, GitHub-Actions-Logs ansehen.
 
+## KFV-Login (OIDC, causal/oidc)
+
+- Frontend-Login nur über den zentralen KFV-Login (IAM `login.kfv-freising.de`), Backend bleibt lokal (`enableBackendAuthentication=0`).
+- Konfiguration: `config/system/additional.php` liest `OIDC_*` aus `env.php` (pro Server, nicht in Git; Vorlage `config/system/oidc.example.php`). `settings.php` enthält keine Zugangsdaten.
+- PKCE an, Scopes `openid,profile,email` (causal/oidc trennt an Kommas!), Callback `/oidc/callback`, Verknüpfung über `fe_users.tx_oidc` = KFV-ID.
+- FE-Gruppen: IAM liefert `portal_roles` → `Schmid\Sitepackage\Authentication\MapIamClaimsListener` setzt `Roles` → `fe_groups.tx_oidc_pattern`. Gruppen anlegen: `vendor/bin/typo3 kfv:oidc:setup-groups`. Gruppen ohne Pattern (z. B. KatS-Verwalter) bleiben manuell.
+- Bestandskonten vor Go-Live verknüpfen (sonst neue fe_users → Person/Area-Zuordnung weg): CSV aus IAM (`php artisan iam:export-kfv-ids`) → `vendor/bin/typo3 kfv:oidc:link-users <csv>` (Dry-Run) → `--apply`.
+- Header: `lib.kfvLoginNav` (COA_INT, `PageView/Partials/Uncached/LoginNav.html`). Logout = IAM `end-session` → Rücksprung `/?logintype=logout`.
+
 ## Code Quality & Testing
 
 **TYPO3 Coding Guidelines:** Alle PHP-Änderungen in `packages/*/Classes/`, `Configuration/` etc. müssen den [offiziellen TYPO3 Coding Guidelines](https://docs.typo3.org/m/typo3/reference-coreapi/main/en-us/CodingGuidelines/Index.html) folgen (PSR-12/PER-CS-Basis, `declare(strict_types=1)`, PSR-4-Namespaces, moderne DI via Constructor-Promotion statt `inject*()`-Setter, keine `ObjectManager`-Nutzung).

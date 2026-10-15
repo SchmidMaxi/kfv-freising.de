@@ -1,0 +1,11 @@
+# KFV-Login (OIDC, causal/oidc): Abbildung der UserInfo-Claims des IAM auf fe_users.
+# Die Verknüpfung erfolgt über fe_users.tx_oidc = sub (KFV-ID), nicht über den Benutzernamen.
+# FE-Gruppen kommen aus "portal_roles" (siehe Schmid\Sitepackage\Authentication\MapIamClaimsListener).
+plugin.tx_oidc.mapping.fe_users >
+plugin.tx_oidc.mapping.fe_users {
+    username   = <email> // <sub>
+    email      = <email>
+    name       = <name>
+    first_name = <given_name>
+    last_name  = <family_name>
+}
